@@ -1,0 +1,171 @@
+@model InventorySystem.Models.Bom
+@{
+    ViewData["Title"] = "BOM Cost Report";
+    var totalCost = ViewBag.TotalCost as decimal? ?? 0;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-dollar-sign"></i> Cost Report - @Model.Name</h1>
+    <button onclick="window.print()" class="btn btn-outline-primary">
+        <i class="fas fa-print"></i> Print Report
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>BOM Summary</h5>
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-2">BOM Name:</dt>
+            <dd class="col-sm-4">@Model.Name</dd>
+            
+            <dt class="col-sm-2">Assembly P/N:</dt>
+            <dd class="col-sm-4">@Model.AssemblyPartNumber</dd>
+            
+            <dt class="col-sm-2">Version:</dt>
+            <dd class="col-sm-4">@Model.Version</dd>
+            
+            <dt class="col-sm-2">Description:</dt>
+            <dd class="col-sm-10">@Model.Description</dd>
+            
+            <dt class="col-sm-2">Total Components:</dt>
+            <dd class="col-sm-4">@Model.BomItems.Count</dd>
+            
+            <dt class="col-sm-2">Sub-Assemblies:</dt>
+            <dd class="col-sm-4">@Model.SubAssemblies.Count</dd>
+            
+            <dt class="col-sm-2">Report Date:</dt>
+            <dd class="col-sm-4">@DateTime.Now.ToString("MM/dd/yyyy")</dd>
+            
+            <dt class="col-sm-2"><strong>Total Cost:</strong></dt>
+            <dd class="col-sm-4"><strong class="text-success fs-4">$@totalCost.ToString("F2")</strong></dd>
+        </dl>
+    </div>
+</div>
+
+@if (Model.BomItems.Any())
+{
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>Component Cost Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Part Number</th>
+                            <th>Description</th>
+                            <th>Quantity</th>
+                            <th>Unit Cost</th>
+                            <th>Extended Cost</th>
+                            <th>Reference Designator</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            decimal componentTotal = 0;
+                        }
+                        @foreach (var bomItem in Model.BomItems)
+                        {
+                            componentTotal += bomItem.ExtendedCost;
+                            <tr>
+                                <td><strong>@bomItem.Item.PartNumber</strong></td>
+                                <td>@bomItem.Item.Description</td>
+                                <td>@bomItem.Quantity</td>
+                                <td>$@bomItem.UnitCost.ToString("F2")</td>
+                                <td>$@bomItem.ExtendedCost.ToString("F2")</td>
+                                <td>@bomItem.ReferenceDesignator</td>
+                                <td>@bomItem.Notes</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-dark">
+                        <tr>
+                            <th colspan="4">Component Subtotal:</th>
+                            <th>$@componentTotal.ToString("F2")</th>
+                            <th colspan="2"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@if (Model.SubAssemblies.Any())
+{
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>Sub-Assembly Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Sub-Assembly Name</th>
+                            <th>Assembly P/N</th>
+                            <th>Version</th>
+                            <th>Components</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var subAssembly in Model.SubAssemblies)
+                        {
+                            <tr>
+                                <td><strong>@subAssembly.Name</strong></td>
+                                <td>@subAssembly.AssemblyPartNumber</td>
+                                <td>@subAssembly.Version</td>
+                                <td>@subAssembly.BomItems.Count components</td>
+                                <td>
+                                    <a href="/Boms/CostReport/@subAssembly.Id" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-dollar-sign"></i> Sub-Assembly Cost Report
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle"></i>
+                <strong>Note:</strong> Sub-assembly costs are included in the total cost calculation above. 
+                Click on individual sub-assembly cost reports for detailed breakdowns.
+            </div>
+        </div>
+    </div>
+}
+
+<div class="card mt-4 d-print-none">
+    <div class="card-header">
+        <h5>Cost Summary Notes</h5>
+    </div>
+    <div class="card-body">
+        <ul>
+            <li><strong>Unit Costs:</strong> Based on average purchase pricing from vendor purchase history</li>
+            <li><strong>FIFO Valuation:</strong> Current inventory valued using First-In-First-Out methodology</li>
+            <li><strong>Extended Costs:</strong> Calculated as Quantity × Unit Cost for each component</li>
+            <li><strong>Total Cost:</strong> Includes all direct components plus recursive sub-assembly costs</li>
+            <li><strong>Currency:</strong> All costs displayed in USD</li>
+        </ul>
+    </div>
+</div>
+
+<div class="mt-4 d-print-none">
+    <a href="/Boms/Details/@Model.Id" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to BOM Details
+    </a>
+    <a href="/Boms" class="btn btn-outline-secondary">Back to BOMs</a>
+</div>
+
+<style media="print">
+    .d-print-none { display: none !important; }
+    .card { border: 1px solid #000; margin-bottom: 20px; }
+    .card-header { background-color: #f8f9fa !important; }
+    .table { font-size: 12px; }
+    .fs-4 { font-size: 1.5rem !important; }
+</style>

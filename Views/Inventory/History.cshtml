@@ -1,0 +1,287 @@
+@model IEnumerable<InventorySystem.Models.InventoryAdjustment>
+@{
+    ViewData["Title"] = "Inventory Adjustment History";
+    var item = ViewBag.Item as InventorySystem.Models.Item;
+    var totalCostImpact = Model.Sum(a => a.CostImpact);
+    var totalQuantityAdjusted = Model.Sum(a => a.QuantityAdjusted);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-history"></i> Inventory Adjustment History</h1>
+    <div class="btn-group">
+        @if (item != null)
+        {
+            <a href="/Items/Details/@item.Id" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Item
+            </a>
+            <a href="/Inventory/Adjust?itemId=@item.Id" class="btn btn-primary">
+                <i class="fas fa-plus"></i> New Adjustment
+            </a>
+        }
+        else
+        {
+            <a href="/Items" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Items
+            </a>
+        }
+    </div>
+</div>
+
+@if (item != null)
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-info-circle"></i> Item: @item.PartNumber</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-2">Description:</dt>
+                <dd class="col-sm-4">@item.Description</dd>
+                
+                <dt class="col-sm-2">Current Stock:</dt>
+                <dd class="col-sm-4"><span class="badge bg-info fs-6">@item.CurrentStock units</span></dd>
+                
+                <dt class="col-sm-2">Total Adjustments:</dt>
+                <dd class="col-sm-4">@Model.Count() records</dd>
+                
+                <dt class="col-sm-2">Net Adjustment:</dt>
+                <dd class="col-sm-4">
+                    @if (totalQuantityAdjusted > 0)
+                    {
+                        <span class="text-success">+@totalQuantityAdjusted units</span>
+                    }
+                    else if (totalQuantityAdjusted < 0)
+                    {
+                        <span class="text-danger">@totalQuantityAdjusted units</span>
+                    }
+                    else
+                    {
+                        <span class="text-muted">0 units</span>
+                    }
+                </dd>
+                
+                <dt class="col-sm-2">Cost Impact:</dt>
+                <dd class="col-sm-4">
+                    @if (totalCostImpact > 0)
+                    {
+                        <span class="text-success">+$@totalCostImpact.ToString("F2")</span>
+                    }
+                    else if (totalCostImpact < 0)
+                    {
+                        <span class="text-danger">-$@Math.Abs(totalCostImpact).ToString("F2")</span>
+                    }
+                    else
+                    {
+                        <span class="text-muted">$0.00</span>
+                    }
+                </dd>
+            </dl>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            @if (item == null)
+                            {
+                                <th>Item</th>
+                            }
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Stock Change</th>
+                            <th>Cost Impact</th>
+                            <th>Reason</th>
+                            <th>Adjusted By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var adjustment in Model)
+                        {
+                            <tr>
+                                <td>@adjustment.AdjustmentDate.ToString("MM/dd/yyyy")</td>
+                                @if (item == null)
+                                {
+                                    <td>
+                                        <a href="/Items/Details/@adjustment.Item.Id">@adjustment.Item.PartNumber</a>
+                                        <br><small class="text-muted">@adjustment.Item.Description</small>
+                                    </td>
+                                }
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        <i class="@adjustment.AdjustmentIcon"></i>
+                                        @adjustment.AdjustmentTypeDisplay
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (adjustment.QuantityAdjusted > 0)
+                                    {
+                                        <span class="text-success fw-bold">+@adjustment.QuantityAdjusted</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger fw-bold">@adjustment.QuantityAdjusted</span>
+                                    }
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        @adjustment.StockBefore → @adjustment.StockAfter
+                                    </small>
+                                </td>
+                                <td>
+                                    @if (adjustment.CostImpact > 0)
+                                    {
+                                        <span class="text-success">+$@adjustment.CostImpact.ToString("F2")</span>
+                                    }
+                                    else if (adjustment.CostImpact < 0)
+                                    {
+                                        <span class="text-danger">-$@Math.Abs(adjustment.CostImpact).ToString("F2")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">$0.00</span>
+                                    }
+                                </td>
+                                <td>
+                                    @adjustment.Reason
+                                    @if (!string.IsNullOrEmpty(adjustment.ReferenceNumber))
+                                    {
+                                        <br><small class="text-muted">Ref: @adjustment.ReferenceNumber</small>
+                                    }
+                                </td>
+                                <td>
+                                    @adjustment.AdjustedBy
+                                    <br><small class="text-muted">@adjustment.CreatedDate.ToString("MM/dd/yyyy HH:mm")</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/Inventory/AdjustmentDetails/@adjustment.Id" class="btn btn-outline-primary" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" title="Reverse Adjustment"
+                                                onclick="confirmReverse(@adjustment.Id, '@adjustment.AdjustmentTypeDisplay', @adjustment.QuantityAdjusted)">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Summary Statistics -->
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="text-primary">@Model.Count()</h5>
+                            <small class="text-muted">Total Adjustments</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="@(totalQuantityAdjusted >= 0 ? "text-success" : "text-danger")">
+                                @(totalQuantityAdjusted >= 0 ? "+" : "")@totalQuantityAdjusted
+                            </h5>
+                            <small class="text-muted">Net Quantity Change</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="@(totalCostImpact >= 0 ? "text-success" : "text-danger")">
+                                @(totalCostImpact >= 0 ? "+$" : "-$")@Math.Abs(totalCostImpact).ToString("F2")
+                            </h5>
+                            <small class="text-muted">Total Cost Impact</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="text-info">@Model.Where(a => a.IsDecrease).Count()</h5>
+                            <small class="text-muted">Decrease Adjustments</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Inventory Adjustments</h5>
+                <p class="text-muted">
+                    @if (item != null)
+                    {
+                        <text>No adjustments have been made to this item's inventory.</text>
+                    }
+                    else
+                    {
+                        <text>No inventory adjustments have been recorded in the system.</text>
+                    }
+                </p>
+                @if (item != null)
+                {
+                    <a href="/Inventory/Adjust?itemId=@item.Id" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create First Adjustment
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Reverse Confirmation Modal -->
+<div class="modal fade" id="reverseModal" tabindex="-1" aria-labelledby="reverseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reverseModalLabel">Reverse Adjustment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reverse this adjustment?</p>
+                <div id="adjustmentDetails"></div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Warning:</strong> This action will reverse the stock change and delete the adjustment record. This cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="reverseForm" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-undo"></i> Reverse Adjustment
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmReverse(adjustmentId, adjustmentType, quantity) {
+    document.getElementById('adjustmentDetails').innerHTML = `
+        <strong>Adjustment Type:</strong> ${adjustmentType}<br>
+        <strong>Quantity:</strong> ${quantity > 0 ? '+' : ''}${quantity}<br>
+        <strong>Action:</strong> This will ${quantity > 0 ? 'decrease' : 'increase'} stock by ${Math.abs(quantity)} units
+    `;
+    
+    document.getElementById('reverseForm').action = '/Inventory/DeleteAdjustment/' + adjustmentId;
+    
+    var reverseModal = new bootstrap.Modal(document.getElementById('reverseModal'));
+    reverseModal.show();
+}
+</script>

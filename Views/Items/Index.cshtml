@@ -1,0 +1,202 @@
+@model IEnumerable<InventorySystem.Models.Item>
+@{
+    ViewData["Title"] = "Items";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-cube"></i> Items</h1>
+    <a href="/Items/Create" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Item
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 80px;">Image</th>
+                        <th>Part Number</th>
+                        <th>Description</th>
+                        <th>Current Stock</th>
+                        <th>Min Stock</th>
+                        <th>Status</th>
+                        <th>Documents</th>
+                        <th style="width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <div class="item-thumbnail">
+                                    @if (item.HasImage)
+                                    {
+                                        <img src="/Items/GetImageThumbnail/@item.Id?size=60" 
+                                             alt="@item.PartNumber" 
+                                             class="img-thumbnail" 
+                                             style="width: 60px; height: 60px; object-fit: cover; cursor: pointer;"
+                                             onclick="showImageModal('@item.PartNumber', '/Items/GetImage/@item.Id')" />
+                                    }
+                                    else
+                                    {
+                                        <div class="no-image-placeholder d-flex align-items-center justify-content-center" 
+                                             style="width: 60px; height: 60px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </div>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <strong>@item.PartNumber</strong>
+                                @if (!string.IsNullOrEmpty(item.Comments))
+                                {
+                                    <br><small class="text-muted" title="@item.Comments">
+                                        @(item.Comments.Length > 50 ? item.Comments.Substring(0, 50) + "..." : item.Comments)
+                                    </small>
+                                }
+                            </td>
+                            <td>@item.Description</td>
+                            <td>
+                                <span class="fw-bold">@item.CurrentStock</span>
+                            </td>
+                            <td>@item.MinimumStock</td>
+                            <td>
+                                @if (item.CurrentStock <= item.MinimumStock)
+                                {
+                                    <span class="badge bg-danger">Low Stock</span>
+                                }
+                                else if (item.CurrentStock <= item.MinimumStock * 1.5)
+                                {
+                                    <span class="badge bg-warning">Warning</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">OK</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.DesignDocuments.Any())
+                                {
+                                    <span class="badge bg-info" title="@item.DesignDocuments.Count documents">
+                                        <i class="fas fa-file"></i> @item.DesignDocuments.Count
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">None</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/Items/Details/@item.Id" class="btn btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="/Items/Edit/@item.Id" class="btn btn-outline-secondary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="/Purchases/Create?itemId=@item.Id" class="btn btn-outline-success" title="Add Purchase">
+                                        <i class="fas fa-shopping-cart"></i>
+                                    </a>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Documents">
+                                            <i class="fas fa-file"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="/Documents/Upload?itemId=@item.Id">
+                                                <i class="fas fa-upload"></i> Upload Document
+                                            </a></li>
+                                            @if (item.DesignDocuments.Any())
+                                            {
+                                                <li><a class="dropdown-item" href="/Documents/List?itemId=@item.Id">
+                                                    <i class="fas fa-list"></i> View Documents (@item.DesignDocuments.Count)
+                                                </a></li>
+                                            }
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-cube fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Items Found</h5>
+                <p class="text-muted">Start building your inventory by adding your first component.</p>
+                <a href="/Items/Create" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add First Item
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Item Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="#" alt="Item Image" class="img-fluid" style="max-height: 70vh;" />
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showImageModal(partNumber, imageUrl) {
+    document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
+    document.getElementById('modalImage').src = imageUrl;
+    var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    imageModal.show();
+}
+
+// Add hover effects for thumbnails
+document.addEventListener('DOMContentLoaded', function() {
+    const thumbnails = document.querySelectorAll('.item-thumbnail img');
+    thumbnails.forEach(function(img) {
+        img.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.1)';
+            this.style.transition = 'transform 0.2s';
+        });
+        
+        img.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    });
+});
+</script>
+
+<style>
+.item-thumbnail {
+    text-align: center;
+}
+
+.item-thumbnail img {
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.no-image-placeholder {
+    color: #6c757d;
+}
+
+.dropdown-menu {
+    font-size: 0.875rem;
+}
+
+.dropdown-item i {
+    width: 16px;
+    margin-right: 8px;
+}
+</style>

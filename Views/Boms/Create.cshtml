@@ -1,0 +1,91 @@
+@model InventorySystem.Models.Bom
+@{
+    ViewData["Title"] = "Create BOM";
+}
+
+<h1><i class="fas fa-plus"></i> Create BOM</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create">
+                    @Html.HiddenFor(model => model.ParentBomId)
+                    
+                    @if (Model.ParentBomId.HasValue)
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Creating Sub-Assembly:</strong> This BOM will be created as a sub-assembly of another BOM.
+                        </div>
+                    }
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Name" class="form-label"></label>
+                                <input asp-for="Name" class="form-control" placeholder="e.g., Optical Assembly v1.2" />
+                                <span asp-validation-for="Name" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="AssemblyPartNumber" class="form-label"></label>
+                                <input asp-for="AssemblyPartNumber" class="form-control" placeholder="Internal assembly part number" />
+                                <span asp-validation-for="AssemblyPartNumber" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Version" class="form-label"></label>
+                                <input asp-for="Version" class="form-control" />
+                                <span asp-validation-for="Version" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Description of the assembly purpose and specifications"></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="alert alert-light">
+                        <i class="fas fa-lightbulb"></i>
+                        <strong>Next Steps:</strong> After creating the BOM, you'll be able to add components and create sub-assemblies.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create BOM
+                        </button>
+                        <a href="/Boms" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> BOM Guidelines</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> Use descriptive names</li>
+                    <li><i class="fas fa-check text-success"></i> Include version numbers</li>
+                    <li><i class="fas fa-check text-success"></i> Add assembly part numbers</li>
+                    <li><i class="fas fa-check text-success"></i> Document specifications</li>
+                </ul>
+                <hr>
+                <small class="text-muted">
+                    BOMs support up to 3 levels of hierarchy for complex assemblies.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>

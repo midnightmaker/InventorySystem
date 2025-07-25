@@ -1,0 +1,280 @@
+@model InventorySystem.ViewModels.InventoryAdjustmentViewModel
+@{
+    ViewData["Title"] = "Inventory Adjustment";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-balance-scale"></i> Inventory Adjustment</h1>
+    <a href="/Items/Details/@Model.ItemId" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Item
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <form asp-action="Adjust">
+            @Html.HiddenFor(model => model.ItemId)
+            @Html.HiddenFor(model => model.ItemPartNumber)
+            @Html.HiddenFor(model => model.ItemDescription)
+            @Html.HiddenFor(model => model.CurrentStock)
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Item Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Part Number:</dt>
+                        <dd class="col-sm-9"><strong>@Model.ItemPartNumber</strong></dd>
+                        
+                        <dt class="col-sm-3">Description:</dt>
+                        <dd class="col-sm-9">@Model.ItemDescription</dd>
+                        
+                        <dt class="col-sm-3">Current Stock:</dt>
+                        <dd class="col-sm-9"><span class="badge bg-info fs-6">@Model.CurrentStock units</span></dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-edit"></i> Adjustment Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="AdjustmentType" class="form-label"></label>
+                                <select asp-for="AdjustmentType" class="form-select" id="adjustmentType">
+                                    <option value="">Select adjustment type...</option>
+                                    <option value="Damage">Damaged Items</option>
+                                    <option value="Loss">Lost/Missing Items</option>
+                                    <option value="Found">Found Items</option>
+                                    <option value="Correction">Count Correction</option>
+                                    <option value="Theft">Theft</option>
+                                    <option value="Obsolete">Obsolete/Disposed</option>
+                                    <option value="Return">Customer Return</option>
+                                    <option value="Scrap">Scrapped Items</option>
+                                </select>
+                                <span asp-validation-for="AdjustmentType" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="AdjustmentDate" class="form-label"></label>
+                                <input asp-for="AdjustmentDate" class="form-control" type="date" />
+                                <span asp-validation-for="AdjustmentDate" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="QuantityAdjusted" class="form-label"></label>
+                                <input asp-for="QuantityAdjusted" class="form-control" type="number" id="quantityAdjusted" />
+                                <span asp-validation-for="QuantityAdjusted" class="text-danger"></span>
+                                <div class="form-text">
+                                    Negative for decreases (damage, loss), positive for increases (found, returns)
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">New Stock Level</label>
+                                <input type="text" class="form-control" id="newStock" readonly />
+                                <div class="form-text">
+                                    Calculated automatically
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Stock Change</label>
+                                <div class="form-control" id="stockChange" style="background-color: #f8f9fa;">
+                                    <span id="changeIcon"></span>
+                                    <span id="changeText"></span>
+                                </div>
+                                <div class="form-text">
+                                    Visual indicator
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Reason" class="form-label"></label>
+                        <textarea asp-for="Reason" class="form-control" rows="3" placeholder="Provide detailed reason for the adjustment (required)"></textarea>
+                        <span asp-validation-for="Reason" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ReferenceNumber" class="form-label"></label>
+                                <input asp-for="ReferenceNumber" class="form-control" placeholder="Work order, incident report, etc." />
+                                <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="AdjustedBy" class="form-label"></label>
+                                <input asp-for="AdjustedBy" class="form-control" placeholder="Person making the adjustment" />
+                                <span asp-validation-for="AdjustedBy" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning mt-3" id="warningAlert" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Warning:</strong> <span id="warningText"></span>
+            </div>
+            
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary" id="submitButton">
+                    <i class="fas fa-save"></i> Record Adjustment
+                </button>
+                <a href="/Items/Details/@Model.ItemId" class="btn btn-secondary">Cancel</a>
+                <a href="/Inventory/History?itemId=@Model.ItemId" class="btn btn-outline-info">
+                    <i class="fas fa-history"></i> View History
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Adjustment Guidelines</h6>
+            </div>
+            <div class="card-body">
+                <h6>Common Adjustments:</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-exclamation-triangle text-warning"></i> <strong>Damage:</strong> Items broken during handling</li>
+                    <li><i class="fas fa-minus-circle text-danger"></i> <strong>Loss:</strong> Items missing or misplaced</li>
+                    <li><i class="fas fa-plus-circle text-success"></i> <strong>Found:</strong> Items discovered during audit</li>
+                    <li><i class="fas fa-edit text-info"></i> <strong>Correction:</strong> Physical count corrections</li>
+                    <li><i class="fas fa-user-minus text-danger"></i> <strong>Theft:</strong> Stolen items</li>
+                    <li><i class="fas fa-trash text-secondary"></i> <strong>Obsolete:</strong> Disposed or scrapped</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Best Practices:</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-check text-success"></i> Always provide detailed reasons</li>
+                    <li><i class="fas fa-check text-success"></i> Include reference numbers when available</li>
+                    <li><i class="fas fa-check text-success"></i> Use correct adjustment types</li>
+                    <li><i class="fas fa-check text-success"></i> Double-check quantities</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-calculator"></i> Cost Impact</h6>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">
+                    <strong>Decreases:</strong> Cost calculated using FIFO (First-In-First-Out) methodology.
+                    <br><br>
+                    <strong>Increases:</strong> Cost calculated using average cost from purchase history.
+                    <br><br>
+                    Cost impact will be automatically calculated and recorded with the adjustment.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currentStock = @Model.CurrentStock;
+    const quantityAdjustedInput = document.getElementById('quantityAdjusted');
+    const newStockInput = document.getElementById('newStock');
+    const stockChangeDiv = document.getElementById('stockChange');
+    const changeIcon = document.getElementById('changeIcon');
+    const changeText = document.getElementById('changeText');
+    const warningAlert = document.getElementById('warningAlert');
+    const warningText = document.getElementById('warningText');
+    const submitButton = document.getElementById('submitButton');
+    
+    function updateCalculations() {
+        const adjustment = parseInt(quantityAdjustedInput.value) || 0;
+        const newStock = currentStock + adjustment;
+        
+        // Update new stock display
+        newStockInput.value = newStock + ' units';
+        
+        // Update stock change indicator
+        if (adjustment === 0) {
+            changeIcon.className = '';
+            changeText.textContent = 'No change';
+            stockChangeDiv.style.color = '#6c757d';
+        } else if (adjustment > 0) {
+            changeIcon.className = 'fas fa-arrow-up text-success';
+            changeText.textContent = `Increase by ${adjustment}`;
+            stockChangeDiv.style.color = '#198754';
+        } else {
+            changeIcon.className = 'fas fa-arrow-down text-danger';
+            changeText.textContent = `Decrease by ${Math.abs(adjustment)}`;
+            stockChangeDiv.style.color = '#dc3545';
+        }
+        
+        // Show warnings
+        if (newStock < 0) {
+            warningAlert.style.display = 'block';
+            warningText.textContent = 'This adjustment would result in negative stock!';
+            submitButton.disabled = true;
+        } else if (newStock === 0 && adjustment < 0) {
+            warningAlert.style.display = 'block';
+            warningText.textContent = 'This adjustment will reduce stock to zero.';
+            submitButton.disabled = false;
+        } else if (Math.abs(adjustment) > currentStock * 0.5 && adjustment < 0) {
+            warningAlert.style.display = 'block';
+            warningText.textContent = 'Large decrease detected. Please verify the quantity is correct.';
+            submitButton.disabled = false;
+        } else {
+            warningAlert.style.display = 'none';
+            submitButton.disabled = false;
+        }
+    }
+    
+    // Update calculations when quantity changes
+    quantityAdjustedInput.addEventListener('input', updateCalculations);
+    
+    // Initialize calculations
+    updateCalculations();
+    
+    // Auto-suggest quantities based on adjustment type
+    const adjustmentTypeSelect = document.getElementById('adjustmentType');
+    adjustmentTypeSelect.addEventListener('change', function() {
+        const reasonTextarea = document.querySelector('textarea[name="Reason"]');
+        
+        switch(this.value) {
+            case 'Damage':
+                reasonTextarea.placeholder = 'Describe what caused the damage and how many items were affected...';
+                break;
+            case 'Loss':
+                reasonTextarea.placeholder = 'Describe when the items were last seen and circumstances of the loss...';
+                break;
+            case 'Found':
+                reasonTextarea.placeholder = 'Describe where the items were found and why they were missing...';
+                break;
+            case 'Correction':
+                reasonTextarea.placeholder = 'Describe the discrepancy found during physical count...';
+                break;
+            case 'Theft':
+                reasonTextarea.placeholder = 'Provide incident details and any reference numbers...';
+                break;
+            case 'Obsolete':
+                reasonTextarea.placeholder = 'Describe why items are being disposed of or scrapped...';
+                break;
+            default:
+                reasonTextarea.placeholder = 'Provide detailed reason for the adjustment (required)';
+        }
+    });
+});
+</script>

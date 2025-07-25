@@ -1,0 +1,75 @@
+@model IEnumerable<InventorySystem.Models.Item>
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5><i class="fas fa-exclamation-triangle"></i> Low Stock Items</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Part Number</th>
+                                    <th>Description</th>
+                                    <th>Current Stock</th>
+                                    <th>Min Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model)
+                                {
+                                    <tr>
+                                        <td><a href="/Items/Details/@item.Id">@item.PartNumber</a></td>
+                                        <td>@item.Description</td>
+                                        <td><span class="badge bg-danger">@item.CurrentStock</span></td>
+                                        <td>@item.MinimumStock</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">All items are at or above minimum stock levels.</p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/Items/Create" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add New Item
+                    </a>
+                    <a href="/Purchases/Create" class="btn btn-success">
+                        <i class="fas fa-shopping-cart"></i> Record Purchase
+                    </a>
+                    <a href="/Boms/Create" class="btn btn-info">
+                        <i class="fas fa-list"></i> Create New BOM
+                    </a>
+                    <a href="/Items" class="btn btn-outline-secondary">
+                        <i class="fas fa-search"></i> Browse All Items
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,96 @@
+@model InventorySystem.Models.BomItem
+@{
+    ViewData["Title"] = "Add Item to BOM";
+}
+
+<h1><i class="fas fa-plus"></i> Add Item to BOM</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="AddItem">
+                    @Html.HiddenFor(model => model.BomId)
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ItemId" class="form-label">Item</label>
+                                <select asp-for="ItemId" class="form-select" asp-items="ViewBag.ItemId">
+                                    <option value="">Select Component...</option>
+                                </select>
+                                <span asp-validation-for="ItemId" class="text-danger"></span>
+                                <div class="form-text">Choose from your inventory of optical, mechanical, and electronic components.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Quantity" class="form-label"></label>
+                                <input asp-for="Quantity" class="form-control" type="number" min="1" placeholder="1" />
+                                <span asp-validation-for="Quantity" class="text-danger"></span>
+                                <div class="form-text">Number of units required for this assembly.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="ReferenceDesignator" class="form-label"></label>
+                        <input asp-for="ReferenceDesignator" class="form-control" placeholder="e.g., R1, L1, M1, etc." />
+                        <span asp-validation-for="ReferenceDesignator" class="text-danger"></span>
+                        <div class="form-text">Reference designator for assembly drawings and documentation.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label"></label>
+                        <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Assembly notes, special instructions, or specifications"></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                        <div class="form-text">Optional notes for assembly instructions or special handling.</div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Cost Calculation:</strong> Unit cost will be automatically calculated based on the average purchase price of the selected item.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Add Item to BOM
+                        </button>
+                        <a href="/Boms/Details/@ViewBag.BomId" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-check text-success"></i> Use clear reference designators</li>
+                    <li><i class="fas fa-check text-success"></i> Specify exact quantities needed</li>
+                    <li><i class="fas fa-check text-success"></i> Add assembly notes if needed</li>
+                    <li><i class="fas fa-check text-success"></i> Costs update automatically</li>
+                </ul>
+                <hr>
+                <small class="text-muted">
+                    Items can be optical components, mechanical parts, or electronic devices.
+                </small>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-calculator"></i> Costing</h6>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">
+                    Unit costs are calculated from average purchase pricing. Extended costs are automatically computed as Quantity × Unit Cost.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
