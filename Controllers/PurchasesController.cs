@@ -62,7 +62,7 @@ namespace InventorySystem.Controllers
         var items = await _inventoryService.GetAllItemsAsync();
         ViewBag.ItemId = new SelectList(items, "Id", "PartNumber", itemId);
 
-        var viewModel = new CreatePurchaseViewModel
+        var viewModel = new InventorySystem.ViewModels.CreatePurchaseViewModel
         {
           PurchaseDate = DateTime.Today
         };
@@ -84,7 +84,7 @@ namespace InventorySystem.Controllers
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreatePurchaseViewModel viewModel)
+    public async Task<IActionResult> Create(InventorySystem.ViewModels.CreatePurchaseViewModel viewModel)
     {
       Console.WriteLine("=== CREATE POST WITH VIEWMODEL ===");
       Console.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
