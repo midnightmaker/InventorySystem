@@ -1,0 +1,327 @@
+﻿@model InventorySystem.Models.Purchase
+@{
+  ViewData["Title"] = "Purchase Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-receipt"></i> Purchase Details</h1>
+  <div class="btn-group">
+    <a href="/Purchases/Edit/@Model.Id" class="btn btn-outline-primary">
+      <i class="fas fa-edit"></i> Edit
+    </a>
+    <a href="/Purchases/UploadDocument?purchaseId=@Model.Id" class="btn btn-success">
+      <i class="fas fa-upload"></i> Upload Document
+    </a>
+    <div class="btn-group" role="group">
+      <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fas fa-ellipsis-h"></i> More
+      </button>
+      <ul class="dropdown-menu">
+        <li>
+          <a class="dropdown-item" href="/Purchases/Delete/@Model.Id">
+            <i class="fas fa-trash text-danger"></i> Delete Purchase
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="/Inventory/Adjust?itemId=@Model.ItemId">
+            <i class="fas fa-balance-scale"></i> Adjust Inventory
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> Purchase Information</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-3">Item:</dt>
+          <dd class="col-sm-9">
+            <a href="/Items/Details/@Model.Item.Id" class="fw-bold">@Model.Item.PartNumber</a>
+            <br><small class="text-muted">@Model.Item.Description</small>
+          </dd>
+
+          <dt class="col-sm-3">Vendor:</dt>
+          <dd class="col-sm-9">@Model.Vendor</dd>
+
+          <dt class="col-sm-3">Purchase Date:</dt>
+          <dd class="col-sm-9">@Model.PurchaseDate.ToString("MM/dd/yyyy")</dd>
+
+          <dt class="col-sm-3">PO Number:</dt>
+          <dd class="col-sm-9">@(string.IsNullOrEmpty(Model.PurchaseOrderNumber) ? "N/A" : Model.PurchaseOrderNumber)</dd>
+
+          <dt class="col-sm-3">Quantity:</dt>
+          <dd class="col-sm-9">
+            <span class="fs-5 fw-bold">@Model.QuantityPurchased</span> units
+          </dd>
+
+          <dt class="col-sm-3">Cost per Unit:</dt>
+          <dd class="col-sm-9">$@Model.CostPerUnit.ToString("F2")</dd>
+
+          <dt class="col-sm-3">Subtotal:</dt>
+          <dd class="col-sm-9">$@Model.TotalCost.ToString("F2")</dd>
+
+          @if (Model.ShippingCost > 0)
+          {
+            <dt class="col-sm-3">Shipping:</dt>
+            <dd class="col-sm-9">$@Model.ShippingCost.ToString("F2")</dd>
+          }
+
+          @if (Model.TaxAmount > 0)
+          {
+            <dt class="col-sm-3">Tax:</dt>
+            <dd class="col-sm-9">$@Model.TaxAmount.ToString("F2")</dd>
+          }
+
+          <dt class="col-sm-3">Total Paid:</dt>
+          <dd class="col-sm-9">
+            <span class="fs-4 fw-bold text-success">$@Model.TotalPaid.ToString("F2")</span>
+          </dd>
+
+          <dt class="col-sm-3">Remaining Qty:</dt>
+          <dd class="col-sm-9">
+            @if (Model.RemainingQuantity > 0)
+            {
+              <span class="badge bg-success fs-6">@Model.RemainingQuantity units</span>
+            }
+            else
+            {
+              <span class="badge bg-secondary fs-6">Fully consumed</span>
+            }
+          </dd>
+
+          @if (!string.IsNullOrEmpty(Model.Notes))
+          {
+            <dt class="col-sm-3">Notes:</dt>
+            <dd class="col-sm-9">@Model.Notes</dd>
+          }
+
+          <dt class="col-sm-3">Created:</dt>
+          <dd class="col-sm-9">@Model.CreatedDate.ToString("MM/dd/yyyy HH:mm")</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Purchase Documents Section -->
+    @if (Model.PurchaseDocuments != null && Model.PurchaseDocuments.Any())
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-file"></i> Purchase Documents (@Model.PurchaseDocuments.Count)</h5>
+          <a href="/Purchases/UploadDocument?purchaseId=@Model.Id" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-plus"></i> Add Document
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>File</th>
+                  <th>Size</th>
+                  <th>Uploaded</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var doc in Model.PurchaseDocuments.OrderByDescending(d => d.UploadedDate))
+                {
+                  <tr>
+                    <td>
+                      <strong>@doc.DocumentName</strong>
+                      @if (!string.IsNullOrEmpty(doc.Description))
+                      {
+                        <br>
+
+                        <small class="text-muted">@doc.Description</small>
+                      }
+                    </td>
+                    <td>
+                      <span class="badge bg-secondary">@doc.DocumentType</span>
+                    </td>
+                    <td>
+                      @doc.FileName
+                      <i class="@doc.FileTypeIcon" title="@doc.ContentType"></i>
+                    </td>
+                    <td>@doc.FileSizeFormatted</td>
+                    <td>@doc.UploadedDate.ToString("MM/dd/yyyy")</td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        @if (doc.IsPdf || doc.IsImage)
+                        {
+                          <a href="/Purchases/ViewDocument/@doc.Id" class="btn btn-outline-primary" title="View" target="_blank">
+                            <i class="fas fa-eye"></i>
+                          </a>
+                        }
+                        <a href="/Purchases/DownloadDocument/@doc.Id" class="btn btn-outline-success" title="Download">
+                          <i class="fas fa-download"></i>
+                        </a>
+                        <a href="/Purchases/DeleteDocument/@doc.Id" class="btn btn-outline-danger" title="Delete">
+                          <i class="fas fa-trash"></i>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+    else
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-file"></i> Purchase Documents</h5>
+          <a href="/Purchases/UploadDocument?purchaseId=@Model.Id" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-plus"></i> Add Document
+          </a>
+        </div>
+        <div class="card-body text-center">
+          <i class="fas fa-file fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No Purchase Documents</h5>
+          <p class="text-muted">Upload invoices, receipts, packing slips, and other purchase-related documents.</p>
+          <a href="/Purchases/UploadDocument?purchaseId=@Model.Id" class="btn btn-outline-success">
+            <i class="fas fa-upload"></i> Upload First Document
+          </a>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-chart-pie"></i> Usage Status</h6>
+      </div>
+      <div class="card-body">
+        @{
+          var usedQuantity = Model.QuantityPurchased - Model.RemainingQuantity;
+          var usedPercentage = Model.QuantityPurchased > 0 ? (usedQuantity * 100.0 / Model.QuantityPurchased) : 0;
+        }
+
+        <div class="progress mb-3" style="height: 25px;">
+          <div class="progress-bar bg-info" role="progressbar" style="width: @usedPercentage%">
+            @usedPercentage.ToString("F1")% Used
+          </div>
+        </div>
+
+        <dl class="row small">
+          <dt class="col-6">Purchased:</dt>
+          <dd class="col-6">@Model.QuantityPurchased</dd>
+
+          <dt class="col-6">Used:</dt>
+          <dd class="col-6">@usedQuantity</dd>
+
+          <dt class="col-6">Remaining:</dt>
+          <dd class="col-6"><strong>@Model.RemainingQuantity</strong></dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-calculator"></i> Cost Analysis</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row small">
+          <dt class="col-7">Unit Cost:</dt>
+          <dd class="col-5">$@Model.CostPerUnit.ToString("F2")</dd>
+
+          <dt class="col-7">Items Total:</dt>
+          <dd class="col-5">$@Model.TotalCost.ToString("F2")</dd>
+
+          @if (Model.ShippingCost > 0)
+          {
+            <dt class="col-7">Shipping:</dt>
+            <dd class="col-5">$@Model.ShippingCost.ToString("F2")</dd>
+          }
+
+          @if (Model.TaxAmount > 0)
+          {
+            <dt class="col-7">Tax:</dt>
+            <dd class="col-5">$@Model.TaxAmount.ToString("F2")</dd>
+          }
+
+          <dt class="col-7"><strong>Total Paid:</strong></dt>
+          <dd class="col-5"><strong>$@Model.TotalPaid.ToString("F2")</strong></dd>
+
+          @if (usedQuantity > 0)
+          {
+            var costPerUsedUnit = Model.TotalPaid / usedQuantity;
+            <dt class="col-7">Cost per Used:</dt>
+            <dd class="col-5">$@costPerUsedUnit.ToString("F2")</dd>
+          }
+        </dl>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-link"></i> Quick Actions</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="/Items/Details/@Model.ItemId" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-cube"></i> View Item Details
+          </a>
+          <a href="/Purchases/UploadDocument?purchaseId=@Model.Id" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-upload"></i> Upload Document
+          </a>
+          <a href="/Inventory/Adjust?itemId=@Model.ItemId" class="btn btn-sm btn-outline-warning">
+            <i class="fas fa-balance-scale"></i> Adjust Inventory
+          </a>
+          <a href="/Purchases/Edit/@Model.Id" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-edit"></i> Edit Purchase
+          </a>
+        </div>
+      </div>
+    </div>
+
+    @if (Model.HasDocuments)
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h6><i class="fas fa-file-alt"></i> Document Summary</h6>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-6">
+              <div class="border-end">
+                <h5 class="text-primary">@Model.DocumentCount</h5>
+                <small class="text-muted">Documents</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <h5 class="text-info">
+                @{
+                  var docTypes = Model.PurchaseDocuments.Select(d => d.DocumentType).Distinct().Count();
+                }
+                @docTypes
+              </h5>
+              <small class="text-muted">Types</small>
+            </div>
+          </div>
+          <hr>
+          <small class="text-muted">
+            Document types: @string.Join(", ", Model.PurchaseDocuments.Select(d => d.DocumentType).Distinct())
+          </small>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<div class="mt-3">
+  <a href="/Purchases" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Purchases
+  </a>
+</div>

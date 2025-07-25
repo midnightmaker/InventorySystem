@@ -1,0 +1,225 @@
+﻿@model InventorySystem.Models.Purchase
+@{
+  ViewData["Title"] = "Edit Purchase";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-edit"></i> Edit Purchase</h1>
+  <a href="/Purchases/Details/@Model.Id" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Details
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <form asp-action="Edit">
+      @Html.HiddenFor(model => model.Id)
+      @Html.HiddenFor(model => model.RemainingQuantity)
+      @Html.HiddenFor(model => model.CreatedDate)
+
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> Purchase Details</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="ItemId" class="form-label">Item</label>
+                <select asp-for="ItemId" class="form-select" asp-items="ViewBag.ItemId">
+                  <option value="">Select Item...</option>
+                </select>
+                <span asp-validation-for="ItemId" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="PurchaseDate" class="form-label"></label>
+                <input asp-for="PurchaseDate" class="form-control" type="date" />
+                <span asp-validation-for="PurchaseDate" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="Vendor" class="form-label"></label>
+                <input asp-for="Vendor" class="form-control" />
+                <span asp-validation-for="Vendor" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="PurchaseOrderNumber" class="form-label"></label>
+                <input asp-for="PurchaseOrderNumber" class="form-control" />
+                <span asp-validation-for="PurchaseOrderNumber" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Important:</strong> Changing quantity will affect FIFO calculations and inventory levels.
+            Current remaining quantity: <strong>@Model.RemainingQuantity</strong>
+          </div>
+
+          <div class="row">
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label asp-for="QuantityPurchased" class="form-label"></label>
+                <input asp-for="QuantityPurchased" class="form-control" type="number" min="1" id="quantity" />
+                <span asp-validation-for="QuantityPurchased" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label asp-for="CostPerUnit" class="form-label"></label>
+                <input asp-for="CostPerUnit" class="form-control" type="number" step="0.01" min="0" id="costPerUnit" />
+                <span asp-validation-for="CostPerUnit" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label asp-for="ShippingCost" class="form-label"></label>
+                <input asp-for="ShippingCost" class="form-control" type="number" step="0.01" min="0" id="shippingCost" />
+                <span asp-validation-for="ShippingCost" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label asp-for="TaxAmount" class="form-label"></label>
+                <input asp-for="TaxAmount" class="form-control" type="number" step="0.01" min="0" id="taxAmount" />
+                <span asp-validation-for="TaxAmount" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Total Cost</label>
+                <input type="text" class="form-control" id="totalCost" readonly />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Total Paid</label>
+                <input type="text" class="form-control fw-bold" id="totalPaid" readonly style="background-color: #e9ecef;" />
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Notes" class="form-label"></label>
+            <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="Notes" class="text-danger"></span>
+          </div>
+
+          <div class="mb-3">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Update Purchase
+            </button>
+            <a href="/Purchases/Details/@Model.Id" class="btn btn-secondary">Cancel</a>
+            <a href="/Purchases/Delete/@Model.Id" class="btn btn-outline-danger">
+              <i class="fas fa-trash"></i> Delete Purchase
+            </a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-info-circle"></i> Purchase Info</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row small">
+          <dt class="col-sm-5">Created:</dt>
+          <dd class="col-sm-7">@Model.CreatedDate.ToString("MM/dd/yyyy HH:mm")</dd>
+
+          <dt class="col-sm-5">Original Qty:</dt>
+          <dd class="col-sm-7">@Model.QuantityPurchased</dd>
+
+          <dt class="col-sm-5">Remaining:</dt>
+          <dd class="col-sm-7">
+            @if (Model.RemainingQuantity > 0)
+            {
+              <span class="badge bg-success">@Model.RemainingQuantity</span>
+            }
+            else
+            {
+              <span class="badge bg-secondary">0 (Consumed)</span>
+            }
+          </dd>
+
+          <dt class="col-sm-5">Status:</dt>
+          <dd class="col-sm-7">
+            @if (Model.RemainingQuantity == Model.QuantityPurchased)
+            {
+              <span class="badge bg-info">Unused</span>
+            }
+            else if (Model.RemainingQuantity > 0)
+            {
+              <span class="badge bg-warning">Partially Used</span>
+            }
+            else
+            {
+              <span class="badge bg-secondary">Fully Consumed</span>
+            }
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-exclamation-triangle"></i> Edit Warning</h6>
+      </div>
+      <div class="card-body">
+        <small class="text-muted">
+          <ul class="mb-0">
+            <li>Changing quantity affects inventory levels</li>
+            <li>FIFO calculations may be recalculated</li>
+            <li>Cost changes affect item valuation</li>
+            <li>Consider creating adjustments instead</li>
+          </ul>
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      const quantityInput = document.getElementById('quantity');
+      const costInput = document.getElementById('costPerUnit');
+      const shippingInput = document.getElementById('shippingCost');
+      const taxInput = document.getElementById('taxAmount');
+      const totalCostInput = document.getElementById('totalCost');
+      const totalPaidInput = document.getElementById('totalPaid');
+
+      function updateCosts() {
+          const quantity = parseFloat(quantityInput.value) || 0;
+          const cost = parseFloat(costInput.value) || 0;
+          const shipping = parseFloat(shippingInput.value) || 0;
+          const tax = parseFloat(taxInput.value) || 0;
+
+          const totalCost = quantity * cost;
+          const totalPaid = totalCost + shipping + tax;
+
+          totalCostInput.value = '$' + totalCost.toFixed(2);
+          totalPaidInput.value = '$' + totalPaid.toFixed(2);
+      }
+
+      quantityInput.addEventListener('input', updateCosts);
+      costInput.addEventListener('input', updateCosts);
+      shippingInput.addEventListener('input', updateCosts);
+      taxInput.addEventListener('input', updateCosts);
+
+      // Initialize calculations
+      updateCosts();
+  });
+</script>

@@ -1,0 +1,286 @@
+﻿@model InventorySystem.ViewModels.PurchaseDocumentUploadViewModel
+@{
+  ViewData["Title"] = "Upload Purchase Document";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-upload"></i> Upload Purchase Document</h1>
+  <a href="/Purchases/Details/@Model.PurchaseId" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Purchase
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <form asp-action="UploadDocument" enctype="multipart/form-data">
+      @Html.HiddenFor(model => model.PurchaseId)
+      @Html.HiddenFor(model => model.PurchaseDetails)
+      @Html.HiddenFor(model => model.ItemPartNumber)
+
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> Purchase Information</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-3">Purchase:</dt>
+            <dd class="col-sm-9"><strong>@Model.PurchaseDetails</strong></dd>
+
+            <dt class="col-sm-3">Item:</dt>
+            <dd class="col-sm-9">@Model.ItemPartNumber</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-file"></i> Document Details</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="DocumentName" class="form-label"></label>
+                <input asp-for="DocumentName" class="form-control" placeholder="e.g., Invoice #12345" />
+                <span asp-validation-for="DocumentName" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="DocumentType" class="form-label"></label>
+                <select asp-for="DocumentType" class="form-select" id="documentType">
+                  <option value="">Select document type...</option>
+                  @foreach (var docType in Model.AvailableDocumentTypes)
+                  {
+                    <option value="@docType">@docType</option>
+                  }
+                </select>
+                <span asp-validation-for="DocumentType" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label"></label>
+            <textarea asp-for="Description" class="form-control" rows="3" placeholder="Optional description of the document content and purpose"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="DocumentFile" class="form-label"></label>
+            <input asp-for="DocumentFile" class="form-control" type="file" id="documentFile" />
+            <span asp-validation-for="DocumentFile" class="text-danger"></span>
+            <div class="form-text">
+              Supported formats: @Model.AllowedFileTypesDisplay (Max size: @Model.MaxFileSizeDisplay)
+            </div>
+          </div>
+
+          <!-- File info display -->
+          <div id="fileInfo" style="display: none;" class="mt-3">
+            <div class="alert alert-info">
+              <h6><i class="fas fa-file"></i> Selected File Information</h6>
+              <div id="fileDetails"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <button type="submit" class="btn btn-primary" id="uploadButton">
+          <i class="fas fa-upload"></i> Upload Document
+        </button>
+        <a href="/Purchases/Details/@Model.PurchaseId" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-info-circle"></i> Purchase Document Types</h6>
+      </div>
+      <div class="card-body">
+        <div class="row small">
+          <div class="col-12">
+            <ul class="list-unstyled">
+              <li><strong>Invoice:</strong> Vendor billing documents</li>
+              <li><strong>Purchase Order:</strong> PO copies</li>
+              <li><strong>Receipt:</strong> Payment receipts</li>
+              <li><strong>Packing Slip:</strong> Shipment contents</li>
+              <li><strong>Delivery Note:</strong> Delivery confirmations</li>
+              <li><strong>Quote:</strong> Price quotations</li>
+              <li><strong>Proforma Invoice:</strong> Pre-payment invoices</li>
+              <li><strong>Bill of Lading:</strong> Shipping documents</li>
+              <li><strong>Certificate of Origin:</strong> Country of origin</li>
+              <li><strong>Quality Certificate:</strong> Quality assurance docs</li>
+              <li><strong>Warranty Document:</strong> Warranty terms</li>
+              <li><strong>Vendor Specification:</strong> Technical specs</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-file-alt"></i> Supported Formats</h6>
+      </div>
+      <div class="card-body">
+        <div class="small">
+          <div class="mb-2">
+            <strong>Documents:</strong>
+            <br>PDF, Word, Excel, PowerPoint, Text files
+          </div>
+          <div class="mb-2">
+            <strong>Images:</strong>
+            <br>JPG, PNG, GIF, BMP, TIFF
+          </div>
+          <div>
+            <strong>Maximum Size:</strong> 25 MB
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-lightbulb"></i> Upload Tips</h6>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled small">
+          <li><i class="fas fa-check text-success"></i> Use descriptive names</li>
+          <li><i class="fas fa-check text-success"></i> Select correct document type</li>
+          <li><i class="fas fa-check text-success"></i> Include invoice numbers in names</li>
+          <li><i class="fas fa-check text-success"></i> PDF format preferred for invoices</li>
+          <li><i class="fas fa-check text-success"></i> Add descriptions for clarity</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-shield-alt"></i> File Security</h6>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled small">
+          <li><i class="fas fa-lock text-success"></i> Files stored securely</li>
+          <li><i class="fas fa-lock text-success"></i> Access control enforced</li>
+          <li><i class="fas fa-lock text-success"></i> Audit trail maintained</li>
+          <li><i class="fas fa-lock text-success"></i> Backup and recovery</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const documentFileInput = document.getElementById('documentFile');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileDetails = document.getElementById('fileDetails');
+    const uploadButton = document.getElementById('uploadButton');
+    const documentTypeSelect = document.getElementById('documentType');
+    const documentNameInput = document.querySelector('input[name="DocumentName"]');
+
+    // Handle file selection
+    documentFileInput.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        // Display file information
+        const fileSize = formatFileSize(file.size);
+        const fileType = getFileTypeDescription(file.type, file.name);
+
+        fileDetails.innerHTML = `
+                  <div class="row">
+                      <div class="col-sm-4"><strong>Name:</strong></div>
+                      <div class="col-sm-8">${file.name}</div>
+                  </div>
+                  <div class="row">
+                      <div class="col-sm-4"><strong>Type:</strong></div>
+                      <div class="col-sm-8">${fileType}</div>
+                  </div>
+                  <div class="row">
+                      <div class="col-sm-4"><strong>Size:</strong></div>
+                      <div class="col-sm-8">${fileSize}</div>
+                  </div>
+              `;
+
+        fileInfo.style.display = 'block';
+
+        // Auto-suggest document name from filename
+        if (!documentNameInput.value) {
+          const baseName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+          documentNameInput.value = baseName;
+        }
+
+        // Auto-suggest document type based on filename
+        autoSuggestDocumentType(file.name);
+
+        // Validate file size
+        if (file.size > 25 * 1024 * 1024) { // 25MB
+          fileDetails.innerHTML += `
+                      <div class="row">
+                          <div class="col-12">
+                              <div class="alert alert-danger mt-2 mb-0">
+                                  <i class="fas fa-exclamation-triangle"></i> File size exceeds 25MB limit!
+                              </div>
+                          </div>
+                      </div>
+                  `;
+          uploadButton.disabled = true;
+        } else {
+          uploadButton.disabled = false;
+        }
+      } else {
+        fileInfo.style.display = 'none';
+        uploadButton.disabled = false;
+      }
+    });
+
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function getFileTypeDescription(mimeType, fileName) {
+      const extension = fileName.split('.').pop().toLowerCase();
+
+      if (mimeType.startsWith('image/')) return 'Image File';
+      if (mimeType === 'application/pdf') return 'PDF Document';
+      if (mimeType.includes('word')) return 'Word Document';
+      if (mimeType.includes('excel')) return 'Excel Spreadsheet';
+      if (mimeType.includes('powerpoint')) return 'PowerPoint Presentation';
+      if (mimeType === 'text/plain') return 'Text File';
+
+      return mimeType || 'Unknown File Type';
+    }
+
+    function autoSuggestDocumentType(fileName) {
+      const lowerName = fileName.toLowerCase();
+      const currentValue = documentTypeSelect.value;
+
+      if (currentValue) return; // Don't override user selection
+
+      if (lowerName.includes('invoice')) {
+        documentTypeSelect.value = 'Invoice';
+      } else if (lowerName.includes('receipt')) {
+        documentTypeSelect.value = 'Receipt';
+      } else if (lowerName.includes('po') || lowerName.includes('purchase order')) {
+        documentTypeSelect.value = 'Purchase Order';
+      } else if (lowerName.includes('packing') || lowerName.includes('slip')) {
+        documentTypeSelect.value = 'Packing Slip';
+      } else if (lowerName.includes('delivery')) {
+        documentTypeSelect.value = 'Delivery Note';
+      } else if (lowerName.includes('quote') || lowerName.includes('quotation')) {
+        documentTypeSelect.value = 'Quote';
+      } else if (lowerName.includes('warranty')) {
+        documentTypeSelect.value = 'Warranty Document';
+      } else if (lowerName.includes('certificate')) {
+        documentTypeSelect.value = 'Quality Certificate';
+      }
+    }
+  });
+</script>

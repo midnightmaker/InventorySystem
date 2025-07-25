@@ -1,294 +1,489 @@
 @model InventorySystem.Models.Item
 @{
-    ViewData["Title"] = "Item Details";
-    var averageCost = ViewBag.AverageCost as decimal? ?? 0;
-    var fifoValue = ViewBag.FifoValue as decimal? ?? 0;
-    var purchases = ViewBag.Purchases as IEnumerable<InventorySystem.Models.Purchase> ?? new List<InventorySystem.Models.Purchase>();
+	ViewData["Title"] = "Item Details";
+
+	var averageCost = ViewBag.AverageCost as decimal? ?? 0;
+
+	var fifoValue = ViewBag.FifoValue as decimal? ?? 0;
+
+	var purchases = ViewBag.Purchases as IEnumerable<InventorySystem.Models.Purchase> ?? new List<InventorySystem.Models.Purchase>();
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-cube"></i> @Model.PartNumber</h1>
-    <div class="btn-group">
-        <a href="/Items/Edit/@Model.Id" class="btn btn-outline-primary">
-            <i class="fas fa-edit"></i> Edit
-        </a>
-        <a href="/Purchases/Create?itemId=@Model.Id" class="btn btn-success">
-            <i class="fas fa-shopping-cart"></i> Add Purchase
-        </a>
-        <a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-info">
-            <i class="fas fa-upload"></i> Upload Document
-        </a>
-    </div>
+	<h1><i class="fas fa-cube"></i> @Model.PartNumber</h1>
+	<div class="btn-group">
+		<a href="/Items/Edit/@Model.Id" class="btn btn-outline-primary">
+			<i class="fas fa-edit"></i> Edit
+		</a>
+		<a href="/Purchases/Create?itemId=@Model.Id" class="btn btn-success">
+			<i class="fas fa-shopping-cart"></i> Add Purchase
+		</a>
+		<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-info">
+			<i class="fas fa-upload"></i> Upload Document
+		</a>
+	</div>
 </div>
 
 <div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5>Item Information</h5>
-            </div>
-            <div class="card-body">
-                <dl class="row">
-                    <dt class="col-sm-3">Description:</dt>
-                    <dd class="col-sm-9">@Model.Description</dd>
-                    
-                    <dt class="col-sm-3">Current Stock:</dt>
-                    <dd class="col-sm-9">
-                        <span class="badge bg-@(Model.CurrentStock <= Model.MinimumStock ? "danger" : "success") fs-6">
-                            @Model.CurrentStock units
-                        </span>
-                    </dd>
-                    
-                    <dt class="col-sm-3">Minimum Stock:</dt>
-                    <dd class="col-sm-9">@Model.MinimumStock units</dd>
-                    
-                    <dt class="col-sm-3">Average Cost:</dt>
-                    <dd class="col-sm-9">$@averageCost.ToString("F2")</dd>
-                    
-                    <dt class="col-sm-3">FIFO Value:</dt>
-                    <dd class="col-sm-9">$@fifoValue.ToString("F2")</dd>
-                    
-                    @if (!string.IsNullOrEmpty(Model.Comments))
-                    {
-                        <dt class="col-sm-3">Comments:</dt>
-                        <dd class="col-sm-9">@Model.Comments</dd>
-                    }
-                    
-                    <dt class="col-sm-3">Created:</dt>
-                    <dd class="col-sm-9">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
-                </dl>
-            </div>
-        </div>
-        
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5>Purchase History</h5>
-            </div>
-            <div class="card-body">
-                @if (purchases.Any())
-                {
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Vendor</th>
-                                    <th>Quantity</th>
-                                    <th>Cost/Unit</th>
-                                    <th>Total Cost</th>
-                                    <th>Remaining</th>
-                                    <th>PO#</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var purchase in purchases)
-                                {
-                                    <tr>
-                                        <td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
-                                        <td>@purchase.Vendor</td>
-                                        <td>@purchase.QuantityPurchased</td>
-                                        <td>$@purchase.CostPerUnit.ToString("F2")</td>
-                                        <td>$@purchase.TotalCost.ToString("F2")</td>
-                                        <td>@purchase.RemainingQuantity</td>
-                                        <td>@purchase.PurchaseOrderNumber</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted">No purchase history available.</p>
-                }
-            </div>
-        </div>
-        
-        @if (Model.DesignDocuments.Any())
-        {
-            <div class="card mt-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5><i class="fas fa-file"></i> Design Documents (@Model.DesignDocuments.Count)</h5>
-                    <a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
-                        <i class="fas fa-plus"></i> Add Document
-                    </a>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>File</th>
-                                    <th>Size</th>
-                                    <th>Uploaded</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var doc in Model.DesignDocuments.OrderByDescending(d => d.UploadedDate))
-                                {
-                                    <tr>
-                                        <td>
-                                            <strong>@doc.DocumentName</strong>
-                                            @if (!string.IsNullOrEmpty(doc.Description))
-                                            {
-                                                <br><small class="text-muted">@doc.Description</small>
-                                            }
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary">@doc.DocumentType</span>
-                                        </td>
-                                        <td>
-                                            @doc.FileName
-                                            @if (doc.IsImage)
-                                            {
-                                                <i class="fas fa-image text-info" title="Image file"></i>
-                                            }
-                                            else if (doc.IsPdf)
-                                            {
-                                                <i class="fas fa-file-pdf text-danger" title="PDF file"></i>
-                                            }
-                                            else if (doc.IsOfficeDocument)
-                                            {
-                                                <i class="fas fa-file-word text-primary" title="Office document"></i>
-                                            }
-                                        </td>
-                                        <td>@doc.FileSizeFormatted</td>
-                                        <td>@doc.UploadedDate.ToString("MM/dd/yyyy")</td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                @if (doc.IsPdf || doc.IsImage)
-                                                {
-                                                    <a href="/Documents/View/@doc.Id" class="btn btn-outline-primary" title="View" target="_blank">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
-                                                }
-                                                <a href="/Documents/Download/@doc.Id" class="btn btn-outline-success" title="Download">
-                                                    <i class="fas fa-download"></i>
-                                                </a>
-                                                <a href="/Documents/Delete/@doc.Id" class="btn btn-outline-danger" title="Delete">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="card mt-4">
-                <div class="card-body text-center">
-                    <i class="fas fa-file fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No Design Documents</h5>
-                    <p class="text-muted">Upload drawings, specifications, datasheets, and other design documents.</p>
-                    <a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-success">
-                        <i class="fas fa-upload"></i> Upload First Document
-                    </a>
-                </div>
-            </div>
-        }
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6><i class="fas fa-image"></i> Item Image</h6>
-                @if (Model.HasImage)
-                {
-                    <form asp-controller="Items" asp-action="RemoveImage" method="post" style="display: inline;">
-                        <input type="hidden" name="id" value="@Model.Id" />
-                        <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                onclick="return confirm('Remove item image?')" title="Remove Image">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </form>
-                }
-            </div>
-            <div class="card-body text-center">
-                @if (Model.HasImage)
-                {
-                    <img src="/Items/GetImage/@Model.Id" 
-                         alt="@Model.PartNumber" 
-                         class="img-fluid border rounded" 
-                         style="max-width: 100%; max-height: 300px; cursor: pointer;"
-                         onclick="showImageModal('@Model.PartNumber', '/Items/GetImage/@Model.Id')" />
-                    <div class="mt-2">
-                        <small class="text-muted">@Model.ImageFileName</small>
-                    </div>
-                }
-                else
-                {
-                    <div class="no-image-placeholder d-flex align-items-center justify-content-center" 
-                         style="height: 200px; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
-                        <div class="text-center">
-                            <i class="fas fa-image fa-3x text-muted mb-2"></i>
-                            <p class="text-muted">No image uploaded</p>
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6><i class="fas fa-chart-bar"></i> Quick Stats</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6">
-                        <div class="border-end">
-                            <h5 class="text-primary">@purchases.Count()</h5>
-                            <small class="text-muted">Purchases</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <h5 class="text-info">@Model.DesignDocuments.Count</h5>
-                        <small class="text-muted">Documents</small>
-                    </div>
-                </div>
-                <hr>
-                <div class="row text-center">
-                    <div class="col-12">
-                        <h6 class="text-success">$@fifoValue.ToString("F2")</h6>
-                        <small class="text-muted">Current Inventory Value</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+	<div class="col-md-8">
+		<div class="card">
+			<div class="card-header">
+				<h5>Item Information</h5>
+			</div>
+			<div class="card-body">
+				<dl class="row">
+					<dt class="col-sm-3">Description:</dt>
+					<dd class="col-sm-9">@Model.Description</dd>
+
+					<dt class="col-sm-3">Current Stock:</dt>
+					<dd class="col-sm-9">
+						<span class="badge bg-@(Model.CurrentStock <= Model.MinimumStock ? "danger" : "success") fs-6">
+							@Model.CurrentStock units
+						</span>
+					</dd>
+
+					<dt class="col-sm-3">Minimum Stock:</dt>
+					<dd class="col-sm-9">@Model.MinimumStock units</dd>
+
+					<dt class="col-sm-3">Average Cost:</dt>
+					<dd class="col-sm-9">$@averageCost.ToString("F2")</dd>
+
+					<dt class="col-sm-3">FIFO Value:</dt>
+					<dd class="col-sm-9">$@fifoValue.ToString("F2")</dd>
+
+					@if (!string.IsNullOrEmpty(Model.Comments))
+
+					{
+						<dt class="col-sm-3">Comments:</dt>
+						<dd class="col-sm-9">@Model.Comments</dd>
+					}
+
+					<dt class="col-sm-3">Created:</dt>
+					<dd class="col-sm-9">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
+				</dl>
+			</div>
+		</div>
+
+		<div class="card mt-4">
+			<div class="card-header">
+				<h5>Purchase History</h5>
+			</div>
+			<div class="card-body">
+				@if (purchases.Any())
+
+				{
+					<div class="table-responsive">
+						<table class="table table-sm">
+							<thead>
+								<tr>
+									<th>Date</th>
+									<th>Vendor</th>
+									<th>Quantity</th>
+									<th>Cost/Unit</th>
+									<th>Total Cost</th>
+									<th>Remaining</th>
+									<th>PO#</th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach (var purchase in purchases)
+
+								{
+									<tr>
+										<td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
+										<td>@purchase.Vendor</td>
+										<td>@purchase.QuantityPurchased</td>
+										<td>$@purchase.CostPerUnit.ToString("F2")</td>
+										<td>$@purchase.TotalCost.ToString("F2")</td>
+										<td>@purchase.RemainingQuantity</td>
+										<td>@purchase.PurchaseOrderNumber</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+
+				else
+
+				{
+					<p class="text-muted">No purchase history available.</p>
+				}
+			</div>
+		</div>
+
+		<!-- Add this debug section to your Items/Details.cshtml right after the Purchase History card -->
+
+		<div class="card mt-4">
+			<div class="card-header bg-info text-white">
+				<h5><i class="fas fa-bug"></i> DEBUG: Documents Information</h5>
+			</div>
+			<div class="card-body">
+				<dl class="row">
+					<dt class="col-sm-3">Model Type:</dt>
+					<dd class="col-sm-9">@Model.GetType().Name</dd>
+
+					<dt class="col-sm-3">Item ID:</dt>
+					<dd class="col-sm-9">@Model.Id</dd>
+
+					<dt class="col-sm-3">DesignDocuments is null?</dt>
+					<dd class="col-sm-9">@(Model.DesignDocuments == null ? "YES - NULL!" : "No")</dd>
+
+					<dt class="col-sm-3">DesignDocuments Count:</dt>
+					<dd class="col-sm-9">
+						@try
+
+						{
+							@Model.DesignDocuments.Count
+						}
+
+
+
+						catch (Exception ex)
+
+						{
+							<span class="text-danger">ERROR: @ex.Message</span>
+						}
+					</dd>
+
+					<dt class="col-sm-3">Raw Documents:</dt>
+					<dd class="col-sm-9">
+						@if (Model.DesignDocuments != null)
+						{
+							@foreach (var doc in Model.DesignDocuments)
+							{
+								<div>ID: @doc.Id, Name: @doc.DocumentName</div>
+							}
+						}
+						else
+						{
+							<span class="text-warning">DesignDocuments collection is NULL</span>
+						}
+					</dd>
+				</dl>
+			</div>
+		</div>
+
+		<!-- ORIGINAL DOCUMENTS SECTION - Modified for better error handling -->
+		@if (Model.DesignDocuments != null && Model.DesignDocuments.Any())
+
+
+
+		{
+			<div class="card mt-4">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h5><i class="fas fa-file"></i> Design Documents (@Model.DesignDocuments.Count)</h5>
+					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
+						<i class="fas fa-plus"></i> Add Document
+					</a>
+				</div>
+				<div class="card-body">
+					<div class="table-responsive">
+						<table class="table table-sm">
+							<thead>
+								<tr>
+									<th>Name</th>
+									<th>Type</th>
+									<th>File</th>
+									<th>Size</th>
+									<th>Uploaded</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach (var doc in Model.DesignDocuments.OrderByDescending(d => d.UploadedDate))
+
+
+
+								{
+									<tr>
+										<td>
+											<strong>@doc.DocumentName</strong>
+											@if (!string.IsNullOrEmpty(doc.Description))
+
+
+
+											{
+												<br>
+
+												<small class="text-muted">@doc.Description</small>
+											}
+										</td>
+										<td>
+											<span class="badge bg-secondary">@doc.DocumentType</span>
+										</td>
+										<td>
+											@doc.FileName
+											<i class="@doc.FileTypeIcon" title="@doc.FileTypeDescription"></i>
+										</td>
+										<td>@doc.FileSizeFormatted</td>
+										<td>@doc.UploadedDate.ToString("MM/dd/yyyy")</td>
+										<td>
+											<div class="btn-group btn-group-sm">
+												@if (doc.IsPdf || doc.IsImage)
+
+
+
+												{
+													<a href="/Documents/View/@doc.Id" class="btn btn-outline-primary" title="View" target="_blank">
+														<i class="fas fa-eye"></i>
+													</a>
+												}
+												<a href="/Documents/Download/@doc.Id" class="btn btn-outline-success" title="Download">
+													<i class="fas fa-download"></i>
+												</a>
+												<a href="/Documents/Delete/@doc.Id" class="btn btn-outline-danger" title="Delete">
+													<i class="fas fa-trash"></i>
+												</a>
+											</div>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		}
+		else
+		{
+			<div class="card mt-4">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h5><i class="fas fa-file"></i> Design Documents</h5>
+					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
+						<i class="fas fa-plus"></i> Add Document
+					</a>
+				</div>
+				<div class="card-body text-center">
+					<i class="fas fa-file fa-3x text-muted mb-3"></i>
+					<h5 class="text-muted">No Design Documents</h5>
+					<p class="text-muted">
+						@if (Model.DesignDocuments == null)
+
+
+
+						{
+							<span class="text-danger">Error: Documents collection not loaded from database.</span>
+						}
+
+
+
+						else
+
+
+
+						{
+							<span>Upload drawings, specifications, datasheets, and other design documents.</span>
+						}
+					</p>
+					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-success">
+						<i class="fas fa-upload"></i> Upload First Document
+					</a>
+				</div>
+			</div>
+		}
+		@if (Model.DesignDocuments.Any())
+
+		{
+			<div class="card mt-4">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h5><i class="fas fa-file"></i> Design Documents (@Model.DesignDocuments.Count)</h5>
+					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
+						<i class="fas fa-plus"></i> Add Document
+					</a>
+				</div>
+				<div class="card-body">
+					<div class="table-responsive">
+						<table class="table table-sm">
+							<thead>
+								<tr>
+									<th>Name</th>
+									<th>Type</th>
+									<th>File</th>
+									<th>Size</th>
+									<th>Uploaded</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach (var doc in Model.DesignDocuments.OrderByDescending(d => d.UploadedDate))
+
+								{
+									<tr>
+										<td>
+											<strong>@doc.DocumentName</strong>
+											@if (!string.IsNullOrEmpty(doc.Description))
+
+											{
+												<br>
+
+												<small class="text-muted">@doc.Description</small>
+											}
+										</td>
+										<td>
+											<span class="badge bg-secondary">@doc.DocumentType</span>
+										</td>
+										<td>
+											@doc.FileName
+											@if (doc.IsImage)
+
+											{
+												<i class="fas fa-image text-info" title="Image file"></i>
+											}
+
+											else if (doc.IsPdf)
+
+											{
+												<i class="fas fa-file-pdf text-danger" title="PDF file"></i>
+											}
+
+											else if (doc.IsOfficeDocument)
+
+											{
+												<i class="fas fa-file-word text-primary" title="Office document"></i>
+											}
+										</td>
+										<td>@doc.FileSizeFormatted</td>
+										<td>@doc.UploadedDate.ToString("MM/dd/yyyy")</td>
+										<td>
+											<div class="btn-group btn-group-sm">
+												@if (doc.IsPdf || doc.IsImage)
+
+												{
+													<a href="/Documents/View/@doc.Id" class="btn btn-outline-primary" title="View" target="_blank">
+														<i class="fas fa-eye"></i>
+													</a>
+												}
+												<a href="/Documents/Download/@doc.Id" class="btn btn-outline-success" title="Download">
+													<i class="fas fa-download"></i>
+												</a>
+												<a href="/Documents/Delete/@doc.Id" class="btn btn-outline-danger" title="Delete">
+													<i class="fas fa-trash"></i>
+												</a>
+											</div>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		}
+
+		else
+
+		{
+			<div class="card mt-4">
+				<div class="card-body text-center">
+					<i class="fas fa-file fa-3x text-muted mb-3"></i>
+					<h5 class="text-muted">No Design Documents</h5>
+					<p class="text-muted">Upload drawings, specifications, datasheets, and other design documents.</p>
+					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-success">
+						<i class="fas fa-upload"></i> Upload First Document
+					</a>
+				</div>
+			</div>
+		}
+	</div>
+
+	<div class="col-md-4">
+		<div class="card">
+			<div class="card-header d-flex justify-content-between align-items-center">
+				<h6><i class="fas fa-image"></i> Item Image</h6>
+				@if (Model.HasImage)
+
+				{
+					<form asp-controller="Items" asp-action="RemoveImage" method="post" style="display: inline;">
+						<input type="hidden" name="id" value="@Model.Id" />
+						<button type="submit" class="btn btn-sm btn-outline-danger"
+										onclick="return confirm('Remove item image?')" title="Remove Image">
+							<i class="fas fa-trash"></i>
+						</button>
+					</form>
+				}
+			</div>
+			<div class="card-body text-center">
+				@if (Model.HasImage)
+
+				{
+					<img src="/Items/GetImage/@Model.Id"
+							 alt="@Model.PartNumber"
+							 class="img-fluid border rounded"
+							 style="max-width: 100%; max-height: 300px; cursor: pointer;"
+							 onclick="showImageModal('@Model.PartNumber', '/Items/GetImage/@Model.Id')" />
+					<div class="mt-2">
+						<small class="text-muted">@Model.ImageFileName</small>
+					</div>
+				}
+
+				else
+
+				{
+					<div class="no-image-placeholder d-flex align-items-center justify-content-center"
+							 style="height: 200px; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
+						<div class="text-center">
+							<i class="fas fa-image fa-3x text-muted mb-2"></i>
+							<p class="text-muted">No image uploaded</p>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+
+		<div class="card mt-3">
+			<div class="card-header">
+				<h6><i class="fas fa-chart-bar"></i> Quick Stats</h6>
+			</div>
+			<div class="card-body">
+				<div class="row text-center">
+					<div class="col-6">
+						<div class="border-end">
+							<h5 class="text-primary">@purchases.Count()</h5>
+							<small class="text-muted">Purchases</small>
+						</div>
+					</div>
+					<div class="col-6">
+						<h5 class="text-info">@Model.DesignDocuments.Count</h5>
+						<small class="text-muted">Documents</small>
+					</div>
+				</div>
+				<hr>
+				<div class="row text-center">
+					<div class="col-12">
+						<h6 class="text-success">$@fifoValue.ToString("F2")</h6>
+						<small class="text-muted">Current Inventory Value</small>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>
 
 <div class="mt-3">
-    <a href="/Items" class="btn btn-secondary">Back to Items</a>
+	<a href="/Items" class="btn btn-secondary">Back to Items</a>
 </div>
 
 <!-- Image Modal -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="imageModalLabel">Item Image</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <img id="modalImage" src="#" alt="Item Image" class="img-fluid" />
-            </div>
-        </div>
-    </div>
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="imageModalLabel">Item Image</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body text-center">
+				<img id="modalImage" src="#" alt="Item Image" class="img-fluid" />
+			</div>
+		</div>
+	</div>
 </div>
 
 <script>
-function showImageModal(partNumber, imageUrl) {
-    document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
-    document.getElementById('modalImage').src = imageUrl;
-    var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
-    imageModal.show();
-}
+	function showImageModal(partNumber, imageUrl) {
+		document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
+		document.getElementById('modalImage').src = imageUrl;
+		var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+		imageModal.show();
+	}
 </script>
