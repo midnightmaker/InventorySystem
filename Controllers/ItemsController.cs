@@ -11,14 +11,14 @@ namespace InventorySystem.Controllers
   {
     private readonly IInventoryService _inventoryService;
     private readonly IPurchaseService _purchaseService;
-		private readonly InventoryContext _context; // ADD THIS
+    private readonly InventoryContext _context;
 
-		public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, InventoryContext context)
+    public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, InventoryContext context)
     {
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
-			_context = context; // ADD THIS
-		}
+      _context = context;
+    }
 
     public async Task<IActionResult> Index()
     {
@@ -59,6 +59,8 @@ namespace InventorySystem.Controllers
 
       // Remove validation for optional fields
       ModelState.Remove("ImageFile");
+
+      // CRITICAL FIX: Remove validation for initial purchase fields when not selected
       if (!viewModel.HasInitialPurchase)
       {
         ModelState.Remove("InitialQuantity");
@@ -66,6 +68,24 @@ namespace InventorySystem.Controllers
         ModelState.Remove("InitialVendor");
         ModelState.Remove("InitialPurchaseDate");
         ModelState.Remove("InitialPurchaseOrderNumber");
+      }
+      else
+      {
+        // Only validate initial purchase fields if HasInitialPurchase is true
+        if (viewModel.InitialQuantity <= 0)
+        {
+          ModelState.AddModelError("InitialQuantity", "Initial quantity must be greater than 0 when adding initial purchase.");
+        }
+
+        if (viewModel.InitialCostPerUnit <= 0)
+        {
+          ModelState.AddModelError("InitialCostPerUnit", "Initial cost per unit must be greater than 0 when adding initial purchase.");
+        }
+
+        if (string.IsNullOrWhiteSpace(viewModel.InitialVendor))
+        {
+          ModelState.AddModelError("InitialVendor", "Initial vendor is required when adding initial purchase.");
+        }
       }
 
       if (ModelState.IsValid)
@@ -78,7 +98,7 @@ namespace InventorySystem.Controllers
             Description = viewModel.Description,
             Comments = viewModel.Comments ?? string.Empty,
             MinimumStock = viewModel.MinimumStock,
-            CurrentStock = 0
+            CurrentStock = 0 // Will be updated if initial purchase is added
           };
 
           // Handle image upload
@@ -108,11 +128,11 @@ namespace InventorySystem.Controllers
 
           var createdItem = await _inventoryService.CreateItemAsync(item);
 
-          // Create initial purchase if provided
+          // Create initial purchase ONLY if HasInitialPurchase is true AND all required fields are provided
           if (viewModel.HasInitialPurchase &&
               viewModel.InitialQuantity > 0 &&
               viewModel.InitialCostPerUnit > 0 &&
-              !string.IsNullOrEmpty(viewModel.InitialVendor))
+              !string.IsNullOrWhiteSpace(viewModel.InitialVendor))
           {
             var initialPurchase = new Purchase
             {
@@ -126,14 +146,29 @@ namespace InventorySystem.Controllers
             };
 
             await _purchaseService.CreatePurchaseAsync(initialPurchase);
+
+            TempData["SuccessMessage"] = $"Item created successfully with initial purchase of {viewModel.InitialQuantity} units!";
+          }
+          else
+          {
+            TempData["SuccessMessage"] = "Item created successfully!";
           }
 
-          TempData["SuccessMessage"] = "Item created successfully!";
           return RedirectToAction(nameof(Index));
         }
         catch (Exception ex)
         {
           ModelState.AddModelError("", $"Error creating item: {ex.Message}");
+        }
+      }
+
+      // Debug: Log validation errors
+      Console.WriteLine("=== VALIDATION ERRORS ===");
+      foreach (var error in ModelState)
+      {
+        if (error.Value.Errors.Any())
+        {
+          Console.WriteLine($"{error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
         }
       }
 
@@ -259,58 +294,58 @@ namespace InventorySystem.Controllers
       return RedirectToAction("Details", new { id });
     }
 
-		// Add this test action to ItemsController.cs
-		public async Task<IActionResult> TestDocuments(int id)
-		{
-			try
-			{
-				// Test 1: Direct database query
-				var documentsInDb = await _context.ItemDocuments
-						.Where(d => d.ItemId == id)
-						.ToListAsync();
+    // Add this test action to ItemsController.cs
+    public async Task<IActionResult> TestDocuments(int id)
+    {
+      try
+      {
+        // Test 1: Direct database query
+        var documentsInDb = await _context.ItemDocuments
+            .Where(d => d.ItemId == id)
+            .ToListAsync();
 
-				// Test 2: Item with documents loaded
-				var itemWithDocs = await _context.Items
-						.Include(i => i.DesignDocuments)
-						.FirstOrDefaultAsync(i => i.Id == id);
+        // Test 2: Item with documents loaded
+        var itemWithDocs = await _context.Items
+            .Include(i => i.DesignDocuments)
+            .FirstOrDefaultAsync(i => i.Id == id);
 
-				// Test 3: Service method
-				var itemFromService = await _inventoryService.GetItemByIdAsync(id);
+        // Test 3: Service method
+        var itemFromService = await _inventoryService.GetItemByIdAsync(id);
 
-				return Json(new
-				{
-					Success = true,
-					ItemId = id,
-					DirectDbQuery = new
-					{
-						Count = documentsInDb.Count,
-						Documents = documentsInDb.Select(d => new { d.Id, d.DocumentName, d.FileName })
-					},
-					ItemWithInclude = new
-					{
-						ItemFound = itemWithDocs != null,
-						DocumentsNull = itemWithDocs?.DesignDocuments == null,
-						Count = itemWithDocs?.DesignDocuments?.Count ?? 0
-					},
-					ServiceMethod = new
-					{
-						ItemFound = itemFromService != null,
-						DocumentsNull = itemFromService?.DesignDocuments == null,
-						Count = itemFromService?.DesignDocuments?.Count ?? 0
-					}
-				});
-			}
-			catch (Exception ex)
-			{
-				return Json(new
-				{
-					Success = false,
-					Error = ex.Message,
-					StackTrace = ex.StackTrace
-				});
-			}
-		}
+        return Json(new
+        {
+          Success = true,
+          ItemId = id,
+          DirectDbQuery = new
+          {
+            Count = documentsInDb.Count,
+            Documents = documentsInDb.Select(d => new { d.Id, d.DocumentName, d.FileName })
+          },
+          ItemWithInclude = new
+          {
+            ItemFound = itemWithDocs != null,
+            DocumentsNull = itemWithDocs?.DesignDocuments == null,
+            Count = itemWithDocs?.DesignDocuments?.Count ?? 0
+          },
+          ServiceMethod = new
+          {
+            ItemFound = itemFromService != null,
+            DocumentsNull = itemFromService?.DesignDocuments == null,
+            Count = itemFromService?.DesignDocuments?.Count ?? 0
+          }
+        });
+      }
+      catch (Exception ex)
+      {
+        return Json(new
+        {
+          Success = false,
+          Error = ex.Message,
+          StackTrace = ex.StackTrace
+        });
+      }
+    }
 
-		// Test this by navigating to: /Items/TestDocuments/1 (replace 1 with actual item ID)
-	}
+    // Test this by navigating to: /Items/TestDocuments/1 (replace 1 with actual item ID)
+  }
 }

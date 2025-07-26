@@ -2,7 +2,11 @@
 @{
   ViewData["Title"] = "Purchases";
 
+
+
   var totalValue = Model.Sum(p => p.TotalPaid);
+
+
 
   var totalItems = Model.Sum(p => p.QuantityPurchased);
 }
@@ -52,156 +56,199 @@
 
 <div class="card">
   <div class="card-body">
-    <div class="table-responsive">
-      <table class="table table-hover">
-        <thead class="table-dark">
-          <tr>
-            <th>Date</th>
-            <th>Item</th>
-            <th>Vendor</th>
-            <th>Quantity</th>
-            <th>Cost/Unit</th>
-            <th>Total Paid</th>
-            <th>Remaining</th>
-            <th>Documents</th>
-            <th>PO#</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach (var purchase in Model)
+    @if (Model.Any())
 
-          {
+    {
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>Tip:</strong> Click on any row to view purchase details, or use the action buttons for specific functions.
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover" id="purchaseTable">
+          <thead class="table-dark">
             <tr>
-              <td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
-              <td>
-                <a href="/Items/Details/@purchase.Item.Id" class="fw-bold">
-                  @purchase.Item.PartNumber
-                </a>
-                <br>
-                <small class="text-muted">@purchase.Item.Description</small>
-              </td>
-              <td>@purchase.Vendor</td>
-              <td>
-                <span class="badge bg-info">@purchase.QuantityPurchased</span>
-              </td>
-              <td>$@purchase.CostPerUnit.ToString("F2")</td>
-              <td>
-                <strong>$@purchase.TotalPaid.ToString("F2")</strong>
-                @if (purchase.ShippingCost > 0 || purchase.TaxAmount > 0)
+              <th>Date</th>
+              <th>Item</th>
+              <th>Vendor</th>
+              <th>Quantity</th>
+              <th>Cost/Unit</th>
+              <th>Total Paid</th>
+              <th>Remaining</th>
+              <th>Documents</th>
+              <th>PO#</th>
+              <th style="width: 120px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var purchase in Model)
 
-                {
+            {
+              <tr class="clickable-row" data-purchase-id="@purchase.Id" style="cursor: pointer;">
+                <td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
+                <td>
+                  <a href="/Items/Details/@purchase.Item.Id" class="fw-bold text-decoration-none" onclick="event.stopPropagation();">
+                    @purchase.Item.PartNumber
+                  </a>
                   <br>
+                  <small class="text-muted">@purchase.Item.Description</small>
+                </td>
+                <td>@purchase.Vendor</td>
+                <td>
+                  <span class="badge bg-info">@purchase.QuantityPurchased</span>
+                </td>
+                <td>$@purchase.CostPerUnit.ToString("F2")</td>
+                <td>
+                  <strong>$@purchase.TotalPaid.ToString("F2")</strong>
+                  @if (purchase.ShippingCost > 0 || purchase.TaxAmount > 0)
 
-                  <small class="text-muted">
-                    (Items: $@purchase.TotalCost.ToString("F2")
-                    @if (purchase.ShippingCost > 0)
-
-                    {
-                      <text>, Ship: $@purchase.ShippingCost.ToString("F2")</text>
-                    }
-                    @if (purchase.TaxAmount > 0)
-
-                    {
-                      <text>, Tax: $@purchase.TaxAmount.ToString("F2")</text>
-                    })
-                  </small>
-                }
-              </td>
-              <td>
-                @if (purchase.RemainingQuantity > 0)
-
-                {
-                  <span class="badge bg-success">@purchase.RemainingQuantity</span>
-                }
-
-                else
-
-                {
-                  <span class="badge bg-secondary">0</span>
-                }
-              </td>
-              <td>
-                @if (purchase.HasDocuments)
-
-                {
-                  <span class="badge bg-info" title="@purchase.DocumentCount documents">
-                    <i class="fas fa-file"></i> @purchase.DocumentCount
-                  </span>
-                }
-
-                else
-
-                {
-                  <span class="text-muted">None</span>
-                }
-              </td>
-              <td>
-                @if (!string.IsNullOrEmpty(purchase.PurchaseOrderNumber))
-
-                {
-                  <small>@purchase.PurchaseOrderNumber</small>
-                }
-
-                else
-
-                {
-                  <span class="text-muted">-</span>
-                }
-              </td>
-              <td>
-                <div class="btn-group btn-group-sm">
-                  <a href="/Purchases/Details/@purchase.Id" class="btn btn-outline-primary" title="View Details">
-                    <i class="fas fa-eye"></i>
-                  </a>
-                  <a href="/Purchases/Edit/@purchase.Id" class="btn btn-outline-secondary" title="Edit">
-                    <i class="fas fa-edit"></i>
-                  </a>
-                  <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Documents">
-                      <i class="fas fa-file"></i>
-                    </button>
-                    <ul class="dropdown-menu">
-                      <li>
-                        <a class="dropdown-item" href="/Purchases/UploadDocument?purchaseId=@purchase.Id">
-                          <i class="fas fa-upload"></i> Upload Document
-                        </a>
-                      </li>
-                      @if (purchase.HasDocuments)
+                  {
+                    <br>
+                    <small class="text-muted">
+                      (Items: $@purchase.TotalCost.ToString("F2")
+                      @if (purchase.ShippingCost > 0)
 
                       {
-                        <li><hr class="dropdown-divider"></li>
-                        <li><h6 class="dropdown-header">View Documents (@purchase.DocumentCount)</h6></li>
-                        @foreach (var doc in purchase.PurchaseDocuments.Take(3))
-
-                        {
-                          <li>
-                            <a class="dropdown-item" href="/Purchases/DownloadDocument/@doc.Id">
-                              <i class="@doc.FileTypeIcon"></i> @doc.DocumentName
-                            </a>
-                          </li>
-                        }
-                        @if (purchase.DocumentCount > 3)
-
-                        {
-                          <li>
-                            <a class="dropdown-item" href="/Purchases/Details/@purchase.Id">
-                              <i class="fas fa-ellipsis-h"></i> View All (@purchase.DocumentCount)
-                            </a>
-                          </li>
-                        }
+                        <text>, Ship: $@purchase.ShippingCost.ToString("F2")</text>
                       }
-                    </ul>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+                      @if (purchase.TaxAmount > 0)
 
-    @if (!Model.Any())
+                      {
+                        <text>, Tax: $@purchase.TaxAmount.ToString("F2")</text>
+                      })
+                    </small>
+                  }
+                </td>
+                <td>
+                  @if (purchase.RemainingQuantity > 0)
+
+                  {
+                    <span class="badge bg-success">@purchase.RemainingQuantity</span>
+                  }
+
+                  else
+
+                  {
+                    <span class="badge bg-secondary">0</span>
+                  }
+                </td>
+                <td>
+                  @if (purchase.HasDocuments)
+
+                  {
+                    <span class="badge bg-info" title="@purchase.DocumentCount documents">
+                      <i class="fas fa-file"></i> @purchase.DocumentCount
+                    </span>
+                  }
+
+                  else
+
+                  {
+                    <span class="text-muted">None</span>
+                  }
+                </td>
+                <td>
+                  @if (!string.IsNullOrEmpty(purchase.PurchaseOrderNumber))
+
+                  {
+                    <small>@purchase.PurchaseOrderNumber</small>
+                  }
+
+                  else
+
+                  {
+                    <span class="text-muted">-</span>
+                  }
+                </td>
+                <td onclick="event.stopPropagation();">
+                  <div class="btn-group btn-group-sm">
+                    <a href="/Purchases/Details/@purchase.Id" class="btn btn-outline-primary" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/Purchases/Edit/@purchase.Id" class="btn btn-outline-secondary" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <div class="btn-group" role="group">
+                      <button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Documents">
+                        <i class="fas fa-file"></i>
+                      </button>
+                      <ul class="dropdown-menu">
+                        <li>
+                          <a class="dropdown-item" href="/Purchases/UploadDocument?purchaseId=@purchase.Id">
+                            <i class="fas fa-upload"></i> Upload Document
+                          </a>
+                        </li>
+                        @if (purchase.HasDocuments)
+
+                        {
+                          <li><hr class="dropdown-divider"></li>
+                          <li><h6 class="dropdown-header">View Documents (@purchase.DocumentCount)</h6></li>
+                          @foreach (var doc in purchase.PurchaseDocuments.Take(3))
+
+                          {
+                            <li>
+                              <a class="dropdown-item" href="/Purchases/DownloadDocument/@doc.Id">
+                                <i class="@doc.FileTypeIcon"></i> @doc.DocumentName
+                              </a>
+                            </li>
+                          }
+                          @if (purchase.DocumentCount > 3)
+
+                          {
+                            <li>
+                              <a class="dropdown-item" href="/Purchases/Details/@purchase.Id">
+                                <i class="fas fa-ellipsis-h"></i> View All (@purchase.DocumentCount)
+                              </a>
+                            </li>
+                          }
+                        }
+                      </ul>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Purchase Statistics -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h6><i class="fas fa-chart-bar"></i> Purchase Statistics</h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">
+              <div class="text-center">
+                <h6 class="text-primary">@Model.Select(p => p.Vendor).Distinct().Count()</h6>
+                <small class="text-muted">Unique Vendors</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="text-center">
+                <h6 class="text-success">$@Model.Average(p => p.TotalPaid).ToString("F2")</h6>
+                <small class="text-muted">Average Purchase</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="text-center">
+                <h6 class="text-info">@Model.Sum(p => p.PurchaseDocuments.Count)</h6>
+                <small class="text-muted">Total Documents</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="text-center">
+                <h6 class="text-warning">@Model.Where(p => p.RemainingQuantity > 0).Count()</h6>
+                <small class="text-muted">With Remaining Stock</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    else
 
     {
       <div class="text-center py-5">
@@ -216,41 +263,64 @@
   </div>
 </div>
 
-<!-- Filter and Search Section (Optional Enhancement) -->
-@if (Model.Any())
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      // Make table rows clickable
+      const clickableRows = document.querySelectorAll('.clickable-row');
 
-{
-  <div class="card mt-4">
-    <div class="card-header">
-      <h6><i class="fas fa-chart-bar"></i> Purchase Statistics</h6>
-    </div>
-    <div class="card-body">
-      <div class="row">
-        <div class="col-md-3">
-          <div class="text-center">
-            <h6 class="text-primary">@Model.Select(p => p.Vendor).Distinct().Count()</h6>
-            <small class="text-muted">Unique Vendors</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="text-center">
-            <h6 class="text-success">$@Model.Average(p => p.TotalPaid).ToString("F2")</h6>
-            <small class="text-muted">Average Purchase</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="text-center">
-            <h6 class="text-info">@Model.Sum(p => p.PurchaseDocuments.Count)</h6>
-            <small class="text-muted">Total Documents</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="text-center">
-            <h6 class="text-warning">@Model.Where(p => p.RemainingQuantity > 0).Count()</h6>
-            <small class="text-muted">With Remaining Stock</small>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
+      clickableRows.forEach(function(row) {
+          row.addEventListener('click', function(e) {
+              // Only proceed if the click wasn't on an action button or link
+              if (e.target.closest('.btn-group') || e.target.closest('a')) {
+                  return;
+              }
+
+              const purchaseId = this.getAttribute('data-purchase-id');
+              if (purchaseId) {
+                  window.location.href = '/Purchases/Details/' + purchaseId;
+              }
+          });
+
+          // Add hover effect
+          row.addEventListener('mouseenter', function() {
+              this.style.backgroundColor = '#f8f9fa';
+          });
+
+          row.addEventListener('mouseleave', function() {
+              this.style.backgroundColor = '';
+          });
+      });
+
+      // Prevent item links from triggering row click
+      const itemLinks = document.querySelectorAll('a[href*="/Items/Details/"]');
+      itemLinks.forEach(function(link) {
+          link.addEventListener('click', function(e) {
+              e.stopPropagation();
+          });
+      });
+  });
+</script>
+
+<style>
+  .clickable-row {
+      transition: background-color 0.2s ease;
+  }
+
+  .clickable-row:hover {
+      background-color: #f8f9fa !important;
+  }
+
+  .clickable-row:active {
+      background-color: #e9ecef !important;
+  }
+
+  /* Ensure action buttons don't inherit pointer cursor */
+  .clickable-row .btn-group {
+      cursor: default;
+  }
+
+  /* Style for the info tip */
+  .alert-info {
+      border-left: 4px solid #0dcaf0;
+  }
+</style>
