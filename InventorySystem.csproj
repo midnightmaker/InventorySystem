@@ -12,4 +12,9 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Views\Sales\" />
+    <Folder Include="Views\Production\" />
+  </ItemGroup>
+
 </Project>

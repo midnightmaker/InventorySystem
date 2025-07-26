@@ -12,11 +12,13 @@ namespace InventorySystem.Services
     Task DeletePurchaseAsync(int id);
     Task ProcessInventoryConsumptionAsync(int itemId, int quantityUsed);
 
-    // New methods for enhanced functionality
+    // Enhanced methods for dashboard functionality
     Task<IEnumerable<Purchase>> GetAllPurchasesAsync();
     Task<IEnumerable<Purchase>> GetPurchasesByVendorAsync(string vendor);
     Task<IEnumerable<Purchase>> GetPurchasesWithDocumentsAsync();
     Task<decimal> GetTotalPurchaseValueAsync();
     Task<decimal> GetTotalPurchaseValueByItemAsync(int itemId);
+    Task<decimal> GetPurchaseValueByMonthAsync(int year, int month);
+    Task<int> GetPurchaseCountByMonthAsync(int year, int month);
   }
 }

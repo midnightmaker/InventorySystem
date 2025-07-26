@@ -108,5 +108,39 @@ namespace InventorySystem.Services
           .OrderBy(i => i.PartNumber)
           .ToListAsync();
     }
+    public async Task<int> GetItemsInStockCountAsync()
+    {
+      return await _context.Items.CountAsync(i => i.CurrentStock > i.MinimumStock);
+    }
+
+    public async Task<int> GetItemsNoStockCountAsync()
+    {
+      return await _context.Items.CountAsync(i => i.CurrentStock == 0);
+    }
+
+    public async Task<int> GetItemsOverstockedCountAsync()
+    {
+      return await _context.Items.CountAsync(i => i.CurrentStock > (i.MinimumStock * 3));
+    }
+
+    public async Task<decimal> GetTotalInventoryValueAsync()
+    {
+      var items = await GetAllItemsAsync();
+      decimal totalValue = 0;
+
+      foreach (var item in items)
+      {
+        totalValue += await GetFifoValueAsync(item.Id);
+      }
+
+      return totalValue;
+    }
+
+    public async Task<IEnumerable<Item>> GetItemsCreatedInMonthAsync(int year, int month)
+    {
+      return await _context.Items
+          .Where(i => i.CreatedDate.Year == year && i.CreatedDate.Month == month)
+          .ToListAsync();
+    }
   }
 }
