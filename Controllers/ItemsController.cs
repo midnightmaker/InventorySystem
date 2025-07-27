@@ -1,9 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
+using InventorySystem.Data;
 using InventorySystem.Models;
+using InventorySystem.Models.Enums;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using InventorySystem.Data;
 
 namespace InventorySystem.Controllers
 {
@@ -46,6 +47,100 @@ namespace InventorySystem.Controllers
       };
       return View(viewModel);
     }
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkUpload(BulkItemUploadViewModel viewModel)
+    {
+      if (viewModel.CsvFile == null)
+      {
+        ModelState.AddModelError("CsvFile", "Please select a CSV file to upload.");
+        return View(viewModel);
+      }
+
+      // Validate file type
+      var allowedExtensions = new[] { ".csv" };
+      var fileExtension = Path.GetExtension(viewModel.CsvFile.FileName).ToLower();
+
+      if (!allowedExtensions.Contains(fileExtension))
+      {
+        ModelState.AddModelError("CsvFile", "Please upload a valid CSV file (.csv).");
+        return View(viewModel);
+      }
+
+      // Validate file size (10MB limit)
+      if (viewModel.CsvFile.Length > 10 * 1024 * 1024)
+      {
+        ModelState.AddModelError("CsvFile", "File size must be less than 10MB.");
+        return View(viewModel);
+      }
+
+      try
+      {
+        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
+        viewModel.ValidationResults = await bulkUploadService.ValidateCsvFileAsync(viewModel.CsvFile, viewModel.SkipHeaderRow);
+
+        if (viewModel.ValidationResults.Any())
+        {
+          viewModel.PreviewItems = viewModel.ValidationResults
+              .Where(vr => vr.IsValid)
+              .Select(vr => vr.ItemData!)
+              .ToList();
+        }
+
+        if (viewModel.ValidItemsCount == 0)
+        {
+          viewModel.ErrorMessage = "No valid items found in the CSV file. Please check the format and data.";
+        }
+        else if (viewModel.InvalidItemsCount > 0)
+        {
+          viewModel.ErrorMessage = $"Found {viewModel.InvalidItemsCount} invalid items. Please review and correct the errors.";
+        }
+      }
+      catch (Exception ex)
+      {
+        ModelState.AddModelError("", $"Error processing file: {ex.Message}");
+      }
+
+      return View(viewModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ProcessBulkUpload(BulkItemUploadViewModel viewModel)
+    {
+      if (viewModel.PreviewItems == null || !viewModel.PreviewItems.Any())
+      {
+        TempData["ErrorMessage"] = "No items to import.";
+        return RedirectToAction("BulkUpload");
+      }
+
+      try
+      {
+        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
+        var result = await bulkUploadService.ImportValidItemsAsync(viewModel.PreviewItems);
+
+        if (result.SuccessfulImports > 0)
+        {
+          TempData["SuccessMessage"] = $"Successfully imported {result.SuccessfulImports} items.";
+
+          if (result.FailedImports > 0)
+          {
+            TempData["WarningMessage"] = $"{result.FailedImports} items failed to import.";
+          }
+        }
+        else
+        {
+          TempData["ErrorMessage"] = "No items were imported. " + string.Join("; ", result.Errors);
+        }
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error during import: {ex.Message}";
+      }
+
+      return RedirectToAction("Index");
+    }
+
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -60,8 +155,22 @@ namespace InventorySystem.Controllers
       // Remove validation for optional fields
       ModelState.Remove("ImageFile");
 
+      // Remove stock-related validation for non-inventoried items
+      if (viewModel.ItemType != ItemType.Inventoried)
+      {
+        ModelState.Remove("MinimumStock");
+        ModelState.Remove("InitialQuantity");
+        ModelState.Remove("InitialCostPerUnit");
+        ModelState.Remove("InitialVendor");
+        ModelState.Remove("InitialPurchaseDate");
+        ModelState.Remove("InitialPurchaseOrderNumber");
+
+        // Force HasInitialPurchase to false for non-inventoried items
+        viewModel.HasInitialPurchase = false;
+      }
+
       // CRITICAL FIX: Remove validation for initial purchase fields when not selected
-      if (!viewModel.HasInitialPurchase)
+      if (!viewModel.HasInitialPurchase || viewModel.ItemType != ItemType.Inventoried)
       {
         ModelState.Remove("InitialQuantity");
         ModelState.Remove("InitialCostPerUnit");
@@ -71,7 +180,7 @@ namespace InventorySystem.Controllers
       }
       else
       {
-        // Only validate initial purchase fields if HasInitialPurchase is true
+        // Only validate initial purchase fields if HasInitialPurchase is true and item is inventoried
         if (viewModel.InitialQuantity <= 0)
         {
           ModelState.AddModelError("InitialQuantity", "Initial quantity must be greater than 0 when adding initial purchase.");
@@ -97,11 +206,18 @@ namespace InventorySystem.Controllers
             PartNumber = viewModel.PartNumber,
             Description = viewModel.Description,
             Comments = viewModel.Comments ?? string.Empty,
-            MinimumStock = viewModel.MinimumStock,
-            CurrentStock = 0 // Will be updated if initial purchase is added
+            MinimumStock = viewModel.ItemType == ItemType.Inventoried ? viewModel.MinimumStock : 0,
+            CurrentStock = 0, // Will be updated if initial purchase is added
+
+            // NEW PHASE 1 PROPERTIES
+            VendorPartNumber = viewModel.VendorPartNumber,
+            PreferredVendor = viewModel.PreferredVendor,
+            IsSellable = viewModel.IsSellable,
+            ItemType = viewModel.ItemType,
+            Version = viewModel.Version
           };
 
-          // Handle image upload
+          // Handle image upload (existing code)
           if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
           {
             var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp" };
@@ -128,8 +244,9 @@ namespace InventorySystem.Controllers
 
           var createdItem = await _inventoryService.CreateItemAsync(item);
 
-          // Create initial purchase ONLY if HasInitialPurchase is true AND all required fields are provided
+          // Create initial purchase ONLY if HasInitialPurchase is true AND item is inventoried
           if (viewModel.HasInitialPurchase &&
+              viewModel.ItemType == ItemType.Inventoried &&
               viewModel.InitialQuantity > 0 &&
               viewModel.InitialCostPerUnit > 0 &&
               !string.IsNullOrWhiteSpace(viewModel.InitialVendor))
@@ -151,10 +268,11 @@ namespace InventorySystem.Controllers
           }
           else
           {
-            TempData["SuccessMessage"] = "Item created successfully!";
+            var itemTypeMsg = viewModel.ItemType == ItemType.Inventoried ? "inventoried item" : $"{viewModel.ItemType.ToString().ToLower()} item";
+            TempData["SuccessMessage"] = $"New {itemTypeMsg} created successfully!";
           }
 
-          return RedirectToAction(nameof(Index));
+          return RedirectToAction("Details", new { id = createdItem.Id });
         }
         catch (Exception ex)
         {
@@ -162,22 +280,9 @@ namespace InventorySystem.Controllers
         }
       }
 
-      // Debug: Log validation errors
-      Console.WriteLine("=== VALIDATION ERRORS ===");
-      foreach (var error in ModelState)
-      {
-        if (error.Value.Errors.Any())
-        {
-          Console.WriteLine($"{error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
-        }
-      }
-
-      ViewBag.ModelStateErrors = ModelState
-          .Where(x => x.Value.Errors.Count > 0)
-          .Select(x => new { Field = x.Key, Errors = x.Value.Errors.Select(e => e.ErrorMessage) });
-
       return View(viewModel);
     }
+
 
     public async Task<IActionResult> Edit(int id)
     {
@@ -352,100 +457,7 @@ namespace InventorySystem.Controllers
       return View(new BulkItemUploadViewModel());
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> BulkUpload(BulkItemUploadViewModel viewModel)
-    {
-      if (viewModel.CsvFile == null)
-      {
-        ModelState.AddModelError("CsvFile", "Please select a CSV file to upload.");
-        return View(viewModel);
-      }
-
-      // Validate file type
-      var allowedExtensions = new[] { ".csv" };
-      var fileExtension = Path.GetExtension(viewModel.CsvFile.FileName).ToLower();
-
-      if (!allowedExtensions.Contains(fileExtension))
-      {
-        ModelState.AddModelError("CsvFile", "Please upload a valid CSV file (.csv).");
-        return View(viewModel);
-      }
-
-      // Validate file size (10MB limit)
-      if (viewModel.CsvFile.Length > 10 * 1024 * 1024)
-      {
-        ModelState.AddModelError("CsvFile", "File size must be less than 10MB.");
-        return View(viewModel);
-      }
-
-      try
-      {
-        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
-        viewModel.ValidationResults = await bulkUploadService.ValidateCsvFileAsync(viewModel.CsvFile, viewModel.SkipHeaderRow);
-
-        if (viewModel.ValidationResults.Any())
-        {
-          viewModel.PreviewItems = viewModel.ValidationResults
-              .Where(vr => vr.IsValid)
-              .Select(vr => vr.ItemData!)
-              .ToList();
-        }
-
-        if (viewModel.ValidItemsCount == 0)
-        {
-          viewModel.ErrorMessage = "No valid items found in the CSV file. Please check the format and data.";
-        }
-        else if (viewModel.InvalidItemsCount > 0)
-        {
-          viewModel.ErrorMessage = $"Found {viewModel.InvalidItemsCount} invalid items. Please review and correct the errors.";
-        }
-      }
-      catch (Exception ex)
-      {
-        ModelState.AddModelError("", $"Error processing file: {ex.Message}");
-      }
-
-      return View(viewModel);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ProcessBulkUpload(BulkItemUploadViewModel viewModel)
-    {
-      if (viewModel.PreviewItems == null || !viewModel.PreviewItems.Any())
-      {
-        TempData["ErrorMessage"] = "No items to import.";
-        return RedirectToAction("BulkUpload");
-      }
-
-      try
-      {
-        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
-        var result = await bulkUploadService.ImportValidItemsAsync(viewModel.PreviewItems);
-
-        if (result.SuccessfulImports > 0)
-        {
-          TempData["SuccessMessage"] = $"Successfully imported {result.SuccessfulImports} items.";
-
-          if (result.FailedImports > 0)
-          {
-            TempData["WarningMessage"] = $"{result.FailedImports} items failed to import.";
-          }
-        }
-        else
-        {
-          TempData["ErrorMessage"] = "No items were imported. " + string.Join("; ", result.Errors);
-        }
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error during import: {ex.Message}";
-      }
-
-      return RedirectToAction("Index");
-    }
-
+    
 
   }
 }

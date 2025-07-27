@@ -97,40 +97,80 @@ else
     {
       <div class="table-responsive">
         <table class="table table-striped">
-          <thead>
+          <thead class="table-dark">
             <tr>
               <th>Part Number</th>
               <th>Description</th>
-              <th>Current Stock</th>
-              <th>Minimum Stock</th>
+              <th>Type</th>
+              <th>Version</th>
+              <th>Stock</th>
+              <th>Vendor</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             @foreach (var item in Model)
             {
-              <tr>
-                <td><strong>@item.PartNumber</strong></td>
+              <tr class="clickable-row" onclick="window.location.href='/Items/Details/@item.Id'">
+                <td><strong>@item.DisplayPartNumber</strong></td>
                 <td>@item.Description</td>
                 <td>
-                  <span class="badge @(item.CurrentStock <= item.MinimumStock ? "bg-danger" : "bg-success")">
-                    @item.CurrentStock
-                  </span>
+                  <span class="badge bg-info">@item.ItemTypeDisplayName</span>
                 </td>
-                <td>@item.MinimumStock</td>
+                <td>@item.Version</td>
                 <td>
-                  <div class="btn-group btn-group-sm">
-                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary">
+                  @if (item.TrackInventory)
+                  {
+                    <span class="badge @(item.CurrentStock <= item.MinimumStock ? "bg-danger" : "bg-success")">
+                      @item.CurrentStock
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="text-muted">N/A</span>
+                  }
+                </td>
+                <td>
+                  @if (!string.IsNullOrEmpty(item.PreferredVendor))
+                  {
+                    <small>@item.PreferredVendor</small>
+                  }
+                  else
+                  {
+                    <span class="text-muted">-</span>
+                  }
+                </td>
+                <td>
+                  @if (!item.IsSellable)
+                  {
+                    <span class="badge bg-warning">Not Sellable</span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-success">Sellable</span>
+                  }
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+                    <a href="/Items/Details/@item.Id" class="btn btn-outline-primary" title="View Details">
                       <i class="fas fa-eye"></i>
                     </a>
-                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-warning">
+                    <a href="/Items/Edit/@item.Id" class="btn btn-outline-warning" title="Edit">
                       <i class="fas fa-edit"></i>
                     </a>
+                    @if (item.TrackInventory)
+                    {
+                      <a href="/Purchases/Create?itemId=@item.Id" class="btn btn-outline-success" title="Add Purchase">
+                        <i class="fas fa-shopping-cart"></i>
+                      </a>
+                    }
                   </div>
                 </td>
               </tr>
             }
           </tbody>
+
         </table>
       </div>
     }

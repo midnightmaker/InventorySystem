@@ -70,85 +70,123 @@
             <div class="card-body">
                 <p>Your CSV file should have the following column structure:</p>
                 <div class="table-responsive">
-                    <table class="table table-striped table-sm">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Column</th>
-                                <th>Field Name</th>
-                                <th>Required</th>
-                                <th>Description</th>
-                                <th>Example</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>A</strong></td>
-                                <td>Part Number</td>
-                                <td><span class="badge bg-danger">Required</span></td>
-                                <td>Unique identifier for the item</td>
-                                <td>PUMP-001</td>
-                            </tr>
-                            <tr>
-                                <td><strong>B</strong></td>
-                                <td>Description</td>
-                                <td><span class="badge bg-danger">Required</span></td>
-                                <td>Item description</td>
-                                <td>Water Pump 12V</td>
-                            </tr>
-                            <tr>
-                                <td><strong>C</strong></td>
-                                <td>Comments</td>
-                                <td><span class="badge bg-secondary">Optional</span></td>
-                                <td>Additional notes</td>
-                                <td>Used in main assembly</td>
-                            </tr>
-                            <tr>
-                                <td><strong>D</strong></td>
-                                <td>Minimum Stock</td>
-                                <td><span class="badge bg-warning">Optional</span></td>
-                                <td>Minimum stock level (default: 0)</td>
-                                <td>10</td>
-                            </tr>
-                            <tr class="table-info">
-                                <td colspan="5"><strong>Initial Purchase Data (Optional)</strong></td>
-                            </tr>
-                            <tr>
-                                <td><strong>E</strong></td>
-                                <td>Initial Quantity</td>
-                                <td><span class="badge bg-secondary">Optional</span></td>
-                                <td>Starting inventory quantity</td>
-                                <td>25</td>
-                            </tr>
-                            <tr>
-                                <td><strong>F</strong></td>
-                                <td>Initial Cost Per Unit</td>
-                                <td><span class="badge bg-secondary">Optional</span></td>
-                                <td>Cost per unit for initial purchase</td>
-                                <td>15.50</td>
-                            </tr>
-                            <tr>
-                                <td><strong>G</strong></td>
-                                <td>Initial Vendor</td>
-                                <td><span class="badge bg-secondary">Optional</span></td>
-                                <td>Vendor for initial purchase</td>
-                                <td>ABC Suppliers</td>
-                            </tr>
-                            <tr>
-                                <td><strong>H</strong></td>
-                                <td>Initial Purchase Date</td>
-                                <td><span class="badge bg-secondary">Optional</span></td>
-                                <td>Date of initial purchase</td>
-                                <td>2025-01-15</td>
-                            </tr>
-                            <tr>
-                                <td><strong>I</strong></td>
-                                <td>Initial PO Number</td>
-                                <td><span class="badge bg-secondary">Optional</span></td>
-                                <td>Purchase order number</td>
-                                <td>PO-2025-001</td>
-                            </tr>
-                        </tbody>
-                    </table>
+          <table class="table table-striped table-sm">
+            <thead class="table-dark">
+              <tr>
+                <th>Column</th>
+                <th>Field Name</th>
+                <th>Required</th>
+                <th>Description</th>
+                <th>Example</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>A</strong></td>
+                <td>Part Number</td>
+                <td><span class="badge bg-danger">Required</span></td>
+                <td>Unique identifier for the item</td>
+                <td>PUMP-001</td>
+              </tr>
+              <tr>
+                <td><strong>B</strong></td>
+                <td>Description</td>
+                <td><span class="badge bg-danger">Required</span></td>
+                <td>Item description</td>
+                <td>Water Pump 12V</td>
+              </tr>
+              <tr>
+                <td><strong>C</strong></td>
+                <td>Comments</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Additional notes</td>
+                <td>Used in main assembly</td>
+              </tr>
+              <tr>
+                <td><strong>D</strong></td>
+                <td>Minimum Stock</td>
+                <td><span class="badge bg-warning">Optional</span></td>
+                <td>Minimum stock level (0 for non-inventoried)</td>
+                <td>10</td>
+              </tr>
+              <tr class="table-info">
+                <td colspan="5"><strong>New Phase 1 Fields</strong></td>
+              </tr>
+              <tr>
+                <td><strong>E</strong></td>
+                <td>Vendor Part Number</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Supplier's part number</td>
+                <td>ABC-12345</td>
+              </tr>
+              <tr>
+                <td><strong>F</strong></td>
+                <td>Preferred Vendor</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Primary supplier name</td>
+                <td>ABC Suppliers</td>
+              </tr>
+              <tr>
+                <td><strong>G</strong></td>
+                <td>Sellable</td>
+                <td><span class="badge bg-warning">Optional</span></td>
+                <td>Can be sold (true/false, default: true)</td>
+                <td>true</td>
+              </tr>
+              <tr>
+                <td><strong>H</strong></td>
+                <td>Item Type</td>
+                <td><span class="badge bg-warning">Optional</span></td>
+                <td>Inventoried, Non-Inventoried, Service, Virtual</td>
+                <td>Inventoried</td>
+              </tr>
+              <tr>
+                <td><strong>I</strong></td>
+                <td>Version</td>
+                <td><span class="badge bg-warning">Optional</span></td>
+                <td>Item revision (default: A)</td>
+                <td>A</td>
+              </tr>
+              <tr class="table-warning">
+                <td colspan="5"><strong>Initial Purchase Data (Optional - Only for Inventoried Items)</strong></td>
+              </tr>
+              <tr>
+                <td><strong>J</strong></td>
+                <td>Initial Quantity</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Starting inventory quantity</td>
+                <td>25</td>
+              </tr>
+              <tr>
+                <td><strong>K</strong></td>
+                <td>Initial Cost Per Unit</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Cost per unit for initial purchase</td>
+                <td>15.50</td>
+              </tr>
+              <tr>
+                <td><strong>L</strong></td>
+                <td>Initial Vendor</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Vendor for initial purchase</td>
+                <td>ABC Suppliers</td>
+              </tr>
+              <tr>
+                <td><strong>M</strong></td>
+                <td>Initial Purchase Date</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Date of initial purchase</td>
+                <td>2025-01-15</td>
+              </tr>
+              <tr>
+                <td><strong>N</strong></td>
+                <td>Initial PO Number</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Purchase order number</td>
+                <td>PO-2025-001</td>
+              </tr>
+            </tbody>
+          </table>
                 </div>
                 
                 <div class="alert alert-info mt-3">
@@ -337,32 +375,33 @@
             });
         }
     });
-    
-    function downloadCsvTemplate() {
-        // Create CSV template data
-        const templateData = [
-            ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
-            ['PUMP-001', 'Water Pump 12V', 'Used in main assembly', '10', '25', '15.50', 'ABC Suppliers', '2025-01-15', 'PO-2025-001'],
-            ['VALVE-002', 'Ball Valve 1/2"', 'Stainless steel', '5', '50', '8.25', 'XYZ Parts', '2025-01-15', 'PO-2025-001'],
-            ['SENSOR-003', 'Temperature Sensor', 'Digital output', '3', '', '', '', '', '']
-        ];
-        
-        // Convert to CSV format for download
-        const csvContent = templateData.map(row => 
-            row.map(cell => `"${cell}"`).join(',')
-        ).join('\n');
-        
-        // Create and trigger download
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'bulk_upload_template.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    }
+
+      function downloadCsvTemplate() {
+      // Updated CSV template with new Phase 1 fields
+      const templateData = [
+          ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Sellable', 'Item Type', 'Version', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
+          ['PUMP-001', 'Water Pump 12V', 'Used in main assembly', '10', 'ABC-12345', 'ABC Suppliers', 'true', 'Inventoried', 'A', '25', '15.50', 'ABC Suppliers', '2025-01-15', 'PO-2025-001'],
+          ['VALVE-002', 'Ball Valve 1/2"', 'Stainless steel', '5', 'XYZ-67890', 'XYZ Parts', 'true', 'Inventoried', 'A', '50', '8.25', 'XYZ Parts', '2025-01-15', 'PO-2025-001'],
+          ['FW-001', 'Main Controller Firmware', 'Version 2.1.3', '0', '', '', 'false', 'Non-Inventoried', 'A', '', '', '', '', ''],
+          ['SERVICE-001', 'Assembly Labor', 'Per hour rate', '0', '', '', 'true', 'Service', 'A', '', '', '', '', '']
+      ];
+
+      // Convert to CSV format for download
+      const csvContent = templateData.map(row =>
+          row.map(cell => `"${cell}"`).join(',')
+      ).join('\n');
+
+      // Create and trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bulk_upload_template_v2.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+  }
 </script>
 
 <!-- Move CSS directly into the view instead of using sections -->

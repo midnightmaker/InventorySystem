@@ -8,6 +8,8 @@
 <div class="row">
   <div class="col-md-8">
     <form asp-action="Create" asp-controller="Items" enctype="multipart/form-data" method="post" id="createItemForm">
+
+      <!-- Basic Information Card -->
       <div class="card">
         <div class="card-header">
           <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
@@ -23,9 +25,10 @@
             </div>
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="MinimumStock" class="form-label"></label>
-                <input asp-for="MinimumStock" class="form-control" type="number" min="0" value="0" />
-                <span asp-validation-for="MinimumStock" class="text-danger"></span>
+                <label asp-for="Version" class="form-label"></label>
+                <input asp-for="Version" class="form-control" placeholder="A" />
+                <span asp-validation-for="Version" class="text-danger"></span>
+                <div class="form-text">Item revision (A, B, C or 1.0, 1.1, etc.)</div>
               </div>
             </div>
           </div>
@@ -44,6 +47,144 @@
         </div>
       </div>
 
+      <!-- NEW: Item Properties Card -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-cog"></i> Item Properties</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="ItemType" class="form-label">Item Type *</label>
+                <select asp-for="ItemType" class="form-select" id="itemTypeSelect">
+                  <option value="0">Inventoried - Physical items with stock tracking</option>
+                  <option value="1">Non-Inventoried - Firmware, software, documentation</option>
+                  <option value="2">Service - Labor, consulting, services</option>
+                  <option value="3">Virtual - Licenses, digital assets</option>
+                </select>
+                <span asp-validation-for="ItemType" class="text-danger"></span>
+                <div class="form-text">Determines how this item is tracked and managed.</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check mt-4">
+                <input asp-for="IsSellable" class="form-check-input" type="checkbox" />
+                <label asp-for="IsSellable" class="form-check-label">
+                  This item can be sold to customers
+                </label>
+                <div class="form-text">Uncheck for raw materials, components, or internal-use items.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NEW: Vendor Information Card -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-truck"></i> Vendor Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="PreferredVendor" class="form-label">Preferred Vendor</label>
+                <input asp-for="PreferredVendor" class="form-control" placeholder="ABC Suppliers Inc." />
+                <span asp-validation-for="PreferredVendor" class="text-danger"></span>
+                <div class="form-text">Primary supplier for this item (optional).</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="VendorPartNumber" class="form-label">Vendor Part Number</label>
+                <input asp-for="VendorPartNumber" class="form-control" placeholder="ABC-12345" />
+                <span asp-validation-for="VendorPartNumber" class="text-danger"></span>
+                <div class="form-text">Supplier's part number for ordering (optional).</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory & Stock Card (conditional based on item type) -->
+      <div class="card mt-3" id="inventorySection">
+        <div class="card-header">
+          <h5><i class="fas fa-boxes"></i> Inventory & Stock</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="MinimumStock" class="form-label">Minimum Stock Level</label>
+                <input asp-for="MinimumStock" class="form-control" type="number" min="0" value="0" />
+                <span asp-validation-for="MinimumStock" class="text-danger"></span>
+                <div class="form-text">Alert when stock falls below this level.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Initial Purchase Section -->
+          <div class="form-check mb-3">
+            <input asp-for="HasInitialPurchase" class="form-check-input" type="checkbox" id="hasInitialPurchase" />
+            <label asp-for="HasInitialPurchase" class="form-check-label">
+              Add initial purchase/inventory
+            </label>
+          </div>
+
+          <div id="initialPurchaseSection" style="display: none;" class="border rounded p-3 bg-light">
+            <h6><i class="fas fa-shopping-cart"></i> Initial Purchase Details</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label asp-for="InitialQuantity" class="form-label">Quantity *</label>
+                  <input asp-for="InitialQuantity" class="form-control initial-purchase-field" type="number" min="1" id="initialQuantity" />
+                  <span asp-validation-for="InitialQuantity" class="text-danger"></span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label asp-for="InitialCostPerUnit" class="form-label">Cost Per Unit *</label>
+                  <input asp-for="InitialCostPerUnit" class="form-control initial-purchase-field" type="number" step="0.01" min="0.01" id="initialCostPerUnit" />
+                  <span asp-validation-for="InitialCostPerUnit" class="text-danger"></span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="initialTotalCost" class="form-label">Total Cost</label>
+                  <input type="text" class="form-control" id="initialTotalCost" readonly />
+                  <div class="form-text">Calculated automatically</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label asp-for="InitialVendor" class="form-label">Vendor *</label>
+                  <input asp-for="InitialVendor" class="form-control initial-purchase-field" />
+                  <span asp-validation-for="InitialVendor" class="text-danger"></span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label asp-for="InitialPurchaseDate" class="form-label">Purchase Date</label>
+                  <input asp-for="InitialPurchaseDate" class="form-control initial-purchase-field" type="date" />
+                  <span asp-validation-for="InitialPurchaseDate" class="text-danger"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label asp-for="InitialPurchaseOrderNumber" class="form-label">Purchase Order Number</label>
+              <input asp-for="InitialPurchaseOrderNumber" class="form-control initial-purchase-field" />
+              <span asp-validation-for="InitialPurchaseOrderNumber" class="text-danger"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item Image Card (existing) -->
       <div class="card mt-3">
         <div class="card-header">
           <h5><i class="fas fa-image"></i> Item Image (Optional)</h5>
@@ -54,123 +195,48 @@
             <input asp-for="ImageFile" class="form-control" type="file" accept="image/*" id="imageFile" />
             <span asp-validation-for="ImageFile" class="text-danger"></span>
             <div class="form-text">
-              Upload an image of the component (JPG, PNG, GIF, BMP - Max 5MB)
+              Upload JPG, PNG, GIF, or BMP images up to 5MB
             </div>
           </div>
 
-          <!-- Image preview -->
           <div id="imagePreview" style="display: none;">
-            <label class="form-label">Preview:</label>
-            <div>
-              <img id="previewImg" src="#" alt="Image preview" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" />
-            </div>
+            <img id="previewImg" class="img-thumbnail" style="max-width: 200px; max-height: 200px;" />
           </div>
         </div>
       </div>
 
+      <!-- Submit Button -->
       <div class="card mt-3">
-        <div class="card-header">
-          <div class="form-check">
-            <input asp-for="HasInitialPurchase" class="form-check-input" type="checkbox" id="hasInitialPurchase" />
-            <label class="form-check-label" for="hasInitialPurchase">
-              <h5><i class="fas fa-shopping-cart"></i> Add Initial Purchase (Optional)</h5>
-            </label>
-          </div>
-        </div>
-        <div class="card-body" id="initialPurchaseSection" style="display: none;">
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i>
-            <strong>Optional:</strong> Add initial inventory and cost information when creating the item. You can always add purchases later.
-          </div>
-
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="InitialVendor" class="form-label"></label>
-                <input asp-for="InitialVendor" class="form-control initial-purchase-field" placeholder="Vendor name" disabled />
-                <span asp-validation-for="InitialVendor" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="InitialPurchaseDate" class="form-label"></label>
-                <input asp-for="InitialPurchaseDate" class="form-control initial-purchase-field" type="date" disabled />
-                <span asp-validation-for="InitialPurchaseDate" class="text-danger"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="InitialQuantity" class="form-label"></label>
-                <input asp-for="InitialQuantity" class="form-control initial-purchase-field" type="number" min="1" id="initialQuantity" disabled />
-                <span asp-validation-for="InitialQuantity" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="InitialCostPerUnit" class="form-label"></label>
-                <input asp-for="InitialCostPerUnit" class="form-control initial-purchase-field" type="number" step="0.01" min="0" id="initialCostPerUnit" disabled />
-                <span asp-validation-for="InitialCostPerUnit" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label class="form-label">Total Cost</label>
-                <input type="text" class="form-control" id="initialTotalCost" readonly />
-              </div>
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label asp-for="InitialPurchaseOrderNumber" class="form-label"></label>
-            <input asp-for="InitialPurchaseOrderNumber" class="form-control" placeholder="Optional PO number" disabled />
-            <span asp-validation-for="InitialPurchaseOrderNumber" class="text-danger"></span>
-          </div>
+        <div class="card-body text-center">
+          <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+            <i class="fas fa-save"></i> Create Item
+          </button>
+          <a asp-action="Index" class="btn btn-outline-secondary btn-lg ms-2">
+            <i class="fas fa-times"></i> Cancel
+          </a>
         </div>
       </div>
-
-      <div class="mt-3 mb-5">
-        <button type="submit" class="btn btn-primary" id="submitBtn">
-          <i class="fas fa-save"></i> Create Item
-        </button>
-        <a href="/Items" class="btn btn-secondary">Cancel</a>
-        
-        <!-- Debug button for testing -->
-        <button type="button" class="btn btn-outline-info ms-2" onclick="testFormSubmission()">
-          <i class="fas fa-bug"></i> Test Form
-        </button>
-      </div>
-      
-      <!-- Add extra space at bottom to prevent button obstruction -->
-      <div style="height: 100px;"></div>
     </form>
   </div>
 
+  <!-- Right sidebar with tips -->
   <div class="col-md-4">
     <div class="card">
       <div class="card-header">
-        <h6><i class="fas fa-lightbulb"></i> Tips</h6>
+        <h5><i class="fas fa-lightbulb"></i> Quick Tips</h5>
       </div>
       <div class="card-body">
-        <ul class="list-unstyled small">
-          <li><i class="fas fa-check text-success"></i> Use descriptive part numbers</li>
-          <li><i class="fas fa-check text-success"></i> Add component specifications in comments</li>
-          <li><i class="fas fa-check text-success"></i> Upload clear component images</li>
-          <li><i class="fas fa-check text-success"></i> Set appropriate minimum stock levels</li>
-          <li><i class="fas fa-check text-success"></i> Initial purchase is completely optional</li>
+        <h6>Item Types:</h6>
+        <ul class="small">
+          <li><strong>Inventoried:</strong> Physical parts that need stock tracking</li>
+          <li><strong>Non-Inventoried:</strong> Firmware, software, documentation</li>
+          <li><strong>Service:</strong> Labor, consulting, or service offerings</li>
+          <li><strong>Virtual:</strong> Licenses, digital assets</li>
         </ul>
-      </div>
-    </div>
-    
-    <div class="card mt-3">
-      <div class="card-header">
-        <h6><i class="fas fa-info-circle"></i> Initial Purchase</h6>
-      </div>
-      <div class="card-body">
+
+        <h6>Initial Purchase:</h6>
         <small class="text-muted">
-          The initial purchase section is <strong>completely optional</strong>. You can:
+          You can:
           <ul class="mt-2 mb-0">
             <li>Create items without any purchase information</li>
             <li>Add purchases later from the item details page</li>
@@ -184,11 +250,40 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    // Handle initial purchase section toggle
+    const itemTypeSelect = document.getElementById('itemTypeSelect');
+    const inventorySection = document.getElementById('inventorySection');
     const hasInitialPurchaseCheckbox = document.getElementById('hasInitialPurchase');
     const initialPurchaseSection = document.getElementById('initialPurchaseSection');
     const initialPurchaseFields = document.querySelectorAll('.initial-purchase-field');
 
+    function updateFormBasedOnItemType() {
+      const itemType = parseInt(itemTypeSelect.value);
+      const isInventoried = itemType === 0; // ItemType.Inventoried
+
+      // Show/hide inventory section
+      if (isInventoried) {
+        inventorySection.style.display = 'block';
+      } else {
+        inventorySection.style.display = 'none';
+        // Clear and uncheck initial purchase when not inventoried
+        hasInitialPurchaseCheckbox.checked = false;
+        initialPurchaseSection.style.display = 'none';
+
+        // Clear initial purchase fields
+        initialPurchaseFields.forEach(field => {
+          field.value = '';
+          field.setAttribute('disabled', 'disabled');
+        });
+      }
+    }
+
+    // Initial setup
+    updateFormBasedOnItemType();
+
+    // Handle item type changes
+    itemTypeSelect.addEventListener('change', updateFormBasedOnItemType);
+
+    // Handle initial purchase section toggle
     if (hasInitialPurchaseCheckbox && initialPurchaseSection) {
       hasInitialPurchaseCheckbox.addEventListener('change', function () {
         if (this.checked) {
@@ -196,7 +291,6 @@
           // Enable fields and remove disabled attribute
           initialPurchaseFields.forEach(field => {
             field.removeAttribute('disabled');
-            // Don't add required attribute here - we'll handle validation manually
           });
         } else {
           initialPurchaseSection.style.display = 'none';
@@ -204,8 +298,6 @@
           initialPurchaseFields.forEach(field => {
             field.setAttribute('disabled', 'disabled');
             field.value = '';
-            // Remove any validation attributes
-            field.removeAttribute('required');
           });
           // Clear total cost
           document.getElementById('initialTotalCost').value = '';
@@ -259,44 +351,47 @@
       console.error('Form not found!');
       return;
     }
-    
+
     form.addEventListener('submit', function(e) {
       console.log('Form submission started');
-      
+
       // Check required fields
       const partNumber = document.querySelector('input[name="PartNumber"]').value.trim();
       const description = document.querySelector('input[name="Description"]').value.trim();
-      
+
       if (!partNumber || !description) {
         e.preventDefault();
         alert('Please fill in the required fields: Part Number and Description');
         return false;
       }
-      
-      const hasInitialPurchase = document.getElementById('hasInitialPurchase').checked;
-      console.log('Has initial purchase:', hasInitialPurchase);
-      
-      if (hasInitialPurchase) {
+
+      const itemType = parseInt(itemTypeSelect.value);
+      const isInventoried = itemType === 0;
+      const hasInitialPurchase = hasInitialPurchaseCheckbox.checked;
+
+      console.log('Item Type:', itemType, 'Is Inventoried:', isInventoried, 'Has initial purchase:', hasInitialPurchase);
+
+      if (isInventoried && hasInitialPurchase) {
         const vendor = document.querySelector('input[name="InitialVendor"]').value.trim();
         const quantity = document.querySelector('input[name="InitialQuantity"]').value;
         const cost = document.querySelector('input[name="InitialCostPerUnit"]').value;
-        
+
         console.log('Vendor:', vendor, 'Quantity:', quantity, 'Cost:', cost);
-        
+
         if (!vendor) {
           e.preventDefault();
           alert('Please enter the vendor name for the initial purchase.');
           document.querySelector('input[name="InitialVendor"]').focus();
           return false;
         }
-        
+
         if (!quantity || quantity <= 0) {
           e.preventDefault();
           alert('Please enter a valid quantity (greater than 0) for the initial purchase.');
           document.querySelector('input[name="InitialQuantity"]').focus();
           return false;
         }
-        
+
         if (!cost || cost <= 0) {
           e.preventDefault();
           alert('Please enter a valid cost per unit (greater than 0) for the initial purchase.');
@@ -304,33 +399,9 @@
           return false;
         }
       }
-      
+
       console.log('Form validation passed, submitting...');
       // Let the form submit normally
     });
   });
-
-  // Debug function to test form submission
-  function testFormSubmission() {
-    console.log('=== FORM DEBUG TEST ===');
-    const form = document.querySelector('form');
-    console.log('Form found:', !!form);
-    console.log('Form action:', form ? form.action : 'No form');
-    console.log('Form method:', form ? form.method : 'No form');
-    
-    const partNumber = document.querySelector('input[name="PartNumber"]');
-    const description = document.querySelector('input[name="Description"]');
-    
-    console.log('Part Number field:', !!partNumber, 'Value:', partNumber ? partNumber.value : 'Not found');
-    console.log('Description field:', !!description, 'Value:', description ? description.value : 'Not found');
-    
-    const submitBtn = document.getElementById('submitBtn');
-    console.log('Submit button found:', !!submitBtn);
-    console.log('Submit button type:', submitBtn ? submitBtn.type : 'Not found');
-    
-    if (form) {
-      console.log('Attempting manual form submission...');
-      form.submit();
-    }
-  }
 </script>

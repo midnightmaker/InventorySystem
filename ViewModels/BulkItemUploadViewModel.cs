@@ -1,4 +1,5 @@
 ﻿// ViewModels/BulkItemUploadViewModel.cs
+using InventorySystem.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace InventorySystem.ViewModels
@@ -36,13 +37,25 @@ namespace InventorySystem.ViewModels
     public int MinimumStock { get; set; }
     public int RowNumber { get; set; }
 
+
+    public string? VendorPartNumber { get; set; }
+    public string? PreferredVendor { get; set; }
+    public bool IsSellable { get; set; } = true;
+    public ItemType ItemType { get; set; } = ItemType.Inventoried;
+    public string Version { get; set; } = "A";
+
     // Initial purchase data (optional)
     public decimal? InitialQuantity { get; set; }
     public decimal? InitialCostPerUnit { get; set; }
     public string? InitialVendor { get; set; }
     public DateTime? InitialPurchaseDate { get; set; }
     public string? InitialPurchaseOrderNumber { get; set; }
+
+    // Helper properties
+    public bool TrackInventory => ItemType == ItemType.Inventoried;
+    public string ItemTypeDisplayName => ItemType.ToString();
   }
+
 
   public class ItemValidationResult
   {

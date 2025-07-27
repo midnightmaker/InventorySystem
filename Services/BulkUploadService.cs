@@ -1,7 +1,7 @@
-﻿
-// Services/BulkUploadService.cs
+﻿// Services/BulkUploadService.cs
 using InventorySystem.Data;
 using InventorySystem.Models;
+using InventorySystem.Models.Enums;
 using InventorySystem.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
@@ -53,12 +53,19 @@ namespace InventorySystem.Services
           Comments = GetValue(values, 2), // Column 3
           MinimumStock = GetIntValue(values, 3), // Column 4
 
-          // Optional initial purchase columns
-          InitialQuantity = GetDecimalValue(values, 4), // Column 5
-          InitialCostPerUnit = GetDecimalValue(values, 5), // Column 6
-          InitialVendor = GetValue(values, 6), // Column 7
-          InitialPurchaseDate = GetDateValue(values, 7), // Column 8
-          InitialPurchaseOrderNumber = GetValue(values, 8) // Column 9
+          // NEW PHASE 1 FIELDS
+          VendorPartNumber = GetValue(values, 4), // Column 5
+          PreferredVendor = GetValue(values, 5), // Column 6
+          IsSellable = GetBoolValue(values, 6), // Column 7
+          ItemType = GetItemTypeValue(values, 7), // Column 8
+          Version = !string.IsNullOrWhiteSpace(GetValue(values, 8)) ? GetValue(values, 8) : "A", // Column 9
+
+          // Optional initial purchase columns (shifted)
+          InitialQuantity = GetDecimalValue(values, 9), // Column 10
+          InitialCostPerUnit = GetDecimalValue(values, 10), // Column 11
+          InitialVendor = GetValue(values, 11), // Column 12
+          InitialPurchaseDate = GetDateValue(values, 12), // Column 13
+          InitialPurchaseOrderNumber = GetValue(values, 13) // Column 14
         };
 
         items.Add(item);
@@ -151,22 +158,28 @@ namespace InventorySystem.Services
         {
           try
           {
-            // Create the item
             var item = new Item
             {
               PartNumber = itemData.PartNumber,
               Description = itemData.Description,
               Comments = itemData.Comments ?? string.Empty,
-              MinimumStock = itemData.MinimumStock,
+              MinimumStock = itemData.TrackInventory ? itemData.MinimumStock : 0,
               CurrentStock = 0,
-              CreatedDate = DateTime.Now
+              CreatedDate = DateTime.Now,
+
+              // NEW PHASE 1 PROPERTIES
+              VendorPartNumber = itemData.VendorPartNumber,
+              PreferredVendor = itemData.PreferredVendor,
+              IsSellable = itemData.IsSellable,
+              ItemType = itemData.ItemType,
+              Version = itemData.Version
             };
 
             var createdItem = await _inventoryService.CreateItemAsync(item);
             result.CreatedItemIds.Add(createdItem.Id);
 
-            // Create initial purchase if data is provided
-            if (HasValidInitialPurchaseData(itemData))
+            // Create initial purchase if data is provided AND item is inventoried
+            if (HasValidInitialPurchaseData(itemData) && itemData.TrackInventory)
             {
               var purchase = new Purchase
               {
@@ -339,5 +352,27 @@ namespace InventorySystem.Services
 
       return null;
     }
+
+    private bool GetBoolValue(List<string> values, int index)
+    {
+      var value = GetValue(values, index).ToLower();
+      return value == "true" || value == "yes" || value == "1" || value == "y";
+    }
+
+    private ItemType GetItemTypeValue(List<string> values, int index)
+    {
+      var value = GetValue(values, index).ToLower();
+      return value switch
+      {
+        "inventoried" or "0" or "" => ItemType.Inventoried,
+        "non-inventoried" or "noninventoried" or "1" => ItemType.NonInventoried,
+        "service" or "2" => ItemType.Service,
+        "virtual" or "3" => ItemType.Virtual,
+        _ => ItemType.Inventoried
+      };
+    }
+
+    
+   
   }
 }

@@ -1,26 +1,54 @@
 using System.ComponentModel.DataAnnotations;
+using InventorySystem.Models.Enums;
 
 namespace InventorySystem.ViewModels
 {
-  public class CreateItemViewModel : IValidatableObject
+  public class CreateItemViewModel
   {
     [Required]
-    [Display(Name = "Internal Part Number")]
+    [StringLength(100, ErrorMessage = "Part Number cannot exceed 100 characters.")]
+    [Display(Name = "Part Number")]
     public string PartNumber { get; set; } = string.Empty;
 
     [Required]
+    [StringLength(500, ErrorMessage = "Description cannot exceed 500 characters.")]
+    [Display(Name = "Description")]
     public string Description { get; set; } = string.Empty;
 
-    public string Comments { get; set; } = string.Empty;
+    [StringLength(1000, ErrorMessage = "Comments cannot exceed 1000 characters.")]
+    [Display(Name = "Comments")]
+    public string? Comments { get; set; }
 
-    [Display(Name = "Minimum Stock Level")]
+    [Range(0, int.MaxValue, ErrorMessage = "Minimum Stock must be 0 or greater.")]
+    [Display(Name = "Minimum Stock")]
     public int MinimumStock { get; set; }
+
+    // NEW PHASE 1 FIELDS
+
+    [StringLength(100, ErrorMessage = "Vendor Part Number cannot exceed 100 characters.")]
+    [Display(Name = "Vendor Part Number")]
+    public string? VendorPartNumber { get; set; }
+
+    [StringLength(200, ErrorMessage = "Preferred Vendor cannot exceed 200 characters.")]
+    [Display(Name = "Preferred Vendor")]
+    public string? PreferredVendor { get; set; }
+
+    [Display(Name = "Item can be sold")]
+    public bool IsSellable { get; set; } = true;
+
+    [Display(Name = "Item Type")]
+    public ItemType ItemType { get; set; } = ItemType.Inventoried;
+
+    [Required]
+    [StringLength(10, ErrorMessage = "Version cannot exceed 10 characters.")]
+    [Display(Name = "Version")]
+    public string Version { get; set; } = "A";
 
     // Image upload
     [Display(Name = "Item Image")]
     public IFormFile? ImageFile { get; set; }
 
-    // Initial purchase fields
+    // Initial Purchase Section
     [Display(Name = "Add Initial Purchase")]
     public bool HasInitialPurchase { get; set; }
 
@@ -32,49 +60,16 @@ namespace InventorySystem.ViewModels
     public decimal InitialCostPerUnit { get; set; }
 
     [Display(Name = "Initial Vendor")]
-    public string InitialVendor { get; set; } = string.Empty;
+    public string? InitialVendor { get; set; }
 
     [Display(Name = "Initial Purchase Date")]
     [DataType(DataType.Date)]
-    public DateTime? InitialPurchaseDate { get; set; } = DateTime.Today;
+    public DateTime? InitialPurchaseDate { get; set; }
 
     [Display(Name = "Initial Purchase Order Number")]
     public string? InitialPurchaseOrderNumber { get; set; }
 
-    // Custom validation that only applies when HasInitialPurchase is true
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-    {
-      // Only validate initial purchase fields if HasInitialPurchase is checked
-      if (HasInitialPurchase)
-      {
-        if (InitialQuantity <= 0)
-        {
-          yield return new ValidationResult(
-              "Initial quantity must be greater than 0 when adding initial purchase.",
-              new[] { nameof(InitialQuantity) });
-        }
-
-        if (InitialCostPerUnit <= 0)
-        {
-          yield return new ValidationResult(
-              "Initial cost per unit must be greater than 0 when adding initial purchase.",
-              new[] { nameof(InitialCostPerUnit) });
-        }
-
-        if (string.IsNullOrWhiteSpace(InitialVendor))
-        {
-          yield return new ValidationResult(
-              "Initial vendor is required when adding initial purchase.",
-              new[] { nameof(InitialVendor) });
-        }
-
-        if (!InitialPurchaseDate.HasValue)
-        {
-          yield return new ValidationResult(
-              "Initial purchase date is required when adding initial purchase.",
-              new[] { nameof(InitialPurchaseDate) });
-        }
-      }
-    }
+    // Helper properties
+    public bool ShowStockFields => ItemType == ItemType.Inventoried;
   }
 }
