@@ -1,8 +1,4 @@
-﻿<!-- ========================================= -->
-<!-- PRODUCTION VIEWS -->
-<!-- ========================================= -->
-<!-- Views/Production/Index.cshtml -->
-@model IEnumerable<InventorySystem.Models.Production>
+﻿@model IEnumerable<InventorySystem.Models.Production>
 @{
   ViewData["Title"] = "Productions";
 }
@@ -61,10 +57,16 @@
               <tr>
                 <td>@production.ProductionDate.ToString("MM/dd/yyyy")</td>
                 <td>
-                  <strong>@production.FinishedGood?.PartNumber</strong><br>
-                  <small class="text-muted">@production.FinishedGood?.Description</small>
+                  <a href="/Production/FinishedGoodDetails/@production.FinishedGoodId" class="text-decoration-none">
+                    <strong>@production.FinishedGood?.PartNumber</strong>
+                  </a>
+                  <br><small class="text-muted">@production.FinishedGood?.Description</small>
                 </td>
-                <td>@production.Bom?.Name</td>
+                <td>
+                  <a href="/Boms/Details/@production.BomId" class="text-decoration-none">
+                    @production.Bom?.Name
+                  </a>
+                </td>
                 <td>
                   <span class="badge bg-info">@production.QuantityProduced</span>
                 </td>
@@ -79,6 +81,29 @@
             }
           </tbody>
         </table>
+      </div>
+
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <div class="card bg-light">
+            <div class="card-body">
+              <div class="row text-center">
+                <div class="col-md-3">
+                  <h6>Total Productions: <span class="badge bg-primary">@Model.Count()</span></h6>
+                </div>
+                <div class="col-md-3">
+                  <h6>Units Produced: <span class="badge bg-success">@Model.Sum(p => p.QuantityProduced)</span></h6>
+                </div>
+                <div class="col-md-3">
+                  <h6>Total Value: <span class="badge bg-info">@Model.Sum(p => p.TotalCost).ToString("C")</span></h6>
+                </div>
+                <div class="col-md-3">
+                  <h6>Avg Unit Cost: <span class="badge bg-warning">@(Model.Any() ? (Model.Sum(p => p.TotalCost) / Model.Sum(p => p.QuantityProduced)).ToString("C") : "$0.00")</span></h6>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     }
     else

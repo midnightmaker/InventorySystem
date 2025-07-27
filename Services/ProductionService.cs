@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Data;
 using InventorySystem.Models;
+using InventorySystem.ViewModels;
 
 namespace InventorySystem.Services
 {
@@ -302,6 +303,169 @@ namespace InventorySystem.Services
     {
       var productions = await _context.Productions.ToListAsync();
       return productions.Sum(p => p.TotalCost);
+    }
+
+    public async Task<MaterialShortageViewModel> GetMaterialShortageAnalysisAsync(int bomId, int quantity)
+    {
+      var bom = await _bomService.GetBomByIdAsync(bomId);
+      if (bom == null)
+        throw new ArgumentException("BOM not found");
+
+      var canBuild = await CanBuildBomAsync(bomId, quantity);
+      var totalCost = await CalculateBomMaterialCostAsync(bomId, quantity);
+      var requirements = await GetBomMaterialRequirementsAsync(bomId, quantity);
+      var shortages = await GetBomMaterialShortagesAsync(bomId, quantity);
+
+      return new MaterialShortageViewModel
+      {
+        BomId = bomId,
+        BomName = bom.Name,
+        BomDescription = bom.Description,
+        RequestedQuantity = quantity,
+        CanBuild = canBuild,
+        TotalCost = totalCost,
+        ShortageValue = shortages.Sum(s => s.ShortageValue),
+        MaterialRequirements = requirements,
+        MaterialShortages = shortages
+      };
+    }
+
+    public async Task<IEnumerable<MaterialShortageItem>> GetBomMaterialShortagesAsync(int bomId, int quantity)
+    {
+      var shortages = new List<MaterialShortageItem>();
+      await GetBomMaterialShortagesRecursiveAsync(bomId, quantity, shortages, "Direct");
+      return shortages;
+    }
+
+    private async Task GetBomMaterialShortagesRecursiveAsync(int bomId, int quantity, List<MaterialShortageItem> shortages, string context)
+    {
+      var bom = await _bomService.GetBomByIdAsync(bomId);
+      if (bom == null) return;
+
+      // Check direct materials
+      foreach (var bomItem in bom.BomItems)
+      {
+        var requiredQuantity = bomItem.Quantity * quantity;
+        var item = await _inventoryService.GetItemByIdAsync(bomItem.ItemId);
+
+        if (item != null && item.CurrentStock < requiredQuantity)
+        {
+          var shortageQuantity = requiredQuantity - item.CurrentStock;
+          var averageCost = await _inventoryService.GetAverageCostAsync(bomItem.ItemId);
+
+          // Get last purchase info
+          var lastPurchase = await _context.Purchases
+              .Where(p => p.ItemId == bomItem.ItemId)
+              .OrderByDescending(p => p.PurchaseDate)
+              .FirstOrDefaultAsync();
+
+          // Calculate suggested purchase quantity (shortage + safety stock)
+          var suggestedQuantity = Math.Max(shortageQuantity, item.MinimumStock - item.CurrentStock);
+          suggestedQuantity = Math.Max(suggestedQuantity, (int)(shortageQuantity * 1.2m)); // 20% safety buffer
+
+          var shortage = new MaterialShortageItem
+          {
+            ItemId = bomItem.ItemId,
+            PartNumber = item.PartNumber,
+            Description = item.Description,
+            RequiredQuantity = requiredQuantity,
+            AvailableQuantity = item.CurrentStock,
+            ShortageQuantity = shortageQuantity,
+            EstimatedUnitCost = averageCost > 0 ? averageCost : (lastPurchase?.CostPerUnit ?? 0),
+            ShortageValue = shortageQuantity * (averageCost > 0 ? averageCost : (lastPurchase?.CostPerUnit ?? 0)),
+            PreferredVendor = lastPurchase?.Vendor,
+            LastPurchaseDate = lastPurchase?.PurchaseDate,
+            LastPurchasePrice = lastPurchase?.CostPerUnit,
+            MinimumStock = item.MinimumStock,
+            SuggestedPurchaseQuantity = suggestedQuantity,
+            BomContext = context,
+            QuantityPerAssembly = bomItem.Quantity
+          };
+
+          // Check if this item already exists in shortages (from sub-assemblies)
+          var existingShortage = shortages.FirstOrDefault(s => s.ItemId == bomItem.ItemId);
+          if (existingShortage != null)
+          {
+            // Aggregate the shortage
+            existingShortage.RequiredQuantity += requiredQuantity;
+            existingShortage.ShortageQuantity = Math.Max(0, existingShortage.RequiredQuantity - existingShortage.AvailableQuantity);
+            existingShortage.ShortageValue = existingShortage.ShortageQuantity * existingShortage.EstimatedUnitCost;
+            existingShortage.SuggestedPurchaseQuantity = Math.Max(existingShortage.SuggestedPurchaseQuantity, suggestedQuantity);
+            existingShortage.BomContext += $", {context}";
+          }
+          else
+          {
+            shortages.Add(shortage);
+          }
+        }
+      }
+
+      // Check sub-assemblies recursively
+      foreach (var subAssembly in bom.SubAssemblies)
+      {
+        await GetBomMaterialShortagesRecursiveAsync(subAssembly.Id, quantity, shortages, $"Sub-Assembly: {subAssembly.Name}");
+      }
+    }
+
+    public async Task<IEnumerable<MaterialRequirement>> GetBomMaterialRequirementsAsync(int bomId, int quantity)
+    {
+      var requirements = new List<MaterialRequirement>();
+      await GetBomMaterialRequirementsRecursiveAsync(bomId, quantity, requirements, "Direct");
+      return requirements;
+    }
+
+    private async Task GetBomMaterialRequirementsRecursiveAsync(int bomId, int quantity, List<MaterialRequirement> requirements, string context)
+    {
+      var bom = await _bomService.GetBomByIdAsync(bomId);
+      if (bom == null) return;
+
+      // Process direct materials
+      foreach (var bomItem in bom.BomItems)
+      {
+        var requiredQuantity = bomItem.Quantity * quantity;
+        var item = await _inventoryService.GetItemByIdAsync(bomItem.ItemId);
+
+        if (item != null)
+        {
+          var averageCost = await _inventoryService.GetAverageCostAsync(bomItem.ItemId);
+          var hasSufficientStock = item.CurrentStock >= requiredQuantity;
+
+          var requirement = new MaterialRequirement
+          {
+            ItemId = bomItem.ItemId,
+            PartNumber = item.PartNumber,
+            Description = item.Description,
+            RequiredQuantity = requiredQuantity,
+            AvailableQuantity = item.CurrentStock,
+            EstimatedUnitCost = averageCost,
+            TotalCost = requiredQuantity * averageCost,
+            HasSufficientStock = hasSufficientStock,
+            BomContext = context,
+            QuantityPerAssembly = bomItem.Quantity
+          };
+
+          // Check if this item already exists in requirements (from sub-assemblies)
+          var existingRequirement = requirements.FirstOrDefault(r => r.ItemId == bomItem.ItemId);
+          if (existingRequirement != null)
+          {
+            // Aggregate the requirement
+            existingRequirement.RequiredQuantity += requiredQuantity;
+            existingRequirement.TotalCost += requiredQuantity * averageCost;
+            existingRequirement.HasSufficientStock = existingRequirement.AvailableQuantity >= existingRequirement.RequiredQuantity;
+            existingRequirement.BomContext += $", {context}";
+          }
+          else
+          {
+            requirements.Add(requirement);
+          }
+        }
+      }
+
+      // Process sub-assemblies recursively
+      foreach (var subAssembly in bom.SubAssemblies)
+      {
+        await GetBomMaterialRequirementsRecursiveAsync(subAssembly.Id, quantity, requirements, $"Sub-Assembly: {subAssembly.Name}");
+      }
     }
   }
 }

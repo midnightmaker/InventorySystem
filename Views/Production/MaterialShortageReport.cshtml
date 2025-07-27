@@ -1,0 +1,417 @@
+﻿@model InventorySystem.ViewModels.MaterialShortageViewModel
+@{
+  ViewData["Title"] = "Material Shortage Report";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-exclamation-triangle text-warning"></i> Material Shortage Report</h1>
+  <div class="btn-group">
+    <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Build BOM
+    </a>
+    <a href="/Boms/Details/@Model.BomId" class="btn btn-outline-info">
+      <i class="fas fa-eye"></i> View BOM
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+  <div class="alert alert-warning alert-dismissible fade show">
+    @TempData["WarningMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card @(Model.CanBuild ? "border-success" : "border-danger")">
+      <div class="card-body text-center">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4 class="@(Model.CanBuild ? "text-success" : "text-danger")">
+              @(Model.CanBuild ? "CAN BUILD" : "CANNOT BUILD")
+            </h4>
+            <p class="mb-0">Production Status</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas @(Model.CanBuild ? "fa-check-circle text-success" : "fa-times-circle text-danger") fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4 class="text-warning">@Model.TotalShortageItems</h4>
+            <p class="mb-0">Items Short</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-info">
+      <div class="card-body text-center">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4 class="text-info">@Model.ShortageValue.ToString("C")</h4>
+            <p class="mb-0">Shortage Value</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-dollar-sign text-info fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-primary">
+      <div class="card-body text-center">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4 class="text-primary">@Model.RequestedQuantity</h4>
+            <p class="mb-0">Requested Qty</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-boxes text-primary fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOM Information -->
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> BOM Information</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-2">BOM Name:</dt>
+          <dd class="col-sm-4"><strong>@Model.BomName</strong></dd>
+
+          <dt class="col-sm-2">Requested Quantity:</dt>
+          <dd class="col-sm-4"><span class="badge bg-primary fs-6">@Model.RequestedQuantity units</span></dd>
+        </dl>
+        <dl class="row">
+          <dt class="col-sm-2">Description:</dt>
+          <dd class="col-sm-10">@Model.BomDescription</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (Model.HasShortages)
+{
+  <!-- Material Shortages -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5><i class="fas fa-exclamation-triangle text-danger"></i> Material Shortages (@Model.TotalShortageItems)</h5>
+      <div class="btn-group">
+        <a href="/Production/CreateBulkPurchaseRequest?bomId=@Model.BomId&quantity=@Model.RequestedQuantity" class="btn btn-success">
+          <i class="fas fa-shopping-cart"></i> Bulk Purchase
+        </a>
+        <a href="/Production/ExportShortageReport?bomId=@Model.BomId&quantity=@Model.RequestedQuantity" class="btn btn-outline-primary">
+          <i class="fas fa-download"></i> Export CSV
+        </a>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead class="table-dark">
+            <tr>
+              <th>Part Number</th>
+              <th>Description</th>
+              <th>Required</th>
+              <th>Available</th>
+              <th>Shortage</th>
+              <th>Value</th>
+              <th>Suggested Purchase</th>
+              <th>Last Purchase</th>
+              <th>BOM Context</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var shortage in Model.MaterialShortages.OrderByDescending(s => s.IsCriticalShortage).ThenByDescending(s => s.ShortageValue))
+            {
+              <tr class="@(shortage.IsCriticalShortage ? "table-danger" : "table-warning")">
+                <td>
+                  <a href="/Items/Details/@shortage.ItemId" class="text-decoration-none">
+                    <strong>@shortage.PartNumber</strong>
+                  </a>
+                  @if (shortage.IsCriticalShortage)
+                  {
+                    <span class="badge bg-danger ms-1">CRITICAL</span>
+                  }
+                </td>
+                <td>@shortage.Description</td>
+                <td>
+                  <span class="badge bg-primary">@shortage.RequiredQuantity</span>
+                  <small class="text-muted d-block">(@shortage.QuantityPerAssembly per unit)</small>
+                </td>
+                <td>
+                  <span class="badge bg-@(shortage.AvailableQuantity == 0 ? "danger" : "warning")">
+                    @shortage.AvailableQuantity
+                  </span>
+                  @if (shortage.MinimumStock > 0)
+                  {
+                    <small class="text-muted d-block">Min: @shortage.MinimumStock</small>
+                  }
+                </td>
+                <td>
+                  <span class="badge bg-danger">@shortage.ShortageQuantity</span>
+                </td>
+                <td>@shortage.ShortageValue.ToString("C")</td>
+                <td>
+                  <span class="badge bg-success">@shortage.SuggestedPurchaseQuantity</span>
+                  <small class="text-muted d-block">Includes safety stock</small>
+                </td>
+                <td>
+                  @if (shortage.LastPurchaseDate.HasValue)
+                  {
+                    <div>@shortage.LastPurchasePrice?.ToString("C")</div>
+                    <small class="text-muted">@shortage.LastPurchaseDate.Value.ToString("MM/dd/yyyy")</small>
+                    @if (!string.IsNullOrEmpty(shortage.PreferredVendor))
+                    {
+                      <small class="text-muted d-block">@shortage.PreferredVendor</small>
+                    }
+                  }
+                  else
+                  {
+                    <span class="text-muted">No history</span>
+                  }
+                </td>
+                <td>
+                  <span class="badge bg-secondary">@shortage.BomContext</span>
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#quickPurchaseModal"
+                            data-item-id="@shortage.ItemId"
+                            data-part-number="@shortage.PartNumber"
+                            data-suggested-qty="@shortage.SuggestedPurchaseQuantity"
+                            data-estimated-cost="@shortage.EstimatedUnitCost"
+                            data-vendor="@shortage.PreferredVendor">
+                      <i class="fas fa-shopping-cart"></i> Quick Buy
+                    </button>
+                    <a href="/Purchases/Create?itemId=@shortage.ItemId" class="btn btn-outline-primary">
+                      <i class="fas fa-plus"></i> Purchase
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}
+else
+{
+  <div class="alert alert-success">
+    <h4><i class="fas fa-check-circle"></i> No Material Shortages!</h4>
+    <p class="mb-0">All required materials are available to build <strong>@Model.RequestedQuantity</strong> units of <strong>@Model.BomName</strong>.</p>
+    <hr>
+    <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-success">
+      <i class="fas fa-hammer"></i> Proceed to Build BOM
+    </a>
+  </div>
+}
+
+<!-- All Material Requirements -->
+<div class="card mt-4">
+  <div class="card-header">
+    <h5><i class="fas fa-list"></i> Complete Material Requirements (@Model.TotalRequiredItems)</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Part Number</th>
+            <th>Description</th>
+            <th>Required</th>
+            <th>Available</th>
+            <th>Status</th>
+            <th>Est. Cost</th>
+            <th>Total Cost</th>
+            <th>BOM Context</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach (var requirement in Model.MaterialRequirements.OrderBy(r => r.HasSufficientStock).ThenBy(r => r.PartNumber))
+          {
+            <tr class="@(requirement.HasSufficientStock ? "" : "table-warning")">
+              <td>
+                <a href="/Items/Details/@requirement.ItemId" class="text-decoration-none">
+                  @requirement.PartNumber
+                </a>
+              </td>
+              <td>@requirement.Description</td>
+              <td>
+                @requirement.RequiredQuantity
+                <small class="text-muted">(@requirement.QuantityPerAssembly per unit)</small>
+              </td>
+              <td>@requirement.AvailableQuantity</td>
+              <td>
+                @if (requirement.HasSufficientStock)
+                {
+                  <span class="badge bg-success">Sufficient</span>
+                }
+                else
+                {
+                  <span class="badge bg-warning">Short</span>
+                }
+              </td>
+              <td>@requirement.EstimatedUnitCost.ToString("C")</td>
+              <td>@requirement.TotalCost.ToString("C")</td>
+              <td>
+                <span class="badge bg-secondary">@requirement.BomContext</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot class="table-dark">
+          <tr>
+            <th colspan="6">Total Material Cost:</th>
+            <th>@Model.TotalCost.ToString("C")</th>
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Purchase Modal -->
+<div class="modal fade" id="quickPurchaseModal" tabindex="-1" aria-labelledby="quickPurchaseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="quickPurchaseModalLabel">
+          <i class="fas fa-shopping-cart"></i> Quick Purchase
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form asp-action="QuickPurchaseShortageItem" method="post">
+        <div class="modal-body">
+          <input type="hidden" name="itemId" id="modalItemId" />
+          <input type="hidden" name="bomId" value="@Model.BomId" />
+          <input type="hidden" name="bomQuantity" value="@Model.RequestedQuantity" />
+
+          <div class="mb-3">
+            <label class="form-label">Part Number</label>
+            <input type="text" class="form-control" id="modalPartNumber" readonly />
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="modalQuantity" class="form-label">Quantity *</label>
+                <input type="number" class="form-control" name="quantity" id="modalQuantity" min="1" required />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="modalEstimatedCost" class="form-label">Unit Cost *</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control" name="estimatedCost" id="modalEstimatedCost" step="0.01" min="0" required />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="modalVendor" class="form-label">Vendor</label>
+            <input type="text" class="form-control" name="vendor" id="modalVendor" />
+          </div>
+
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Quick Purchase:</strong> This will create a purchase order immediately to resolve the material shortage.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-shopping-cart"></i> Create Purchase
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Quick Purchase Modal setup
+        const quickPurchaseModal = document.getElementById('quickPurchaseModal');
+        if (quickPurchaseModal) {
+            quickPurchaseModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const itemId = button.getAttribute('data-item-id');
+                const partNumber = button.getAttribute('data-part-number');
+                const suggestedQty = button.getAttribute('data-suggested-qty');
+                const estimatedCost = button.getAttribute('data-estimated-cost');
+                const vendor = button.getAttribute('data-vendor');
+
+                document.getElementById('modalItemId').value = itemId;
+                document.getElementById('modalPartNumber').value = partNumber;
+                document.getElementById('modalQuantity').value = suggestedQty;
+                document.getElementById('modalEstimatedCost').value = parseFloat(estimatedCost).toFixed(2);
+                document.getElementById('modalVendor').value = vendor || '';
+            });
+        }
+
+        // Auto-refresh shortage data every 30 seconds
+        setInterval(function() {
+            updateShortageData();
+        }, 30000);
+
+        function updateShortageData() {
+            fetch(`/Production/GetMaterialShortageData?bomId=@Model.BomId&quantity=@Model.RequestedQuantity`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.hasShortages !== @Model.HasShortages.ToString().ToLower()) {
+                        // Reload page if shortage status changed
+                        location.reload();
+                    }
+                })
+                .catch(error => console.log('Error checking shortage updates:', error));
+        }
+    });
+  </script>
+}

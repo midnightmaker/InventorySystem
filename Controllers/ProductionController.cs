@@ -5,6 +5,7 @@ using InventorySystem.Services;
 using InventorySystem.Models;
 using InventorySystem.ViewModels;
 using System.ComponentModel.DataAnnotations;
+using System.Text;
 
 namespace InventorySystem.Controllers
 {
@@ -13,15 +14,18 @@ namespace InventorySystem.Controllers
     private readonly IProductionService _productionService;
     private readonly IBomService _bomService;
     private readonly IInventoryService _inventoryService;
+    private readonly IPurchaseService _purchaseService;
 
     public ProductionController(
         IProductionService productionService,
         IBomService bomService,
-        IInventoryService inventoryService)
+        IInventoryService inventoryService,
+        IPurchaseService purchaseService)
     {
       _productionService = productionService;
       _bomService = bomService;
       _inventoryService = inventoryService;
+      _purchaseService = purchaseService;
     }
 
     // Production Index
@@ -227,6 +231,221 @@ namespace InventorySystem.Controllers
       var boms = await _bomService.GetAllBomsAsync();
       ViewBag.BomId = new SelectList(boms, "Id", "Name", finishedGood.BomId);
       return View(finishedGood);
+    }
+
+    // Material Shortage Report - GET
+    public async Task<IActionResult> MaterialShortageReport(int bomId, int quantity = 1)
+    {
+      try
+      {
+        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
+        return View(shortageAnalysis);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error generating shortage report: {ex.Message}";
+        return RedirectToAction("BuildBom", new { bomId });
+      }
+    }
+
+    // AJAX endpoint to get shortage data
+    [HttpGet]
+    public async Task<IActionResult> GetMaterialShortageData(int bomId, int quantity)
+    {
+      try
+      {
+        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
+
+        return Json(new
+        {
+          success = true,
+          canBuild = shortageAnalysis.CanBuild,
+          hasShortages = shortageAnalysis.HasShortages,
+          totalShortageItems = shortageAnalysis.TotalShortageItems,
+          shortageValue = shortageAnalysis.ShortageValue,
+          shortages = shortageAnalysis.MaterialShortages.Select(s => new
+          {
+            itemId = s.ItemId,
+            partNumber = s.PartNumber,
+            description = s.Description,
+            requiredQuantity = s.RequiredQuantity,
+            availableQuantity = s.AvailableQuantity,
+            shortageQuantity = s.ShortageQuantity,
+            shortageValue = s.ShortageValue,
+            suggestedPurchaseQuantity = s.SuggestedPurchaseQuantity,
+            bomContext = s.BomContext,
+            isCritical = s.IsCriticalShortage
+          })
+        });
+      }
+      catch (Exception ex)
+      {
+        return Json(new { success = false, error = ex.Message });
+      }
+    }
+
+    // Bulk Purchase Request - GET
+    public async Task<IActionResult> CreateBulkPurchaseRequest(int bomId, int quantity)
+    {
+      try
+      {
+        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
+
+        var bulkRequest = new BulkPurchaseRequest
+        {
+          BomId = bomId,
+          Quantity = quantity,
+          ExpectedDeliveryDate = DateTime.Now.AddDays(14), // Default 2 weeks
+          ItemsToPurchase = shortageAnalysis.MaterialShortages.Select(s => new ShortageItemPurchase
+          {
+            ItemId = s.ItemId,
+            Selected = true,
+            QuantityToPurchase = s.SuggestedPurchaseQuantity,
+            EstimatedUnitCost = s.EstimatedUnitCost,
+            PreferredVendor = s.PreferredVendor
+          }).ToList()
+        };
+
+        ViewBag.ShortageAnalysis = shortageAnalysis;
+        return View(bulkRequest);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error creating bulk purchase request: {ex.Message}";
+        return RedirectToAction("MaterialShortageReport", new { bomId, quantity });
+      }
+    }
+
+    // Bulk Purchase Request - POST
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateBulkPurchaseRequest(BulkPurchaseRequest request)
+    {
+      if (ModelState.IsValid)
+      {
+        try
+        {
+          var createdPurchases = new List<int>();
+          var errors = new List<string>();
+
+          foreach (var itemPurchase in request.ItemsToPurchase.Where(ip => ip.Selected))
+          {
+            try
+            {
+              var purchase = new Purchase
+              {
+                ItemId = itemPurchase.ItemId,
+                Vendor = itemPurchase.PreferredVendor ?? "TBD",
+                PurchaseDate = DateTime.Now,
+                QuantityPurchased = itemPurchase.QuantityToPurchase,
+                CostPerUnit = itemPurchase.EstimatedUnitCost,
+                PurchaseOrderNumber = request.PurchaseOrderNumber,
+                Notes = $"Bulk purchase for BOM production. {request.Notes}",
+                RemainingQuantity = itemPurchase.QuantityToPurchase,
+                CreatedDate = DateTime.Now
+              };
+
+              var createdPurchase = await _purchaseService.CreatePurchaseAsync(purchase);
+              createdPurchases.Add(createdPurchase.Id);
+            }
+            catch (Exception ex)
+            {
+              var item = await _inventoryService.GetItemByIdAsync(itemPurchase.ItemId);
+              errors.Add($"Error creating purchase for {item?.PartNumber}: {ex.Message}");
+            }
+          }
+
+          if (createdPurchases.Any())
+          {
+            TempData["SuccessMessage"] = $"Successfully created {createdPurchases.Count} purchase orders for material shortages.";
+
+            if (errors.Any())
+            {
+              TempData["WarningMessage"] = $"Some purchases failed: {string.Join(", ", errors)}";
+            }
+
+            return RedirectToAction("MaterialShortageReport", new { bomId = request.BomId, quantity = request.Quantity });
+          }
+          else
+          {
+            TempData["ErrorMessage"] = $"Failed to create any purchases. Errors: {string.Join(", ", errors)}";
+          }
+        }
+        catch (Exception ex)
+        {
+          TempData["ErrorMessage"] = $"Error processing bulk purchase request: {ex.Message}";
+        }
+      }
+
+      // Reload view with errors
+      var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(request.BomId, request.Quantity);
+      ViewBag.ShortageAnalysis = shortageAnalysis;
+      return View(request);
+    }
+
+    // Quick Purchase for Single Item
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> QuickPurchaseShortageItem(int itemId, int quantity, decimal estimatedCost, string? vendor, int bomId, int bomQuantity)
+    {
+      try
+      {
+        var item = await _inventoryService.GetItemByIdAsync(itemId);
+        if (item == null)
+        {
+          TempData["ErrorMessage"] = "Item not found.";
+          return RedirectToAction("MaterialShortageReport", new { bomId, quantity = bomQuantity });
+        }
+
+        var purchase = new Purchase
+        {
+          ItemId = itemId,
+          Vendor = vendor ?? "Quick Purchase",
+          PurchaseDate = DateTime.Now,
+          QuantityPurchased = quantity,
+          CostPerUnit = estimatedCost,
+          PurchaseOrderNumber = $"QP-{DateTime.Now:yyyyMMddHHmm}",
+          Notes = $"Quick purchase to resolve shortage for BOM production",
+          RemainingQuantity = quantity,
+          CreatedDate = DateTime.Now
+        };
+
+        await _purchaseService.CreatePurchaseAsync(purchase);
+        TempData["SuccessMessage"] = $"Quick purchase created for {item.PartNumber} - {quantity} units at {estimatedCost:C} each.";
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error creating quick purchase: {ex.Message}";
+      }
+
+      return RedirectToAction("MaterialShortageReport", new { bomId, quantity = bomQuantity });
+    }
+
+    // Export Shortage Report to CSV
+    public async Task<IActionResult> ExportShortageReport(int bomId, int quantity)
+    {
+      try
+      {
+        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
+
+        var csv = new StringBuilder();
+        csv.AppendLine("Part Number,Description,Required Qty,Available Qty,Shortage Qty,Shortage Value,Suggested Purchase Qty,Last Purchase Price,Preferred Vendor,BOM Context");
+
+        foreach (var shortage in shortageAnalysis.MaterialShortages)
+        {
+          csv.AppendLine($"\"{shortage.PartNumber}\",\"{shortage.Description}\",{shortage.RequiredQuantity},{shortage.AvailableQuantity},{shortage.ShortageQuantity},{shortage.ShortageValue:F2},{shortage.SuggestedPurchaseQuantity},{shortage.LastPurchasePrice:F2},\"{shortage.PreferredVendor}\",\"{shortage.BomContext}\"");
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(csv.ToString());
+        var fileName = $"MaterialShortageReport_{shortageAnalysis.BomName}_{DateTime.Now:yyyyMMdd}.csv";
+
+        return File(bytes, "text/csv", fileName);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error exporting report: {ex.Message}";
+        return RedirectToAction("MaterialShortageReport", new { bomId, quantity });
+      }
     }
   }
 }

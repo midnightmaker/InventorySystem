@@ -7,16 +7,21 @@ namespace InventorySystem.Controllers
 {
     public class BomsController : Controller
     {
-        private readonly IBomService _bomService;
-        private readonly IInventoryService _inventoryService;
-        
-        public BomsController(IBomService bomService, IInventoryService inventoryService)
-        {
-            _bomService = bomService;
-            _inventoryService = inventoryService;
-        }
-        
-        public async Task<IActionResult> Index()
+    private readonly IBomService _bomService;
+    private readonly IInventoryService _inventoryService;
+    private readonly IProductionService _productionService; // ADD THIS LINE
+
+    public BomsController(
+        IBomService bomService,
+        IInventoryService inventoryService,
+        IProductionService productionService) 
+    {
+      _bomService = bomService;
+      _inventoryService = inventoryService;
+      _productionService = productionService; 
+    }
+
+    public async Task<IActionResult> Index()
         {
             var boms = await _bomService.GetAllBomsAsync();
             return View(boms);
@@ -275,5 +280,62 @@ namespace InventorySystem.Controllers
             await _bomService.DeleteBomAsync(id);
             return RedirectToAction(nameof(Index));
         }
+    // Add these methods to your BomsController:
+
+    // Quick Material Check - GET
+    public async Task<IActionResult> QuickMaterialCheck(int id, int quantity = 1)
+    {
+      try
+      {
+        var bom = await _bomService.GetBomByIdAsync(id);
+        if (bom == null) return NotFound();
+
+        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(id, quantity);
+
+        ViewBag.BomId = id;
+        ViewBag.Quantity = quantity;
+        return View(shortageAnalysis);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error checking material availability: {ex.Message}";
+        return RedirectToAction("Details", new { id });
+      }
     }
+
+    // AJAX endpoint for quick material check
+    [HttpGet]
+    public async Task<IActionResult> GetQuickMaterialStatus(int bomId, int quantity = 1)
+    {
+      try
+      {
+        var canBuild = await _productionService.CanBuildBomAsync(bomId, quantity);
+        var materialCost = await _productionService.CalculateBomMaterialCostAsync(bomId, quantity);
+        var shortages = await _productionService.GetBomMaterialShortagesAsync(bomId, quantity);
+
+        return Json(new
+        {
+          success = true,
+          canBuild = canBuild,
+          materialCost = materialCost,
+          shortageCount = shortages.Count(),
+          shortageValue = shortages.Sum(s => s.ShortageValue),
+          criticalShortages = shortages.Count(s => s.IsCriticalShortage),
+          shortages = shortages.Take(5).Select(s => new
+          {
+            partNumber = s.PartNumber,
+            description = s.Description,
+            shortageQuantity = s.ShortageQuantity,
+            availableQuantity = s.AvailableQuantity,
+            requiredQuantity = s.RequiredQuantity,
+            isCritical = s.IsCriticalShortage
+          })
+        });
+      }
+      catch (Exception ex)
+      {
+        return Json(new { success = false, error = ex.Message });
+      }
+    }
+  }
 }

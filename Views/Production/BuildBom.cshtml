@@ -1,5 +1,4 @@
-﻿<!-- Views/Production/BuildBom.cshtml -->
-@model InventorySystem.ViewModels.BuildBomViewModel
+﻿@model InventorySystem.ViewModels.BuildBomViewModel
 @{
   ViewData["Title"] = "Build BOM";
 }
@@ -99,6 +98,11 @@
           <div id="availabilityInfo" style="display: none;">
             <div class="alert" id="availabilityAlert">
               <div id="availabilityDetails"></div>
+              <div id="shortageActions" style="display: none; margin-top: 10px;">
+                <a href="#" id="viewShortageReport" class="btn btn-warning btn-sm">
+                  <i class="fas fa-exclamation-triangle"></i> View Material Shortage Report
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -145,74 +149,109 @@
   </div>
 </form>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-      const bomSelect = document.getElementById('bomSelect');
-      const quantityInput = document.getElementById('quantityInput');
-      const laborCostInput = document.querySelector('input[name="LaborCost"]');
-      const overheadCostInput = document.querySelector('input[name="OverheadCost"]');
-      const buildButton = document.getElementById('buildButton');
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const bomSelect = document.getElementById('bomSelect');
+        const quantityInput = document.getElementById('quantityInput');
+        const laborCostInput = document.querySelector('input[name="LaborCost"]');
+        const overheadCostInput = document.querySelector('input[name="OverheadCost"]');
+        const buildButton = document.getElementById('buildButton');
 
-      function updateCostEstimate() {
-          const bomId = bomSelect.value;
-          const quantity = parseInt(quantityInput.value) || 0;
+        function updateCostEstimate() {
+            const bomId = bomSelect.value;
+            const quantity = parseInt(quantityInput.value) || 0;
 
-          if (bomId && quantity > 0) {
-              fetch(`/Production/CheckBomAvailability?bomId=${bomId}&quantity=${quantity}`)
-                  .then(response => response.json())
-                  .then(data => {
-                      if (data.success) {
-                          // Update BOM info
-                          const bomInfo = document.getElementById('bomInfo');
-                          const bomDetails = document.getElementById('bomDetails');
-                          bomDetails.innerHTML = `<strong>${data.bomName}</strong><br><small>${data.bomDescription}</small>`;
-                          bomInfo.style.display = 'block';
+            if (bomId && quantity > 0) {
+                fetch(`/Production/CheckBomAvailability?bomId=${bomId}&quantity=${quantity}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updateBomInfo(data);
+                            updateAvailabilityInfo(data);
+                            updateCostDisplay();
+                        }
+                    })
+                    .catch(error => console.error('Error checking availability:', error));
+            } else {
+                document.getElementById('bomInfo').style.display = 'none';
+                document.getElementById('availabilityInfo').style.display = 'none';
+                buildButton.disabled = true;
+            }
+        }
 
-                          // Update availability info
-                          const availabilityInfo = document.getElementById('availabilityInfo');
-                          const availabilityAlert = document.getElementById('availabilityAlert');
-                          const availabilityDetails = document.getElementById('availabilityDetails');
+        function updateBomInfo(data) {
+            const bomInfo = document.getElementById('bomInfo');
+            const bomDetails = document.getElementById('bomDetails');
+            bomDetails.innerHTML = `<strong>${data.bomName}</strong><br><small>${data.bomDescription}</small>`;
+            bomInfo.style.display = 'block';
+        }
 
-                          if (data.canBuild) {
-                              availabilityAlert.className = 'alert alert-success';
-                              availabilityDetails.innerHTML = '<i class="fas fa-check-circle"></i> All materials available for production';
-                              buildButton.disabled = false;
-                          } else {
-                              availabilityAlert.className = 'alert alert-warning';
-                              availabilityDetails.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Insufficient materials for this quantity';
-                              buildButton.disabled = true;
-                          }
-                          availabilityInfo.style.display = 'block';
+        function updateAvailabilityInfo(data) {
+            const availabilityInfo = document.getElementById('availabilityInfo');
+            const availabilityAlert = document.getElementById('availabilityAlert');
+            const availabilityDetails = document.getElementById('availabilityDetails');
 
-                          // Update costs
-                          const materialCost = data.materialCost || 0;
-                          const laborCost = parseFloat(laborCostInput.value) || 0;
-                          const overheadCost = parseFloat(overheadCostInput.value) || 0;
-                          const totalCost = materialCost + laborCost + overheadCost;
-                          const unitCost = quantity > 0 ? totalCost / quantity : 0;
+            if (data.canBuild) {
+                availabilityAlert.className = 'alert alert-success';
+                availabilityDetails.innerHTML = '<i class="fas fa-check-circle"></i> All materials available for production';
+                buildButton.disabled = false;
+                document.getElementById('shortageActions').style.display = 'none';
+            } else {
+                availabilityAlert.className = 'alert alert-warning';
+                availabilityDetails.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Insufficient materials for this quantity';
+                buildButton.disabled = true;
 
-                          document.getElementById('materialCost').textContent = '$' + materialCost.toFixed(2);
-                          document.getElementById('laborCost').textContent = '$' + laborCost.toFixed(2);
-                          document.getElementById('overheadCost').textContent = '$' + overheadCost.toFixed(2);
-                          document.getElementById('totalCost').textContent = '$' + totalCost.toFixed(2);
-                          document.getElementById('unitCost').textContent = '$' + unitCost.toFixed(2);
-                      }
-                  });
-          } else {
-              document.getElementById('bomInfo').style.display = 'none';
-              document.getElementById('availabilityInfo').style.display = 'none';
-              buildButton.disabled = true;
-          }
-      }
+                const bomId = bomSelect.value;
+                const quantity = parseInt(quantityInput.value) || 0;
+                const shortageActions = document.getElementById('shortageActions');
+                const reportLink = document.getElementById('viewShortageReport');
+                reportLink.href = `/Production/MaterialShortageReport?bomId=${bomId}&quantity=${quantity}`;
+                shortageActions.style.display = 'block';
+            }
+            availabilityInfo.style.display = 'block';
+        }
 
-      bomSelect.addEventListener('change', updateCostEstimate);
-      quantityInput.addEventListener('input', updateCostEstimate);
-      laborCostInput.addEventListener('input', updateCostEstimate);
-      overheadCostInput.addEventListener('input', updateCostEstimate);
+        function updateCostDisplay() {
+            const bomId = bomSelect.value;
+            const quantity = parseInt(quantityInput.value) || 0;
+            const laborCost = parseFloat(laborCostInput.value) || 0;
+            const overheadCost = parseFloat(overheadCostInput.value) || 0;
 
-      // Initial load if BOM is pre-selected
-      if (bomSelect.value) {
-          updateCostEstimate();
-      }
-  });
-</script>
+            if (bomId && quantity > 0) {
+                fetch(`/Production/CheckBomAvailability?bomId=${bomId}&quantity=${quantity}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const materialCost = data.materialCost || 0;
+                            const totalCost = materialCost + laborCost + overheadCost;
+                            const unitCost = quantity > 0 ? totalCost / quantity : 0;
+
+                            document.getElementById('materialCost').textContent = '$' + materialCost.toFixed(2);
+                            document.getElementById('laborCost').textContent = '$' + laborCost.toFixed(2);
+                            document.getElementById('overheadCost').textContent = '$' + overheadCost.toFixed(2);
+                            document.getElementById('totalCost').textContent = '$' + totalCost.toFixed(2);
+                            document.getElementById('unitCost').textContent = '$' + unitCost.toFixed(2);
+                        }
+                    });
+            }
+        }
+
+        bomSelect.addEventListener('change', updateCostEstimate);
+        quantityInput.addEventListener('input', updateCostEstimate);
+        laborCostInput.addEventListener('input', updateCostDisplay);
+        overheadCostInput.addEventListener('input', updateCostDisplay);
+
+        // Set default date to today if not set
+        const dateInput = document.querySelector('input[type="date"]');
+        if (dateInput && !dateInput.value) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+        }
+
+        // Initial load if BOM is pre-selected
+        if (bomSelect.value) {
+            updateCostEstimate();
+        }
+    });
+  </script>
+}

@@ -1,0 +1,340 @@
+﻿@model InventorySystem.ViewModels.BulkPurchaseRequest
+@{
+    ViewData["Title"] = "Bulk Purchase Request";
+    var shortageAnalysis = ViewBag.ShortageAnalysis as InventorySystem.ViewModels.MaterialShortageViewModel;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-shopping-cart"></i> Bulk Purchase Request</h1>
+    <div class="btn-group">
+        <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.Quantity" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Shortage Report
+        </a>
+        <a href="/Purchases" class="btn btn-outline-info">
+            <i class="fas fa-list"></i> All Purchases
+        </a>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form asp-action="CreateBulkPurchaseRequest" method="post">
+    <input asp-for="BomId" type="hidden" />
+    <input asp-for="Quantity" type="hidden" />
+    
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Purchase Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-cogs"></i> Purchase Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="PurchaseOrderNumber" class="form-label">Purchase Order Number</label>
+                                <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="Auto-generated if empty" />
+                                <span asp-validation-for="PurchaseOrderNumber" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ExpectedDeliveryDate" class="form-label">Expected Delivery Date</label>
+                                <input asp-for="ExpectedDeliveryDate" type="date" class="form-control" />
+                                <span asp-validation-for="ExpectedDeliveryDate" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input asp-for="IncludeSafetyStock" class="form-check-input" type="checkbox" />
+                                <label asp-for="IncludeSafetyStock" class="form-check-label">
+                                    Include Safety Stock
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="SafetyStockMultiplier" class="form-label">Safety Stock Multiplier</label>
+                                <input asp-for="SafetyStockMultiplier" class="form-control" step="0.1" min="1.0" max="5.0" />
+                                <span asp-validation-for="SafetyStockMultiplier" class="text-danger"></span>
+                                <div class="form-text">1.0 = exact shortage, 1.2 = 20% extra safety stock</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label">Notes</label>
+                        <textarea asp-for="Notes" class="form-control" rows="2" placeholder="Additional notes for all purchase orders"></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items to Purchase -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-list"></i> Items to Purchase (@Model.ItemsToPurchase.Count)</h5>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="selectAllItems()">
+                            <i class="fas fa-check-square"></i> Select All
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="deselectAllItems()">
+                            <i class="fas fa-square"></i> Deselect All
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th width="50">Select</th>
+                                    <th>Part Number</th>
+                                    <th>Description</th>
+                                    <th>Shortage</th>
+                                    <th>Suggested Qty</th>
+                                    <th>Est. Unit Cost</th>
+                                    <th>Total Cost</th>
+                                    <th>Vendor</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.ItemsToPurchase.Count; i++)
+                                {
+                                    var item = Model.ItemsToPurchase[i];
+                                    var shortage = shortageAnalysis?.MaterialShortages.FirstOrDefault(s => s.ItemId == item.ItemId);
+                                    
+                                    <tr>
+                                        <td>
+                                            <input asp-for="ItemsToPurchase[i].ItemId" type="hidden" />
+                                            <div class="form-check">
+                                                <input asp-for="ItemsToPurchase[i].Selected" class="form-check-input item-checkbox" type="checkbox" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong>@shortage?.PartNumber</strong>
+                                            @if (shortage?.IsCriticalShortage == true)
+                                            {
+                                                <span class="badge bg-danger">CRITICAL</span>
+                                            }
+                                        </td>
+                                        <td>@shortage?.Description</td>
+                                        <td>
+                                            <span class="badge bg-danger">@shortage?.ShortageQuantity</span>
+                                        </td>
+                                        <td>
+                                            <input asp-for="ItemsToPurchase[i].QuantityToPurchase" class="form-control form-control-sm quantity-input" 
+                                                   type="number" min="1" style="width: 80px;" data-index="@i" />
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm" style="width: 100px;">
+                                                <span class="input-group-text">$</span>
+                                                <input asp-for="ItemsToPurchase[i].EstimatedUnitCost" class="form-control unit-cost-input" 
+                                                       type="number" step="0.01" min="0" data-index="@i" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong id="totalCost-@i">@((item.QuantityToPurchase * item.EstimatedUnitCost).ToString("C"))</strong>
+                                        </td>
+                                        <td>
+                                            <input asp-for="ItemsToPurchase[i].PreferredVendor" class="form-control form-control-sm" 
+                                                   style="width: 120px;" placeholder="Vendor" />
+                                        </td>
+                                        <td>
+                                            <input asp-for="ItemsToPurchase[i].Notes" class="form-control form-control-sm" 
+                                                   style="width: 100px;" placeholder="Notes" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-dark">
+                                <tr>
+                                    <th colspan="6">Total Selected Cost:</th>
+                                    <th id="grandTotal">$0.00</th>
+                                    <th colspan="2"></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- BOM Summary -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> BOM Summary</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-5">BOM:</dt>
+                        <dd class="col-sm-7">@shortageAnalysis?.BomName</dd>
+                        
+                        <dt class="col-sm-5">Quantity:</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge bg-primary">@Model.Quantity units</span>
+                        </dd>
+                        
+                        <dt class="col-sm-5">Total Shortages:</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge bg-danger">@shortageAnalysis?.TotalShortageItems items</span>
+                        </dd>
+                        
+                        <dt class="col-sm-5">Shortage Value:</dt>
+                        <dd class="col-sm-7">@shortageAnalysis?.ShortageValue.ToString("C")</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Purchase Summary -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-calculator"></i> Purchase Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 id="selectedCount">@Model.ItemsToPurchase.Count(i => i.Selected)</h4>
+                            <small class="text-muted">Selected Items</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 id="selectedTotal">@Model.ItemsToPurchase.Where(i => i.Selected).Sum(i => i.QuantityToPurchase * i.EstimatedUnitCost).ToString("C")</h4>
+                            <small class="text-muted">Total Cost</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-save"></i> Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success" id="createPurchasesBtn">
+                            <i class="fas fa-shopping-cart"></i> Create Purchase Orders
+                        </button>
+                        <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.Quantity" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Note:</strong> This will create separate purchase orders for each selected item. 
+                        You can modify quantities and vendors before creating.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTotals();
+            
+            // Add event listeners for quantity and cost changes
+            document.querySelectorAll('.quantity-input, .unit-cost-input').forEach(input => {
+                input.addEventListener('input', function() {
+                    const index = this.getAttribute('data-index');
+                    updateRowTotal(index);
+                    updateTotals();
+                });
+            });
+            
+            // Add event listeners for checkbox changes
+            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateTotals);
+            });
+        });
+
+        function updateRowTotal(index) {
+            const quantity = parseFloat(document.querySelector(`input[name="ItemsToPurchase[${index}].QuantityToPurchase"]`).value) || 0;
+            const unitCost = parseFloat(document.querySelector(`input[name="ItemsToPurchase[${index}].EstimatedUnitCost"]`).value) || 0;
+            const total = quantity * unitCost;
+            
+            document.getElementById(`totalCost-${index}`).textContent = '$' + total.toFixed(2);
+        }
+
+        function updateTotals() {
+            let selectedCount = 0;
+            let selectedTotal = 0;
+            
+            document.querySelectorAll('.item-checkbox').forEach((checkbox, index) => {
+                if (checkbox.checked) {
+                    selectedCount++;
+                    const quantity = parseFloat(document.querySelector(`input[name="ItemsToPurchase[${index}].QuantityToPurchase"]`).value) || 0;
+                    const unitCost = parseFloat(document.querySelector(`input[name="ItemsToPurchase[${index}].EstimatedUnitCost"]`).value) || 0;
+                    selectedTotal += quantity * unitCost;
+                }
+            });
+            
+            document.getElementById('selectedCount').textContent = selectedCount;
+            document.getElementById('selectedTotal').textContent = '$' + selectedTotal.toFixed(2);
+            document.getElementById('grandTotal').textContent = '$' + selectedTotal.toFixed(2);
+            
+            // Enable/disable submit button
+            const submitBtn = document.getElementById('createPurchasesBtn');
+            submitBtn.disabled = selectedCount === 0;
+            
+            if (selectedCount === 0) {
+                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> No Items Selected';
+                submitBtn.classList.add('btn-secondary');
+                submitBtn.classList.remove('btn-success');
+            } else {
+                submitBtn.innerHTML = `<i class="fas fa-shopping-cart"></i> Create ${selectedCount} Purchase Orders`;
+                submitBtn.classList.add('btn-success');
+                submitBtn.classList.remove('btn-secondary');
+            }
+        }
+
+        function selectAllItems() {
+            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateTotals();
+        }
+
+        function deselectAllItems() {
+            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateTotals();
+        }
+
+        // Safety stock multiplier update
+        document.querySelector('input[name="SafetyStockMultiplier"]').addEventListener('input', function() {
+            const multiplier = parseFloat(this.value) || 1.0;
+            
+            document.querySelectorAll('.quantity-input').forEach((input, index) => {
+                const baseShortage = parseInt(input.getAttribute('data-base-shortage')) || parseInt(input.value);
+                if (!input.hasAttribute('data-base-shortage')) {
+                    input.setAttribute('data-base-shortage', input.value);
+                }
+                
+                const newQuantity = Math.ceil(baseShortage * multiplier);
+                input.value = newQuantity;
+                updateRowTotal(index);
+            });
+            
+            updateTotals();
+        });
+    </script>
+}

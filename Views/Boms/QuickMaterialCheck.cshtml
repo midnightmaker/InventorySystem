@@ -1,0 +1,288 @@
+﻿@model InventorySystem.ViewModels.MaterialShortageViewModel
+@{
+  ViewData["Title"] = "Quick Material Check";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-search"></i> Quick Material Check</h1>
+  <div class="btn-group">
+    <a href="/Boms/Details/@Model.BomId" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to BOM
+    </a>
+    <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-success">
+      <i class="fas fa-hammer"></i> Build BOM
+    </a>
+  </div>
+</div>
+
+<!-- Quick Status Cards -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card @(Model.CanBuild ? "border-success" : "border-danger")">
+      <div class="card-body text-center">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4 class="@(Model.CanBuild ? "text-success" : "text-danger")">
+              @(Model.CanBuild ? "READY" : "NOT READY")
+            </h4>
+            <p class="mb-0">Build Status</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas @(Model.CanBuild ? "fa-check-circle text-success" : "fa-times-circle text-danger") fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4 class="text-warning">@Model.TotalShortageItems</h4>
+            <p class="mb-0">Missing Items</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-info">
+      <div class="card-body text-center">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4 class="text-info">@Model.TotalCost.ToString("C")</h4>
+            <p class="mb-0">Material Cost</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-dollar-sign text-info fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-primary">
+      <div class="card-body text-center">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4 class="text-primary">@Model.RequestedQuantity</h4>
+            <p class="mb-0">Check Quantity</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-boxes text-primary fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quantity Adjuster -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-md-6">
+        <h5><i class="fas fa-cogs"></i> @Model.BomName</h5>
+        <p class="text-muted mb-0">@Model.BomDescription</p>
+      </div>
+      <div class="col-md-6">
+        <div class="row align-items-end">
+          <div class="col-md-6">
+            <label for="quantityCheck" class="form-label">Check Quantity:</label>
+            <input type="number" id="quantityCheck" class="form-control" value="@Model.RequestedQuantity" min="1" max="1000" />
+          </div>
+          <div class="col-md-6">
+            <button type="button" class="btn btn-primary w-100" id="updateCheck">
+              <i class="fas fa-sync"></i> Update Check
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (Model.HasShortages)
+{
+  <!-- Material Shortages Summary -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5><i class="fas fa-exclamation-triangle text-danger"></i> Material Shortages</h5>
+      <div class="btn-group">
+        <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.RequestedQuantity" class="btn btn-warning">
+          <i class="fas fa-clipboard-list"></i> Full Report
+        </a>
+        <a href="/Production/CreateBulkPurchaseRequest?bomId=@Model.BomId&quantity=@Model.RequestedQuantity" class="btn btn-success">
+          <i class="fas fa-shopping-cart"></i> Purchase Missing
+        </a>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Part Number</th>
+              <th>Description</th>
+              <th>Required</th>
+              <th>Available</th>
+              <th>Missing</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var shortage in Model.MaterialShortages.OrderByDescending(s => s.IsCriticalShortage).Take(10))
+            {
+              <tr class="@(shortage.IsCriticalShortage ? "table-danger" : "table-warning")">
+                <td>
+                  <a href="/Items/Details/@shortage.ItemId" class="text-decoration-none">
+                    <strong>@shortage.PartNumber</strong>
+                  </a>
+                </td>
+                <td>@shortage.Description</td>
+                <td>
+                  <span class="badge bg-primary">@shortage.RequiredQuantity</span>
+                </td>
+                <td>
+                  <span class="badge bg-@(shortage.AvailableQuantity == 0 ? "danger" : "warning")">
+                    @shortage.AvailableQuantity
+                  </span>
+                </td>
+                <td>
+                  <span class="badge bg-danger">@shortage.ShortageQuantity</span>
+                </td>
+                <td>
+                  @if (shortage.IsCriticalShortage)
+                  {
+                    <span class="badge bg-danger">CRITICAL</span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-warning">SHORT</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (Model.MaterialShortages.Count() > 10)
+      {
+        <div class="text-center mt-3">
+          <p class="text-muted">Showing top 10 shortages. <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.RequestedQuantity">View all @Model.MaterialShortages.Count() shortages</a></p>
+        </div>
+      }
+    </div>
+  </div>
+}
+else
+{
+  <!-- Success State -->
+  <div class="alert alert-success">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <h4><i class="fas fa-check-circle"></i> All Materials Available!</h4>
+        <p class="mb-0">You can build <strong>@Model.RequestedQuantity</strong> units of <strong>@Model.BomName</strong> with current inventory.</p>
+      </div>
+      <div class="col-md-4 text-end">
+        <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-success btn-lg">
+          <i class="fas fa-hammer"></i> Build Now
+        </a>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Material Requirements Overview -->
+<div class="card">
+  <div class="card-header">
+    <h5><i class="fas fa-list"></i> Material Requirements Overview</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <h6>Summary</h6>
+        <ul class="list-unstyled">
+          <li><i class="fas fa-cogs text-primary"></i> <strong>@Model.TotalRequiredItems</strong> unique components required</li>
+          <li><i class="fas fa-check text-success"></i> <strong>@(Model.TotalRequiredItems - Model.TotalShortageItems)</strong> components available</li>
+          <li><i class="fas fa-exclamation-triangle text-warning"></i> <strong>@Model.TotalShortageItems</strong> components short</li>
+          <li><i class="fas fa-dollar-sign text-info"></i> <strong>@Model.TotalCost.ToString("C")</strong> total material cost</li>
+        </ul>
+      </div>
+      <div class="col-md-6">
+        <h6>Quick Actions</h6>
+        <div class="d-grid gap-2">
+          @if (Model.CanBuild)
+          {
+            <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-success">
+              <i class="fas fa-hammer"></i> Build BOM
+            </a>
+          }
+          else
+          {
+            <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.RequestedQuantity" class="btn btn-warning">
+              <i class="fas fa-clipboard-list"></i> View Full Shortage Report
+            </a>
+            <a href="/Production/CreateBulkPurchaseRequest?bomId=@Model.BomId&quantity=@Model.RequestedQuantity" class="btn btn-outline-success">
+              <i class="fas fa-shopping-cart"></i> Purchase Missing Materials
+            </a>
+          }
+          <a href="/Boms/Details/@Model.BomId" class="btn btn-outline-secondary">
+            <i class="fas fa-eye"></i> View BOM Details
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const quantityInput = document.getElementById('quantityCheck');
+        const updateButton = document.getElementById('updateCheck');
+
+        updateButton.addEventListener('click', function() {
+            const quantity = parseInt(quantityInput.value) || 1;
+            if (quantity > 0) {
+                window.location.href = `/Boms/QuickMaterialCheck/@Model.BomId?quantity=${quantity}`;
+            }
+        });
+
+        // Allow Enter key to update
+        quantityInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                updateButton.click();
+            }
+        });
+
+        // Auto-refresh every 60 seconds
+        setInterval(function() {
+            const quantity = parseInt(quantityInput.value) || @Model.RequestedQuantity;
+            fetch(`/Boms/GetQuickMaterialStatus?bomId=@Model.BomId&quantity=${quantity}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update status indicators if they've changed
+                        updateStatusIndicators(data);
+                    }
+                })
+                .catch(error => console.log('Status check error:', error));
+        }, 60000);
+
+        function updateStatusIndicators(data) {
+            // Simple visual update without full page reload
+            const hasShortages = @Model.HasShortages.ToString().ToLower();
+            if (data.canBuild !== !hasShortages) {
+                // Status changed, reload page
+                location.reload();
+            }
+        }
+    });
+  </script>
+}

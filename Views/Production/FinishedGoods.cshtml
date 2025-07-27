@@ -1,6 +1,4 @@
-﻿<!-- ========================================= -->
-<!-- Views/Production/FinishedGoods.cshtml -->
-@model IEnumerable<InventorySystem.Models.FinishedGood>
+﻿@model IEnumerable<InventorySystem.Models.FinishedGood>
 @{
   ViewData["Title"] = "Finished Goods";
 }
@@ -53,13 +51,14 @@
               <th>Unit Cost</th>
               <th>Selling Price</th>
               <th>Total Value</th>
+              <th>BOM</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             @foreach (var finishedGood in Model)
             {
-              <tr class="@(finishedGood.IsLowStock ? "table-warning" : "")">
+              <tr class="@(finishedGood.IsLowStock ? "table-warning" : "") clickable-row" data-finished-good-id="@finishedGood.Id" style="cursor: pointer;">
                 <td>
                   <strong>@finishedGood.PartNumber</strong>
                   @if (finishedGood.IsLowStock)
@@ -81,6 +80,18 @@
                 <td>@finishedGood.SellingPrice.ToString("C")</td>
                 <td>@finishedGood.TotalValue.ToString("C")</td>
                 <td>
+                  @if (finishedGood.BomId.HasValue)
+                  {
+                    <a href="/Boms/Details/@finishedGood.BomId" class="btn btn-sm btn-outline-info">
+                      <i class="fas fa-eye"></i> View BOM
+                    </a>
+                  }
+                  else
+                  {
+                    <span class="text-muted">No BOM</span>
+                  }
+                </td>
+                <td>
                   <div class="btn-group btn-group-sm">
                     <a href="/Production/FinishedGoodDetails/@finishedGood.Id" class="btn btn-outline-primary">
                       <i class="fas fa-eye"></i> Details
@@ -88,6 +99,12 @@
                     <a href="/Production/EditFinishedGood/@finishedGood.Id" class="btn btn-outline-secondary">
                       <i class="fas fa-edit"></i> Edit
                     </a>
+                    @if (finishedGood.BomId.HasValue)
+                    {
+                      <a href="/Production/BuildBom?bomId=@finishedGood.BomId" class="btn btn-outline-success">
+                        <i class="fas fa-hammer"></i> Build
+                      </a>
+                    }
                   </div>
                 </td>
               </tr>
@@ -113,6 +130,30 @@
               <div class="card-body">
                 <h6><i class="fas fa-exclamation-triangle text-warning"></i> Low Stock Items</h6>
                 <p class="mb-0">@Model.Count(fg => fg.IsLowStock) item(s) below minimum stock level</p>
+                <hr class="my-2">
+                @foreach (var lowStockItem in Model.Where(fg => fg.IsLowStock).Take(3))
+                {
+                  <small class="d-block">
+                    <strong>@lowStockItem.PartNumber:</strong> @lowStockItem.CurrentStock / @lowStockItem.MinimumStock
+                    @if (lowStockItem.BomId.HasValue)
+                    {
+                      <a href="/Production/BuildBom?bomId=@lowStockItem.BomId" class="btn btn-xs btn-outline-warning ms-1">Build</a>
+                    }
+                  </small>
+                }
+                @if (Model.Count(fg => fg.IsLowStock) > 3)
+                {
+                  <small class="text-muted">...and @(Model.Count(fg => fg.IsLowStock) - 3) more</small>
+                }
+              </div>
+            </div>
+          }
+          else
+          {
+            <div class="card border-success">
+              <div class="card-body">
+                <h6><i class="fas fa-check-circle text-success"></i> Stock Levels Good</h6>
+                <p class="mb-0">All finished goods are above minimum stock levels.</p>
               </div>
             </div>
           }
@@ -132,3 +173,85 @@
     }
   </div>
 </div>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Make table rows clickable
+        const clickableRows = document.querySelectorAll('.clickable-row');
+
+        clickableRows.forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                // Only proceed if the click wasn't on an action button or link
+                if (e.target.closest('.btn-group') || e.target.closest('a') || e.target.closest('button')) {
+                    return;
+                }
+
+                const finishedGoodId = this.getAttribute('data-finished-good-id');
+                if (finishedGoodId) {
+                    window.location.href = '/Production/FinishedGoodDetails/' + finishedGoodId;
+                }
+            });
+
+            // Add hover effect
+            row.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('table-active')) {
+                    this.style.backgroundColor = '#f8f9fa';
+                }
+            });
+
+            row.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('table-active')) {
+                    this.style.backgroundColor = '';
+                }
+            });
+        });
+
+        // Prevent action buttons from triggering row click
+        const actionButtons = document.querySelectorAll('.btn-group a, .btn-group button');
+        actionButtons.forEach(function(button) {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        });
+    });
+  </script>
+
+  <style>
+    .clickable-row {
+      transition: background-color 0.2s ease;
+    }
+
+      .clickable-row:hover {
+        background-color: #f8f9fa !important;
+      }
+
+      .clickable-row:active {
+        background-color: #e9ecef !important;
+      }
+
+      .clickable-row .btn-group {
+        cursor: default;
+      }
+
+    .clickable-row {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+      .clickable-row td:nth-child(1),
+      .clickable-row td:nth-child(2) {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+
+    .btn-xs {
+      padding: 0.125rem 0.25rem;
+      font-size: 0.65rem;
+    }
+  </style>
+}

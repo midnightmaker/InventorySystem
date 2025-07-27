@@ -3,24 +3,48 @@
   "WorkspaceRootPath": "C:\\InventorySystem\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\boms\\quickmaterialcheck.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\boms\\quickmaterialcheck.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\production\\finishedgooddetails.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\production\\finishedgooddetails.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\production\\finishedgoods.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\production\\finishedgoods.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\production\\buildbom.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\production\\buildbom.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\production\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\production\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\production\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\production\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\boms\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\boms\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\boms\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\boms\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\bomscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\bomscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\boms\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\boms\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\data\\inventorycontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:data\\inventorycontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\boms\\additem.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\boms\\additem.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\production\\finishedgooddetails.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\production\\finishedgooddetails.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\productioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\productioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -30,7 +54,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 11,
           "Children": [
             {
               "$type": "Bookmark",
@@ -50,67 +74,145 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "Index.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\Index.cshtml",
-              "RelativeDocumentMoniker": "Views\\Boms\\Index.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Boms\\Index.cshtml",
-              "RelativeToolTip": "Views\\Boms\\Index.cshtml",
-              "ViewState": "AgIAANIAAAAAAAAAAAAuwPgAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-26T19:49:58.955Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Edit.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\Edit.cshtml",
-              "RelativeDocumentMoniker": "Views\\Boms\\Edit.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Boms\\Edit.cshtml",
-              "RelativeToolTip": "Views\\Boms\\Edit.cshtml",
-              "ViewState": "AgIAABoBAAAAAAAAAADwvz8BAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-26T19:49:18.719Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "BomsController.cs",
-              "DocumentMoniker": "C:\\InventorySystem\\Controllers\\BomsController.cs",
-              "RelativeDocumentMoniker": "Controllers\\BomsController.cs",
-              "ToolTip": "C:\\InventorySystem\\Controllers\\BomsController.cs",
-              "RelativeToolTip": "Controllers\\BomsController.cs",
-              "ViewState": "AgIAAHQAAAAAAAAAAADwv5MAAAAFAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-26T19:35:15.652Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "AddItem.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\AddItem.cshtml",
-              "RelativeDocumentMoniker": "Views\\Boms\\AddItem.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Boms\\AddItem.cshtml",
-              "RelativeToolTip": "Views\\Boms\\AddItem.cshtml",
-              "ViewState": "AgIAAEUAAAAAAAAAAAAuwGsAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-26T19:34:58.23Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
               "Title": "FinishedGoodDetails.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\FinishedGoodDetails.cshtml",
               "RelativeDocumentMoniker": "Views\\Production\\FinishedGoodDetails.cshtml",
               "ToolTip": "C:\\InventorySystem\\Views\\Production\\FinishedGoodDetails.cshtml",
               "RelativeToolTip": "Views\\Production\\FinishedGoodDetails.cshtml",
-              "ViewState": "AgIAANMAAAAAAAAAAAAkwPAAAAAoAAAAAAAAAA==",
+              "ViewState": "AgIAAOQAAAAAAAAAAAAqwAkBAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-26T19:24:00.962Z",
+              "WhenOpened": "2025-07-27T15:19:02.178Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "FinishedGoods.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\FinishedGoods.cshtml",
+              "RelativeDocumentMoniker": "Views\\Production\\FinishedGoods.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Production\\FinishedGoods.cshtml",
+              "RelativeToolTip": "Views\\Production\\FinishedGoods.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-27T15:46:44.581Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "BuildBom.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\BuildBom.cshtml",
+              "RelativeDocumentMoniker": "Views\\Production\\BuildBom.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Production\\BuildBom.cshtml",
+              "RelativeToolTip": "Views\\Production\\BuildBom.cshtml",
+              "ViewState": "AgIAANoAAAAAAAAAAAAmwAABAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-27T15:46:29.849Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Details.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\Details.cshtml",
+              "RelativeDocumentMoniker": "Views\\Production\\Details.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Production\\Details.cshtml",
+              "RelativeToolTip": "Views\\Production\\Details.cshtml",
+              "ViewState": "AgIAAOcAAAAAAAAAAAAmwA0BAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-27T15:46:03.448Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\Index.cshtml",
+              "RelativeDocumentMoniker": "Views\\Production\\Index.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Production\\Index.cshtml",
+              "RelativeToolTip": "Views\\Production\\Index.cshtml",
+              "ViewState": "AgIAAFIAAAAAAAAAAAAmwHgAAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-27T15:45:37.535Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\Index.cshtml",
+              "RelativeDocumentMoniker": "Views\\Boms\\Index.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Boms\\Index.cshtml",
+              "RelativeToolTip": "Views\\Boms\\Index.cshtml",
+              "ViewState": "AgIAAMUAAAAAAAAAAAAmwOsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-27T15:43:09.151Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Details.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\Details.cshtml",
+              "RelativeDocumentMoniker": "Views\\Boms\\Details.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Boms\\Details.cshtml",
+              "RelativeToolTip": "Views\\Boms\\Details.cshtml",
+              "ViewState": "AgIAAIYAAAAAAAAAAAAAAKMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-27T15:36:02.026Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "QuickMaterialCheck.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\QuickMaterialCheck.cshtml",
+              "RelativeDocumentMoniker": "Views\\Boms\\QuickMaterialCheck.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Boms\\QuickMaterialCheck.cshtml",
+              "RelativeToolTip": "Views\\Boms\\QuickMaterialCheck.cshtml",
+              "ViewState": "AgIAAFAAAAAAAAAAAAAiwB8BAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-27T15:35:03.699Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "BomsController.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Controllers\\BomsController.cs",
+              "RelativeDocumentMoniker": "Controllers\\BomsController.cs",
+              "ToolTip": "C:\\InventorySystem\\Controllers\\BomsController.cs",
+              "RelativeToolTip": "Controllers\\BomsController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-27T15:31:22.425Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "InventoryContext.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Data\\InventoryContext.cs",
+              "RelativeDocumentMoniker": "Data\\InventoryContext.cs",
+              "ToolTip": "C:\\InventorySystem\\Data\\InventoryContext.cs",
+              "RelativeToolTip": "Data\\InventoryContext.cs",
+              "ViewState": "AgIAAKYAAAAAAAAAAAAcwL0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-27T15:23:30.836Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "ProductionController.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Controllers\\ProductionController.cs",
+              "RelativeDocumentMoniker": "Controllers\\ProductionController.cs",
+              "ToolTip": "C:\\InventorySystem\\Controllers\\ProductionController.cs",
+              "RelativeToolTip": "Controllers\\ProductionController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABwAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-27T15:20:10.115Z",
               "EditorCaption": ""
             }
           ]

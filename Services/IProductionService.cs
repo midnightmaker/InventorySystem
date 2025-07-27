@@ -1,5 +1,6 @@
 ﻿// Services/IProductionService.cs
 using InventorySystem.Models;
+using InventorySystem.ViewModels;
 
 namespace InventorySystem.Services
 {
@@ -29,5 +30,9 @@ namespace InventorySystem.Services
     Task<decimal> GetTotalFinishedGoodsValueAsync();
     Task<int> GetTotalFinishedGoodsCountAsync();
     Task<decimal> GetTotalProductionCostAsync();
+
+    Task<MaterialShortageViewModel> GetMaterialShortageAnalysisAsync(int bomId, int quantity);
+    Task<IEnumerable<MaterialShortageItem>> GetBomMaterialShortagesAsync(int bomId, int quantity);
+    Task<IEnumerable<MaterialRequirement>> GetBomMaterialRequirementsAsync(int bomId, int quantity);
   }
 }

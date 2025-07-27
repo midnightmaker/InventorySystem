@@ -1,5 +1,4 @@
-﻿<!-- Views/Production/Details.cshtml -->
-@model InventorySystem.Models.Production
+﻿@model InventorySystem.Models.Production
 @{
   ViewData["Title"] = "Production Details";
 }
@@ -10,11 +9,30 @@
     <a href="/Production" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Productions
     </a>
-    <a href="/Production/BuildBom" class="btn btn-success">
-      <i class="fas fa-hammer"></i> Build Another BOM
+    <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-success">
+      <i class="fas fa-hammer"></i> Build Another
+    </a>
+    <a href="/Boms/Details/@Model.BomId" class="btn btn-outline-info">
+      <i class="fas fa-eye"></i> View BOM
     </a>
   </div>
 </div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
 
 <div class="row">
   <div class="col-md-8">
@@ -24,19 +42,28 @@
       </div>
       <div class="card-body">
         <dl class="row">
+          <dt class="col-sm-4">Production ID:</dt>
+          <dd class="col-sm-8">
+            <span class="badge bg-primary">#@Model.Id</span>
+          </dd>
+
           <dt class="col-sm-4">Production Date:</dt>
           <dd class="col-sm-8">@Model.ProductionDate.ToString("MMMM dd, yyyy")</dd>
 
           <dt class="col-sm-4">Finished Good:</dt>
           <dd class="col-sm-8">
-            <strong>@Model.FinishedGood?.PartNumber</strong><br>
-            <small class="text-muted">@Model.FinishedGood?.Description</small>
+            <a href="/Production/FinishedGoodDetails/@Model.FinishedGoodId" class="text-decoration-none">
+              <strong>@Model.FinishedGood?.PartNumber</strong>
+            </a>
+            <br><small class="text-muted">@Model.FinishedGood?.Description</small>
           </dd>
 
           <dt class="col-sm-4">BOM Used:</dt>
           <dd class="col-sm-8">
-            <strong>@Model.Bom?.Name</strong><br>
-            <small class="text-muted">@Model.Bom?.Description</small>
+            <a href="/Boms/Details/@Model.BomId" class="text-decoration-none">
+              <strong>@Model.Bom?.Name</strong>
+            </a>
+            <br><small class="text-muted">@Model.Bom?.Description</small>
           </dd>
 
           <dt class="col-sm-4">Quantity Produced:</dt>
@@ -71,24 +98,48 @@
                   <th>Quantity Used</th>
                   <th>Unit Cost</th>
                   <th>Total Cost</th>
+                  <th>Consumed Date</th>
                 </tr>
               </thead>
               <tbody>
-                @foreach (var consumption in Model.MaterialConsumptions)
+                @foreach (var consumption in Model.MaterialConsumptions.OrderBy(mc => mc.Item?.PartNumber))
                 {
                   <tr>
                     <td>
-                      <strong>@consumption.Item?.PartNumber</strong><br>
-                      <small class="text-muted">@consumption.Item?.Description</small>
+                      <a href="/Items/Details/@consumption.ItemId" class="text-decoration-none">
+                        <strong>@consumption.Item?.PartNumber</strong>
+                      </a>
+                      <br><small class="text-muted">@consumption.Item?.Description</small>
                     </td>
-                    <td>@consumption.QuantityConsumed</td>
+                    <td>
+                      <span class="badge bg-warning">@consumption.QuantityConsumed</span>
+                    </td>
                     <td>@consumption.UnitCostAtConsumption.ToString("C")</td>
                     <td>@((consumption.QuantityConsumed * consumption.UnitCostAtConsumption).ToString("C"))</td>
+                    <td>@consumption.ConsumedDate.ToString("MM/dd/yyyy hh:mm tt")</td>
                   </tr>
                 }
               </tbody>
+              <tfoot class="table-light">
+                <tr>
+                  <th>Total Material Cost:</th>
+                  <th>@Model.MaterialConsumptions.Sum(mc => mc.QuantityConsumed)</th>
+                  <th>-</th>
+                  <th>@Model.MaterialConsumptions.Sum(mc => mc.QuantityConsumed * mc.UnitCostAtConsumption).ToString("C")</th>
+                  <th>-</th>
+                </tr>
+              </tfoot>
             </table>
           </div>
+        </div>
+      </div>
+    }
+    else
+    {
+      <div class="card mt-4">
+        <div class="card-body text-center text-muted">
+          <i class="fas fa-info-circle fa-2x mb-2"></i>
+          <p>No material consumption data available for this production.</p>
         </div>
       </div>
     }
@@ -122,7 +173,98 @@
             <td class="text-end"><strong>@Model.UnitCost.ToString("C")</strong></td>
           </tr>
         </table>
+
+        @if (Model.QuantityProduced > 0)
+        {
+          <hr>
+          <div class="text-center">
+            <h6>Cost Breakdown</h6>
+            <div class="row text-center">
+              <div class="col-4">
+                <small class="text-muted">Material</small>
+                <div class="fw-bold">@((Model.MaterialCost / Model.TotalCost * 100).ToString("F1"))%</div>
+              </div>
+              <div class="col-4">
+                <small class="text-muted">Labor</small>
+                <div class="fw-bold">@((Model.LaborCost / Model.TotalCost * 100).ToString("F1"))%</div>
+              </div>
+              <div class="col-4">
+                <small class="text-muted">Overhead</small>
+                <div class="fw-bold">@((Model.OverheadCost / Model.TotalCost * 100).ToString("F1"))%</div>
+              </div>
+            </div>
+          </div>
+        }
       </div>
     </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5><i class="fas fa-chart-pie"></i> Production Metrics</h5>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-6">
+            <h5 class="text-primary">@Model.QuantityProduced</h5>
+            <small class="text-muted">Units Produced</small>
+          </div>
+          <div class="col-6">
+            <h5 class="text-success">@Model.UnitCost.ToString("C")</h5>
+            <small class="text-muted">Cost per Unit</small>
+          </div>
+        </div>
+        <hr>
+        <div class="text-center">
+          <h6 class="text-info">Total Value: @Model.TotalCost.ToString("C")</h6>
+          <small class="text-muted">Total production investment</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5><i class="fas fa-tools"></i> Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-success">
+            <i class="fas fa-hammer"></i> Build More of This BOM
+          </a>
+          <a href="/Production/FinishedGoodDetails/@Model.FinishedGoodId" class="btn btn-outline-primary">
+            <i class="fas fa-box"></i> View Finished Good
+          </a>
+          <a href="/Boms/Details/@Model.BomId" class="btn btn-outline-info">
+            <i class="fas fa-eye"></i> View BOM Details
+          </a>
+        </div>
+      </div>
+    </div>
+
+    @if (Model.MaterialConsumptions?.Any() == true)
+    {
+      <div class="card mt-3 border-warning">
+        <div class="card-header bg-warning">
+          <h6><i class="fas fa-exclamation-triangle"></i> Material Impact</h6>
+        </div>
+        <div class="card-body">
+          <p class="mb-2">This production consumed materials from inventory:</p>
+          <ul class="list-unstyled mb-0">
+            @foreach (var consumption in Model.MaterialConsumptions.Take(3))
+            {
+              <li class="mb-1">
+                <small>
+                  <strong>@consumption.Item?.PartNumber:</strong>
+                  -@consumption.QuantityConsumed units
+                </small>
+              </li>
+            }
+            @if (Model.MaterialConsumptions.Count() > 3)
+            {
+              <li><small class="text-muted">...and @(Model.MaterialConsumptions.Count() - 3) more items</small></li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
   </div>
 </div>
