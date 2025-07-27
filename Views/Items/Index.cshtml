@@ -1,179 +1,131 @@
+<!-- This is how to update your existing Views/Items/Index.cshtml -->
 @model IEnumerable<InventorySystem.Models.Item>
 @{
   ViewData["Title"] = "Items";
 }
 
+<!-- Updated header section with bulk upload button -->
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-cube"></i> Items</h1>
-  <a href="/Items/Create" class="btn btn-primary">
-    <i class="fas fa-plus"></i> Add Item
-  </a>
+  <h2><i class="fas fa-boxes"></i> Items</h2>
+  <div class="btn-group">
+    <a asp-action="Create" class="btn btn-success">
+      <i class="fas fa-plus"></i> Create New Item
+    </a>
+    <a asp-action="BulkUpload" class="btn btn-primary">
+      <i class="fas fa-upload"></i> Bulk Upload
+    </a>
+  </div>
 </div>
 
+<!-- Optional: Add bulk upload info card -->
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Optional: Quick info card about bulk upload -->
+@if (!Model.Any())
+{
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="card border-info">
+        <div class="card-body text-center">
+          <i class="fas fa-info-circle text-info fa-2x mb-3"></i>
+          <h5>No Items Found</h5>
+          <p class="text-muted mb-3">Get started by creating your first item or uploading multiple items at once.</p>
+          <div class="btn-group">
+            <a asp-action="Create" class="btn btn-success">
+              <i class="fas fa-plus"></i> Create First Item
+            </a>
+            <a asp-action="BulkUpload" class="btn btn-primary">
+              <i class="fas fa-upload"></i> Bulk Upload Items
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+else
+{
+  <!-- Optional: Show bulk upload option even when items exist -->
+  <div class="row mb-3">
+    <div class="col-md-12">
+      <div class="card border-light">
+        <div class="card-body py-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+              <i class="fas fa-lightbulb"></i>
+              Need to add multiple items? Use our <a asp-action="BulkUpload" class="text-decoration-none">bulk upload feature</a> to import from CSV files.
+            </small>
+            <small class="text-muted">Total Items: <strong>@Model.Count()</strong></small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Your existing items table/content goes here -->
+<!-- This is just showing where the button should be added -->
 <div class="card">
-  <div class="card-body dropdown-container">
+  <div class="card-header">
+    <h5>Items List</h5>
+  </div>
+  <div class="card-body">
+    <!-- Your existing items display logic -->
     @if (Model.Any())
     {
-      <div class="alert alert-info">
-        <i class="fas fa-info-circle"></i>
-        <strong>Tip:</strong> Click on any row to view item details, or use the action buttons for specific functions.
-      </div>
-
-      <div class="table-responsive table-dropdown-container">
-        <table class="table table-hover" id="itemsTable">
-          <thead class="table-dark">
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead>
             <tr>
-              <th style="width: 80px;">Image</th>
               <th>Part Number</th>
               <th>Description</th>
               <th>Current Stock</th>
-              <th>Min Stock</th>
-              <th>Status</th>
-              <th>Documents</th>
-              <th style="width: 200px;">Actions</th>
+              <th>Minimum Stock</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             @foreach (var item in Model)
             {
-              <tr class="clickable-row" data-item-id="@item.Id" style="cursor: pointer;">
-                <td onclick="event.stopPropagation();">
-                  <div class="item-thumbnail">
-                    @if (item.HasImage)
-                    {
-                      <img src="/Items/GetImageThumbnail/@item.Id?size=60"
-                           alt="@item.PartNumber"
-                           class="img-thumbnail"
-                           style="width: 60px; height: 60px; object-fit: cover; cursor: pointer;"
-                           onclick="showImageModal('@item.PartNumber', '/Items/GetImage/@item.Id')" />
-                    }
-                    else
-                    {
-                      <div class="no-image-placeholder d-flex align-items-center justify-content-center"
-                           style="width: 60px; height: 60px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
-                        <i class="fas fa-image text-muted"></i>
-                      </div>
-                    }
-                  </div>
-                </td>
-                <td>
-                  <strong>@item.PartNumber</strong>
-                  @if (!string.IsNullOrEmpty(item.Comments))
-                  {
-                    <br>
-
-                    <small class="text-muted" title="@item.Comments">
-                      @(item.Comments.Length > 50 ? item.Comments.Substring(0, 50) + "..." : item.Comments)
-                    </small>
-                  }
-                </td>
+              <tr>
+                <td><strong>@item.PartNumber</strong></td>
                 <td>@item.Description</td>
                 <td>
-                  <span class="fw-bold">@item.CurrentStock</span>
+                  <span class="badge @(item.CurrentStock <= item.MinimumStock ? "bg-danger" : "bg-success")">
+                    @item.CurrentStock
+                  </span>
                 </td>
                 <td>@item.MinimumStock</td>
                 <td>
-                  @if (item.CurrentStock <= item.MinimumStock)
-                  {
-                    <span class="badge bg-danger">Low Stock</span>
-                  }
-                  else if (item.CurrentStock <= item.MinimumStock * 1.5)
-                  {
-                    <span class="badge bg-warning">Warning</span>
-                  }
-                  else
-                  {
-                    <span class="badge bg-success">OK</span>
-                  }
-                </td>
-                <td>
-                  @if (item.DesignDocuments.Any())
-                  {
-                    <span class="badge bg-info" title="@item.DesignDocuments.Count documents">
-                      <i class="fas fa-file"></i> @item.DesignDocuments.Count
-                    </span>
-                  }
-                  else
-                  {
-                    <span class="text-muted">None</span>
-                  }
-                </td>
-                <td onclick="event.stopPropagation();">
                   <div class="btn-group btn-group-sm">
-                    <a href="/Items/Details/@item.Id" class="btn btn-outline-primary" title="View Details">
+                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary">
                       <i class="fas fa-eye"></i>
                     </a>
-                    <a href="/Items/Edit/@item.Id" class="btn btn-outline-secondary" title="Edit">
+                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-warning">
                       <i class="fas fa-edit"></i>
                     </a>
-                    <a href="/Purchases/Create?itemId=@item.Id" class="btn btn-outline-success" title="Add Purchase">
-                      <i class="fas fa-shopping-cart"></i>
-                    </a>
-                    <div class="btn-group" role="group">
-                      <button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Documents">
-                        <i class="fas fa-file"></i>
-                      </button>
-                      <ul class="dropdown-menu">
-                        <li>
-                          <a class="dropdown-item" href="/Documents/Upload?itemId=@item.Id">
-                            <i class="fas fa-upload"></i> Upload Document
-                          </a>
-                        </li>
-                        @if (item.DesignDocuments.Any())
-                        {
-                          <li><hr class="dropdown-divider"></li>
-                          <li><h6 class="dropdown-header">Documents (@item.DesignDocuments.Count)</h6></li>
-                          @foreach (var doc in item.DesignDocuments.Take(3))
-                          {
-                            <li>
-                              <a class="dropdown-item" href="/Documents/Download/@doc.Id">
-                                <i class="@doc.FileTypeIcon"></i> @doc.DocumentName
-                              </a>
-                            </li>
-                          }
-                          @if (item.DesignDocuments.Count > 3)
-                          {
-                            <li>
-                              <a class="dropdown-item" href="/Items/Details/@item.Id">
-                                <i class="fas fa-ellipsis-h"></i> View All (@item.DesignDocuments.Count)
-                              </a>
-                            </li>
-                          }
-                        }
-                      </ul>
-                    </div>
-                    <div class="btn-group" role="group">
-                      <button type="button" class="btn btn-outline-warning btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="More Actions">
-                        <i class="fas fa-ellipsis-v"></i>
-                      </button>
-                      <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                          <a class="dropdown-item" href="/Inventory/Adjust?itemId=@item.Id">
-                            <i class="fas fa-balance-scale"></i> Adjust Inventory
-                          </a>
-                        </li>
-                        <li>
-                          <a class="dropdown-item" href="/Inventory/History?itemId=@item.Id">
-                            <i class="fas fa-history"></i> View History
-                          </a>
-                        </li>
-                        @if (item.Purchases.Any())
-                        {
-                          <li><hr class="dropdown-divider"></li>
-                          <li><h6 class="dropdown-header">Quick Purchase Info</h6></li>
-                          <li>
-                            <span class="dropdown-item-text">
-                              <i class="fas fa-info-circle"></i> @item.Purchases.Count() purchases
-                            </span>
-                          </li>
-                          <li>
-                            <span class="dropdown-item-text">
-                              <i class="fas fa-dollar-sign"></i> Avg: $@(item.Purchases.Any() ? item.Purchases.Average(p => p.CostPerUnit).ToString("F2") : "0.00")
-                            </span>
-                          </li>
-                        }
-                      </ul>
-                    </div>
                   </div>
                 </td>
               </tr>
@@ -181,272 +133,6 @@
           </tbody>
         </table>
       </div>
-
-      <!-- Add space between table and statistics -->
-      <div style="height: 120px;"></div>
-    }
-    else
-    {
-      <div class="text-center py-5">
-        <i class="fas fa-cube fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">No Items Found</h5>
-        <p class="text-muted">Start building your inventory by adding your first component.</p>
-        <a href="/Items/Create" class="btn btn-primary">
-          <i class="fas fa-plus"></i> Add First Item
-        </a>
-      </div>
     }
   </div>
 </div>
-
-<!-- Items Statistics - Separate card with proper z-index -->
-@if (Model.Any())
-{
-  <div class="card mt-4 statistics-card">
-    <div class="card-header">
-      <h6><i class="fas fa-chart-bar"></i> Items Overview</h6>
-    </div>
-    <div class="card-body">
-      <div class="row">
-        <div class="col-md-3">
-          <div class="text-center p-3 border-end">
-            <h5 class="text-primary mb-1">@Model.Count()</h5>
-            <small class="text-muted">Total Items</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="text-center p-3 border-end">
-            <h5 class="text-danger mb-1">@Model.Count(i => i.CurrentStock <= i.MinimumStock)</h5>
-            <small class="text-muted">Low Stock Items</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="text-center p-3 border-end">
-            <h5 class="text-info mb-1">@Model.Sum(i => i.DesignDocuments.Count)</h5>
-            <small class="text-muted">Total Documents</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="text-center p-3">
-            <h5 class="text-success mb-1">@Model.Count(i => i.HasImage)</h5>
-            <small class="text-muted">With Images</small>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Image Modal -->
-<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="imageModalLabel">Item Image</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center">
-        <img id="modalImage" src="#" alt="Item Image" class="img-fluid" style="max-height: 70vh;" />
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    // Make table rows clickable
-    const clickableRows = document.querySelectorAll('.clickable-row');
-
-    clickableRows.forEach(function (row) {
-      row.addEventListener('click', function (e) {
-        // Only proceed if the click wasn't on an action button, dropdown, or other interactive element
-        if (e.target.closest('.btn-group') ||
-          e.target.closest('a') ||
-          e.target.closest('button') ||
-          e.target.closest('.dropdown-menu')) {
-          return;
-        }
-
-        const itemId = this.getAttribute('data-item-id');
-        if (itemId) {
-          window.location.href = '/Items/Details/' + itemId;
-        }
-      });
-
-      // Add hover effect
-      row.addEventListener('mouseenter', function () {
-        this.style.backgroundColor = '#f8f9fa';
-      });
-
-      row.addEventListener('mouseleave', function () {
-        this.style.backgroundColor = '';
-      });
-    });
-
-    // Fix dropdown positioning for Bootstrap 5
-    document.querySelectorAll('.dropdown-toggle').forEach(function (dropdown) {
-      dropdown.addEventListener('shown.bs.dropdown', function (e) {
-        const menu = e.target.nextElementSibling;
-        if (menu && menu.classList.contains('dropdown-menu')) {
-          // Force the dropdown to use fixed positioning
-          menu.style.position = 'fixed';
-
-          // Calculate position relative to viewport
-          const rect = e.target.getBoundingClientRect();
-          const menuRect = menu.getBoundingClientRect();
-
-          // Position dropdown
-          menu.style.left = (rect.left + rect.width - menuRect.width) + 'px';
-          menu.style.top = (rect.bottom + 2) + 'px';
-
-          // Ensure dropdown doesn't go off-screen
-          const viewportHeight = window.innerHeight;
-          const viewportWidth = window.innerWidth;
-
-          if (rect.bottom + menuRect.height > viewportHeight) {
-            // If dropdown would go below viewport, position it above the button
-            menu.style.top = (rect.top - menuRect.height - 2) + 'px';
-          }
-
-          if (rect.left + menuRect.width > viewportWidth) {
-            // If dropdown would go off right edge, align it to the right
-            menu.style.left = (rect.right - menuRect.width) + 'px';
-          }
-        }
-      });
-
-      dropdown.addEventListener('hidden.bs.dropdown', function (e) {
-        const menu = e.target.nextElementSibling;
-        if (menu && menu.classList.contains('dropdown-menu')) {
-          // Reset positioning
-          menu.style.position = '';
-          menu.style.left = '';
-          menu.style.top = '';
-        }
-      });
-    });
-  });
-
-  function showImageModal(partNumber, imageUrl) {
-    document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
-    document.getElementById('modalImage').src = imageUrl;
-    var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
-    imageModal.show();
-  }
-
-  // Add hover effects for thumbnails
-  document.addEventListener('DOMContentLoaded', function () {
-    const thumbnails = document.querySelectorAll('.item-thumbnail img');
-    thumbnails.forEach(function (img) {
-      img.addEventListener('mouseenter', function () {
-        this.style.transform = 'scale(1.1)';
-        this.style.transition = 'transform 0.2s';
-      });
-
-      img.addEventListener('mouseleave', function () {
-        this.style.transform = 'scale(1)';
-      });
-    });
-  });
-</script>
-
-<style>
-  .clickable-row {
-    transition: background-color 0.2s ease;
-  }
-
-    .clickable-row:hover {
-      background-color: #f8f9fa !important;
-    }
-
-    .clickable-row:active {
-      background-color: #e9ecef !important;
-    }
-
-    /* Ensure action buttons don't inherit pointer cursor */
-    .clickable-row .btn-group {
-      cursor: default;
-    }
-
-  .item-thumbnail {
-    text-align: center;
-  }
-
-    .item-thumbnail img {
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-  .no-image-placeholder {
-    color: #6c757d;
-  }
-
-  /* Dropdown container fixes - CRITICAL for preventing cutoff */
-  .dropdown-container {
-    overflow: visible !important;
-  }
-
-  .table-dropdown-container {
-    overflow: visible !important;
-  }
-
-  .card {
-    overflow: visible !important;
-  }
-
-  .table-responsive {
-    overflow-x: auto;
-    overflow-y: visible !important;
-  }
-
-  /* Dropdown z-index and positioning fixes */
-  .dropdown-menu {
-    font-size: 0.875rem;
-    z-index: 1070 !important;
-    position: fixed !important;
-  }
-
-  .dropdown-item i {
-    width: 16px;
-    margin-right: 8px;
-  }
-
-  /* Ensure dropdowns appear above other content */
-  .btn-group .dropdown-menu {
-    z-index: 1070 !important;
-    position: fixed !important;
-  }
-
-  /* Force dropdown positioning */
-  .dropdown-toggle::after {
-    vertical-align: middle;
-  }
-
-  /* Statistics card with lower z-index */
-  .statistics-card {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Style for the info tip */
-  .alert-info {
-    border-left: 4px solid #0dcaf0;
-  }
-
-  /* Prevent text selection on clickable rows for better UX */
-  .clickable-row {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-  }
-
-    /* But allow text selection in specific areas */
-    .clickable-row td:nth-child(2),
-    .clickable-row td:nth-child(3) {
-      -webkit-user-select: text;
-      -moz-user-select: text;
-      -ms-user-select: text;
-      user-select: text;
-    }
-</style>

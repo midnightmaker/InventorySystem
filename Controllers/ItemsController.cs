@@ -346,6 +346,106 @@ namespace InventorySystem.Controllers
       }
     }
 
-    // Test this by navigating to: /Items/TestDocuments/1 (replace 1 with actual item ID)
+
+    public IActionResult BulkUpload()
+    {
+      return View(new BulkItemUploadViewModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkUpload(BulkItemUploadViewModel viewModel)
+    {
+      if (viewModel.CsvFile == null)
+      {
+        ModelState.AddModelError("CsvFile", "Please select a CSV file to upload.");
+        return View(viewModel);
+      }
+
+      // Validate file type
+      var allowedExtensions = new[] { ".csv" };
+      var fileExtension = Path.GetExtension(viewModel.CsvFile.FileName).ToLower();
+
+      if (!allowedExtensions.Contains(fileExtension))
+      {
+        ModelState.AddModelError("CsvFile", "Please upload a valid CSV file (.csv).");
+        return View(viewModel);
+      }
+
+      // Validate file size (10MB limit)
+      if (viewModel.CsvFile.Length > 10 * 1024 * 1024)
+      {
+        ModelState.AddModelError("CsvFile", "File size must be less than 10MB.");
+        return View(viewModel);
+      }
+
+      try
+      {
+        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
+        viewModel.ValidationResults = await bulkUploadService.ValidateCsvFileAsync(viewModel.CsvFile, viewModel.SkipHeaderRow);
+
+        if (viewModel.ValidationResults.Any())
+        {
+          viewModel.PreviewItems = viewModel.ValidationResults
+              .Where(vr => vr.IsValid)
+              .Select(vr => vr.ItemData!)
+              .ToList();
+        }
+
+        if (viewModel.ValidItemsCount == 0)
+        {
+          viewModel.ErrorMessage = "No valid items found in the CSV file. Please check the format and data.";
+        }
+        else if (viewModel.InvalidItemsCount > 0)
+        {
+          viewModel.ErrorMessage = $"Found {viewModel.InvalidItemsCount} invalid items. Please review and correct the errors.";
+        }
+      }
+      catch (Exception ex)
+      {
+        ModelState.AddModelError("", $"Error processing file: {ex.Message}");
+      }
+
+      return View(viewModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ProcessBulkUpload(BulkItemUploadViewModel viewModel)
+    {
+      if (viewModel.PreviewItems == null || !viewModel.PreviewItems.Any())
+      {
+        TempData["ErrorMessage"] = "No items to import.";
+        return RedirectToAction("BulkUpload");
+      }
+
+      try
+      {
+        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
+        var result = await bulkUploadService.ImportValidItemsAsync(viewModel.PreviewItems);
+
+        if (result.SuccessfulImports > 0)
+        {
+          TempData["SuccessMessage"] = $"Successfully imported {result.SuccessfulImports} items.";
+
+          if (result.FailedImports > 0)
+          {
+            TempData["WarningMessage"] = $"{result.FailedImports} items failed to import.";
+          }
+        }
+        else
+        {
+          TempData["ErrorMessage"] = "No items were imported. " + string.Join("; ", result.Errors);
+        }
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error during import: {ex.Message}";
+      }
+
+      return RedirectToAction("Index");
+    }
+
+
   }
 }

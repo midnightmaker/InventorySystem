@@ -14,6 +14,7 @@ builder.Services.AddScoped<IBomService, BomService>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IProductionService, ProductionService>();
 builder.Services.AddScoped<ISalesService, SalesService>();
+builder.Services.AddScoped<IBulkUploadService, BulkUploadService>();
 
 var app = builder.Build();
 

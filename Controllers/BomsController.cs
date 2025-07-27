@@ -154,26 +154,31 @@ namespace InventorySystem.Controllers
 
     public async Task<IActionResult> AddItem(int bomId)
     {
-      // Verify the BOM exists
       var bom = await _bomService.GetBomByIdAsync(bomId);
       if (bom == null) return NotFound();
 
-      // Get all items for the dropdown
       var items = await _inventoryService.GetAllItemsAsync();
 
-      ViewBag.BomId = bomId;
-      ViewBag.ItemId = new SelectList(items, "Id", "PartNumber");
+      // Format dropdown to show both part number and description
+      var formattedItems = items.Select(item => new
+      {
+        Value = item.Id,
+        Text = $"{item.PartNumber} - {item.Description}"
+      }).ToList();
 
-      // Create a new BomItem with the BomId already set
+      ViewBag.BomId = bomId;
+      ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text");
+
       var bomItem = new BomItem
       {
         BomId = bomId,
-        Quantity = 1 // Set default quantity
+        Quantity = 1
       };
 
       return View(bomItem);
     }
 
+    
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddItem(BomItem bomItem)
