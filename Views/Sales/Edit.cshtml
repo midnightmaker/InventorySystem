@@ -1,0 +1,274 @@
+﻿@model InventorySystem.Models.Sale
+@{
+  ViewData["Title"] = "Edit Sale";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-edit"></i> Edit Sale @Model.SaleNumber</h1>
+  <div class="btn-group">
+    <a href="/Sales/Details/@Model.Id" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Details
+    </a>
+    <a href="/Sales" class="btn btn-outline-info">
+      <i class="fas fa-list"></i> All Sales
+    </a>
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<form asp-action="Edit" method="post">
+  <input asp-for="Id" type="hidden" />
+  <input asp-for="SaleNumber" type="hidden" />
+  <input asp-for="CreatedDate" type="hidden" />
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-user"></i> Customer Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="CustomerName" class="form-label">Customer Name *</label>
+                <input asp-for="CustomerName" class="form-control" />
+                <span asp-validation-for="CustomerName" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="CustomerEmail" class="form-label">Email</label>
+                <input asp-for="CustomerEmail" type="email" class="form-control" />
+                <span asp-validation-for="CustomerEmail" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="CustomerPhone" class="form-label">Phone</label>
+                <input asp-for="CustomerPhone" class="form-control" />
+                <span asp-validation-for="CustomerPhone" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="OrderNumber" class="form-label">Order Number</label>
+                <input asp-for="OrderNumber" class="form-control" />
+                <span asp-validation-for="OrderNumber" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="ShippingAddress" class="form-label">Shipping Address</label>
+            <textarea asp-for="ShippingAddress" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="ShippingAddress" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5><i class="fas fa-receipt"></i> Sale Details</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="SaleDate" class="form-label">Sale Date *</label>
+                <input asp-for="SaleDate" type="date" class="form-control" />
+                <span asp-validation-for="SaleDate" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+                <select asp-for="PaymentMethod" class="form-select">
+                  <option value="">-- Select Payment Method --</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Check">Check</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="PayPal">PayPal</option>
+                  <option value="Other">Other</option>
+                </select>
+                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="PaymentStatus" class="form-label">Payment Status *</label>
+                <select asp-for="PaymentStatus" class="form-select">
+                  <option value="0">Pending</option>
+                  <option value="1">Paid</option>
+                  <option value="2">Partial</option>
+                  <option value="3">Overdue</option>
+                  <option value="4">Refunded</option>
+                </select>
+                <span asp-validation-for="PaymentStatus" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="TaxAmount" class="form-label">Tax Amount</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="TaxAmount" class="form-control" step="0.01" />
+                </div>
+                <span asp-validation-for="TaxAmount" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="ShippingCost" class="form-label">Shipping Cost</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="ShippingCost" class="form-control" step="0.01" />
+                </div>
+                <span asp-validation-for="ShippingCost" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="SaleStatus" class="form-label">Sale Status *</label>
+                <select asp-for="SaleStatus" class="form-select">
+                  <option value="0">Processing</option>
+                  <option value="1">Shipped</option>
+                  <option value="2">Delivered</option>
+                  <option value="3">Cancelled</option>
+                </select>
+                <span asp-validation-for="SaleStatus" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Notes" class="form-label">Notes</label>
+            <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="Notes" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> Sale Information</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-5">Sale Number:</dt>
+            <dd class="col-sm-7">@Model.SaleNumber</dd>
+
+            <dt class="col-sm-5">Created:</dt>
+            <dd class="col-sm-7">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
+
+            <dt class="col-sm-5">Items:</dt>
+            <dd class="col-sm-7">
+              <span class="badge bg-info">@Model.SaleItems.Count()</span>
+            </dd>
+
+            <dt class="col-sm-5">Current Total:</dt>
+            <dd class="col-sm-7">@Model.TotalAmount.ToString("C")</dd>
+          </dl>
+
+          @if (Model.SaleItems?.Any() == true)
+          {
+            <div class="alert alert-info">
+              <small><i class="fas fa-info-circle"></i> Tax and shipping changes will update the total automatically.</small>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-save"></i> Actions</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Update Sale
+            </button>
+            <a href="/Sales/Details/@Model.Id" class="btn btn-outline-secondary">
+              <i class="fas fa-times"></i> Cancel
+            </a>
+          </div>
+
+          <hr>
+
+          <div class="d-grid">
+            <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
+              <i class="fas fa-plus"></i> Add Items
+            </a>
+          </div>
+        </div>
+      </div>
+
+      @if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Processing)
+      {
+        <div class="card mt-3 border-warning">
+          <div class="card-header bg-warning">
+            <h6><i class="fas fa-exclamation-triangle"></i> Processing Status</h6>
+          </div>
+          <div class="card-body">
+            <p class="mb-2">This sale is still being processed. You can still modify it.</p>
+            @if (Model.SaleItems?.Any() == true)
+            {
+              <form asp-action="ProcessSale" method="post">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button type="submit" class="btn btn-warning btn-sm w-100"
+                        onclick="return confirm('This will ship the sale and reduce inventory. Continue?')">
+                  <i class="fas fa-shipping-fast"></i> Process & Ship
+                </button>
+              </form>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</form>
+
+@section Scripts {
+  <script>
+    // Auto-format currency inputs
+    document.querySelectorAll('input[step="0.01"]').forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.value) {
+                this.value = parseFloat(this.value).toFixed(2);
+            }
+        });
+    });
+
+    // Format date input
+    const dateInput = document.querySelector('input[type="date"]');
+    if (dateInput && dateInput.value) {
+        // Ensure the date is in the correct format
+        const date = new Date(dateInput.value);
+        dateInput.value = date.toISOString().split('T')[0];
+    }
+  </script>
+}

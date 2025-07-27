@@ -1,0 +1,426 @@
+﻿@model InventorySystem.ViewModels.SalesReportsViewModel
+@{
+  ViewData["Title"] = "Sales Reports";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-chart-bar"></i> Sales Reports & Analytics</h1>
+  <div class="btn-group">
+    <a href="/Sales" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Sales
+    </a>
+    <a href="/Sales/Create" class="btn btn-success">
+      <i class="fas fa-plus"></i> New Sale
+    </a>
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Key Metrics Cards -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4>@Model.TotalSales.ToString("C")</h4>
+            <p class="mb-0">Total Sales</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-dollar-sign fa-2x"></i>
+          </div>
+        </div>
+        <small>@Model.TotalSalesCount total transactions</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4>@Model.TotalProfit.ToString("C")</h4>
+            <p class="mb-0">Total Profit</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-chart-line fa-2x"></i>
+          </div>
+        </div>
+        <small>@Model.ProfitMargin.ToString("F1")% margin</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4>@Model.AverageSaleValue.ToString("C")</h4>
+            <p class="mb-0">Avg Sale Value</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-calculator fa-2x"></i>
+          </div>
+        </div>
+        <small>Per transaction average</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-warning text-dark">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4>@Model.PaymentCollectionRate.ToString("F1")%</h4>
+            <p class="mb-0">Collection Rate</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-credit-card fa-2x"></i>
+          </div>
+        </div>
+        <small>@Model.PaidAmount.ToString("C") collected</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Monthly Performance -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-calendar-alt"></i> Monthly Sales Performance</h5>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-6">
+            <h4 class="text-primary">@Model.CurrentMonthSales.ToString("C")</h4>
+            <small class="text-muted">Current Month Sales</small>
+            @if (Model.MonthlyGrowthSales != 0)
+            {
+              <br>
+
+              <span class="badge bg-@(Model.MonthlyGrowthSales > 0 ? "success" : "danger")">
+                @(Model.MonthlyGrowthSales > 0 ? "+" : "")@Model.MonthlyGrowthSales.ToString("F1")%
+              </span>
+            }
+          </div>
+          <div class="col-6">
+            <h4 class="text-success">@Model.CurrentMonthProfit.ToString("C")</h4>
+            <small class="text-muted">Current Month Profit</small>
+            @if (Model.MonthlyGrowthProfit != 0)
+            {
+              <br>
+
+              <span class="badge bg-@(Model.MonthlyGrowthProfit > 0 ? "success" : "danger")">
+                @(Model.MonthlyGrowthProfit > 0 ? "+" : "")@Model.MonthlyGrowthProfit.ToString("F1")%
+              </span>
+            }
+          </div>
+        </div>
+        <hr>
+        <div class="row text-center">
+          <div class="col-6">
+            <p class="mb-0"><strong>Last Month:</strong> @Model.LastMonthSales.ToString("C")</p>
+          </div>
+          <div class="col-6">
+            <p class="mb-0"><strong>Last Month:</strong> @Model.LastMonthProfit.ToString("C")</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-money-check-alt"></i> Payment Status Overview</h5>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-6">
+            <h4 class="text-success">@Model.PaidSalesCount</h4>
+            <small class="text-muted">Paid Sales</small>
+            <br><strong>@Model.PaidAmount.ToString("C")</strong>
+          </div>
+          <div class="col-6">
+            <h4 class="text-warning">@Model.PendingSalesCount</h4>
+            <small class="text-muted">Pending Payments</small>
+            <br><strong>@Model.PendingAmount.ToString("C")</strong>
+          </div>
+        </div>
+        <div class="progress mt-3">
+          <div class="progress-bar bg-success" role="progressbar"
+               style="width: @Model.PaymentCollectionRate.ToString("F0")%">
+            @Model.PaymentCollectionRate.ToString("F1")% Collected
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Sales and Pending Sales -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-clock"></i> Recent Sales</h5>
+      </div>
+      <div class="card-body">
+        @if (Model.RecentSales?.Any() == true)
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var sale in Model.RecentSales)
+                {
+                  <tr>
+                    <td>@sale.SaleDate.ToString("MM/dd")</td>
+                    <td>
+                      <a href="/Sales/Details/@sale.Id" class="text-decoration-none">
+                        @sale.CustomerName
+                      </a>
+                    </td>
+                    <td>@sale.TotalAmount.ToString("C")</td>
+                    <td>
+                      <span class="badge bg-@(sale.PaymentStatus == InventorySystem.Models.PaymentStatus.Paid ? "success" : "warning")">
+                        @sale.PaymentStatus
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <p class="text-muted text-center">No recent sales</p>
+        }
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-exclamation-triangle"></i> Pending Sales</h5>
+      </div>
+      <div class="card-body">
+        @if (Model.PendingSales?.Any() == true)
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var sale in Model.PendingSales)
+                {
+                  <tr>
+                    <td>@sale.SaleDate.ToString("MM/dd")</td>
+                    <td>
+                      <a href="/Sales/Details/@sale.Id" class="text-decoration-none">
+                        @sale.CustomerName
+                      </a>
+                    </td>
+                    <td>@sale.TotalAmount.ToString("C")</td>
+                    <td>
+                      <span class="badge bg-primary">
+                        @sale.SaleStatus
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <p class="text-muted text-center">No pending sales</p>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Selling Products -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-trophy"></i> Top Selling Products</h5>
+      </div>
+      <div class="card-body">
+        @if (Model.TopSellingItems?.Any() == true)
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Qty Sold</th>
+                  <th>Revenue</th>
+                  <th>Sales</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var product in Model.TopSellingItems.Take(5))
+                {
+                  <tr>
+                    <td>
+                      <strong>@product.ProductPartNumber</strong>
+                      <br><small class="text-muted">@product.ProductName</small>
+                      <span class="badge bg-secondary">@product.ProductType</span>
+                    </td>
+                    <td>@product.QuantitySold</td>
+                    <td>@product.TotalRevenue.ToString("C")</td>
+                    <td>@product.SalesCount</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <p class="text-muted text-center">No sales data available</p>
+        }
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-dollar-sign"></i> Most Profitable Products</h5>
+      </div>
+      <div class="card-body">
+        @if (Model.TopProfitableItems?.Any() == true)
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Profit</th>
+                  <th>Margin</th>
+                  <th>Sales</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var product in Model.TopProfitableItems.Take(5))
+                {
+                  <tr>
+                    <td>
+                      <strong>@product.ProductPartNumber</strong>
+                      <br><small class="text-muted">@product.ProductName</small>
+                      <span class="badge bg-secondary">@product.ProductType</span>
+                    </td>
+                    <td>@product.TotalProfit.ToString("C")</td>
+                    <td>
+                      <span class="badge bg-@(product.ProfitMargin > 0 ? "success" : "danger")">
+                        @product.ProfitMargin.ToString("F1")%
+                      </span>
+                    </td>
+                    <td>@product.SalesCount</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <p class="text-muted text-center">No profit data available</p>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Customers -->
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-users"></i> Top Customers</h5>
+      </div>
+      <div class="card-body">
+        @if (Model.TopCustomers?.Any() == true)
+        {
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Total Purchases</th>
+                  <th>Total Profit</th>
+                  <th>Sales Count</th>
+                  <th>Avg Purchase</th>
+                  <th>Last Purchase</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var customer in Model.TopCustomers.Take(10))
+                {
+                  <tr>
+                    <td>
+                      <strong>@customer.CustomerName</strong>
+                      @if (!string.IsNullOrEmpty(customer.CustomerEmail))
+                      {
+                        <br>
+
+                        <small class="text-muted">@customer.CustomerEmail</small>
+                      }
+                    </td>
+                    <td>@customer.TotalPurchases.ToString("C")</td>
+                    <td>@customer.TotalProfit.ToString("C")</td>
+                    <td>@customer.SalesCount</td>
+                    <td>@customer.AveragePurchaseValue.ToString("C")</td>
+                    <td>@customer.LastPurchaseDate.ToString("MM/dd/yyyy")</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <p class="text-muted text-center">No customer data available</p>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (!Model.RecentSales?.Any() == true && !Model.TopSellingItems?.Any() == true)
+{
+  <div class="text-center py-5">
+    <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">No Sales Data Available</h4>
+    <p class="text-muted">Start making sales to see analytics and reports here.</p>
+    <a href="/Sales/Create" class="btn btn-success">
+      <i class="fas fa-plus"></i> Create Your First Sale
+    </a>
+  </div>
+}

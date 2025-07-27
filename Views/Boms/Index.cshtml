@@ -1,80 +1,249 @@
 @model IEnumerable<InventorySystem.Models.Bom>
 @{
-    ViewData["Title"] = "Bills of Materials";
+  ViewData["Title"] = "Bills of Materials";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-list"></i> Bills of Materials</h1>
-    <a href="/Boms/Create" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Create BOM
-    </a>
+  <h1><i class="fas fa-list"></i> Bills of Materials</h1>
+  <a href="/Boms/Create" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Create BOM
+  </a>
 </div>
 
+@if (TempData["SuccessMessage"] != null)
+
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
 <div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>BOM Name</th>
-                        <th>Assembly Part Number</th>
-                        <th>Version</th>
-                        <th>Items Count</th>
-                        <th>Sub-Assemblies</th>
-                        <th>Created Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var bom in Model)
-                    {
-                        <tr>
-                            <td><strong>@bom.Name</strong></td>
-                            <td>@bom.AssemblyPartNumber</td>
-                            <td>@bom.Version</td>
-                            <td>
-                                <span class="badge bg-info">@bom.BomItems.Count</span>
-                            </td>
-                            <td>
-                                @if (bom.SubAssemblies.Count > 0)
-                                {
-                                    <span class="badge bg-secondary">@bom.SubAssemblies.Count</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">None</span>
-                                }
-                            </td>
-                            <td>@bom.CreatedDate.ToString("MM/dd/yyyy")</td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="/Boms/Details/@bom.Id" class="btn btn-outline-primary" title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="/Boms/Edit/@bom.Id" class="btn btn-outline-secondary" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="/Boms/CostReport/@bom.Id" class="btn btn-outline-success" title="Cost Report">
-                                        <i class="fas fa-dollar-sign"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-        
-        @if (!Model.Any())
-        {
-            <div class="text-center py-5">
-                <i class="fas fa-list fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">No BOMs Created Yet</h5>
-                <p class="text-muted">Create your first Bill of Materials to start building assemblies.</p>
-                <a href="/Boms/Create" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Create First BOM
-                </a>
+  <div class="card-header">
+    <h5><i class="fas fa-list"></i> BOM List</h5>
+    <small class="text-muted">Click on any row to view BOM details</small>
+  </div>
+  <div class="card-body">
+    @if (Model?.Any() == true)
+
+    {
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-dark">
+            <tr>
+              <th>BOM Name</th>
+              <th>Assembly Part Number</th>
+              <th>Version</th>
+              <th>Components</th>
+              <th>Sub-Assemblies</th>
+              <th>Created Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var bom in Model)
+
+            {
+              <tr class="clickable-row" data-bom-id="@bom.Id" style="cursor: pointer;">
+                <td>
+                  <strong>@bom.Name</strong>
+                  @if (!string.IsNullOrEmpty(bom.Description))
+
+                  {
+                    <br>
+
+                    <small class="text-muted">@(bom.Description.Length > 50 ? bom.Description.Substring(0, 50) + "..." : bom.Description)</small>
+                  }
+                </td>
+                <td>@bom.AssemblyPartNumber</td>
+                <td>
+                  <span class="badge bg-primary">@bom.Version</span>
+                </td>
+                <td>
+                  @if (bom.BomItems.Count > 0)
+
+                  {
+                    <span class="badge bg-info">@bom.BomItems.Count</span>
+                  }
+
+                  else
+
+                  {
+                    <span class="text-muted">None</span>
+                  }
+                </td>
+                <td>
+                  @if (bom.SubAssemblies.Count > 0)
+
+                  {
+                    <span class="badge bg-secondary">@bom.SubAssemblies.Count</span>
+                  }
+
+                  else
+
+                  {
+                    <span class="text-muted">None</span>
+                  }
+                </td>
+                <td>@bom.CreatedDate.ToString("MM/dd/yyyy")</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="/Boms/Details/@bom.Id" class="btn btn-outline-primary" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/Boms/Edit/@bom.Id" class="btn btn-outline-secondary" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <a href="/Boms/AddItem?bomId=@bom.Id" class="btn btn-outline-success" title="Add Component">
+                      <i class="fas fa-plus"></i>
+                    </a>
+                    <a href="/Boms/CostReport/@bom.Id" class="btn btn-outline-warning" title="Cost Report">
+                      <i class="fas fa-dollar-sign"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <div class="card bg-light">
+            <div class="card-body">
+              <div class="row text-center">
+                <div class="col-md-3">
+                  <h6>Total BOMs: <span class="badge bg-primary">@Model.Count()</span></h6>
+                </div>
+                <div class="col-md-3">
+                  <h6>Total Components: <span class="badge bg-info">@Model.Sum(b => b.BomItems.Count)</span></h6>
+                </div>
+                <div class="col-md-3">
+                  <h6>Sub-Assemblies: <span class="badge bg-secondary">@Model.Sum(b => b.SubAssemblies.Count)</span></h6>
+                </div>
+                <div class="col-md-3">
+                  <h6>BOMs with Components: <span class="badge bg-success">@Model.Count(b => b.BomItems.Any())</span></h6>
+                </div>
+              </div>
             </div>
-        }
-    </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    else
+
+    {
+      <div class="text-center py-5">
+        <i class="fas fa-list fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No BOMs Created Yet</h5>
+        <p class="text-muted">Create your first Bill of Materials to start building assemblies.</p>
+        <a href="/Boms/Create" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Create First BOM
+        </a>
+      </div>
+    }
+  </div>
 </div>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Make table rows clickable
+      const clickableRows = document.querySelectorAll('.clickable-row');
+
+      clickableRows.forEach(function (row) {
+        row.addEventListener('click', function (e) {
+          // Only proceed if the click wasn't on an action button or link
+          if (e.target.closest('.btn-group') || e.target.closest('a') || e.target.closest('button')) {
+            return;
+          }
+
+          const bomId = this.getAttribute('data-bom-id');
+          if (bomId) {
+            window.location.href = '/Boms/Details/' + bomId;
+          }
+        });
+
+        // Add hover effect
+        row.addEventListener('mouseenter', function () {
+          if (!this.classList.contains('table-active')) {
+            this.style.backgroundColor = '#f8f9fa';
+          }
+        });
+
+        row.addEventListener('mouseleave', function () {
+          if (!this.classList.contains('table-active')) {
+            this.style.backgroundColor = '';
+          }
+        });
+      });
+
+      // Prevent action buttons from triggering row click
+      const actionButtons = document.querySelectorAll('.btn-group a, .btn-group button');
+      actionButtons.forEach(function (button) {
+        button.addEventListener('click', function (e) {
+          e.stopPropagation();
+        });
+      });
+    });
+  </script>
+
+  <style>
+    .clickable-row {
+      transition: background-color 0.2s ease;
+    }
+
+      .clickable-row:hover {
+        background-color: #f8f9fa !important;
+      }
+
+      .clickable-row:active {
+        background-color: #e9ecef !important;
+      }
+
+      /* Ensure action buttons don't inherit pointer cursor */
+      .clickable-row .btn-group {
+        cursor: default;
+      }
+
+    /* Prevent text selection on clickable rows for better UX */
+    .clickable-row {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+      /* But allow text selection in specific areas */
+      .clickable-row td:nth-child(1),
+      .clickable-row td:nth-child(2) {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+
+    /* Style for badges */
+    .badge {
+      font-size: 0.75em;
+    }
+
+    /* Card header styling */
+    .card-header small {
+      display: block;
+      margin-top: 2px;
+    }
+  </style>
+}

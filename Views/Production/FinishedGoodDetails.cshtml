@@ -1,0 +1,266 @@
+﻿@model InventorySystem.Models.FinishedGood
+@{
+  ViewData["Title"] = "Finished Good Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-box"></i> @Model.PartNumber</h1>
+  <div class="btn-group">
+    <a href="/Production/FinishedGoods" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Finished Goods
+    </a>
+    <a href="/Production/EditFinishedGood/@Model.Id" class="btn btn-outline-primary">
+      <i class="fas fa-edit"></i> Edit
+    </a>
+    @if (Model.BomId.HasValue)
+    {
+      <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-success">
+        <i class="fas fa-hammer"></i> Build More
+      </a>
+    }
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> Finished Good Information</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-4">Description:</dt>
+          <dd class="col-sm-8">@Model.Description</dd>
+
+          <dt class="col-sm-4">Current Stock:</dt>
+          <dd class="col-sm-8">
+            <span class="badge bg-@(Model.IsLowStock ? "warning" : "primary") fs-6">
+              @Model.CurrentStock units
+            </span>
+            @if (Model.IsLowStock)
+            {
+              <i class="fas fa-exclamation-triangle text-warning ms-2" title="Low Stock"></i>
+            }
+          </dd>
+
+          <dt class="col-sm-4">Minimum Stock:</dt>
+          <dd class="col-sm-8">@Model.MinimumStock units</dd>
+
+          <dt class="col-sm-4">Unit Cost:</dt>
+          <dd class="col-sm-8">@Model.UnitCost.ToString("C")</dd>
+
+          <dt class="col-sm-4">Selling Price:</dt>
+          <dd class="col-sm-8">@Model.SellingPrice.ToString("C")</dd>
+
+          <dt class="col-sm-4">Total Value:</dt>
+          <dd class="col-sm-8">@Model.TotalValue.ToString("C")</dd>
+
+          @if (Model.Bom != null)
+          {
+            <dt class="col-sm-4">Associated BOM:</dt>
+            <dd class="col-sm-8">
+              <a href="/Boms/Details/@Model.BomId" class="btn btn-sm btn-outline-info">
+                @Model.Bom.Name
+              </a>
+            </dd>
+          }
+
+          <dt class="col-sm-4">Created Date:</dt>
+          <dd class="col-sm-8">@Model.CreatedDate.ToString("MMMM dd, yyyy")</dd>
+
+          @if (!string.IsNullOrEmpty(Model.Notes))
+          {
+            <dt class="col-sm-4">Notes:</dt>
+            <dd class="col-sm-8">@Model.Notes</dd>
+          }
+        </dl>
+      </div>
+    </div>
+
+    @if (Model.Productions?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5><i class="fas fa-history"></i> Production History</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Quantity</th>
+                  <th>Unit Cost</th>
+                  <th>Total Cost</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var production in Model.Productions.OrderByDescending(p => p.ProductionDate))
+                {
+                  <tr>
+                    <td>@production.ProductionDate.ToString("MM/dd/yyyy")</td>
+                    <td>@production.QuantityProduced</td>
+                    <td>@production.UnitCost.ToString("C")</td>
+                    <td>@production.TotalCost.ToString("C")</td>
+                    <td>
+                      <a href="/Production/Details/@production.Id" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i> Details
+                      </a>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (Model.SaleItems?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5><i class="fas fa-shopping-cart"></i> Sales History</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Sale Date</th>
+                  <th>Customer</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Total</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var saleItem in Model.SaleItems.OrderByDescending(si => si.Sale.SaleDate))
+                {
+                  <tr>
+                    <td>@saleItem.Sale.SaleDate.ToString("MM/dd/yyyy")</td>
+                    <td>@saleItem.Sale.CustomerName</td>
+                    <td>@saleItem.QuantitySold</td>
+                    <td>@saleItem.UnitPrice.ToString("C")</td>
+                    <td>@saleItem.TotalPrice.ToString("C")</td>
+                    <td>
+                      <a href="/Sales/Details/@saleItem.SaleId" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i> View Sale
+                      </a>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-chart-bar"></i> Quick Stats</h5>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-6">
+            <h4 class="text-primary">@(Model.Productions?.Sum(p => p.QuantityProduced) ?? 0)</h4>
+            <small class="text-muted">Total Produced</small>
+          </div>
+          <div class="col-6">
+            <h4 class="text-success">@(Model.SaleItems?.Sum(si => si.QuantitySold) ?? 0)</h4>
+            <small class="text-muted">Total Sold</small>
+          </div>
+        </div>
+        <hr>
+        <div class="text-center">
+          <h5 class="text-info">@((Model.Productions?.Sum(p => p.QuantityProduced) ?? 0) - (Model.SaleItems?.Sum(si => si.QuantitySold) ?? 0))</h5>
+          <small class="text-muted">Net Production</small>
+        </div>
+      </div>
+    </div>
+
+    @if (Model.IsLowStock)
+    {
+      <div class="card mt-3 border-warning">
+        <div class="card-header bg-warning">
+          <h5><i class="fas fa-exclamation-triangle"></i> Low Stock Alert</h5>
+        </div>
+        <div class="card-body">
+          <p>Current stock (@Model.CurrentStock) is at or below minimum level (@Model.MinimumStock).</p>
+          @if (Model.BomId.HasValue)
+          {
+            <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-warning btn-sm">
+              <i class="fas fa-hammer"></i> Build More
+            </a>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5><i class="fas fa-dollar-sign"></i> Financial Summary</h5>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm">
+          <tr>
+            <td>Unit Cost:</td>
+            <td class="text-end">@Model.UnitCost.ToString("C")</td>
+          </tr>
+          <tr>
+            <td>Selling Price:</td>
+            <td class="text-end">@Model.SellingPrice.ToString("C")</td>
+          </tr>
+          <tr class="table-info">
+            <td><strong>Profit per Unit:</strong></td>
+            <td class="text-end"><strong>@((Model.SellingPrice - Model.UnitCost).ToString("C"))</strong></td>
+          </tr>
+          <tr>
+            <td>Inventory Value:</td>
+            <td class="text-end">@Model.TotalValue.ToString("C")</td>
+          </tr>
+        </table>
+
+        @if (Model.SellingPrice > 0)
+        {
+          var profitMargin = Model.UnitCost > 0 ? ((Model.SellingPrice - Model.UnitCost) / Model.SellingPrice) * 100 : 0;
+          <div class="text-center">
+            <span class="badge bg-@(profitMargin > 0 ? "success" : "danger") fs-6">
+              @profitMargin.ToString("F1")% Margin
+            </span>
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (Model.SaleItems?.Any() == true)
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-chart-pie"></i> Sales Performance</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr>
+              <td>Total Revenue:</td>
+              <td class="text-end">@Model.SaleItems.Sum(si => si.TotalPrice).ToString("C")</td>
+            </tr>
+            <tr>
+              <td>Total Profit:</td>
+              <td class="text-end">@Model.SaleItems.Sum(si => si.Profit).ToString("C")</td>
+            </tr>
+            <tr>
+              <td>Avg Sale Price:</td>
+              <td class="text-end">@(Model.SaleItems.Any() ? Model.SaleItems.Average(si => si.UnitPrice).ToString("C") : "$0.00")</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    }
+  </div>
+</div>

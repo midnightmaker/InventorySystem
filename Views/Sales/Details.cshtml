@@ -1,0 +1,263 @@
+﻿@model InventorySystem.Models.Sale
+@{
+  ViewData["Title"] = "Sale Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-shopping-cart"></i> Sale @Model.SaleNumber</h1>
+  <div class="btn-group">
+    <a href="/Sales" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Sales
+    </a>
+    <a href="/Sales/Edit/@Model.Id" class="btn btn-outline-primary">
+      <i class="fas fa-edit"></i> Edit
+    </a>
+    <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
+      <i class="fas fa-plus"></i> Add Item
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> Sale Information</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-3">Sale Number:</dt>
+          <dd class="col-sm-9">@Model.SaleNumber</dd>
+
+          <dt class="col-sm-3">Sale Date:</dt>
+          <dd class="col-sm-9">@Model.SaleDate.ToString("MMMM dd, yyyy")</dd>
+
+          <dt class="col-sm-3">Customer:</dt>
+          <dd class="col-sm-9">
+            <strong>@Model.CustomerName</strong>
+            @if (!string.IsNullOrEmpty(Model.CustomerEmail))
+            {
+              <br>
+
+              <small class="text-muted">@Model.CustomerEmail</small>
+            }
+            @if (!string.IsNullOrEmpty(Model.CustomerPhone))
+            {
+              <br>
+
+              <small class="text-muted">@Model.CustomerPhone</small>
+            }
+          </dd>
+
+          @if (!string.IsNullOrEmpty(Model.OrderNumber))
+          {
+            <dt class="col-sm-3">Order Number:</dt>
+            <dd class="col-sm-9">@Model.OrderNumber</dd>
+          }
+
+          @if (!string.IsNullOrEmpty(Model.ShippingAddress))
+          {
+            <dt class="col-sm-3">Shipping Address:</dt>
+            <dd class="col-sm-9">@Model.ShippingAddress</dd>
+          }
+
+          <dt class="col-sm-3">Payment Status:</dt>
+          <dd class="col-sm-9">
+            @if (Model.PaymentStatus == InventorySystem.Models.PaymentStatus.Paid)
+            {
+              <span class="badge bg-success">Paid</span>
+            }
+            else if (Model.PaymentStatus == InventorySystem.Models.PaymentStatus.Pending)
+            {
+              <span class="badge bg-warning">Pending</span>
+            }
+            else
+            {
+              <span class="badge bg-danger">@Model.PaymentStatus</span>
+            }
+          </dd>
+
+          <dt class="col-sm-3">Sale Status:</dt>
+          <dd class="col-sm-9">
+            @if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Processing)
+            {
+              <span class="badge bg-primary">Processing</span>
+            }
+            else if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Shipped)
+            {
+              <span class="badge bg-success">Shipped</span>
+            }
+            else if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Delivered)
+            {
+              <span class="badge bg-info">Delivered</span>
+            }
+            else
+            {
+              <span class="badge bg-secondary">@Model.SaleStatus</span>
+            }
+          </dd>
+
+          @if (!string.IsNullOrEmpty(Model.PaymentMethod))
+          {
+            <dt class="col-sm-3">Payment Method:</dt>
+            <dd class="col-sm-9">@Model.PaymentMethod</dd>
+          }
+
+          <dt class="col-sm-3">Created Date:</dt>
+          <dd class="col-sm-9">@Model.CreatedDate.ToString("MMMM dd, yyyy hh:mm tt")</dd>
+
+          @if (!string.IsNullOrEmpty(Model.Notes))
+          {
+            <dt class="col-sm-3">Notes:</dt>
+            <dd class="col-sm-9">@Model.Notes</dd>
+          }
+        </dl>
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-list"></i> Sale Items</h5>
+        <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-sm btn-success">
+          <i class="fas fa-plus"></i> Add Item
+        </a>
+      </div>
+      <div class="card-body">
+        @if (Model.SaleItems?.Any() == true)
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Unit Cost</th>
+                  <th>Total Price</th>
+                  <th>Profit</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var item in Model.SaleItems)
+                {
+                  <tr>
+                    <td>
+                      <strong>@item.ProductPartNumber</strong><br>
+                      <small class="text-muted">@item.ProductName</small>
+                    </td>
+                    <td>@item.QuantitySold</td>
+                    <td>@item.UnitPrice.ToString("C")</td>
+                    <td>@item.UnitCost.ToString("C")</td>
+                    <td>@item.TotalPrice.ToString("C")</td>
+                    <td>
+                      <span class="text-@(item.Profit >= 0 ? "success" : "danger")">
+                        @item.Profit.ToString("C")
+                      </span>
+                      @if (item.TotalPrice > 0)
+                      {
+                        <br>
+
+                        <small class="text-muted">(@item.ProfitMargin.ToString("F1")%)</small>
+                      }
+                    </td>
+                    <td>
+                      <form asp-action="DeleteSaleItem" method="post" style="display: inline;">
+                        <input type="hidden" name="saleItemId" value="@item.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Are you sure you want to remove this item?')">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-3">
+            <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+            <p class="text-muted">No items added to this sale yet.</p>
+            <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
+              <i class="fas fa-plus"></i> Add First Item
+            </a>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-calculator"></i> Sale Summary</h5>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm">
+          <tr>
+            <td>Subtotal:</td>
+            <td class="text-end">@Model.Subtotal.ToString("C")</td>
+          </tr>
+          <tr>
+            <td>Tax Amount:</td>
+            <td class="text-end">@Model.TaxAmount.ToString("C")</td>
+          </tr>
+          <tr>
+            <td>Shipping:</td>
+            <td class="text-end">@Model.ShippingCost.ToString("C")</td>
+          </tr>
+          <tr class="table-dark">
+            <td><strong>Total:</strong></td>
+            <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
+          </tr>
+        </table>
+
+        @if (Model.SaleItems?.Any() == true)
+        {
+          <hr>
+          <table class="table table-sm">
+            <tr>
+              <td>Total Cost:</td>
+              <td class="text-end">@Model.SaleItems.Sum(si => si.TotalCost).ToString("C")</td>
+            </tr>
+            <tr class="@(Model.SaleItems.Sum(si => si.Profit) >= 0 ? "table-success" : "table-danger")">
+              <td><strong>Total Profit:</strong></td>
+              <td class="text-end"><strong>@Model.SaleItems.Sum(si => si.Profit).ToString("C")</strong></td>
+            </tr>
+          </table>
+        }
+
+        @if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Processing && Model.SaleItems?.Any() == true)
+        {
+          <hr>
+          <form asp-action="ProcessSale" method="post">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <button type="submit" class="btn btn-warning w-100"
+                    onclick="return confirm('This will reduce inventory. Are you sure?')">
+              <i class="fas fa-shipping-fast"></i> Process & Ship Sale
+            </button>
+          </form>
+        }
+      </div>
+    </div>
+  </div>
+</div>

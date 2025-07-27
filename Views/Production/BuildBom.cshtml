@@ -1,0 +1,218 @@
+﻿<!-- Views/Production/BuildBom.cshtml -->
+@model InventorySystem.ViewModels.BuildBomViewModel
+@{
+  ViewData["Title"] = "Build BOM";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-hammer"></i> Build BOM</h1>
+  <a href="/Production" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Productions
+  </a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<form asp-action="BuildBom" method="post">
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-cogs"></i> Production Parameters</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="BomId" class="form-label">Select BOM *</label>
+                <select asp-for="BomId" class="form-select" asp-items="ViewBag.BomId" id="bomSelect">
+                  <option value="">-- Select a BOM --</option>
+                </select>
+                <span asp-validation-for="BomId" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="Quantity" class="form-label">Quantity to Build *</label>
+                <input asp-for="Quantity" class="form-control" id="quantityInput" />
+                <span asp-validation-for="Quantity" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="ProductionDate" class="form-label">Production Date *</label>
+                <input asp-for="ProductionDate" type="date" class="form-control" />
+                <span asp-validation-for="ProductionDate" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="LaborCost" class="form-label">Labor Cost</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="LaborCost" class="form-control" step="0.01" />
+                </div>
+                <span asp-validation-for="LaborCost" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="OverheadCost" class="form-label">Overhead Cost</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="OverheadCost" class="form-control" step="0.01" />
+                </div>
+                <span asp-validation-for="OverheadCost" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Notes" class="form-label">Notes</label>
+            <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+          </div>
+
+          <div id="bomInfo" style="display: none;">
+            <div class="alert alert-info">
+              <h6><i class="fas fa-info-circle"></i> BOM Information</h6>
+              <div id="bomDetails"></div>
+            </div>
+          </div>
+
+          <div id="availabilityInfo" style="display: none;">
+            <div class="alert" id="availabilityAlert">
+              <div id="availabilityDetails"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-calculator"></i> Cost Estimation</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr>
+              <td>Material Cost:</td>
+              <td class="text-end" id="materialCost">@Model.MaterialCost.ToString("C")</td>
+            </tr>
+            <tr>
+              <td>Labor Cost:</td>
+              <td class="text-end" id="laborCost">@Model.LaborCost.ToString("C")</td>
+            </tr>
+            <tr>
+              <td>Overhead Cost:</td>
+              <td class="text-end" id="overheadCost">@Model.OverheadCost.ToString("C")</td>
+            </tr>
+            <tr class="table-dark">
+              <td><strong>Total Cost:</strong></td>
+              <td class="text-end"><strong id="totalCost">@Model.TotalCost.ToString("C")</strong></td>
+            </tr>
+            <tr class="table-info">
+              <td><strong>Unit Cost:</strong></td>
+              <td class="text-end"><strong id="unitCost">@Model.UnitCost.ToString("C")</strong></td>
+            </tr>
+          </table>
+
+          <div class="d-grid mt-3">
+            <button type="submit" class="btn btn-success" id="buildButton" disabled>
+              <i class="fas fa-hammer"></i> Build BOM
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      const bomSelect = document.getElementById('bomSelect');
+      const quantityInput = document.getElementById('quantityInput');
+      const laborCostInput = document.querySelector('input[name="LaborCost"]');
+      const overheadCostInput = document.querySelector('input[name="OverheadCost"]');
+      const buildButton = document.getElementById('buildButton');
+
+      function updateCostEstimate() {
+          const bomId = bomSelect.value;
+          const quantity = parseInt(quantityInput.value) || 0;
+
+          if (bomId && quantity > 0) {
+              fetch(`/Production/CheckBomAvailability?bomId=${bomId}&quantity=${quantity}`)
+                  .then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          // Update BOM info
+                          const bomInfo = document.getElementById('bomInfo');
+                          const bomDetails = document.getElementById('bomDetails');
+                          bomDetails.innerHTML = `<strong>${data.bomName}</strong><br><small>${data.bomDescription}</small>`;
+                          bomInfo.style.display = 'block';
+
+                          // Update availability info
+                          const availabilityInfo = document.getElementById('availabilityInfo');
+                          const availabilityAlert = document.getElementById('availabilityAlert');
+                          const availabilityDetails = document.getElementById('availabilityDetails');
+
+                          if (data.canBuild) {
+                              availabilityAlert.className = 'alert alert-success';
+                              availabilityDetails.innerHTML = '<i class="fas fa-check-circle"></i> All materials available for production';
+                              buildButton.disabled = false;
+                          } else {
+                              availabilityAlert.className = 'alert alert-warning';
+                              availabilityDetails.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Insufficient materials for this quantity';
+                              buildButton.disabled = true;
+                          }
+                          availabilityInfo.style.display = 'block';
+
+                          // Update costs
+                          const materialCost = data.materialCost || 0;
+                          const laborCost = parseFloat(laborCostInput.value) || 0;
+                          const overheadCost = parseFloat(overheadCostInput.value) || 0;
+                          const totalCost = materialCost + laborCost + overheadCost;
+                          const unitCost = quantity > 0 ? totalCost / quantity : 0;
+
+                          document.getElementById('materialCost').textContent = '$' + materialCost.toFixed(2);
+                          document.getElementById('laborCost').textContent = '$' + laborCost.toFixed(2);
+                          document.getElementById('overheadCost').textContent = '$' + overheadCost.toFixed(2);
+                          document.getElementById('totalCost').textContent = '$' + totalCost.toFixed(2);
+                          document.getElementById('unitCost').textContent = '$' + unitCost.toFixed(2);
+                      }
+                  });
+          } else {
+              document.getElementById('bomInfo').style.display = 'none';
+              document.getElementById('availabilityInfo').style.display = 'none';
+              buildButton.disabled = true;
+          }
+      }
+
+      bomSelect.addEventListener('change', updateCostEstimate);
+      quantityInput.addEventListener('input', updateCostEstimate);
+      laborCostInput.addEventListener('input', updateCostEstimate);
+      overheadCostInput.addEventListener('input', updateCostEstimate);
+
+      // Initial load if BOM is pre-selected
+      if (bomSelect.value) {
+          updateCostEstimate();
+      }
+  });
+</script>

@@ -1,0 +1,320 @@
+﻿@model InventorySystem.Models.Bom
+@{
+  ViewData["Title"] = "Edit BOM";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-edit"></i> Edit BOM</h1>
+  <div class="btn-group">
+    <a href="/Boms/Details/@Model.Id" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Details
+    </a>
+    <a href="/Boms" class="btn btn-outline-info">
+      <i class="fas fa-list"></i> All BOMs
+    </a>
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<form asp-action="Edit" method="post">
+  <input asp-for="Id" type="hidden" />
+  <input asp-for="CreatedDate" type="hidden" />
+  <input asp-for="ParentBomId" type="hidden" />
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> BOM Information</h5>
+        </div>
+        <div class="card-body">
+          @if (Model.ParentBomId.HasValue)
+          {
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Sub-Assembly:</strong> This BOM is a sub-assembly of another BOM.
+            </div>
+          }
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="Name" class="form-label">BOM Name *</label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="AssemblyPartNumber" class="form-label">Assembly Part Number</label>
+                <input asp-for="AssemblyPartNumber" class="form-control" />
+                <span asp-validation-for="AssemblyPartNumber" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="Version" class="form-label">Version *</label>
+                <input asp-for="Version" class="form-control" />
+                <span asp-validation-for="Version" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Last Modified</label>
+                <input type="text" class="form-control" value="@Model.ModifiedDate.ToString("MM/dd/yyyy hh:mm tt")" readonly />
+                <div class="form-text">Auto-updated when BOM is saved</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">Description *</label>
+            <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      @if (Model.BomItems?.Any() == true)
+      {
+        <div class="card mt-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-cogs"></i> Components (@Model.BomItems.Count)</h5>
+            <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-success">
+              <i class="fas fa-plus"></i> Add Component
+            </a>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Part Number</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit Cost</th>
+                    <th>Extended Cost</th>
+                    <th>Reference</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var bomItem in Model.BomItems)
+                  {
+                    <tr>
+                      <td>
+                        <a href="/Items/Details/@bomItem.Item.Id" class="text-decoration-none">
+                          @bomItem.Item.PartNumber
+                        </a>
+                      </td>
+                      <td>@bomItem.Item.Description</td>
+                      <td>@bomItem.Quantity</td>
+                      <td>@bomItem.UnitCost.ToString("C")</td>
+                      <td>@bomItem.ExtendedCost.ToString("C")</td>
+                      <td>@bomItem.ReferenceDesignator</td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <form asp-action="RemoveItem" method="post" style="display:inline;">
+                            <input type="hidden" name="bomItemId" value="@bomItem.Id" />
+                            <input type="hidden" name="bomId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-outline-danger"
+                                    onclick="return confirm('Remove this item from the BOM?')"
+                                    title="Remove Item">
+                              <i class="fas fa-trash"></i> Remove
+                            </button>
+                          </form>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                          To edit quantity, remove and re-add this component
+                        </small>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (Model.SubAssemblies?.Any() == true)
+      {
+        <div class="card mt-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-layer-group"></i> Sub-Assemblies (@Model.SubAssemblies.Count)</h5>
+            <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-sm btn-success">
+              <i class="fas fa-plus"></i> Add Sub-Assembly
+            </a>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Sub-Assembly Name</th>
+                    <th>Assembly P/N</th>
+                    <th>Version</th>
+                    <th>Components</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var subAssembly in Model.SubAssemblies)
+                  {
+                    <tr>
+                      <td>
+                        <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
+                          @subAssembly.Name
+                        </a>
+                      </td>
+                      <td>@subAssembly.AssemblyPartNumber</td>
+                      <td>@subAssembly.Version</td>
+                      <td>
+                        <span class="badge bg-info">@subAssembly.BomItems.Count</span>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary" title="View Details">
+                            <i class="fas fa-eye"></i>
+                          </a>
+                          <a href="/Boms/Edit/@subAssembly.Id" class="btn btn-outline-secondary" title="Edit">
+                            <i class="fas fa-edit"></i>
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> BOM Summary</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-5">Created:</dt>
+            <dd class="col-sm-7">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
+
+            <dt class="col-sm-5">Components:</dt>
+            <dd class="col-sm-7">
+              <span class="badge bg-info">@Model.BomItems.Count</span>
+            </dd>
+
+            <dt class="col-sm-5">Sub-Assemblies:</dt>
+            <dd class="col-sm-7">
+              <span class="badge bg-secondary">@Model.SubAssemblies.Count</span>
+            </dd>
+          </dl>
+
+          @if (ViewBag.TotalCost != null)
+          {
+            <hr>
+            <div class="text-center">
+              <h5 class="text-success">Total Cost</h5>
+              <h4>@(((decimal)ViewBag.TotalCost).ToString("C"))</h4>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-save"></i> Actions</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Update BOM
+            </button>
+            <a href="/Boms/Details/@Model.Id" class="btn btn-outline-secondary">
+              <i class="fas fa-times"></i> Cancel
+            </a>
+          </div>
+
+          <hr>
+
+          <div class="d-grid gap-2">
+            @if (!Model.BomItems.Any())
+            {
+              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add First Component
+              </a>
+            }
+            else
+            {
+              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-outline-success">
+                <i class="fas fa-plus"></i> Add More Components
+              </a>
+            }
+
+            <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-outline-info">
+              <i class="fas fa-layer-group"></i> Add Sub-Assembly
+            </a>
+
+            <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-warning">
+              <i class="fas fa-dollar-sign"></i> Cost Report
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3 border-info">
+        <div class="card-header bg-info text-white">
+          <h6><i class="fas fa-lightbulb"></i> Editing Tips</h6>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2"><i class="fas fa-check text-success"></i> <small>ModifiedDate updates automatically</small></li>
+            <li class="mb-2"><i class="fas fa-check text-success"></i> <small>Component costs update in real-time</small></li>
+            <li class="mb-2"><i class="fas fa-check text-success"></i> <small>You can edit individual component quantities</small></li>
+            <li><i class="fas fa-check text-success"></i> <small>Sub-assemblies can be nested 3 levels deep</small></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+@section Scripts {
+  <script>
+    // Auto-update the modified date display
+    document.addEventListener('DOMContentLoaded', function () {
+      const form = document.querySelector('form');
+      if (form) {
+        // Update modified date when form is submitted
+        form.addEventListener('submit', function () {
+          const modifiedInput = document.querySelector('input[readonly]');
+          if (modifiedInput) {
+            const now = new Date();
+            modifiedInput.value = now.toLocaleString();
+          }
+        });
+      }
+    });
+  </script>
+}

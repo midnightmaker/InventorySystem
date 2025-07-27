@@ -1,0 +1,316 @@
+﻿@model InventorySystem.ViewModels.AddSaleItemViewModel
+@{
+  ViewData["Title"] = "Add Item to Sale";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-plus"></i> Add Item to Sale</h1>
+  <a href="/Sales/Details/@Model.SaleId" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Sale
+  </a>
+</div>
+
+<div class="alert alert-info">
+  <h6><i class="fas fa-info-circle"></i> Sale Information</h6>
+  <p class="mb-0">Adding item to <strong>@ViewBag.SaleNumber</strong> for customer <strong>@ViewBag.CustomerName</strong></p>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<form asp-action="AddItem" method="post">
+  <input asp-for="SaleId" type="hidden" />
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-box"></i> Product Selection</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label asp-for="ProductType" class="form-label">Product Type *</label>
+            <select asp-for="ProductType" class="form-select" id="productTypeSelect">
+              <option value="Item">Raw Items</option>
+              <option value="FinishedGood">Finished Goods</option>
+            </select>
+            <span asp-validation-for="ProductType" class="text-danger"></span>
+          </div>
+
+          <div class="mb-3" id="itemSelection" style="display: block;">
+            <label asp-for="ItemId" class="form-label">Select Item</label>
+            <select asp-for="ItemId" class="form-select" asp-items="ViewBag.Items" id="itemSelect">
+              <option value="">-- Select an Item --</option>
+            </select>
+            <span asp-validation-for="ItemId" class="text-danger"></span>
+          </div>
+
+          <div class="mb-3" id="finishedGoodSelection" style="display: none;">
+            <label asp-for="FinishedGoodId" class="form-label">Select Finished Good</label>
+            <select asp-for="FinishedGoodId" class="form-select" asp-items="ViewBag.FinishedGoods" id="finishedGoodSelect">
+              <option value="">-- Select a Finished Good --</option>
+            </select>
+            <span asp-validation-for="FinishedGoodId" class="text-danger"></span>
+          </div>
+
+          <div id="productInfo" style="display: none;">
+            <div class="alert alert-info">
+              <h6 id="productName"></h6>
+              <div id="productDetails"></div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="Quantity" class="form-label">Quantity *</label>
+                <input asp-for="Quantity" class="form-control" id="quantityInput" />
+                <span asp-validation-for="Quantity" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="UnitPrice" class="form-label">Unit Price *</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="UnitPrice" class="form-control" step="0.01" id="unitPriceInput" />
+                </div>
+                <span asp-validation-for="UnitPrice" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Notes" class="form-label">Notes</label>
+            <textarea asp-for="Notes" class="form-control" rows="2"></textarea>
+            <span asp-validation-for="Notes" class="text-danger"></span>
+          </div>
+
+          <div id="availabilityAlert" style="display: none;">
+            <div class="alert" id="stockAlert">
+              <div id="stockMessage"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-calculator"></i> Item Summary</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr>
+              <td>Quantity:</td>
+              <td class="text-end" id="displayQuantity">1</td>
+            </tr>
+            <tr>
+              <td>Unit Price:</td>
+              <td class="text-end" id="displayUnitPrice">$0.00</td>
+            </tr>
+            <tr class="table-dark">
+              <td><strong>Total Price:</strong></td>
+              <td class="text-end"><strong id="displayTotalPrice">$0.00</strong></td>
+            </tr>
+          </table>
+
+          <div id="stockInfo" style="display: none;">
+            <hr>
+            <table class="table table-sm">
+              <tr>
+                <td>Available Stock:</td>
+                <td class="text-end" id="availableStock">0</td>
+              </tr>
+              <tr>
+                <td>Suggested Price:</td>
+                <td class="text-end" id="suggestedPrice">$0.00</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-save"></i> Actions</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success" id="addItemButton" disabled>
+              <i class="fas fa-plus"></i> Add Item to Sale
+            </button>
+            <a href="/Sales/Details/@Model.SaleId" class="btn btn-outline-secondary">
+              <i class="fas fa-times"></i> Cancel
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const productTypeSelect = document.getElementById('productTypeSelect');
+      const itemSelection = document.getElementById('itemSelection');
+      const finishedGoodSelection = document.getElementById('finishedGoodSelection');
+      const itemSelect = document.getElementById('itemSelect');
+      const finishedGoodSelect = document.getElementById('finishedGoodSelect');
+      const quantityInput = document.getElementById('quantityInput');
+      const unitPriceInput = document.getElementById('unitPriceInput');
+      const addItemButton = document.getElementById('addItemButton');
+
+      // Toggle product selection based on type
+      productTypeSelect.addEventListener('change', function () {
+        if (this.value === 'Item') {
+          itemSelection.style.display = 'block';
+          finishedGoodSelection.style.display = 'none';
+          finishedGoodSelect.value = '';
+        } else if (this.value === 'FinishedGood') {
+          itemSelection.style.display = 'none';
+          finishedGoodSelection.style.display = 'block';
+          itemSelect.value = '';
+        }
+        clearProductInfo();
+        updateTotalPrice();
+        validateForm();
+      });
+
+      // Check product availability and pricing
+      function checkProductAvailability() {
+        const productType = productTypeSelect.value;
+        const productId = productType === 'Item' ? itemSelect.value : finishedGoodSelect.value;
+        const quantity = parseInt(quantityInput.value) || 0;
+
+        if (productId && quantity > 0) {
+          fetch(`/Sales/CheckProductAvailability?productType=${productType}&productId=${productId}&quantity=${quantity}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                updateProductInfo(data);
+                updateStockAlert(data);
+
+                // Auto-fill suggested price if unit price is empty
+                if (!unitPriceInput.value && data.suggestedPrice > 0) {
+                  unitPriceInput.value = data.suggestedPrice.toFixed(2);
+                  updateTotalPrice();
+                }
+              }
+            })
+            .catch(error => console.error('Error checking availability:', error));
+        }
+      }
+
+      function updateProductInfo(data) {
+        const productInfo = document.getElementById('productInfo');
+        const productName = document.getElementById('productName');
+        const productDetails = document.getElementById('productDetails');
+        const stockInfo = document.getElementById('stockInfo');
+        const availableStock = document.getElementById('availableStock');
+        const suggestedPrice = document.getElementById('suggestedPrice');
+
+        productName.textContent = data.productName;
+        productDetails.innerHTML = `Current Stock: <span class="badge bg-${data.available ? 'success' : 'warning'}">${data.currentStock}</span>`;
+        availableStock.textContent = data.currentStock;
+        suggestedPrice.textContent = '$' + data.suggestedPrice.toFixed(2);
+
+        productInfo.style.display = 'block';
+        stockInfo.style.display = 'block';
+      }
+
+      function updateStockAlert(data) {
+        const availabilityAlert = document.getElementById('availabilityAlert');
+        const stockAlert = document.getElementById('stockAlert');
+        const stockMessage = document.getElementById('stockMessage');
+
+        if (data.available) {
+          stockAlert.className = 'alert alert-success';
+          stockMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sufficient stock available';
+          addItemButton.disabled = false;
+        } else {
+          stockAlert.className = 'alert alert-danger';
+          stockMessage.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Insufficient stock for this quantity';
+          addItemButton.disabled = true;
+        }
+
+        availabilityAlert.style.display = 'block';
+      }
+
+      function clearProductInfo() {
+        document.getElementById('productInfo').style.display = 'none';
+        document.getElementById('stockInfo').style.display = 'none';
+        document.getElementById('availabilityAlert').style.display = 'none';
+      }
+
+      function updateTotalPrice() {
+        const quantity = parseInt(quantityInput.value) || 0;
+        const unitPrice = parseFloat(unitPriceInput.value) || 0;
+        const totalPrice = quantity * unitPrice;
+
+        document.getElementById('displayQuantity').textContent = quantity;
+        document.getElementById('displayUnitPrice').textContent = '$' + unitPrice.toFixed(2);
+        document.getElementById('displayTotalPrice').textContent = '$' + totalPrice.toFixed(2);
+      }
+
+      function validateForm() {
+        const productType = productTypeSelect.value;
+        const productId = productType === 'Item' ? itemSelect.value : finishedGoodSelect.value;
+        const quantity = parseInt(quantityInput.value) || 0;
+        const unitPrice = parseFloat(unitPriceInput.value) || 0;
+
+        if (productId && quantity > 0 && unitPrice > 0) {
+          // Only enable if stock check passed (button will be disabled by stock check if insufficient)
+          if (!addItemButton.disabled || document.getElementById('availabilityAlert').style.display === 'none') {
+            addItemButton.disabled = false;
+          }
+        } else {
+          addItemButton.disabled = true;
+        }
+      }
+
+      // Event listeners
+      itemSelect.addEventListener('change', function () {
+        clearProductInfo();
+        checkProductAvailability();
+        validateForm();
+      });
+
+      finishedGoodSelect.addEventListener('change', function () {
+        clearProductInfo();
+        checkProductAvailability();
+        validateForm();
+      });
+
+      quantityInput.addEventListener('input', function () {
+        updateTotalPrice();
+        checkProductAvailability();
+        validateForm();
+      });
+
+      unitPriceInput.addEventListener('input', function () {
+        updateTotalPrice();
+        validateForm();
+      });
+
+      // Auto-format currency input
+      unitPriceInput.addEventListener('blur', function () {
+        if (this.value) {
+          this.value = parseFloat(this.value).toFixed(2);
+          updateTotalPrice();
+        }
+      });
+
+      // Initial setup
+      updateTotalPrice();
+      validateForm();
+    });
+  </script>
+}

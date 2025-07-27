@@ -1,0 +1,128 @@
+﻿<!-- Views/Production/Details.cshtml -->
+@model InventorySystem.Models.Production
+@{
+  ViewData["Title"] = "Production Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-industry"></i> Production Details</h1>
+  <div class="btn-group">
+    <a href="/Production" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Productions
+    </a>
+    <a href="/Production/BuildBom" class="btn btn-success">
+      <i class="fas fa-hammer"></i> Build Another BOM
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> Production Information</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-4">Production Date:</dt>
+          <dd class="col-sm-8">@Model.ProductionDate.ToString("MMMM dd, yyyy")</dd>
+
+          <dt class="col-sm-4">Finished Good:</dt>
+          <dd class="col-sm-8">
+            <strong>@Model.FinishedGood?.PartNumber</strong><br>
+            <small class="text-muted">@Model.FinishedGood?.Description</small>
+          </dd>
+
+          <dt class="col-sm-4">BOM Used:</dt>
+          <dd class="col-sm-8">
+            <strong>@Model.Bom?.Name</strong><br>
+            <small class="text-muted">@Model.Bom?.Description</small>
+          </dd>
+
+          <dt class="col-sm-4">Quantity Produced:</dt>
+          <dd class="col-sm-8">
+            <span class="badge bg-success fs-6">@Model.QuantityProduced units</span>
+          </dd>
+
+          <dt class="col-sm-4">Created Date:</dt>
+          <dd class="col-sm-8">@Model.CreatedDate.ToString("MMMM dd, yyyy hh:mm tt")</dd>
+
+          @if (!string.IsNullOrEmpty(Model.Notes))
+          {
+            <dt class="col-sm-4">Notes:</dt>
+            <dd class="col-sm-8">@Model.Notes</dd>
+          }
+        </dl>
+      </div>
+    </div>
+
+    @if (Model.MaterialConsumptions?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5><i class="fas fa-list"></i> Material Consumption</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Quantity Used</th>
+                  <th>Unit Cost</th>
+                  <th>Total Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var consumption in Model.MaterialConsumptions)
+                {
+                  <tr>
+                    <td>
+                      <strong>@consumption.Item?.PartNumber</strong><br>
+                      <small class="text-muted">@consumption.Item?.Description</small>
+                    </td>
+                    <td>@consumption.QuantityConsumed</td>
+                    <td>@consumption.UnitCostAtConsumption.ToString("C")</td>
+                    <td>@((consumption.QuantityConsumed * consumption.UnitCostAtConsumption).ToString("C"))</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-calculator"></i> Cost Breakdown</h5>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm">
+          <tr>
+            <td>Material Cost:</td>
+            <td class="text-end">@Model.MaterialCost.ToString("C")</td>
+          </tr>
+          <tr>
+            <td>Labor Cost:</td>
+            <td class="text-end">@Model.LaborCost.ToString("C")</td>
+          </tr>
+          <tr>
+            <td>Overhead Cost:</td>
+            <td class="text-end">@Model.OverheadCost.ToString("C")</td>
+          </tr>
+          <tr class="table-dark">
+            <td><strong>Total Cost:</strong></td>
+            <td class="text-end"><strong>@Model.TotalCost.ToString("C")</strong></td>
+          </tr>
+          <tr class="table-info">
+            <td><strong>Unit Cost:</strong></td>
+            <td class="text-end"><strong>@Model.UnitCost.ToString("C")</strong></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
