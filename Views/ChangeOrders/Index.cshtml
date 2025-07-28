@@ -1,0 +1,198 @@
+﻿@model IEnumerable<InventorySystem.Models.ChangeOrder>
+@{
+  ViewData["Title"] = "Change Orders";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-code-branch"></i> Change Orders</h1>
+  <div class="btn-group">
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+      <i class="fas fa-filter"></i> Filter
+    </button>
+    <ul class="dropdown-menu">
+      <li><a class="dropdown-item" href="#" onclick="filterByStatus('')">All Statuses</a></li>
+      <li><a class="dropdown-item" href="#" onclick="filterByStatus('Pending')">Pending</a></li>
+      <li><a class="dropdown-item" href="#" onclick="filterByStatus('Implemented')">Implemented</a></li>
+      <li><a class="dropdown-item" href="#" onclick="filterByStatus('Failed')">Failed</a></li>
+    </ul>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+  <div class="alert alert-warning alert-dismissible fade show">
+    @TempData["WarningMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="card">
+  <div class="card-header">
+    <h5><i class="fas fa-list"></i> Change Order List</h5>
+    <small class="text-muted">Click on any row to view change order details</small>
+  </div>
+  <div class="card-body">
+    @if (Model?.Any() == true)
+    {
+      <div class="table-responsive">
+        <table class="table table-hover" id="changeOrderTable">
+          <thead class="table-dark">
+            <tr>
+              <th>Change Order #</th>
+              <th>Entity & Description</th>
+              <th>Version Change</th>
+              <th>Status</th>
+              <th>Created By</th>
+              <th>Created Date</th>
+              <th>Implemented</th>
+              <th style="width: 120px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var changeOrder in Model.OrderByDescending(co => co.CreatedDate))
+            {
+              <tr class="clickable-row" data-change-order-id="@changeOrder.Id"
+                  data-status="@changeOrder.Status"
+                  style="cursor: pointer;"
+                  onclick="window.location.href='/ChangeOrders/Details/@changeOrder.Id'">
+                <td>
+                  <strong>@changeOrder.ChangeOrderNumber</strong>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <span class="badge bg-@(changeOrder.EntityType == "Item" ? "primary" : "info") me-2">
+                      @changeOrder.EntityType
+                    </span>
+                    <div>
+                      @if (changeOrder.EntityType == "Item" && changeOrder.RelatedItem != null)
+                      {
+                        <strong>@changeOrder.RelatedItem.PartNumber</strong>
+                  
+                        <br>
+                        <small class="text-muted">@changeOrder.RelatedItem.Description</small>
+                      }
+                      else if (changeOrder.EntityType == "BOM" && changeOrder.RelatedBom != null)
+                      {
+                        <strong>@changeOrder.RelatedBom.Name</strong>
+                  
+                        <br>
+                        <small class="text-muted">@changeOrder.RelatedBom.Description</small>
+                      }
+                      else
+                      {
+                        <span class="text-muted">ID: @changeOrder.BaseEntityId</span>
+                      }
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  @if (!string.IsNullOrEmpty(changeOrder.PreviousVersion))
+                  {
+                    <span class="text-muted">@changeOrder.PreviousVersion</span>
+                    <i class="fas fa-arrow-right mx-1"></i>
+                  }
+                  <span class="fw-bold text-success">@changeOrder.NewVersion</span>
+                </td>
+                <td>
+                  <span class="badge bg-@(GetStatusBadgeColor(changeOrder.Status))">
+                    @changeOrder.Status
+                  </span>
+                </td>
+                <td>@changeOrder.CreatedBy</td>
+                <td>@changeOrder.CreatedDate.ToString("MM/dd/yyyy")</td>
+                <td>
+                  @if (changeOrder.ImplementedDate.HasValue)
+                  {
+                    <span>@changeOrder.ImplementedDate.Value.ToString("MM/dd/yyyy")</span>
+                    <br>
+                    <small class="text-muted">by @changeOrder.ImplementedBy</small>
+                  }
+                  else
+                  {
+                    <span class="text-muted">Not implemented</span>
+                  }
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="/ChangeOrders/Details/@changeOrder.Id" class="btn btn-outline-primary"
+                       title="View Details" onclick="event.stopPropagation();">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    @if (changeOrder.Status == "Pending")
+                    {
+                      <form asp-action="Implement" method="post" style="display:inline;"
+                            onsubmit="event.stopPropagation();">
+                        <input type="hidden" name="id" value="@changeOrder.Id" />
+                        <button type="submit" class="btn btn-outline-success"
+                                title="Implement Change Order"
+                                onclick="return confirm('Implement this change order? This will create the new version.')">
+                          <i class="fas fa-check"></i>
+                        </button>
+                      </form>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    else
+    {
+      <div class="text-center py-5">
+        <i class="fas fa-code-branch fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No Change Orders</h5>
+        <p class="text-muted">No change orders have been created yet.</p>
+      </div>
+    }
+  </div>
+</div>
+
+<script>
+  function filterByStatus(status) {
+      const rows = document.querySelectorAll('#changeOrderTable tbody tr');
+
+      rows.forEach(row => {
+          if (status === '' || row.dataset.status === status) {
+              row.style.display = '';
+          } else {
+              row.style.display = 'none';
+          }
+      });
+
+      // Update filter button text
+      const filterButton = document.querySelector('.dropdown-toggle');
+      const statusText = status === '' ? 'All Statuses' : status;
+      filterButton.innerHTML = `<i class="fas fa-filter"></i> ${statusText}`;
+  }
+</script>
+
+@functions {
+  string GetStatusBadgeColor(string status)
+  {
+    return status switch
+    {
+      "Pending" => "warning",
+      "Implemented" => "success",
+      "Failed" => "danger",
+      _ => "secondary"
+    };
+  }
+}

@@ -23,6 +23,7 @@ namespace InventorySystem.Data
     public DbSet<ProductionConsumption> ProductionConsumptions { get; set; }
     public DbSet<Sale> Sales { get; set; }
     public DbSet<SaleItem> SaleItems { get; set; }
+    public DbSet<ChangeOrder> ChangeOrders { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

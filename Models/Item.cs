@@ -67,5 +67,18 @@ namespace InventorySystem.Models
     public string? ImageContentType { get; set; }
     public string? ImageFileName { get; set; }
     public bool HasImage => ImageData != null && ImageData.Length > 0;
+
+    // Version Control Properties
+    public bool IsCurrentVersion { get; set; } = true;
+    public int? BaseItemId { get; set; } // References the original item
+    public virtual Item? BaseItem { get; set; }
+    public virtual ICollection<Item> Versions { get; set; } = new List<Item>();
+    public string? VersionHistory { get; set; }
+    public int? CreatedFromChangeOrderId { get; set; }
+    public virtual ChangeOrder? CreatedFromChangeOrder { get; set; }
+
+    // Helper properties
+    public string VersionedPartNumber => $"{PartNumber} Rev {Version}";
+    public int VersionCount => Versions?.Count ?? 0;
   }
 }

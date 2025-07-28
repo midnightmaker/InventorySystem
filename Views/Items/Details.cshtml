@@ -3,37 +3,86 @@
 	ViewData["Title"] = "Item Details";
 
 	var averageCost = ViewBag.AverageCost as decimal? ?? 0;
-
 	var fifoValue = ViewBag.FifoValue as decimal? ?? 0;
-
 	var purchases = ViewBag.Purchases as IEnumerable<InventorySystem.Models.Purchase> ?? new List<InventorySystem.Models.Purchase>();
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-	<h1><i class="fas fa-cube"></i> @Model.PartNumber</h1>
+	<div class="d-flex align-items-center">
+		<h1 class="me-3"><i class="fas fa-cube"></i> @Model.PartNumber</h1>
+		<!-- Version Dropdown -->
+		@if (ViewBag.ItemVersions != null)
+		{
+			@await Html.PartialAsync("_VersionDropdown", ViewBag.ItemVersions, new ViewDataDictionary(ViewData)
+			{
+			["CurrentVersion"] = Model.Version,
+				["EntityType"] = "Items",
+				["EntityId"] = Model.BaseItemId ?? Model.Id
+				})
+				}
+	</div>
 	<div class="btn-group">
-		<a href="/Items/Edit/@Model.Id" class="btn btn-outline-primary">
-			<i class="fas fa-edit"></i> Edit
-		</a>
+		@if (Model.IsCurrentVersion)
+		{
+			<a href="/Items/Edit/@Model.Id" class="btn btn-outline-primary">
+				<i class="fas fa-edit"></i> Edit
+			</a>
+		}
 		<a href="/Purchases/Create?itemId=@Model.Id" class="btn btn-success">
 			<i class="fas fa-shopping-cart"></i> Add Purchase
 		</a>
-		<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-info">
-			<i class="fas fa-upload"></i> Upload Document
-		</a>
+		@if (Model.IsCurrentVersion)
+		{
+			<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-info">
+				<i class="fas fa-upload"></i> Upload Document
+			</a>
+		}
+		<!-- Create New Version Button -->
+		<button type="button" class="btn btn-outline-warning" onclick="showCreateVersionModal('Item', @(Model.BaseItemId ?? Model.Id))">
+			<i class="fas fa-code-branch"></i> New Version
+		</button>
 	</div>
 </div>
 
 <div class="row">
 	<div class="col-md-8">
 		<div class="card">
-			<div class="card-header">
+			<div class="card-header d-flex justify-content-between align-items-center">
 				<h5>Item Information</h5>
+				<!-- Version Status Badge -->
+				@if (Model.IsCurrentVersion)
+				{
+					<span class="badge bg-success">Current Version</span>
+				}
+				else
+				{
+					<span class="badge bg-secondary">Historical Version</span>
+				}
 			</div>
 			<div class="card-body">
 				<dl class="row">
 					<dt class="col-sm-3">Description:</dt>
 					<dd class="col-sm-9">@Model.Description</dd>
+
+					<!-- Version Information -->
+					<dt class="col-sm-3">Version:</dt>
+					<dd class="col-sm-9">
+						<strong>@Model.Version</strong>
+						@if (!Model.IsCurrentVersion)
+						{
+							<small class="text-muted">(Historical)</small>
+						}
+					</dd>
+
+					@if (Model.CreatedFromChangeOrder != null)
+					{
+						<dt class="col-sm-3">Change Order:</dt>
+						<dd class="col-sm-9">
+							<a href="/ChangeOrders/Details/@Model.CreatedFromChangeOrderId" class="text-decoration-none">
+								@Model.CreatedFromChangeOrder.ChangeOrderNumber
+							</a>
+						</dd>
+					}
 
 					<dt class="col-sm-3">Current Stock:</dt>
 					<dd class="col-sm-9">
@@ -52,7 +101,6 @@
 					<dd class="col-sm-9">$@fifoValue.ToString("F2")</dd>
 
 					@if (!string.IsNullOrEmpty(Model.Comments))
-
 					{
 						<dt class="col-sm-3">Comments:</dt>
 						<dd class="col-sm-9">@Model.Comments</dd>
@@ -64,118 +112,25 @@
 			</div>
 		</div>
 
-		<div class="card mt-4">
-			<div class="card-header">
-				<h5>Purchase History</h5>
-			</div>
-			<div class="card-body">
-				@if (purchases.Any())
-
-				{
-					<div class="table-responsive">
-						<table class="table table-sm">
-							<thead>
-								<tr>
-									<th>Date</th>
-									<th>Vendor</th>
-									<th>Quantity</th>
-									<th>Cost/Unit</th>
-									<th>Total Cost</th>
-									<th>Remaining</th>
-									<th>PO#</th>
-								</tr>
-							</thead>
-							<tbody>
-								@foreach (var purchase in purchases)
-
-								{
-									<tr>
-										<td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
-										<td>@purchase.Vendor</td>
-										<td>@purchase.QuantityPurchased</td>
-										<td>$@purchase.CostPerUnit.ToString("F2")</td>
-										<td>$@purchase.TotalCost.ToString("F2")</td>
-										<td>@purchase.RemainingQuantity</td>
-										<td>@purchase.PurchaseOrderNumber</td>
-									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
-
-				else
-
-				{
-					<p class="text-muted">No purchase history available.</p>
-				}
-			</div>
-		</div>
-
-		<!-- Add this debug section to your Items/Details.cshtml right after the Purchase History card -->
-
-		<div class="card mt-4">
-			<div class="card-header bg-info text-white">
-				<h5><i class="fas fa-bug"></i> DEBUG: Documents Information</h5>
-			</div>
-			<div class="card-body">
-				<dl class="row">
-					<dt class="col-sm-3">Model Type:</dt>
-					<dd class="col-sm-9">@Model.GetType().Name</dd>
-
-					<dt class="col-sm-3">Item ID:</dt>
-					<dd class="col-sm-9">@Model.Id</dd>
-
-					<dt class="col-sm-3">DesignDocuments is null?</dt>
-					<dd class="col-sm-9">@(Model.DesignDocuments == null ? "YES - NULL!" : "No")</dd>
-
-					<dt class="col-sm-3">DesignDocuments Count:</dt>
-					<dd class="col-sm-9">
-						@try
-
-						{
-							@Model.DesignDocuments.Count
-						}
-
-
-
-						catch (Exception ex)
-
-						{
-							<span class="text-danger">ERROR: @ex.Message</span>
-						}
-					</dd>
-
-					<dt class="col-sm-3">Raw Documents:</dt>
-					<dd class="col-sm-9">
-						@if (Model.DesignDocuments != null)
-						{
-							@foreach (var doc in Model.DesignDocuments)
-							{
-								<div>ID: @doc.Id, Name: @doc.DocumentName</div>
-							}
-						}
-						else
-						{
-							<span class="text-warning">DesignDocuments collection is NULL</span>
-						}
-					</dd>
-				</dl>
-			</div>
-		</div>
-
-		<!-- ORIGINAL DOCUMENTS SECTION - Modified for better error handling -->
+		<!-- Design Documents with Version Context -->
 		@if (Model.DesignDocuments != null && Model.DesignDocuments.Any())
-
-
-
 		{
 			<div class="card mt-4">
 				<div class="card-header d-flex justify-content-between align-items-center">
 					<h5><i class="fas fa-file"></i> Design Documents (@Model.DesignDocuments.Count)</h5>
-					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
-						<i class="fas fa-plus"></i> Add Document
-					</a>
+					<div>
+						<small class="text-muted me-2">For Version @Model.Version</small>
+						@if (Model.IsCurrentVersion)
+						{
+							<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
+								<i class="fas fa-plus"></i> Add Document
+							</a>
+						}
+						else
+						{
+							<span class="text-muted small">Historical - Read Only</span>
+						}
+					</div>
 				</div>
 				<div class="card-body">
 					<div class="table-responsive">
@@ -192,20 +147,13 @@
 							</thead>
 							<tbody>
 								@foreach (var doc in Model.DesignDocuments.OrderByDescending(d => d.UploadedDate))
-
-
-
 								{
 									<tr>
 										<td>
 											<strong>@doc.DocumentName</strong>
 											@if (!string.IsNullOrEmpty(doc.Description))
-
-
-
 											{
 												<br>
-
 												<small class="text-muted">@doc.Description</small>
 											}
 										</td>
@@ -221,9 +169,6 @@
 										<td>
 											<div class="btn-group btn-group-sm">
 												@if (doc.IsPdf || doc.IsImage)
-
-
-
 												{
 													<a href="/Documents/View/@doc.Id" class="btn btn-outline-primary" title="View" target="_blank">
 														<i class="fas fa-eye"></i>
@@ -232,9 +177,12 @@
 												<a href="/Documents/Download/@doc.Id" class="btn btn-outline-success" title="Download">
 													<i class="fas fa-download"></i>
 												</a>
-												<a href="/Documents/Delete/@doc.Id" class="btn btn-outline-danger" title="Delete">
-													<i class="fas fa-trash"></i>
-												</a>
+												@if (Model.IsCurrentVersion)
+												{
+													<a href="/Documents/Delete/@doc.Id" class="btn btn-outline-danger" title="Delete">
+														<i class="fas fa-trash"></i>
+													</a>
+												}
 											</div>
 										</td>
 									</tr>
@@ -250,154 +198,118 @@
 			<div class="card mt-4">
 				<div class="card-header d-flex justify-content-between align-items-center">
 					<h5><i class="fas fa-file"></i> Design Documents</h5>
-					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
-						<i class="fas fa-plus"></i> Add Document
-					</a>
+					@if (Model.IsCurrentVersion)
+					{
+						<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
+							<i class="fas fa-plus"></i> Add Document
+						</a>
+					}
 				</div>
 				<div class="card-body text-center">
 					<i class="fas fa-file fa-3x text-muted mb-3"></i>
 					<h5 class="text-muted">No Design Documents</h5>
 					<p class="text-muted">
-						@if (Model.DesignDocuments == null)
-
-
-
-						{
-							<span class="text-danger">Error: Documents collection not loaded from database.</span>
-						}
-
-
-
-						else
-
-
-
+						@if (Model.IsCurrentVersion)
 						{
 							<span>Upload drawings, specifications, datasheets, and other design documents.</span>
 						}
+						else
+						{
+							<span>No documents were uploaded for Version @Model.Version</span>
+						}
 					</p>
-					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-success">
-						<i class="fas fa-upload"></i> Upload First Document
-					</a>
+					@if (Model.IsCurrentVersion)
+					{
+						<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-success">
+							<i class="fas fa-upload"></i> Upload First Document
+						</a>
+					}
 				</div>
 			</div>
 		}
-		@if (Model.DesignDocuments.Any())
 
-		{
-			<div class="card mt-4">
-				<div class="card-header d-flex justify-content-between align-items-center">
-					<h5><i class="fas fa-file"></i> Design Documents (@Model.DesignDocuments.Count)</h5>
-					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
-						<i class="fas fa-plus"></i> Add Document
-					</a>
-				</div>
-				<div class="card-body">
+		<!-- Purchase History with Version Filtering -->
+		<div class="card mt-4">
+			<div class="card-header d-flex justify-content-between align-items-center">
+				<h5>Purchase History</h5>
+				@if (ViewBag.PurchasesByVersion != null)
+				{
+					<div class="dropdown">
+						<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+							<i class="fas fa-filter"></i> Filter by Version
+						</button>
+						<ul class="dropdown-menu">
+							<li><a class="dropdown-item" href="#" onclick="filterPurchasesByVersion('')">All Versions</a></li>
+							@foreach (var versionGroup in (Dictionary<string, IEnumerable<InventorySystem.Models.Purchase>>)ViewBag.PurchasesByVersion)
+							{
+								<li>
+									<a class="dropdown-item" href="#" onclick="filterPurchasesByVersion('@versionGroup.Key')">
+										Version @versionGroup.Key (@versionGroup.Value.Count())
+									</a>
+								</li>
+							}
+						</ul>
+					</div>
+				}
+			</div>
+			<div class="card-body">
+				@if (purchases.Any())
+				{
 					<div class="table-responsive">
-						<table class="table table-sm">
+						<table class="table table-sm" id="purchaseTable">
 							<thead>
 								<tr>
-									<th>Name</th>
-									<th>Type</th>
-									<th>File</th>
-									<th>Size</th>
-									<th>Uploaded</th>
-									<th>Actions</th>
+									<th>Date</th>
+									<th>Vendor</th>
+									<th>Version</th>
+									<th>Quantity</th>
+									<th>Cost/Unit</th>
+									<th>Total Cost</th>
+									<th>Remaining</th>
+									<th>PO#</th>
 								</tr>
 							</thead>
 							<tbody>
-								@foreach (var doc in Model.DesignDocuments.OrderByDescending(d => d.UploadedDate))
-
+								@foreach (var purchase in purchases)
 								{
-									<tr>
+									<tr data-version="@(purchase.ItemVersion ?? "N/A")">
+										<td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
+										<td>@purchase.Vendor</td>
 										<td>
-											<strong>@doc.DocumentName</strong>
-											@if (!string.IsNullOrEmpty(doc.Description))
-
-											{
-												<br>
-
-												<small class="text-muted">@doc.Description</small>
-											}
+											<span class="badge bg-@(purchase.ItemVersion == Model.Version ? "primary" : "secondary")">
+												@(purchase.ItemVersion ?? "N/A")
+											</span>
 										</td>
-										<td>
-											<span class="badge bg-secondary">@doc.DocumentType</span>
-										</td>
-										<td>
-											@doc.FileName
-											@if (doc.IsImage)
-
-											{
-												<i class="fas fa-image text-info" title="Image file"></i>
-											}
-
-											else if (doc.IsPdf)
-
-											{
-												<i class="fas fa-file-pdf text-danger" title="PDF file"></i>
-											}
-
-											else if (doc.IsOfficeDocument)
-
-											{
-												<i class="fas fa-file-word text-primary" title="Office document"></i>
-											}
-										</td>
-										<td>@doc.FileSizeFormatted</td>
-										<td>@doc.UploadedDate.ToString("MM/dd/yyyy")</td>
-										<td>
-											<div class="btn-group btn-group-sm">
-												@if (doc.IsPdf || doc.IsImage)
-
-												{
-													<a href="/Documents/View/@doc.Id" class="btn btn-outline-primary" title="View" target="_blank">
-														<i class="fas fa-eye"></i>
-													</a>
-												}
-												<a href="/Documents/Download/@doc.Id" class="btn btn-outline-success" title="Download">
-													<i class="fas fa-download"></i>
-												</a>
-												<a href="/Documents/Delete/@doc.Id" class="btn btn-outline-danger" title="Delete">
-													<i class="fas fa-trash"></i>
-												</a>
-											</div>
-										</td>
+										<td>@purchase.QuantityPurchased</td>
+										<td>$@purchase.CostPerUnit.ToString("F2")</td>
+										<td>$@purchase.TotalCost.ToString("F2")</td>
+										<td>@purchase.RemainingQuantity</td>
+										<td>@purchase.PurchaseOrderNumber</td>
 									</tr>
 								}
 							</tbody>
 						</table>
 					</div>
-				</div>
+				}
+				else
+				{
+					<p class="text-muted">No purchase history available.</p>
+				}
 			</div>
-		}
-
-		else
-
-		{
-			<div class="card mt-4">
-				<div class="card-body text-center">
-					<i class="fas fa-file fa-3x text-muted mb-3"></i>
-					<h5 class="text-muted">No Design Documents</h5>
-					<p class="text-muted">Upload drawings, specifications, datasheets, and other design documents.</p>
-					<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-success">
-						<i class="fas fa-upload"></i> Upload First Document
-					</a>
-				</div>
-			</div>
-		}
+		</div>
 	</div>
 
 	<div class="col-md-4">
 		<div class="card">
 			<div class="card-header d-flex justify-content-between align-items-center">
 				<h6><i class="fas fa-image"></i> Item Image</h6>
-				@if (Model.HasImage)
-
+				@if (Model.HasImage && Model.IsCurrentVersion)
 				{
 					<form asp-controller="Items" asp-action="RemoveImage" method="post" style="display: inline;">
 						<input type="hidden" name="id" value="@Model.Id" />
 						<button type="submit" class="btn btn-sm btn-outline-danger"
-										onclick="return confirm('Remove item image?')" title="Remove Image">
+										onclick="return confirm('Remove item image?')"
+										title="Remove Image">
 							<i class="fas fa-trash"></i>
 						</button>
 					</form>
@@ -405,7 +317,6 @@
 			</div>
 			<div class="card-body text-center">
 				@if (Model.HasImage)
-
 				{
 					<img src="/Items/GetImage/@Model.Id"
 							 alt="@Model.PartNumber"
@@ -416,9 +327,7 @@
 						<small class="text-muted">@Model.ImageFileName</small>
 					</div>
 				}
-
 				else
-
 				{
 					<div class="no-image-placeholder d-flex align-items-center justify-content-center"
 							 style="height: 200px; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
@@ -457,6 +366,38 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Version History Card -->
+		@if (ViewBag.ItemVersions != null && ((IEnumerable<dynamic>)ViewBag.ItemVersions).Count() > 1)
+		{
+			<div class="card mt-3">
+				<div class="card-header">
+					<h6><i class="fas fa-history"></i> Version History</h6>
+				</div>
+				<div class="card-body">
+					<div class="list-group list-group-flush">
+						@foreach (var version in (IEnumerable<dynamic>)ViewBag.ItemVersions)
+						{
+							<div class="list-group-item d-flex justify-content-between align-items-center @(version.Version == Model.Version ? "active" : "")">
+								<div>
+									<strong>@version.Version</strong>
+									@if (version.IsCurrentVersion)
+									{
+										<span class="badge bg-success ms-2">Current</span>
+									}
+									<br>
+									<small class="text-muted">@version.CreatedDate.ToString("MM/dd/yyyy")</small>
+								</div>
+								@if (version.Version != Model.Version)
+								{
+									<a href="/Items/Details/@version.Id" class="btn btn-sm btn-outline-primary">View</a>
+								}
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		}
 	</div>
 </div>
 
@@ -486,4 +427,46 @@
 		var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
 		imageModal.show();
 	}
+
+	function filterPurchasesByVersion(version) {
+		const rows = document.querySelectorAll('#purchaseTable tbody tr');
+		rows.forEach(row => {
+			if (version === '' || row.dataset.version === version) {
+				row.style.display = '';
+			} else {
+				row.style.display = 'none';
+			}
+		});
+	}
+
+	function showCreateVersionModal(entityType, entityId) {
+		console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
+
+		// Load the change order modal
+		fetch(`/ChangeOrders/Create/${entityType}/${entityId}`)
+			.then(response => {
+				console.log(`Response status: ${response.status}`);
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				return response.text();
+			})
+			.then(html => {
+				console.log('Modal HTML loaded successfully');
+				document.body.insertAdjacentHTML('beforeend', html);
+				const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
+				modal.show();
+			})
+			.catch(error => {
+				console.error('Error loading modal:', error);
+				alert('Error loading change order form: ' + error.message);
+			});
+	}
+
+	// Clean up modal when closed
+	document.addEventListener('hidden.bs.modal', function (event) {
+		if (event.target.id === 'changeOrderModal') {
+			event.target.remove();
+		}
+	});
 </script>

@@ -60,6 +60,12 @@ namespace InventorySystem.Models
     [Column(TypeName = "decimal(18,2)")]
     public decimal TotalPaid => TotalCost + ShippingCost + TaxAmount;
 
+    [Display(Name = "Item Version")]
+    public string? ItemVersion { get; set; }
+
+    public int? ItemVersionId { get; set; } // Specific version reference
+    public virtual Item? ItemVersionReference { get; set; }
+
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
     // Navigation property for purchase documents

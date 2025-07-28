@@ -1,0 +1,113 @@
+﻿@model Dictionary<string, IEnumerable<InventorySystem.Models.Purchase>>
+
+<div class="mb-3">
+  <label class="form-label">Filter by Version:</label>
+  <select class="form-select" id="versionFilter" onchange="filterPurchases()">
+    <option value="">All Versions</option>
+    @foreach (var versionGroup in Model.OrderByDescending(v => v.Key))
+    {
+      <option value="@versionGroup.Key">
+        Version @versionGroup.Key (@versionGroup.Value.Count() purchases)
+      </option>
+    }
+  </select>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-sm" id="purchaseTable">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Vendor</th>
+        <th>Version</th>
+        <th>Quantity</th>
+        <th>Cost/Unit</th>
+        <th>Total Cost</th>
+        <th>Remaining</th>
+        <th>PO#</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @foreach (var versionGroup in Model.OrderByDescending(v => v.Key))
+      {
+        @foreach (var purchase in versionGroup.Value.OrderByDescending(p => p.PurchaseDate))
+        {
+          <tr data-version="@versionGroup.Key">
+            <td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
+            <td>@purchase.Vendor</td>
+            <td>
+              <span class="badge bg-primary">@versionGroup.Key</span>
+            </td>
+            <td>@purchase.QuantityPurchased</td>
+            <td>$@purchase.CostPerUnit.ToString("F2")</td>
+            <td>$@purchase.TotalCost.ToString("F2")</td>
+            <td>
+              <span class="badge bg-@(purchase.RemainingQuantity > 0 ? "success" : "secondary")">
+                @purchase.RemainingQuantity
+              </span>
+            </td>
+            <td>@purchase.PurchaseOrderNumber</td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <a href="/Purchases/Details/@purchase.Id" class="btn btn-outline-primary" title="View Details">
+                  <i class="fas fa-eye"></i>
+                </a>
+                @if (purchase.PurchaseDocuments != null && purchase.PurchaseDocuments.Any())
+                {
+                  <button class="btn btn-outline-info" title="@purchase.PurchaseDocuments.Count Document(s)">
+                    <i class="fas fa-file"></i>
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (!Model.Any())
+{
+  <div class="text-center py-4">
+    <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+    <h5 class="text-muted">No Purchase History</h5>
+    <p class="text-muted">No purchases have been made for this item.</p>
+  </div>
+}
+
+<script>
+  function filterPurchases() {
+      const selectedVersion = document.getElementById('versionFilter').value;
+      const rows = document.querySelectorAll('#purchaseTable tbody tr');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+          if (selectedVersion === '' || row.dataset.version === selectedVersion) {
+              row.style.display = '';
+              visibleCount++;
+          } else {
+              row.style.display = 'none';
+          }
+      });
+
+      // Update filter button text to show count
+      const filterSelect = document.getElementById('versionFilter');
+      const selectedText = filterSelect.options[filterSelect.selectedIndex].text;
+
+      // Optional: Show a count of visible rows
+      console.log(`Showing ${visibleCount} purchases for ${selectedText}`);
+  }
+
+  // Initialize filter on page load
+  document.addEventListener('DOMContentLoaded', function() {
+      // Set the most recent version as default if available
+      const versionFilter = document.getElementById('versionFilter');
+      if (versionFilter.options.length > 1) {
+          // Optionally select the first version (most recent) by default
+          // versionFilter.selectedIndex = 1;
+          // filterPurchases();
+      }
+  });
+</script>

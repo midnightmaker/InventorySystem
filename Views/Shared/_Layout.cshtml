@@ -31,6 +31,30 @@
             <li class="nav-item">
               <a class="nav-link" href="/Boms">BOMs</a>
             </li>
+            <!-- ?? NEW: Change Orders Menu Item -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="changeOrdersDropdown" role="button" data-bs-toggle="dropdown">
+                <i class="fas fa-code-branch"></i> Change Orders
+              </a>
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item" href="/ChangeOrders">
+                    <i class="fas fa-list"></i> All Change Orders
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/ChangeOrders/Pending">
+                    <i class="fas fa-clock"></i> Pending Orders
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="#" onclick="showCreateVersionModal('', 0)">
+                    <i class="fas fa-plus"></i> Create New Order
+                  </a>
+                </li>
+              </ul>
+            </li>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="productionDropdown" role="button" data-bs-toggle="dropdown">
                 Production
@@ -72,6 +96,13 @@
       {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
           <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      }
+      @if (TempData["WarningMessage"] != null)
+      {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+          <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
           <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
       }

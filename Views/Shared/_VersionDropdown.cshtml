@@ -1,0 +1,40 @@
+﻿@model IEnumerable<dynamic>
+@{
+  var currentVersion = ViewBag.CurrentVersion as string;
+  var entityType = ViewBag.EntityType as string;
+  var entityId = ViewBag.EntityId;
+}
+
+<div class="dropdown">
+  <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <i class="fas fa-code-branch"></i> Version: @currentVersion
+  </button>
+  <ul class="dropdown-menu">
+    @foreach (var version in Model)
+    {
+      <li>
+        <a class="dropdown-item @(version.Version == currentVersion ? "active" : "")"
+           href="/@entityType/Details/@version.Id">
+          @version.Version
+          @if (version.IsCurrentVersion)
+          {
+            <span class="badge bg-success ms-2">Current</span>
+          }
+          <br>
+          <small class="text-muted">@version.CreatedDate.ToString("MM/dd/yyyy")</small>
+        </a>
+      </li>
+    }
+    @if (Model.Count() > 1)
+    {
+      <li><hr class="dropdown-divider"></li>
+    }
+    <li>
+      <a class="dropdown-item text-primary" href="#"
+         onclick="showCreateVersionModal('@(entityType == "Items" ? "Item" : "BOM")', @entityId)">
+        <i class="fas fa-plus"></i> Create New Version
+      </a>
+    </li>
+  </ul>
+</div>

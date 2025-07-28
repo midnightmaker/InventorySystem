@@ -1,0 +1,92 @@
+﻿@model InventorySystem.Models.ChangeOrder
+
+<div class="modal fade" id="changeOrderModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form asp-controller="ChangeOrders" asp-action="Create" method="post" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-code-branch"></i> Create Change Order
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          @Html.HiddenFor(m => m.EntityType)
+          @Html.HiddenFor(m => m.BaseEntityId)
+          @Html.HiddenFor(m => m.CreatedBy)
+
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Creating Version:</strong> This will create a new version of the @Model.EntityType with no initial design documents or components. You can add these after the change order is implemented.
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="NewVersion" class="form-label">New Version *</label>
+            <input asp-for="NewVersion" class="form-control" placeholder="B, C, 2.0, etc." required />
+            <span asp-validation-for="NewVersion" class="text-danger"></span>
+            <div class="form-text">Enter the version number for this revision (e.g., B, C, 1.1, 2.0)</div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">Description</label>
+            <textarea asp-for="Description" class="form-control" rows="3"
+                      placeholder="Describe the changes being made in this version..."></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Reason" class="form-label">Reason for Change</label>
+            <textarea asp-for="Reason" class="form-control" rows="2"
+                      placeholder="Why is this change necessary? (e.g., design improvement, customer requirement, cost reduction)"></textarea>
+            <span asp-validation-for="Reason" class="text-danger"></span>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Change Order Document (Optional)</label>
+            <input type="file" class="form-control" name="changeOrderDocument" accept=".pdf,.doc,.docx,.txt" />
+            <div class="form-text">Upload supporting documentation for this change order</div>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="implementImmediately" name="implementImmediately" value="true" />
+              <label class="form-check-label" for="implementImmediately">
+                Implement change order immediately
+              </label>
+              <div class="form-text">If unchecked, the change order will be created in 'Pending' status and must be implemented later</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Create Change Order
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Auto-generate change order number based on version
+  document.getElementById('NewVersion').addEventListener('input', function(e) {
+      const version = e.target.value;
+      if (version) {
+          const entityType = '@Model.EntityType';
+          const entityId = '@Model.BaseEntityId';
+          // This could be enhanced to auto-generate change order numbers
+          // For now, we'll let the backend handle it
+      }
+  });
+
+  // Form validation
+  document.querySelector('#changeOrderModal form').addEventListener('submit', function(e) {
+      const newVersion = document.getElementById('NewVersion').value.trim();
+      if (!newVersion) {
+          e.preventDefault();
+          alert('Please enter a new version number.');
+          return false;
+      }
+  });
+</script>
