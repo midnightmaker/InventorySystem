@@ -3,7 +3,7 @@
 <div class="modal fade" id="changeOrderModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form asp-controller="ChangeOrders" asp-action="Create" method="post" enctype="multipart/form-data">
+      <form asp-controller="ChangeOrders" asp-action="CreateEntry" method="post" enctype="multipart/form-data">
         <div class="modal-header">
           <h5 class="modal-title">
             <i class="fas fa-code-branch"></i> Create Change Order
@@ -70,23 +70,36 @@
 
 <script>
   // Auto-generate change order number based on version
-  document.getElementById('NewVersion').addEventListener('input', function(e) {
-      const version = e.target.value;
-      if (version) {
+  document.addEventListener('DOMContentLoaded', function() {
+    const newVersionInput = document.getElementById('NewVersion');
+    if (newVersionInput) {
+      newVersionInput.addEventListener('input', function(e) {
+        const version = e.target.value;
+        if (version) {
           const entityType = '@Model.EntityType';
           const entityId = '@Model.BaseEntityId';
           // This could be enhanced to auto-generate change order numbers
           // For now, we'll let the backend handle it
-      }
+        }
+      });
+    }
   });
 
   // Form validation
-  document.querySelector('#changeOrderModal form').addEventListener('submit', function(e) {
-      const newVersion = document.getElementById('NewVersion').value.trim();
-      if (!newVersion) {
-          e.preventDefault();
-          alert('Please enter a new version number.');
-          return false;
-      }
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('#changeOrderModal form');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        const newVersionInput = document.getElementById('NewVersion');
+        if (newVersionInput) {
+          const newVersion = newVersionInput.value.trim();
+          if (!newVersion) {
+            e.preventDefault();
+            alert('Please enter a new version number.');
+            return false;
+          }
+        }
+      });
+    }
   });
 </script>

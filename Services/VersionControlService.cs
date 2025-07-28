@@ -182,6 +182,33 @@ namespace InventorySystem.Services
           .FirstOrDefaultAsync(b => (b.Id == actualBaseId || b.BaseBomId == actualBaseId) && b.IsCurrentVersion);
     }
 
+    // Add these methods to your VersionControlService.cs class
+
+    // Public method to check if an entity has pending change orders (useful for UI)
+    public async Task<bool> HasPendingChangeOrdersAsync(string entityType, int entityId)
+    {
+      return await _context.ChangeOrders
+          .AnyAsync(co => co.EntityType == entityType &&
+                         co.BaseEntityId == entityId &&
+                         co.Status == "Pending");
+    }
+
+    // Public method to get pending change orders for an entity (useful for UI messages)
+    public async Task<IEnumerable<ChangeOrder>> GetPendingChangeOrdersForEntityAsync(string entityType, int entityId)
+    {
+      var changeOrders = await _context.ChangeOrders
+          .Where(co => co.EntityType == entityType &&
+                      co.BaseEntityId == entityId &&
+                      co.Status == "Pending")
+          .OrderByDescending(co => co.CreatedDate)
+          .ToListAsync();
+
+      await LoadRelatedEntitiesForChangeOrdersAsync(changeOrders);
+      return changeOrders;
+    }
+
+    
+
     #endregion
 
     #region Change Order Management
@@ -203,6 +230,35 @@ namespace InventorySystem.Services
 
     public async Task<ChangeOrder> CreateChangeOrderAsync(ChangeOrder changeOrder)
     {
+      // First, check if there's already a pending change order for this entity
+      await ValidateNoPendingChangeOrdersAsync(changeOrder.EntityType, changeOrder.BaseEntityId);
+
+      // Get the current version of the entity to populate PreviousVersion
+      if (changeOrder.EntityType == "Item")
+      {
+        var currentItem = await GetCurrentItemVersionAsync(changeOrder.BaseEntityId);
+        if (currentItem != null)
+        {
+          changeOrder.PreviousVersion = currentItem.Version;
+        }
+        else
+        {
+          throw new InvalidOperationException($"Item with ID {changeOrder.BaseEntityId} not found");
+        }
+      }
+      else if (changeOrder.EntityType == "BOM")
+      {
+        var currentBom = await GetCurrentBomVersionAsync(changeOrder.BaseEntityId);
+        if (currentBom != null)
+        {
+          changeOrder.PreviousVersion = currentBom.Version;
+        }
+        else
+        {
+          throw new InvalidOperationException($"BOM with ID {changeOrder.BaseEntityId} not found");
+        }
+      }
+
       // Validate that new version is greater than previous version
       await ValidateVersionProgressionAsync(changeOrder.EntityType, changeOrder.BaseEntityId, changeOrder.NewVersion);
 
@@ -214,9 +270,62 @@ namespace InventorySystem.Services
       _context.ChangeOrders.Add(changeOrder);
       await _context.SaveChangesAsync();
 
+      // Reload the change order with all related entities properly loaded using manual loading
+      var createdChangeOrder = await LoadChangeOrderWithRelatedEntitiesAsync(changeOrder.Id);
+      return createdChangeOrder;
+    }
+
+    private async Task ValidateNoPendingChangeOrdersAsync(string entityType, int entityId)
+    {
+      var pendingChangeOrders = await _context.ChangeOrders
+          .Where(co => co.EntityType == entityType &&
+                      co.BaseEntityId == entityId &&
+                      co.Status == "Pending")
+          .ToListAsync();
+
+      if (pendingChangeOrders.Any())
+      {
+        var pendingNumbers = string.Join(", ", pendingChangeOrders.Select(co => co.ChangeOrderNumber));
+        throw new InvalidOperationException(
+            $"Cannot create a new change order for this {entityType.ToLower()} because there are pending change orders that must be implemented or cancelled first: {pendingNumbers}");
+      }
+    }
+
+    private async Task<ChangeOrder> LoadChangeOrderWithRelatedEntitiesAsync(int changeOrderId)
+    {
+      var changeOrder = await _context.ChangeOrders.FindAsync(changeOrderId);
+      if (changeOrder == null)
+      {
+        throw new InvalidOperationException("Change order not found after creation");
+      }
+
+      // Manually load the related entity based on the EntityType and BaseEntityId
+      if (changeOrder.EntityType == "Item")
+      {
+        changeOrder.RelatedItem = await GetCurrentItemVersionAsync(changeOrder.BaseEntityId);
+      }
+      else if (changeOrder.EntityType == "BOM")
+      {
+        changeOrder.RelatedBom = await GetCurrentBomVersionAsync(changeOrder.BaseEntityId);
+      }
+
       return changeOrder;
     }
 
+    private async Task LoadRelatedEntitiesForChangeOrdersAsync(IEnumerable<ChangeOrder> changeOrders)
+    {
+      foreach (var changeOrder in changeOrders)
+      {
+        if (changeOrder.EntityType == "Item")
+        {
+          changeOrder.RelatedItem = await GetCurrentItemVersionAsync(changeOrder.BaseEntityId);
+        }
+        else if (changeOrder.EntityType == "BOM")
+        {
+          changeOrder.RelatedBom = await GetCurrentBomVersionAsync(changeOrder.BaseEntityId);
+        }
+      }
+    }
     public async Task<bool> ImplementChangeOrderAsync(int changeOrderId, string implementedBy)
     {
       var changeOrder = await _context.ChangeOrders.FindAsync(changeOrderId);
@@ -254,44 +363,58 @@ namespace InventorySystem.Services
       }
     }
 
-    
+
     public async Task<IEnumerable<ChangeOrder>> GetAllChangeOrdersAsync()
     {
-      return await _context.ChangeOrders
-          .Include(co => co.RelatedItem)
-          .Include(co => co.RelatedBom)
+      var changeOrders = await _context.ChangeOrders
           .OrderByDescending(co => co.CreatedDate)
           .ToListAsync();
+
+      await LoadRelatedEntitiesForChangeOrdersAsync(changeOrders);
+      return changeOrders;
     }
 
     public async Task<IEnumerable<ChangeOrder>> GetPendingChangeOrdersAsync()
     {
-      return await _context.ChangeOrders
-          .Include(co => co.RelatedItem)
-          .Include(co => co.RelatedBom)
+      var changeOrders = await _context.ChangeOrders
           .Where(co => co.Status == "Pending")
           .OrderByDescending(co => co.CreatedDate)
           .ToListAsync();
+
+      await LoadRelatedEntitiesForChangeOrdersAsync(changeOrders);
+      return changeOrders;
     }
 
     public async Task<IEnumerable<ChangeOrder>> GetChangeOrdersByEntityAsync(string entityType, int entityId)
     {
-      return await _context.ChangeOrders
-          .Include(co => co.RelatedItem)
-          .Include(co => co.RelatedBom)
+      var changeOrders = await _context.ChangeOrders
           .Where(co => co.EntityType == entityType && co.BaseEntityId == entityId)
           .OrderByDescending(co => co.CreatedDate)
           .ToListAsync();
+
+      await LoadRelatedEntitiesForChangeOrdersAsync(changeOrders);
+      return changeOrders;
     }
 
     public async Task<ChangeOrder?> GetChangeOrderByIdAsync(int changeOrderId)
     {
-      return await _context.ChangeOrders
-          .Include(co => co.RelatedItem)
-          .Include(co => co.RelatedBom)
+      var changeOrder = await _context.ChangeOrders
           .FirstOrDefaultAsync(co => co.Id == changeOrderId);
-    }
 
+      if (changeOrder != null)
+      {
+        if (changeOrder.EntityType == "Item")
+        {
+          changeOrder.RelatedItem = await GetCurrentItemVersionAsync(changeOrder.BaseEntityId);
+        }
+        else if (changeOrder.EntityType == "BOM")
+        {
+          changeOrder.RelatedBom = await GetCurrentBomVersionAsync(changeOrder.BaseEntityId);
+        }
+      }
+
+      return changeOrder;
+    }
     #endregion
 
     #region Helper Methods

@@ -1,4 +1,4 @@
-﻿// Controllers/ChangeOrdersController.cs - Complete Clean Implementation
+﻿// Controllers/ChangeOrdersController.cs - Fixed with Route Parameter Support
 using Microsoft.AspNetCore.Mvc;
 using InventorySystem.Models;
 using InventorySystem.Services;
@@ -65,6 +65,29 @@ namespace InventorySystem.Controllers
           return BadRequest("Invalid entity type. Must be 'Item' or 'BOM'.");
         }
 
+        // Check if there are pending change orders for this entity
+        var hasPendingChangeOrders = await _versionService.HasPendingChangeOrdersAsync(entityType, entityId);
+        if (hasPendingChangeOrders)
+        {
+          var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync(entityType, entityId);
+          var pendingNumbers = string.Join(", ", pendingChangeOrders.Select(co => co.ChangeOrderNumber));
+
+          return Json(new
+          {
+            success = false,
+            error = "Cannot Create Change Order",
+            message = $"This {entityType.ToLower()} has pending change orders that must be implemented or cancelled first: {pendingNumbers}",
+            pendingChangeOrders = pendingChangeOrders.Select(co => new
+            {
+              id = co.Id,
+              changeOrderNumber = co.ChangeOrderNumber,
+              newVersion = co.NewVersion,
+              createdDate = co.CreatedDate.ToString("MM/dd/yyyy"),
+              createdBy = co.CreatedBy
+            })
+          });
+        }
+
         var changeOrder = new ChangeOrder
         {
           EntityType = entityType ?? "",
@@ -96,7 +119,15 @@ namespace InventorySystem.Controllers
       }
     }
 
-    // POST: ChangeOrders/CreateEntry
+    // NEW: GET: ChangeOrders/Create/{entityType}/{entityId} - Route parameter version
+    [HttpGet("ChangeOrders/Create/{entityType}/{entityId:int}")]
+    public async Task<IActionResult> CreateFromRoute(string entityType, int entityId)
+    {
+      // Just redirect to the CreateModal method with the same parameters
+      return await CreateModal(entityType, entityId);
+    }
+
+    // POST: ChangeOrders/Create - Handle the form submission
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateEntry(ChangeOrder changeOrder, bool implementImmediately = false)
@@ -369,7 +400,8 @@ namespace InventorySystem.Controllers
       return RedirectToAction("Details", new { id });
     }
 
-    // GET: ChangeOrders/Create - Redirect to modal approach
+    // GET: ChangeOrders/Create - Redirect to modal approach (legacy support)
+    [HttpGet]
     public IActionResult Create()
     {
       // Redirect to main change orders page with instruction to use modal

@@ -1,0 +1,141 @@
+﻿<!-- Pending Change Orders Modal -->
+<!-- This modal will be shown when trying to create a new change order but pending ones exist -->
+<div class="modal fade" id="pendingChangeOrdersModal" tabindex="-1" aria-labelledby="pendingChangeOrdersModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title" id="pendingChangeOrdersModalLabel">
+          <i class="fas fa-exclamation-triangle"></i> Cannot Create Change Order
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" role="alert">
+          <p class="mb-3" id="pendingModalMessage">
+            <!-- Message will be populated by JavaScript -->
+          </p>
+        </div>
+
+        <h6><i class="fas fa-list"></i> Pending Change Orders:</h6>
+        <div id="pendingChangeOrdersList">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times"></i> Close
+        </button>
+        <button type="button" class="btn btn-primary" onclick="refreshPage()">
+          <i class="fas fa-refresh"></i> Refresh Page
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Function to show pending change orders in a modal instead of top alert
+  function showPendingChangeOrdersModal(errorData) {
+    // Set the message
+    document.getElementById('pendingModalMessage').textContent = errorData.message;
+
+    // Build the pending change orders list
+    let listHtml = '';
+    if (errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
+      errorData.pendingChangeOrders.forEach(co => {
+        listHtml += `
+          <div class="card border-warning mb-3">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-md-8">
+                  <h6 class="card-title mb-1">
+                    <strong>${co.changeOrderNumber}</strong>
+                    <span class="badge bg-warning text-dark ms-2">Version ${co.newVersion}</span>
+                  </h6>
+                  <p class="card-text mb-1">
+                    <small class="text-muted">
+                      Created by <strong>${co.createdBy}</strong> on ${co.createdDate}
+                    </small>
+                  </p>
+                </div>
+                <div class="col-md-4 text-end">
+                  <div class="btn-group-vertical btn-group-sm">
+                    <a href="/ChangeOrders/Details/${co.id}" class="btn btn-outline-info btn-sm" target="_blank">
+                      <i class="fas fa-eye"></i> View Details
+                    </a>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="implementChangeOrder(${co.id}, '${co.changeOrderNumber}')">
+                      <i class="fas fa-check"></i> Implement
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelChangeOrder(${co.id}, '${co.changeOrderNumber}')">
+                      <i class="fas fa-times"></i> Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    document.getElementById('pendingChangeOrdersList').innerHTML = listHtml;
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('pendingChangeOrdersModal'));
+    modal.show();
+  }
+
+  // Function to implement a change order via AJAX
+  function implementChangeOrder(changeOrderId, changeOrderNumber) {
+    if (!confirm(`Are you sure you want to implement change order ${changeOrderNumber}? This will create the new version and cannot be undone.`)) {
+      return;
+    }
+
+    // Create a form and submit it
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/ChangeOrders/Implement/${changeOrderId}`;
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    if (csrfToken) {
+      const tokenInput = document.createElement('input');
+      tokenInput.type = 'hidden';
+      tokenInput.name = '__RequestVerificationToken';
+      tokenInput.value = csrfToken;
+      form.appendChild(tokenInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  // Function to cancel a change order via AJAX
+  function cancelChangeOrder(changeOrderId, changeOrderNumber) {
+    if (!confirm(`Are you sure you want to cancel change order ${changeOrderNumber}? This action cannot be undone.`)) {
+      return;
+    }
+
+    // Create a form and submit it
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/ChangeOrders/Cancel/${changeOrderId}`;
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    if (csrfToken) {
+      const tokenInput = document.createElement('input');
+      tokenInput.type = 'hidden';
+      tokenInput.name = '__RequestVerificationToken';
+      tokenInput.value = csrfToken;
+      form.appendChild(tokenInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  function refreshPage() {
+    location.reload();
+  }
+</script>

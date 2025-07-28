@@ -1,65 +1,67 @@
-<!-- This is how to update your existing Views/Items/Index.cshtml -->
 @model IEnumerable<InventorySystem.Models.Item>
 @{
   ViewData["Title"] = "Items";
 }
 
-<!-- Updated header section with bulk upload button -->
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2><i class="fas fa-boxes"></i> Items</h2>
+  <h1><i class="fas fa-cube"></i> Items</h1>
   <div class="btn-group">
-    <a asp-action="Create" class="btn btn-success">
-      <i class="fas fa-plus"></i> Create New Item
+    <a href="/Items/Create" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Create Item
     </a>
-    <a asp-action="BulkUpload" class="btn btn-primary">
+    <a href="/Items/BulkUpload" class="btn btn-outline-secondary">
       <i class="fas fa-upload"></i> Bulk Upload
     </a>
   </div>
 </div>
 
-<!-- Optional: Add bulk upload info card -->
 @if (TempData["SuccessMessage"] != null)
 {
-  <div class="alert alert-success alert-dismissible fade show" role="alert">
-    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
-
-@if (TempData["WarningMessage"] != null)
-{
-  <div class="alert alert-warning alert-dismissible fade show" role="alert">
-    <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 }
 
 @if (TempData["ErrorMessage"] != null)
 {
-  <div class="alert alert-danger alert-dismissible fade show" role="alert">
-    <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 }
 
-<!-- Optional: Quick info card about bulk upload -->
+@if (TempData["WarningMessage"] != null)
+{
+  <div class="alert alert-warning alert-dismissible fade show">
+    @TempData["WarningMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
 @if (!Model.Any())
 {
-  <div class="row mb-4">
-    <div class="col-md-12">
-      <div class="card border-info">
-        <div class="card-body text-center">
-          <i class="fas fa-info-circle text-info fa-2x mb-3"></i>
-          <h5>No Items Found</h5>
-          <p class="text-muted mb-3">Get started by creating your first item or uploading multiple items at once.</p>
-          <div class="btn-group">
-            <a asp-action="Create" class="btn btn-success">
-              <i class="fas fa-plus"></i> Create First Item
-            </a>
-            <a asp-action="BulkUpload" class="btn btn-primary">
-              <i class="fas fa-upload"></i> Bulk Upload Items
-            </a>
-          </div>
+  <div class="card">
+    <div class="card-header">
+      <h5><i class="fas fa-info-circle"></i> No Items Found</h5>
+    </div>
+    <div class="card-body text-center">
+      <div class="py-4">
+        <i class="fas fa-cube fa-4x text-muted mb-3"></i>
+        <h4>No items in your inventory yet</h4>
+        <p class="text-muted mb-4">Get started by creating your first item or importing from a CSV file.</p>
+        <div class="d-grid gap-2 d-md-block">
+          <a href="/Items/Create" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create First Item
+          </a>
+          <a href="/Items/BulkUpload" class="btn btn-outline-secondary">
+            <i class="fas fa-upload"></i> Bulk Upload
+          </a>
+        </div>
+        <div class="mt-4">
+          <small class="text-muted">
+            Use our <a asp-action="BulkUpload" class="text-decoration-none">bulk upload feature</a> to import from CSV files.
+          </small>
         </div>
       </div>
     </div>
@@ -67,38 +69,20 @@
 }
 else
 {
-  <!-- Optional: Show bulk upload option even when items exist -->
-  <div class="row mb-3">
-    <div class="col-md-12">
-      <div class="card border-light">
-        <div class="card-body py-2">
-          <div class="d-flex justify-content-between align-items-center">
-            <small class="text-muted">
-              <i class="fas fa-lightbulb"></i>
-              Need to add multiple items? Use our <a asp-action="BulkUpload" class="text-decoration-none">bulk upload feature</a> to import from CSV files.
-            </small>
-            <small class="text-muted">Total Items: <strong>@Model.Count()</strong></small>
-          </div>
-        </div>
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5><i class="fas fa-list"></i> Items List</h5>
+      <div class="d-flex align-items-center">
+        <small class="text-muted me-3">Click any row to view details</small>
+        <small class="text-muted">Total Items: <strong>@Model.Count()</strong></small>
       </div>
     </div>
-  </div>
-}
-
-<!-- Your existing items table/content goes here -->
-<!-- This is just showing where the button should be added -->
-<div class="card">
-  <div class="card-header">
-    <h5>Items List</h5>
-  </div>
-  <div class="card-body">
-    <!-- Your existing items display logic -->
-    @if (Model.Any())
-    {
+    <div class="card-body">
       <div class="table-responsive">
-        <table class="table table-striped">
+        <table class="table table-hover">
           <thead class="table-dark">
             <tr>
+              <th style="width: 60px;">Image</th>
               <th>Part Number</th>
               <th>Description</th>
               <th>Type</th>
@@ -106,25 +90,75 @@ else
               <th>Stock</th>
               <th>Vendor</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th style="width: 150px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             @foreach (var item in Model)
             {
-              <tr class="clickable-row" onclick="window.location.href='/Items/Details/@item.Id'">
-                <td><strong>@item.DisplayPartNumber</strong></td>
-                <td>@item.Description</td>
-                <td>
-                  <span class="badge bg-info">@item.ItemTypeDisplayName</span>
+              <tr class="clickable-row" data-item-id="@item.Id">
+                <td class="text-center">
+                  @if (item.HasImage)
+                  {
+                    <img src="/Items/GetImageThumbnail/@item.Id?size=40"
+                         alt="@item.PartNumber"
+                         class="item-thumbnail rounded"
+                         onclick="event.stopPropagation(); showImageModal('@item.PartNumber', '/Items/GetImage/@item.Id')"
+                         title="Click to view full image" />
+                  }
+                  else
+                  {
+                    <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded">
+                      <i class="fas fa-image text-muted"></i>
+                    </div>
+                  }
                 </td>
-                <td>@item.Version</td>
+                <td>
+                  <strong>@item.PartNumber</strong>
+                  @if (!item.IsCurrentVersion)
+                  {
+                    <span class="badge bg-secondary ms-1">Historical</span>
+                  }
+                </td>
+                <td>
+                  @item.Description
+                  @if (!string.IsNullOrEmpty(item.Comments))
+                  {
+                    <br>
+                    <small class="text-muted">@(item.Comments.Length > 50 ? item.Comments.Substring(0, 50) + "..." : item.Comments)</small>
+                  }
+                </td>
+                <td>
+                  @{
+                    string badgeColor = item.ItemType switch
+                    {
+                      InventorySystem.Models.Enums.ItemType.Inventoried => "primary",
+                      InventorySystem.Models.Enums.ItemType.NonInventoried => "info",
+                      InventorySystem.Models.Enums.ItemType.Service => "success",
+                      InventorySystem.Models.Enums.ItemType.Virtual => "warning",
+                      _ => "secondary"
+                    };
+                  }
+                  <span class="badge bg-@badgeColor">@item.ItemTypeDisplayName</span>
+                </td>
+                <td>
+                  <span class="badge bg-outline-dark">@item.Version</span>
+                  @if (item.IsCurrentVersion)
+                  {
+                    <span class="badge bg-success ms-1">Current</span>
+                  }
+                </td>
                 <td>
                   @if (item.TrackInventory)
                   {
                     <span class="badge @(item.CurrentStock <= item.MinimumStock ? "bg-danger" : "bg-success")">
                       @item.CurrentStock
                     </span>
+                    @if (item.MinimumStock > 0)
+                    {
+                      <br>
+                      <small class="text-muted">Min: @item.MinimumStock</small>
+                    }
                   }
                   else
                   {
@@ -134,7 +168,12 @@ else
                 <td>
                   @if (!string.IsNullOrEmpty(item.PreferredVendor))
                   {
-                    <small>@item.PreferredVendor</small>
+                    <span>@item.PreferredVendor</span>
+                    @if (!string.IsNullOrEmpty(item.VendorPartNumber))
+                    {
+                      <br>
+                      <small class="text-muted">P/N: @item.VendorPartNumber</small>
+                    }
                   }
                   else
                   {
@@ -142,23 +181,28 @@ else
                   }
                 </td>
                 <td>
-                  @if (!item.IsSellable)
-                  {
-                    <span class="badge bg-warning">Not Sellable</span>
-                  }
-                  else
-                  {
-                    <span class="badge bg-success">Sellable</span>
-                  }
+                  <div class="d-flex flex-column gap-1">
+                    @if (!item.IsSellable)
+                    {
+                      <span class="badge bg-warning text-dark">Not Sellable</span>
+                    }
+                    else
+                    {
+                      <span class="badge bg-success">Sellable</span>
+                    }
+                  </div>
                 </td>
                 <td>
                   <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
                     <a href="/Items/Details/@item.Id" class="btn btn-outline-primary" title="View Details">
                       <i class="fas fa-eye"></i>
                     </a>
-                    <a href="/Items/Edit/@item.Id" class="btn btn-outline-warning" title="Edit">
-                      <i class="fas fa-edit"></i>
-                    </a>
+                    @if (item.IsCurrentVersion)
+                    {
+                      <a href="/Items/Edit/@item.Id" class="btn btn-outline-warning" title="Edit">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                    }
                     @if (item.TrackInventory)
                     {
                       <a href="/Purchases/Create?itemId=@item.Id" class="btn btn-outline-success" title="Add Purchase">
@@ -170,9 +214,229 @@ else
               </tr>
             }
           </tbody>
-
         </table>
       </div>
-    }
+    </div>
+  </div>
+
+  <!-- Quick Stats Card -->
+  <div class="row mt-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried)</h3>
+          <p class="mb-0">Inventoried Items</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.NonInventoried)</h3>
+          <p class="mb-0">Non-Inventoried</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Service)</h3>
+          <p class="mb-0">Services</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-dark">
+        <div class="card-body text-center">
+          <h3>@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Virtual)</h3>
+          <p class="mb-0">Virtual Items</p>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalLabel">Item Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="modalImage" src="#" alt="Item Image" class="img-fluid" />
+      </div>
+    </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      // Make table rows clickable
+      const clickableRows = document.querySelectorAll('.clickable-row');
+
+      clickableRows.forEach(function(row) {
+          row.addEventListener('click', function(e) {
+              // Only proceed if the click wasn't on an action button or link
+              if (e.target.closest('.btn-group') || e.target.closest('a') || e.target.closest('button')) {
+                  return;
+              }
+
+              const itemId = this.getAttribute('data-item-id');
+              if (itemId) {
+                  window.location.href = '/Items/Details/' + itemId;
+              }
+          });
+
+          // Add hover effect
+          row.addEventListener('mouseenter', function() {
+              if (!this.classList.contains('table-active')) {
+                  this.style.backgroundColor = '#f8f9fa';
+              }
+          });
+
+          row.addEventListener('mouseleave', function() {
+              if (!this.classList.contains('table-active')) {
+                  this.style.backgroundColor = '';
+              }
+          });
+      });
+
+      // Prevent action buttons from triggering row click
+      const actionButtons = document.querySelectorAll('.btn-group a, .btn-group button');
+      actionButtons.forEach(function(button) {
+          button.addEventListener('click', function(e) {
+              e.stopPropagation();
+          });
+      });
+  });
+
+  // Function to show image modal (for thumbnail clicks)
+  function showImageModal(partNumber, imageUrl) {
+      document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
+      document.getElementById('modalImage').src = imageUrl;
+      var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+      imageModal.show();
+  }
+</script>
+
+<style>
+  /* Item thumbnail styles */
+  .item-thumbnail {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+    .item-thumbnail:hover {
+      transform: scale(1.1);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 10;
+      position: relative;
+    }
+
+  .item-thumbnail-placeholder {
+    width: 40px;
+    height: 40px;
+    background-color: #f8f9fa;
+    border: 1px dashed #dee2e6;
+    color: #6c757d;
+    font-size: 14px;
+  }
+
+  /* Clickable row styles */
+  .clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+    .clickable-row:hover {
+      background-color: #f8f9fa !important;
+    }
+
+    .clickable-row:active {
+      background-color: #e9ecef !important;
+    }
+
+    /* Ensure action buttons don't inherit pointer cursor */
+    .clickable-row .btn-group {
+      cursor: default;
+    }
+
+    /* Allow text selection in specific columns */
+    .clickable-row td:nth-child(1),
+    .clickable-row td:nth-child(2) {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
+
+  /* ItemType color scheme */
+  .badge.bg-primary {
+    background-color: #0d6efd !important; /* Inventoried - Blue */
+  }
+
+  .badge.bg-info {
+    background-color: #0dcaf0 !important; /* Non-Inventoried - Cyan */
+  }
+
+  .badge.bg-success {
+    background-color: #198754 !important; /* Service - Green */
+  }
+
+  .badge.bg-warning {
+    background-color: #ffc107 !important; /* Virtual - Yellow */
+    color: #000 !important;
+  }
+
+  /* Stock status colors */
+  .badge.bg-danger {
+    background-color: #dc3545 !important; /* Low stock - Red */
+  }
+
+  /* Version badge */
+  .badge.bg-outline-dark {
+    color: #212529;
+    border: 1px solid #212529;
+    background-color: transparent;
+  }
+
+  /* Responsive adjustments */
+  @@media (max-width: 768px) {
+    .btn-group-sm .btn {
+      padding: 0.125rem 0.25rem;
+      font-size: 0.65rem;
+    }
+
+    .clickable-row td {
+      padding: 0.5rem 0.25rem;
+    }
+
+    .item-thumbnail,
+    .item-thumbnail-placeholder {
+      width: 32px;
+      height: 32px;
+    }
+    /* Hide less important columns on mobile */
+    .table th:nth-child(6), /* Vendor */
+    .table td:nth-child(6) {
+      display: none;
+    }
+  }
+
+  /* Card hover effects for stats */
+  .card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+</style>

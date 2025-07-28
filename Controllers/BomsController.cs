@@ -9,16 +9,19 @@ namespace InventorySystem.Controllers
     {
     private readonly IBomService _bomService;
     private readonly IInventoryService _inventoryService;
-    private readonly IProductionService _productionService; // ADD THIS LINE
+    private readonly IProductionService _productionService; 
+    private readonly IVersionControlService _versionService;
 
     public BomsController(
         IBomService bomService,
         IInventoryService inventoryService,
-        IProductionService productionService) 
+        IProductionService productionService,
+        IVersionControlService versionService) 
     {
       _bomService = bomService;
       _inventoryService = inventoryService;
-      _productionService = productionService; 
+      _productionService = productionService;
+      _versionService = versionService;
     }
 
     public async Task<IActionResult> Index()
@@ -33,6 +36,10 @@ namespace InventorySystem.Controllers
             if (bom == null) return NotFound();
             
             ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
+            // Check for pending change orders  
+            var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("BOM", bom.BaseBomId ?? bom.Id);
+            ViewBag.PendingChangeOrders = pendingChangeOrders;
+            ViewBag.EntityType = "BOM";
             return View(bom);
         }
         

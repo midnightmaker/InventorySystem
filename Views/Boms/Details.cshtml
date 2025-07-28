@@ -1,449 +1,605 @@
 @model InventorySystem.Models.Bom
 @{
-	ViewData["Title"] = "BOM Details";
-	var totalCost = ViewBag.TotalCost as decimal? ?? 0;
+  ViewData["Title"] = "BOM Details";
+  var totalCost = ViewBag.TotalCost as decimal? ?? 0;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-	<div class="d-flex align-items-center">
-		<h1 class="me-3"><i class="fas fa-layer-group"></i> @Model.Name</h1>
-		<!-- Version Dropdown -->
-		@if (ViewBag.BomVersions != null)
-		{
-			@await Html.PartialAsync("_VersionDropdown", ViewBag.BomVersions, new ViewDataDictionary(ViewData)
-			{
-			["CurrentVersion"] = Model.Version,
-				["EntityType"] = "Boms",
-				["EntityId"] = Model.BaseBomId ?? Model.Id
-				})
-				}
-	</div>
-	<div class="btn-group">
-		@if (Model.IsCurrentVersion)
-		{
-			<a href="/Boms/Edit/@Model.Id" class="btn btn-outline-primary">
-				<i class="fas fa-edit"></i> Edit
-			</a>
-			<a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-success">
-				<i class="fas fa-plus"></i> Add Component
-			</a>
-		}
-		<a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-info">
-			<i class="fas fa-dollar-sign"></i> Cost Report
-		</a>
-		@if (Model.IsCurrentVersion)
-		{
-			<a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-outline-secondary">
-				<i class="fas fa-layer-group"></i> Add Sub-Assembly
-			</a>
-		}
-		<!-- Create New Version Button -->
-		<button type="button" class="btn btn-outline-warning" onclick="showCreateVersionModal('BOM', @(Model.BaseBomId ?? Model.Id))">
-			<i class="fas fa-code-branch"></i> New Version
-		</button>
-	</div>
+  <div class="d-flex align-items-center">
+    <h1 class="me-3"><i class="fas fa-layer-group"></i> @Model.Name</h1>
+    <!-- Version Dropdown -->
+    @if (ViewBag.BomVersions != null)
+    {
+      @await Html.PartialAsync("_VersionDropdown", ViewBag.BomVersions, new ViewDataDictionary(ViewData)
+      {
+      ["CurrentVersion"] = Model.Version,
+        ["EntityType"] = "Boms",
+        ["EntityId"] = Model.BaseBomId ?? Model.Id
+        })
+        }
+  </div>
+  <div class="btn-group">
+    @if (Model.IsCurrentVersion)
+    {
+      <a href="/Boms/Edit/@Model.Id" class="btn btn-outline-primary">
+        <i class="fas fa-edit"></i> Edit
+      </a>
+      <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-success">
+        <i class="fas fa-plus"></i> Add Component
+      </a>
+    }
+    <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-info">
+      <i class="fas fa-dollar-sign"></i> Cost Report
+    </a>
+    @if (Model.IsCurrentVersion)
+    {
+      <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-outline-secondary">
+        <i class="fas fa-layer-group"></i> Add Sub-Assembly
+      </a>
+    }
+    <!-- Create New Version Button -->
+    <button type="button" class="btn btn-outline-warning" onclick="showCreateVersionModal('BOM', @(Model.BaseBomId ?? Model.Id))">
+      <i class="fas fa-code-branch"></i> New Version
+    </button>
+  </div>
 </div>
 
+<!-- Include pending change orders alert if any exist -->
+@if (ViewBag.PendingChangeOrders != null)
+{
+  @await Html.PartialAsync("_PendingChangeOrdersAlert", (IEnumerable<InventorySystem.Models.ChangeOrder>)ViewBag.PendingChangeOrders)
+}
+
 <div class="row">
-	<div class="col-md-8">
-		<div class="card">
-			<div class="card-header d-flex justify-content-between align-items-center">
-				<h5><i class="fas fa-info-circle"></i> BOM Details</h5>
-				<!-- Version Status Badge -->
-				@if (Model.IsCurrentVersion)
-				{
-					<span class="badge bg-success">Current Version</span>
-				}
-				else
-				{
-					<span class="badge bg-secondary">Historical Version</span>
-				}
-			</div>
-			<div class="card-body">
-				<dl class="row">
-					<dt class="col-sm-3">Description:</dt>
-					<dd class="col-sm-9">@Model.Description</dd>
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-info-circle"></i> BOM Details</h5>
+        <!-- Version Status Badge -->
+        @if (Model.IsCurrentVersion)
+        {
+          <span class="badge bg-success">Current Version</span>
+        }
+        else
+        {
+          <span class="badge bg-secondary">Historical Version</span>
+        }
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-3">Description:</dt>
+          <dd class="col-sm-9">@Model.Description</dd>
 
-					<!-- Version Information -->
-					<dt class="col-sm-3">Version:</dt>
-					<dd class="col-sm-9">
-						<strong>@Model.Version</strong>
-						@if (!Model.IsCurrentVersion)
-						{
-							<small class="text-muted">(Historical)</small>
-						}
-					</dd>
+          <!-- Version Information -->
+          <dt class="col-sm-3">Version:</dt>
+          <dd class="col-sm-9">
+            <strong>@Model.Version</strong>
+            @if (!Model.IsCurrentVersion)
+            {
+              <small class="text-muted">(Historical)</small>
+            }
+          </dd>
 
-					@if (Model.CreatedFromChangeOrder != null)
-					{
-						<dt class="col-sm-3">Change Order:</dt>
-						<dd class="col-sm-9">
-							<a href="/ChangeOrders/Details/@Model.CreatedFromChangeOrderId" class="text-decoration-none">
-								@Model.CreatedFromChangeOrder.ChangeOrderNumber
-							</a>
-						</dd>
-					}
+          @if (Model.CreatedFromChangeOrder != null)
+          {
+            <dt class="col-sm-3">Change Order:</dt>
+            <dd class="col-sm-9">
+              <a href="/ChangeOrders/Details/@Model.CreatedFromChangeOrderId" class="text-decoration-none">
+                @Model.CreatedFromChangeOrder.ChangeOrderNumber
+              </a>
+            </dd>
+          }
 
-					@if (!string.IsNullOrEmpty(Model.AssemblyPartNumber))
-					{
-						<dt class="col-sm-3">Assembly P/N:</dt>
-						<dd class="col-sm-9">@Model.AssemblyPartNumber</dd>
-					}
+          @if (!string.IsNullOrEmpty(Model.AssemblyPartNumber))
+          {
+            <dt class="col-sm-3">Assembly P/N:</dt>
+            <dd class="col-sm-9">@Model.AssemblyPartNumber</dd>
+          }
 
-					<dt class="col-sm-3">Components:</dt>
-					<dd class="col-sm-9">
-						<span class="badge bg-info">@Model.BomItems.Count</span>
-					</dd>
+          <dt class="col-sm-3">Components:</dt>
+          <dd class="col-sm-9">
+            <span class="badge bg-info">@Model.BomItems.Count</span>
+          </dd>
 
-					<dt class="col-sm-3">Sub-Assemblies:</dt>
-					<dd class="col-sm-9">
-						<span class="badge bg-secondary">@Model.SubAssemblies.Count</span>
-					</dd>
+          <dt class="col-sm-3">Sub-Assemblies:</dt>
+          <dd class="col-sm-9">
+            <span class="badge bg-secondary">@Model.SubAssemblies.Count</span>
+          </dd>
 
-					<dt class="col-sm-3">Total Cost:</dt>
-					<dd class="col-sm-9">
-						<strong class="text-success">@totalCost.ToString("C")</strong>
-					</dd>
+          <dt class="col-sm-3">Total Cost:</dt>
+          <dd class="col-sm-9">
+            <strong class="text-success">@totalCost.ToString("C")</strong>
+          </dd>
 
-					<dt class="col-sm-3">Created:</dt>
-					<dd class="col-sm-9">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
+          <dt class="col-sm-3">Created:</dt>
+          <dd class="col-sm-9">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
 
-					<dt class="col-sm-3">Last Modified:</dt>
-					<dd class="col-sm-9">@Model.ModifiedDate.ToString("MM/dd/yyyy hh:mm tt")</dd>
+          <dt class="col-sm-3">Last Modified:</dt>
+          <dd class="col-sm-9">@Model.ModifiedDate.ToString("MM/dd/yyyy hh:mm tt")</dd>
 
-					@if (Model.ParentBom != null)
-					{
-						<dt class="col-sm-3">Parent BOM:</dt>
-						<dd class="col-sm-9">
-							<a href="/Boms/Details/@Model.ParentBomId" class="text-decoration-none">
-								@Model.ParentBom.Name
-							</a>
-						</dd>
-					}
-				</dl>
-			</div>
-		</div>
+          @if (Model.ParentBom != null)
+          {
+            <dt class="col-sm-3">Parent BOM:</dt>
+            <dd class="col-sm-9">
+              <a href="/Boms/Details/@Model.ParentBomId" class="text-decoration-none">
+                @Model.ParentBom.Name
+              </a>
+            </dd>
+          }
+        </dl>
+      </div>
+    </div>
 
-		<!-- Components Section with Version Context -->
-		@if (Model.BomItems?.Any() == true)
-		{
-			<div class="card mt-4">
-				<div class="card-header d-flex justify-content-between align-items-center">
-					<h5><i class="fas fa-cogs"></i> Components (@Model.BomItems.Count)</h5>
-					<div>
-						<small class="text-muted me-2">For Version @Model.Version</small>
-						@if (Model.IsCurrentVersion)
-						{
-							<a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-success">
-								<i class="fas fa-plus"></i> Add Component
-							</a>
-						}
-						else
-						{
-							<span class="text-muted small">Historical - Read Only</span>
-						}
-					</div>
-				</div>
-				<div class="card-body">
-					<div class="table-responsive">
-						<table class="table table-sm">
-							<thead>
-								<tr>
-									<th>Part Number</th>
-									<th>Description</th>
-									<th>Quantity</th>
-									<th>Unit Cost</th>
-									<th>Extended Cost</th>
-									<th>Reference</th>
-									@if (Model.IsCurrentVersion)
-									{
-										<th>Actions</th>
-									}
-								</tr>
-							</thead>
-							<tbody>
-								@foreach (var bomItem in Model.BomItems)
-								{
-									<tr>
-										<td>
-											<a href="/Items/Details/@bomItem.Item.Id" class="text-decoration-none">
-												@bomItem.Item.PartNumber
-											</a>
-										</td>
-										<td>@bomItem.Item.Description</td>
-										<td>@bomItem.Quantity</td>
-										<td>@bomItem.UnitCost.ToString("C")</td>
-										<td>@bomItem.ExtendedCost.ToString("C")</td>
-										<td>@bomItem.ReferenceDesignator</td>
-										@if (Model.IsCurrentVersion)
-										{
-											<td>
-												<div class="btn-group btn-group-sm">
-													<form asp-action="RemoveItem" method="post" style="display:inline;">
-														<input type="hidden" name="bomItemId" value="@bomItem.Id" />
-														<input type="hidden" name="bomId" value="@Model.Id" />
-														<button type="submit" class="btn btn-outline-danger"
-																		onclick="return confirm('Remove this item from the BOM?')"
-																		title="Remove Item">
-															<i class="fas fa-trash"></i>
-														</button>
-													</form>
-												</div>
-											</td>
-										}
-									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				</div>
-			</div>
-		}
-		else
-		{
-			<div class="card mb-4">
-				<div class="card-header d-flex justify-content-between align-items-center">
-					<h5><i class="fas fa-cogs"></i> Components</h5>
-					@if (Model.IsCurrentVersion)
-					{
-						<a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-success">
-							<i class="fas fa-plus"></i> Add Component
-						</a>
-					}
-				</div>
-				<div class="card-body text-center">
-					<i class="fas fa-cogs fa-3x text-muted mb-3"></i>
-					<h5 class="text-muted">No Components Added</h5>
-					<p class="text-muted">
-						@if (Model.IsCurrentVersion)
-						{
-							<span>Start building your BOM by adding components.</span>
-						}
-						else
-						{
-							<span>No components were added to Version @Model.Version</span>
-						}
-					</p>
-					@if (Model.IsCurrentVersion)
-					{
-						<a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-success">
-							<i class="fas fa-plus"></i> Add First Component
-						</a>
-					}
-				</div>
-			</div>
-		}
+    <!-- Components Section with Version Context -->
+    @if (Model.BomItems?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-cogs"></i> Components (@Model.BomItems.Count)</h5>
+          <div>
+            <small class="text-muted me-2">For Version @Model.Version</small>
+            @if (Model.IsCurrentVersion)
+            {
+              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-success">
+                <i class="fas fa-plus"></i> Add Component
+              </a>
+            }
+            else
+            {
+              <span class="text-muted small">Historical - Read Only</span>
+            }
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Part Number</th>
+                  <th>Description</th>
+                  <th>Quantity</th>
+                  <th>Unit Cost</th>
+                  <th>Extended Cost</th>
+                  <th>Reference</th>
+                  @if (Model.IsCurrentVersion)
+                  {
+                    <th>Actions</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var bomItem in Model.BomItems)
+                {
+                  <tr>
+                    <td>
+                      <a href="/Items/Details/@bomItem.Item.Id" class="text-decoration-none">
+                        @bomItem.Item.PartNumber
+                      </a>
+                    </td>
+                    <td>@bomItem.Item.Description</td>
+                    <td>@bomItem.Quantity</td>
+                    <td>@bomItem.UnitCost.ToString("C")</td>
+                    <td>@bomItem.ExtendedCost.ToString("C")</td>
+                    <td>@bomItem.ReferenceDesignator</td>
+                    @if (Model.IsCurrentVersion)
+                    {
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <form asp-action="RemoveItem" method="post" style="display:inline;">
+                            <input type="hidden" name="bomItemId" value="@bomItem.Id" />
+                            <input type="hidden" name="bomId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-outline-danger"
+                                    onclick="return confirm('Remove this item from the BOM?')"
+                                    title="Remove Item">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </form>
+                        </div>
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+    else
+    {
+      <div class="card mt-4">
+        <div class="card-header">
+          <h6><i class="fas fa-cogs"></i> Components</h6>
+        </div>
+        <div class="card-body text-center">
+          <p class="text-muted mb-3">
+            @if (Model.IsCurrentVersion)
+            {
+              <span>No components have been added to this BOM. Add items to build your bill of materials.</span>
+            }
+            else
+            {
+              <span>No components were added to Version @Model.Version</span>
+            }
+          </p>
+          @if (Model.IsCurrentVersion)
+          {
+            <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-outline-success">
+              <i class="fas fa-plus"></i> Add First Component
+            </a>
+          }
+        </div>
+      </div>
+    }
 
-		<!-- Sub-Assemblies Section -->
-		@if (Model.SubAssemblies.Any())
-		{
-			<div class="card mb-4">
-				<div class="card-header d-flex justify-content-between align-items-center">
-					<h5><i class="fas fa-layer-group"></i> Sub-Assemblies (@Model.SubAssemblies.Count)</h5>
-					@if (Model.IsCurrentVersion)
-					{
-						<a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-sm btn-outline-secondary">
-							<i class="fas fa-plus"></i> Add Sub-Assembly
-						</a>
-					}
-				</div>
-				<div class="card-body">
-					<div class="table-responsive">
-						<table class="table table-sm">
-							<thead>
-								<tr>
-									<th>Sub-Assembly Name</th>
-									<th>Assembly P/N</th>
-									<th>Version</th>
-									<th>Components</th>
-									<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								@foreach (var subAssembly in Model.SubAssemblies)
-								{
-									<tr>
-										<td><a href="/Boms/Details/@subAssembly.Id">@subAssembly.Name</a></td>
-										<td>@subAssembly.AssemblyPartNumber</td>
-										<td>@subAssembly.Version</td>
-										<td><span class="badge bg-info">@subAssembly.BomItems.Count</span></td>
-										<td>
-											<div class="btn-group btn-group-sm">
-												<a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary" title="View Details">
-													<i class="fas fa-eye"></i>
-												</a>
-												<a href="/Boms/CostReport/@subAssembly.Id" class="btn btn-outline-success" title="Cost Report">
-													<i class="fas fa-dollar-sign"></i>
-												</a>
-											</div>
-										</td>
-									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				</div>
-			</div>
-		}
-	</div>
+    <!-- Sub-Assemblies Section -->
+    @if (Model.SubAssemblies?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-layer-group"></i> Sub-Assemblies (@Model.SubAssemblies.Count)</h5>
+          @if (Model.IsCurrentVersion)
+          {
+            <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-sm btn-success">
+              <i class="fas fa-plus"></i> Add Sub-Assembly
+            </a>
+          }
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            @foreach (var subAssembly in Model.SubAssemblies)
+            {
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="mb-1">
+                    <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
+                      @subAssembly.Name
+                    </a>
+                  </h6>
+                  <p class="mb-1">@subAssembly.Description</p>
+                  <small class="text-muted">Version @subAssembly.Version | @subAssembly.BomItems.Count components</small>
+                </div>
+                <div class="btn-group btn-group-sm">
+                  <a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary">
+                    <i class="fas fa-eye"></i> View
+                  </a>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
 
-	<div class="col-md-4">
-		<div class="card">
-			<div class="card-header">
-				<h5><i class="fas fa-info-circle"></i> BOM Summary</h5>
-			</div>
-			<div class="card-body">
-				<dl class="row">
-					<dt class="col-sm-5">Created:</dt>
-					<dd class="col-sm-7">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
+  <div class="col-md-4">
+    <!-- Quick Material Check Section -->
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6><i class="fas fa-exclamation-triangle text-warning"></i> Material Check</h6>
+        <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#materialCheck" aria-expanded="false">
+          <i class="fas fa-eye"></i> Check
+        </button>
+      </div>
+      <div class="collapse" id="materialCheck">
+        <div class="card-body">
+          <p class="text-muted small">Check if sufficient materials are available for this BOM:</p>
+          @if (Model.BomItems.Any())
+          {
+            <div class="list-group list-group-flush">
+              @foreach (var bomItem in Model.BomItems.Take(5))
+              {
+                <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+                  <small>
+                    <strong>@bomItem.Item.PartNumber</strong><br>
+                    Need: @bomItem.Quantity
+                  </small>
+                  <span class="badge bg-@(bomItem.Item.CurrentStock >= bomItem.Quantity ? "success" : "danger")">
+                    @bomItem.Item.CurrentStock
+                  </span>
+                </div>
+              }
+              @if (Model.BomItems.Count > 5)
+              {
+                <div class="list-group-item text-center">
+                  <small class="text-muted">... and @(Model.BomItems.Count - 5) more items</small>
+                </div>
+              }
+            </div>
+          }
+          else
+          {
+            <p class="text-muted text-center">No components to check</p>
+          }
+        </div>
+      </div>
+    </div>
 
-					<!-- Version Information -->
-					<dt class="col-sm-5">Version:</dt>
-					<dd class="col-sm-7">
-						<span class="badge bg-primary">@Model.Version</span>
-						@if (!Model.IsCurrentVersion)
-						{
-							<br>
-						
-							<small class="text-muted">Historical Version</small>
-						}
-					</dd>
+    <!-- BOM Statistics -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-chart-bar"></i> BOM Statistics</h6>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-6">
+            <div class="border-end">
+              <h5 class="text-primary">@Model.BomItems.Count</h5>
+              <small class="text-muted">Components</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <h5 class="text-info">@Model.SubAssemblies.Count</h5>
+            <small class="text-muted">Sub-Assemblies</small>
+          </div>
+        </div>
+        <hr>
+        <div class="row text-center">
+          <div class="col-12">
+            <h6 class="text-success">@totalCost.ToString("C")</h6>
+            <small class="text-muted">Total Material Cost</small>
+          </div>
+        </div>
+        @if (Model.BomItems.Any())
+        {
+          <hr>
+          <div class="row text-center">
+            <div class="col-12">
+              <small class="text-muted">
+                Avg Cost per Component:
+                <strong>@((totalCost / Model.BomItems.Count).ToString("C"))</strong>
+              </small>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
 
-					<dt class="col-sm-5">Total Versions:</dt>
-					<dd class="col-sm-7">
-						<span class="badge bg-info">@(ViewBag.BomVersions?.Count() ?? 1)</span>
-					</dd>
-
-					<dt class="col-sm-5">Components:</dt>
-					<dd class="col-sm-7">
-						<span class="badge bg-info">@Model.BomItems.Count</span>
-					</dd>
-
-					<dt class="col-sm-5">Sub-Assemblies:</dt>
-					<dd class="col-sm-7">
-						<span class="badge bg-secondary">@Model.SubAssemblies.Count</span>
-					</dd>
-
-					<dt class="col-sm-5">Total Cost:</dt>
-					<dd class="col-sm-7">
-						<strong class="text-success">@totalCost.ToString("C")</strong>
-					</dd>
-
-					<dt class="col-sm-5">Last Modified:</dt>
-					<dd class="col-sm-7">@Model.ModifiedDate.ToString("MM/dd/yyyy")</dd>
-				</dl>
-			</div>
-		</div>
-
-		<!-- Version History Card -->
-		@if (ViewBag.BomVersions != null && ((IEnumerable<dynamic>)ViewBag.BomVersions).Count() > 1)
-		{
-			<div class="card mt-3">
-				<div class="card-header">
-					<h6><i class="fas fa-history"></i> Version History</h6>
-				</div>
-				<div class="card-body">
-					<div class="list-group list-group-flush">
-						@foreach (var version in (IEnumerable<dynamic>)ViewBag.BomVersions)
-						{
-							<div class="list-group-item d-flex justify-content-between align-items-center @(version.Version == Model.Version ? "active" : "")">
-								<div>
-									<strong>@version.Version</strong>
-									@if (version.IsCurrentVersion)
-									{
-										<span class="badge bg-success ms-2">Current</span>
-									}
-									<br>
-									<small class="text-muted">@version.CreatedDate.ToString("MM/dd/yyyy")</small>
-								</div>
-								@if (version.Version != Model.Version)
-								{
-									<a href="/Boms/Details/@version.Id" class="btn btn-sm btn-outline-primary">View</a>
-								}
-							</div>
-						}
-					</div>
-				</div>
-			</div>
-		}
-
-		<!-- Quick Material Check Section -->
-		<div class="card mt-4">
-			<div class="card-header d-flex justify-content-between align-items-center">
-				<h5><i class="fas fa-exclamation-triangle text-warning"></i> Material Check</h5>
-				<button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#materialCheck" aria-expanded="false">
-					<i class="fas fa-eye"></i> Check
-				</button>
-			</div>
-			<div class="collapse" id="materialCheck">
-				<div class="card-body">
-					<p class="text-muted small">Check if sufficient materials are available for this BOM:</p>
-					@if (Model.BomItems.Any())
-					{
-						<div class="list-group list-group-flush">
-							@foreach (var bomItem in Model.BomItems.Take(5))
-							{
-								<div class="list-group-item d-flex justify-content-between align-items-center py-2">
-									<small>
-										<strong>@bomItem.Item.PartNumber</strong><br>
-										Need: @bomItem.Quantity
-									</small>
-									<span class="badge bg-@(bomItem.Item.CurrentStock >= bomItem.Quantity ? "success" : "danger")">
-										@bomItem.Item.CurrentStock
-									</span>
-								</div>
-							}
-							@if (Model.BomItems.Count > 5)
-							{
-								<div class="list-group-item text-center">
-									<small class="text-muted">... and @(Model.BomItems.Count - 5) more items</small>
-								</div>
-							}
-						</div>
-					}
-					else
-					{
-						<p class="text-muted text-center">No components to check</p>
-					}
-				</div>
-			</div>
-		</div>
-	</div>
+    <!-- Version History Card -->
+    @if (ViewBag.BomVersions != null && ((IEnumerable<dynamic>)ViewBag.BomVersions).Count() > 1)
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h6><i class="fas fa-history"></i> Version History</h6>
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            @foreach (var version in (IEnumerable<dynamic>)ViewBag.BomVersions)
+            {
+              <div class="list-group-item d-flex justify-content-between align-items-center @(version.Version == Model.Version ? "active" : "")">
+                <div>
+                  <strong>@version.Version</strong>
+                  @if (version.IsCurrentVersion)
+                  {
+                    <span class="badge bg-success ms-2">Current</span>
+                  }
+                  <br>
+                  <small class="text-muted">@version.CreatedDate.ToString("MM/dd/yyyy")</small>
+                </div>
+                @if (version.Version != Model.Version)
+                {
+                  <a href="/Boms/Details/@version.Id" class="btn btn-sm btn-outline-primary">View</a>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
 </div>
 
 <div class="mt-3">
-	<a href="/Boms" class="btn btn-secondary">Back to BOMs</a>
+  <a href="/Boms" class="btn btn-secondary">Back to BOMs</a>
+</div>
+
+<!-- Pending Change Orders Modal -->
+<div class="modal fade" id="pendingChangeOrdersModal" tabindex="-1" aria-labelledby="pendingChangeOrdersModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title" id="pendingChangeOrdersModalLabel">
+          <i class="fas fa-exclamation-triangle"></i> Cannot Create Change Order
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" role="alert">
+          <p class="mb-3" id="pendingModalMessage">
+            <!-- Message will be populated by JavaScript -->
+          </p>
+        </div>
+
+        <h6><i class="fas fa-list"></i> Pending Change Orders:</h6>
+        <div id="pendingChangeOrdersList">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times"></i> Close
+        </button>
+        <button type="button" class="btn btn-primary" onclick="refreshPage()">
+          <i class="fas fa-refresh"></i> Refresh Page
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-	function showCreateVersionModal(entityType, entityId) {
-		console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
+  // Updated showCreateVersionModal function with proper error handling
+  function showCreateVersionModal(entityType, entityId) {
+    console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
 
-		// Load the change order modal
-		fetch(`/ChangeOrders/Create/${entityType}/${entityId}`)
-			.then(response => {
-				console.log(`Response status: ${response.status}`);
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-				return response.text();
-			})
-			.then(html => {
-				console.log('Modal HTML loaded successfully');
-				document.body.insertAdjacentHTML('beforeend', html);
-				const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
-				modal.show();
-			})
-			.catch(error => {
-				console.error('Error loading modal:', error);
-				alert('Error loading change order form: ' + error.message);
-			});
-	}
+    // Load the change order modal
+    fetch(`/ChangeOrders/Create/${entityType}/${entityId}`)
+      .then(response => {
+        console.log(`Response status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-	// Clean up modal when closed
-	document.addEventListener('hidden.bs.modal', function (event) {
-		if (event.target.id === 'changeOrderModal') {
-			event.target.remove();
-		}
-	});
+        // Check if the response is JSON (error response) or HTML (modal content)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          return response.json().then(data => {
+            throw new Error(JSON.stringify(data));
+          });
+        }
+
+        return response.text();
+      })
+      .then(html => {
+        console.log('Modal HTML loaded successfully');
+        document.body.insertAdjacentHTML('beforeend', html);
+        const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
+        modal.show();
+      })
+      .catch(error => {
+        console.error('Error loading modal:', error);
+
+        // Try to parse the error as JSON for validation errors
+        try {
+          const errorData = JSON.parse(error.message);
+          if (errorData.success === false) {
+            // Show the pending change orders modal instead of alert
+            showPendingChangeOrdersModal(errorData);
+            return;
+          }
+        } catch (e) {
+          // Not a JSON error, show generic error
+          console.error('Failed to parse error as JSON:', e);
+        }
+
+        alert('Error loading change order form: ' + error.message);
+      });
+  }
+
+  // Function to show pending change orders in a modal
+  function showPendingChangeOrdersModal(errorData) {
+    console.log('Showing pending change orders modal:', errorData);
+
+    // Set the message
+    document.getElementById('pendingModalMessage').textContent = errorData.message;
+
+    // Build the pending change orders list
+    let listHtml = '';
+    if (errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
+      errorData.pendingChangeOrders.forEach(co => {
+        listHtml += `
+          <div class="card border-warning mb-3">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-md-8">
+                  <h6 class="card-title mb-1">
+                    <strong>${co.changeOrderNumber}</strong>
+                    <span class="badge bg-warning text-dark ms-2">Version ${co.newVersion}</span>
+                  </h6>
+                  <p class="card-text mb-1">
+                    <small class="text-muted">
+                      Created by <strong>${co.createdBy}</strong> on ${co.createdDate}
+                    </small>
+                  </p>
+                </div>
+                <div class="col-md-4 text-end">
+                  <div class="btn-group-vertical btn-group-sm">
+                    <a href="/ChangeOrders/Details/${co.id}" class="btn btn-outline-info btn-sm" target="_blank">
+                      <i class="fas fa-eye"></i> View Details
+                    </a>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="implementChangeOrder(${co.id}, '${co.changeOrderNumber}')">
+                      <i class="fas fa-check"></i> Implement
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelChangeOrder(${co.id}, '${co.changeOrderNumber}')">
+                      <i class="fas fa-times"></i> Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    document.getElementById('pendingChangeOrdersList').innerHTML = listHtml;
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('pendingChangeOrdersModal'));
+    modal.show();
+  }
+
+  // Function to implement a change order via form submission
+  function implementChangeOrder(changeOrderId, changeOrderNumber) {
+    if (!confirm(`Are you sure you want to implement change order ${changeOrderNumber}? This will create the new version and cannot be undone.`)) {
+      return;
+    }
+
+    // Create a form and submit it
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/ChangeOrders/Implement/${changeOrderId}`;
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
+                     document.querySelector('meta[name="csrf-token"]')?.content;
+    if (csrfToken) {
+      const tokenInput = document.createElement('input');
+      tokenInput.type = 'hidden';
+      tokenInput.name = '__RequestVerificationToken';
+      tokenInput.value = csrfToken;
+      form.appendChild(tokenInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  // Function to cancel a change order via form submission
+  function cancelChangeOrder(changeOrderId, changeOrderNumber) {
+    if (!confirm(`Are you sure you want to cancel change order ${changeOrderNumber}? This action cannot be undone.`)) {
+      return;
+    }
+
+    // Create a form and submit it
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/ChangeOrders/Cancel/${changeOrderId}`;
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
+                     document.querySelector('meta[name="csrf-token"]')?.content;
+    if (csrfToken) {
+      const tokenInput = document.createElement('input');
+      tokenInput.type = 'hidden';
+      tokenInput.name = '__RequestVerificationToken';
+      tokenInput.value = csrfToken;
+      form.appendChild(tokenInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  function refreshPage() {
+    location.reload();
+  }
+
+  // Clean up modal when closed
+  document.addEventListener('hidden.bs.modal', function (event) {
+    if (event.target.id === 'changeOrderModal') {
+      event.target.remove();
+    }
+  });
+
+  // Debug: Add click event listener to test button functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('BOM Details page loaded, checking for New Version button...');
+    const newVersionBtn = document.querySelector('button[onclick*="showCreateVersionModal"]');
+    if (newVersionBtn) {
+      console.log('Found New Version button:', newVersionBtn);
+    } else {
+      console.log('New Version button not found!');
+    }
+  });
 </script>

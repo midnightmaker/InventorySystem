@@ -13,13 +13,17 @@ namespace InventorySystem.Controllers
     private readonly IInventoryService _inventoryService;
     private readonly IPurchaseService _purchaseService;
     private readonly InventoryContext _context;
+    private readonly IVersionControlService _versionService;
 
-    public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, InventoryContext context)
+    public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, InventoryContext context, IVersionControlService versionService )
     {
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
+      _versionService = versionService;
       _context = context;
+
     }
+    
 
     public async Task<IActionResult> Index()
     {
@@ -35,7 +39,10 @@ namespace InventorySystem.Controllers
       ViewBag.AverageCost = await _inventoryService.GetAverageCostAsync(id);
       ViewBag.FifoValue = await _inventoryService.GetFifoValueAsync(id);
       ViewBag.Purchases = await _purchaseService.GetPurchasesByItemIdAsync(id);
-
+      // Check for pending change orders
+      var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("Item", item.BaseItemId ?? item.Id);
+      ViewBag.PendingChangeOrders = pendingChangeOrders;
+      ViewBag.EntityType = "Item";
       return View(item);
     }
 

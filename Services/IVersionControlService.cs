@@ -24,5 +24,8 @@ namespace InventorySystem.Services
     Task<IEnumerable<ChangeOrder>> GetChangeOrdersByEntityAsync(string entityType, int entityId);
     Task<ChangeOrder?> GetChangeOrderByIdAsync(int changeOrderId);
     Task<bool> CancelChangeOrderAsync(int changeOrderId, string cancelledBy);
+    // Pending Change Order Validation Methods
+    Task<bool> HasPendingChangeOrdersAsync(string entityType, int entityId);
+    Task<IEnumerable<ChangeOrder>> GetPendingChangeOrdersForEntityAsync(string entityType, int entityId);
   }
 }

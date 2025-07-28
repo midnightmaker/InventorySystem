@@ -1,472 +1,651 @@
 @model InventorySystem.Models.Item
 @{
-	ViewData["Title"] = "Item Details";
+  ViewData["Title"] = "Item Details";
 
-	var averageCost = ViewBag.AverageCost as decimal? ?? 0;
-	var fifoValue = ViewBag.FifoValue as decimal? ?? 0;
-	var purchases = ViewBag.Purchases as IEnumerable<InventorySystem.Models.Purchase> ?? new List<InventorySystem.Models.Purchase>();
+  var averageCost = ViewBag.AverageCost as decimal? ?? 0;
+  var fifoValue = ViewBag.FifoValue as decimal? ?? 0;
+  var purchases = ViewBag.Purchases as IEnumerable<InventorySystem.Models.Purchase> ?? new List<InventorySystem.Models.Purchase>();
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-	<div class="d-flex align-items-center">
-		<h1 class="me-3"><i class="fas fa-cube"></i> @Model.PartNumber</h1>
-		<!-- Version Dropdown -->
-		@if (ViewBag.ItemVersions != null)
-		{
-			@await Html.PartialAsync("_VersionDropdown", ViewBag.ItemVersions, new ViewDataDictionary(ViewData)
-			{
-			["CurrentVersion"] = Model.Version,
-				["EntityType"] = "Items",
-				["EntityId"] = Model.BaseItemId ?? Model.Id
-				})
-				}
-	</div>
-	<div class="btn-group">
-		@if (Model.IsCurrentVersion)
-		{
-			<a href="/Items/Edit/@Model.Id" class="btn btn-outline-primary">
-				<i class="fas fa-edit"></i> Edit
-			</a>
-		}
-		<a href="/Purchases/Create?itemId=@Model.Id" class="btn btn-success">
-			<i class="fas fa-shopping-cart"></i> Add Purchase
-		</a>
-		@if (Model.IsCurrentVersion)
-		{
-			<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-info">
-				<i class="fas fa-upload"></i> Upload Document
-			</a>
-		}
-		<!-- Create New Version Button -->
-		<button type="button" class="btn btn-outline-warning" onclick="showCreateVersionModal('Item', @(Model.BaseItemId ?? Model.Id))">
-			<i class="fas fa-code-branch"></i> New Version
-		</button>
-	</div>
+  <div class="d-flex align-items-center">
+    <h1 class="me-3"><i class="fas fa-cube"></i> @Model.PartNumber</h1>
+    <!-- Version Dropdown -->
+    @if (ViewBag.ItemVersions != null)
+    {
+      @await Html.PartialAsync("_VersionDropdown", ViewBag.ItemVersions, new ViewDataDictionary(ViewData)
+      {
+      ["CurrentVersion"] = Model.Version,
+        ["EntityType"] = "Items",
+        ["EntityId"] = Model.BaseItemId ?? Model.Id
+        })
+        }
+  </div>
+  <div class="btn-group">
+    @if (Model.IsCurrentVersion)
+    {
+      <a href="/Items/Edit/@Model.Id" class="btn btn-outline-primary">
+        <i class="fas fa-edit"></i> Edit
+      </a>
+    }
+    <a href="/Purchases/Create?itemId=@Model.Id" class="btn btn-success">
+      <i class="fas fa-shopping-cart"></i> Add Purchase
+    </a>
+    @if (Model.IsCurrentVersion)
+    {
+      <a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-info">
+        <i class="fas fa-upload"></i> Upload Document
+      </a>
+    }
+    <!-- Create New Version Button -->
+    <button type="button" class="btn btn-outline-warning" onclick="showCreateVersionModal('Item', @(Model.BaseItemId ?? Model.Id))">
+      <i class="fas fa-code-branch"></i> New Version
+    </button>
+  </div>
 </div>
 
+<!-- Include pending change orders alert if any exist -->
+@if (ViewBag.PendingChangeOrders != null)
+{
+  @await Html.PartialAsync("_PendingChangeOrdersAlert", (IEnumerable<InventorySystem.Models.ChangeOrder>)ViewBag.PendingChangeOrders)
+}
+
 <div class="row">
-	<div class="col-md-8">
-		<div class="card">
-			<div class="card-header d-flex justify-content-between align-items-center">
-				<h5>Item Information</h5>
-				<!-- Version Status Badge -->
-				@if (Model.IsCurrentVersion)
-				{
-					<span class="badge bg-success">Current Version</span>
-				}
-				else
-				{
-					<span class="badge bg-secondary">Historical Version</span>
-				}
-			</div>
-			<div class="card-body">
-				<dl class="row">
-					<dt class="col-sm-3">Description:</dt>
-					<dd class="col-sm-9">@Model.Description</dd>
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Item Information</h5>
+        <!-- Version Status Badge -->
+        @if (Model.IsCurrentVersion)
+        {
+          <span class="badge bg-success">Current Version</span>
+        }
+        else
+        {
+          <span class="badge bg-secondary">Historical Version</span>
+        }
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-3">Description:</dt>
+          <dd class="col-sm-9">@Model.Description</dd>
 
-					<!-- Version Information -->
-					<dt class="col-sm-3">Version:</dt>
-					<dd class="col-sm-9">
-						<strong>@Model.Version</strong>
-						@if (!Model.IsCurrentVersion)
-						{
-							<small class="text-muted">(Historical)</small>
-						}
-					</dd>
+          <!-- Version Information -->
+          <dt class="col-sm-3">Version:</dt>
+          <dd class="col-sm-9">
+            <strong>@Model.Version</strong>
+            @if (!Model.IsCurrentVersion)
+            {
+              <small class="text-muted">(Historical)</small>
+            }
+          </dd>
 
-					@if (Model.CreatedFromChangeOrder != null)
-					{
-						<dt class="col-sm-3">Change Order:</dt>
-						<dd class="col-sm-9">
-							<a href="/ChangeOrders/Details/@Model.CreatedFromChangeOrderId" class="text-decoration-none">
-								@Model.CreatedFromChangeOrder.ChangeOrderNumber
-							</a>
-						</dd>
-					}
+          @if (Model.CreatedFromChangeOrder != null)
+          {
+            <dt class="col-sm-3">Change Order:</dt>
+            <dd class="col-sm-9">
+              <a href="/ChangeOrders/Details/@Model.CreatedFromChangeOrderId" class="text-decoration-none">
+                @Model.CreatedFromChangeOrder.ChangeOrderNumber
+              </a>
+            </dd>
+          }
 
-					<dt class="col-sm-3">Current Stock:</dt>
-					<dd class="col-sm-9">
-						<span class="badge bg-@(Model.CurrentStock <= Model.MinimumStock ? "danger" : "success") fs-6">
-							@Model.CurrentStock units
-						</span>
-					</dd>
+          <dt class="col-sm-3">Current Stock:</dt>
+          <dd class="col-sm-9">
+            <span class="badge bg-@(Model.CurrentStock <= Model.MinimumStock ? "danger" : "success") fs-6">
+              @Model.CurrentStock
+            </span>
+            @if (Model.TrackInventory)
+            {
+              <small class="text-muted ms-2">(Min: @Model.MinimumStock)</small>
+            }
+          </dd>
 
-					<dt class="col-sm-3">Minimum Stock:</dt>
-					<dd class="col-sm-9">@Model.MinimumStock units</dd>
+          <dt class="col-sm-3">Item Type:</dt>
+          <dd class="col-sm-9">
+            <span class="badge bg-info">@Model.ItemTypeDisplayName</span>
+          </dd>
 
-					<dt class="col-sm-3">Average Cost:</dt>
-					<dd class="col-sm-9">$@averageCost.ToString("F2")</dd>
+          @if (Model.IsSellable)
+          {
+            <dt class="col-sm-3">Sellable:</dt>
+            <dd class="col-sm-9">
+              <span class="badge bg-success">Yes</span>
+            </dd>
+          }
 
-					<dt class="col-sm-3">FIFO Value:</dt>
-					<dd class="col-sm-9">$@fifoValue.ToString("F2")</dd>
+          @if (!string.IsNullOrEmpty(Model.VendorPartNumber))
+          {
+            <dt class="col-sm-3">Vendor Part #:</dt>
+            <dd class="col-sm-9">@Model.VendorPartNumber</dd>
+          }
 
-					@if (!string.IsNullOrEmpty(Model.Comments))
-					{
-						<dt class="col-sm-3">Comments:</dt>
-						<dd class="col-sm-9">@Model.Comments</dd>
-					}
+          @if (!string.IsNullOrEmpty(Model.PreferredVendor))
+          {
+            <dt class="col-sm-3">Preferred Vendor:</dt>
+            <dd class="col-sm-9">@Model.PreferredVendor</dd>
+          }
 
-					<dt class="col-sm-3">Created:</dt>
-					<dd class="col-sm-9">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
-				</dl>
-			</div>
-		</div>
+          <dt class="col-sm-3">Created:</dt>
+          <dd class="col-sm-9">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
 
-		<!-- Design Documents with Version Context -->
-		@if (Model.DesignDocuments != null && Model.DesignDocuments.Any())
-		{
-			<div class="card mt-4">
-				<div class="card-header d-flex justify-content-between align-items-center">
-					<h5><i class="fas fa-file"></i> Design Documents (@Model.DesignDocuments.Count)</h5>
-					<div>
-						<small class="text-muted me-2">For Version @Model.Version</small>
-						@if (Model.IsCurrentVersion)
-						{
-							<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
-								<i class="fas fa-plus"></i> Add Document
-							</a>
-						}
-						else
-						{
-							<span class="text-muted small">Historical - Read Only</span>
-						}
-					</div>
-				</div>
-				<div class="card-body">
-					<div class="table-responsive">
-						<table class="table table-sm">
-							<thead>
-								<tr>
-									<th>Name</th>
-									<th>Type</th>
-									<th>File</th>
-									<th>Size</th>
-									<th>Uploaded</th>
-									<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								@foreach (var doc in Model.DesignDocuments.OrderByDescending(d => d.UploadedDate))
-								{
-									<tr>
-										<td>
-											<strong>@doc.DocumentName</strong>
-											@if (!string.IsNullOrEmpty(doc.Description))
-											{
-												<br>
-												<small class="text-muted">@doc.Description</small>
-											}
-										</td>
-										<td>
-											<span class="badge bg-secondary">@doc.DocumentType</span>
-										</td>
-										<td>
-											@doc.FileName
-											<i class="@doc.FileTypeIcon" title="@doc.FileTypeDescription"></i>
-										</td>
-										<td>@doc.FileSizeFormatted</td>
-										<td>@doc.UploadedDate.ToString("MM/dd/yyyy")</td>
-										<td>
-											<div class="btn-group btn-group-sm">
-												@if (doc.IsPdf || doc.IsImage)
-												{
-													<a href="/Documents/View/@doc.Id" class="btn btn-outline-primary" title="View" target="_blank">
-														<i class="fas fa-eye"></i>
-													</a>
-												}
-												<a href="/Documents/Download/@doc.Id" class="btn btn-outline-success" title="Download">
-													<i class="fas fa-download"></i>
-												</a>
-												@if (Model.IsCurrentVersion)
-												{
-													<a href="/Documents/Delete/@doc.Id" class="btn btn-outline-danger" title="Delete">
-														<i class="fas fa-trash"></i>
-													</a>
-												}
-											</div>
-										</td>
-									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				</div>
-			</div>
-		}
-		else
-		{
-			<div class="card mt-4">
-				<div class="card-header d-flex justify-content-between align-items-center">
-					<h5><i class="fas fa-file"></i> Design Documents</h5>
-					@if (Model.IsCurrentVersion)
-					{
-						<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
-							<i class="fas fa-plus"></i> Add Document
-						</a>
-					}
-				</div>
-				<div class="card-body text-center">
-					<i class="fas fa-file fa-3x text-muted mb-3"></i>
-					<h5 class="text-muted">No Design Documents</h5>
-					<p class="text-muted">
-						@if (Model.IsCurrentVersion)
-						{
-							<span>Upload drawings, specifications, datasheets, and other design documents.</span>
-						}
-						else
-						{
-							<span>No documents were uploaded for Version @Model.Version</span>
-						}
-					</p>
-					@if (Model.IsCurrentVersion)
-					{
-						<a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-success">
-							<i class="fas fa-upload"></i> Upload First Document
-						</a>
-					}
-				</div>
-			</div>
-		}
+          @if (Model.TrackInventory)
+          {
+            <dt class="col-sm-3">Average Cost:</dt>
+            <dd class="col-sm-9">
+              <strong class="text-primary">@averageCost.ToString("C")</strong>
+            </dd>
 
-		<!-- Purchase History with Version Filtering -->
-		<div class="card mt-4">
-			<div class="card-header d-flex justify-content-between align-items-center">
-				<h5>Purchase History</h5>
-				@if (ViewBag.PurchasesByVersion != null)
-				{
-					<div class="dropdown">
-						<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-							<i class="fas fa-filter"></i> Filter by Version
-						</button>
-						<ul class="dropdown-menu">
-							<li><a class="dropdown-item" href="#" onclick="filterPurchasesByVersion('')">All Versions</a></li>
-							@foreach (var versionGroup in (Dictionary<string, IEnumerable<InventorySystem.Models.Purchase>>)ViewBag.PurchasesByVersion)
-							{
-								<li>
-									<a class="dropdown-item" href="#" onclick="filterPurchasesByVersion('@versionGroup.Key')">
-										Version @versionGroup.Key (@versionGroup.Value.Count())
-									</a>
-								</li>
-							}
-						</ul>
-					</div>
-				}
-			</div>
-			<div class="card-body">
-				@if (purchases.Any())
-				{
-					<div class="table-responsive">
-						<table class="table table-sm" id="purchaseTable">
-							<thead>
-								<tr>
-									<th>Date</th>
-									<th>Vendor</th>
-									<th>Version</th>
-									<th>Quantity</th>
-									<th>Cost/Unit</th>
-									<th>Total Cost</th>
-									<th>Remaining</th>
-									<th>PO#</th>
-								</tr>
-							</thead>
-							<tbody>
-								@foreach (var purchase in purchases)
-								{
-									<tr data-version="@(purchase.ItemVersion ?? "N/A")">
-										<td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
-										<td>@purchase.Vendor</td>
-										<td>
-											<span class="badge bg-@(purchase.ItemVersion == Model.Version ? "primary" : "secondary")">
-												@(purchase.ItemVersion ?? "N/A")
-											</span>
-										</td>
-										<td>@purchase.QuantityPurchased</td>
-										<td>$@purchase.CostPerUnit.ToString("F2")</td>
-										<td>$@purchase.TotalCost.ToString("F2")</td>
-										<td>@purchase.RemainingQuantity</td>
-										<td>@purchase.PurchaseOrderNumber</td>
-									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
-				else
-				{
-					<p class="text-muted">No purchase history available.</p>
-				}
-			</div>
-		</div>
-	</div>
+            <dt class="col-sm-3">FIFO Value:</dt>
+            <dd class="col-sm-9">
+              <strong class="text-success">@fifoValue.ToString("C")</strong>
+            </dd>
+          }
 
-	<div class="col-md-4">
-		<div class="card">
-			<div class="card-header d-flex justify-content-between align-items-center">
-				<h6><i class="fas fa-image"></i> Item Image</h6>
-				@if (Model.HasImage && Model.IsCurrentVersion)
-				{
-					<form asp-controller="Items" asp-action="RemoveImage" method="post" style="display: inline;">
-						<input type="hidden" name="id" value="@Model.Id" />
-						<button type="submit" class="btn btn-sm btn-outline-danger"
-										onclick="return confirm('Remove item image?')"
-										title="Remove Image">
-							<i class="fas fa-trash"></i>
-						</button>
-					</form>
-				}
-			</div>
-			<div class="card-body text-center">
-				@if (Model.HasImage)
-				{
-					<img src="/Items/GetImage/@Model.Id"
-							 alt="@Model.PartNumber"
-							 class="img-fluid border rounded"
-							 style="max-width: 100%; max-height: 300px; cursor: pointer;"
-							 onclick="showImageModal('@Model.PartNumber', '/Items/GetImage/@Model.Id')" />
-					<div class="mt-2">
-						<small class="text-muted">@Model.ImageFileName</small>
-					</div>
-				}
-				else
-				{
-					<div class="no-image-placeholder d-flex align-items-center justify-content-center"
-							 style="height: 200px; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
-						<div class="text-center">
-							<i class="fas fa-image fa-3x text-muted mb-2"></i>
-							<p class="text-muted">No image uploaded</p>
-						</div>
-					</div>
-				}
-			</div>
-		</div>
+          @if (!string.IsNullOrEmpty(Model.Comments))
+          {
+            <dt class="col-sm-3">Comments:</dt>
+            <dd class="col-sm-9">@Model.Comments</dd>
+          }
+        </dl>
+      </div>
+    </div>
 
-		<div class="card mt-3">
-			<div class="card-header">
-				<h6><i class="fas fa-chart-bar"></i> Quick Stats</h6>
-			</div>
-			<div class="card-body">
-				<div class="row text-center">
-					<div class="col-6">
-						<div class="border-end">
-							<h5 class="text-primary">@purchases.Count()</h5>
-							<small class="text-muted">Purchases</small>
-						</div>
-					</div>
-					<div class="col-6">
-						<h5 class="text-info">@Model.DesignDocuments.Count</h5>
-						<small class="text-muted">Documents</small>
-					</div>
-				</div>
-				<hr>
-				<div class="row text-center">
-					<div class="col-12">
-						<h6 class="text-success">$@fifoValue.ToString("F2")</h6>
-						<small class="text-muted">Current Inventory Value</small>
-					</div>
-				</div>
-			</div>
-		</div>
+    <!-- Design Documents Section -->
+    @if (Model.DesignDocuments?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-file-alt"></i> Design Documents (@Model.DesignDocuments.Count)</h5>
+          @if (Model.IsCurrentVersion)
+          {
+            <a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-plus"></i> Add Document
+            </a>
+          }
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            @foreach (var doc in Model.DesignDocuments)
+            {
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="mb-1">@doc.DocumentName</h6>
+                  <small class="text-muted">
+                    Uploaded: @doc.UploadedDate.ToString("MM/dd/yyyy") | Size: @doc.FileSizeFormatted
+                  </small>
+                  @if (!string.IsNullOrEmpty(doc.Description))
+                  {
+                    <br>
+                    <small class="text-muted">@doc.Description</small>
+                  }
+                </div>
+                <div class="btn-group btn-group-sm">
+                  <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" target="_blank">
+                    <i class="fas fa-download"></i> Download
+                  </a>
+                  @if (Model.IsCurrentVersion)
+                  {
+                    <form asp-controller="Documents" asp-action="Delete" method="post" style="display:inline;">
+                      <input type="hidden" name="id" value="@doc.Id" />
+                      <button type="submit" class="btn btn-outline-danger"
+                              onclick="return confirm('Delete this document?')"
+                              title="Delete Document">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+    else
+    {
+      <div class="card mt-4">
+        <div class="card-header">
+          <h6><i class="fas fa-file-alt"></i> Design Documents</h6>
+        </div>
+        <div class="card-body text-center">
+          <p class="text-muted mb-3">
+            @if (Model.IsCurrentVersion)
+            {
+              <span>No design documents have been uploaded for this item. Upload drawings, specifications, datasheets, and other design documents.</span>
+            }
+            else
+            {
+              <span>No documents were uploaded for Version @Model.Version</span>
+            }
+          </p>
+          @if (Model.IsCurrentVersion)
+          {
+            <a href="/Documents/Upload?itemId=@Model.Id" class="btn btn-outline-success">
+              <i class="fas fa-upload"></i> Upload First Document
+            </a>
+          }
+        </div>
+      </div>
+    }
 
-		<!-- Version History Card -->
-		@if (ViewBag.ItemVersions != null && ((IEnumerable<dynamic>)ViewBag.ItemVersions).Count() > 1)
-		{
-			<div class="card mt-3">
-				<div class="card-header">
-					<h6><i class="fas fa-history"></i> Version History</h6>
-				</div>
-				<div class="card-body">
-					<div class="list-group list-group-flush">
-						@foreach (var version in (IEnumerable<dynamic>)ViewBag.ItemVersions)
-						{
-							<div class="list-group-item d-flex justify-content-between align-items-center @(version.Version == Model.Version ? "active" : "")">
-								<div>
-									<strong>@version.Version</strong>
-									@if (version.IsCurrentVersion)
-									{
-										<span class="badge bg-success ms-2">Current</span>
-									}
-									<br>
-									<small class="text-muted">@version.CreatedDate.ToString("MM/dd/yyyy")</small>
-								</div>
-								@if (version.Version != Model.Version)
-								{
-									<a href="/Items/Details/@version.Id" class="btn btn-sm btn-outline-primary">View</a>
-								}
-							</div>
-						}
-					</div>
-				</div>
-			</div>
-		}
-	</div>
+    <!-- Purchase History with Version Filtering -->
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Purchase History</h5>
+        @if (ViewBag.PurchasesByVersion != null)
+        {
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-filter"></i> Filter by Version
+            </button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" onclick="filterPurchasesByVersion('')">All Versions</a></li>
+              @foreach (var versionGroup in (Dictionary<string, IEnumerable<InventorySystem.Models.Purchase>>)ViewBag.PurchasesByVersion)
+              {
+                <li>
+                  <a class="dropdown-item" href="#" onclick="filterPurchasesByVersion('@versionGroup.Key')">
+                    Version @versionGroup.Key (@versionGroup.Value.Count())
+                  </a>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+      <div class="card-body">
+        @if (purchases.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-sm" id="purchaseTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Vendor</th>
+                  <th>Version</th>
+                  <th>Quantity</th>
+                  <th>Cost/Unit</th>
+                  <th>Total Cost</th>
+                  <th>Remaining</th>
+                  <th>PO#</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var purchase in purchases)
+                {
+                  <tr data-version="@(purchase.ItemVersion ?? "N/A")">
+                    <td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
+                    <td>@purchase.Vendor</td>
+                    <td>
+                      <span class="badge bg-@(purchase.ItemVersion == Model.Version ? "primary" : "secondary")">
+                        @(purchase.ItemVersion ?? "N/A")
+                      </span>
+                    </td>
+                    <td>@purchase.QuantityPurchased</td>
+                    <td>$@purchase.CostPerUnit.ToString("F2")</td>
+                    <td>$@purchase.TotalCost.ToString("F2")</td>
+                    <td>@purchase.RemainingQuantity</td>
+                    <td>@purchase.PurchaseOrderNumber</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <p class="text-muted">No purchase history available.</p>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6><i class="fas fa-image"></i> Item Image</h6>
+        @if (Model.HasImage && Model.IsCurrentVersion)
+        {
+          <form asp-controller="Items" asp-action="RemoveImage" method="post" style="display: inline;">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <button type="submit" class="btn btn-sm btn-outline-danger"
+                    onclick="return confirm('Remove item image?')"
+                    title="Remove Image">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        }
+      </div>
+      <div class="card-body text-center">
+        @if (Model.HasImage)
+        {
+          <img src="/Items/GetImage/@Model.Id"
+               alt="@Model.PartNumber"
+               class="img-fluid border rounded"
+               style="max-width: 100%; max-height: 300px; cursor: pointer;"
+               onclick="showImageModal('@Model.PartNumber', '/Items/GetImage/@Model.Id')" />
+          <div class="mt-2">
+            <small class="text-muted">@Model.ImageFileName</small>
+          </div>
+        }
+        else
+        {
+          <div class="no-image-placeholder d-flex align-items-center justify-content-center"
+               style="height: 200px; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
+            <div class="text-center">
+              <i class="fas fa-image fa-3x text-muted mb-2"></i>
+              <p class="text-muted">No image uploaded</p>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-chart-bar"></i> Quick Stats</h6>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-6">
+            <div class="border-end">
+              <h5 class="text-primary">@purchases.Count()</h5>
+              <small class="text-muted">Purchases</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <h5 class="text-info">@Model.DesignDocuments.Count</h5>
+            <small class="text-muted">Documents</small>
+          </div>
+        </div>
+        <hr>
+        <div class="row text-center">
+          <div class="col-12">
+            <h6 class="text-success">@fifoValue.ToString("C")</h6>
+            <small class="text-muted">Current Inventory Value</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Version History Card -->
+    @if (ViewBag.ItemVersions != null && ((IEnumerable<dynamic>)ViewBag.ItemVersions).Count() > 1)
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h6><i class="fas fa-history"></i> Version History</h6>
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            @foreach (var version in (IEnumerable<dynamic>)ViewBag.ItemVersions)
+            {
+              <div class="list-group-item d-flex justify-content-between align-items-center @(version.Version == Model.Version ? "active" : "")">
+                <div>
+                  <strong>@version.Version</strong>
+                  @if (version.IsCurrentVersion)
+                  {
+                    <span class="badge bg-success ms-2">Current</span>
+                  }
+                  <br>
+                  <small class="text-muted">@version.CreatedDate.ToString("MM/dd/yyyy")</small>
+                </div>
+                @if (version.Version != Model.Version)
+                {
+                  <a href="/Items/Details/@version.Id" class="btn btn-sm btn-outline-primary">View</a>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
 </div>
 
 <div class="mt-3">
-	<a href="/Items" class="btn btn-secondary">Back to Items</a>
+  <a href="/Items" class="btn btn-secondary">Back to Items</a>
 </div>
 
 <!-- Image Modal -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="imageModalLabel">Item Image</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body text-center">
-				<img id="modalImage" src="#" alt="Item Image" class="img-fluid" />
-			</div>
-		</div>
-	</div>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalLabel">Item Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="modalImage" src="#" alt="Item Image" class="img-fluid" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pending Change Orders Modal -->
+<div class="modal fade" id="pendingChangeOrdersModal" tabindex="-1" aria-labelledby="pendingChangeOrdersModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title" id="pendingChangeOrdersModalLabel">
+          <i class="fas fa-exclamation-triangle"></i> Cannot Create Change Order
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" role="alert">
+          <p class="mb-3" id="pendingModalMessage">
+            <!-- Message will be populated by JavaScript -->
+          </p>
+        </div>
+
+        <h6><i class="fas fa-list"></i> Pending Change Orders:</h6>
+        <div id="pendingChangeOrdersList">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times"></i> Close
+        </button>
+        <button type="button" class="btn btn-primary" onclick="refreshPage()">
+          <i class="fas fa-refresh"></i> Refresh Page
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-	function showImageModal(partNumber, imageUrl) {
-		document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
-		document.getElementById('modalImage').src = imageUrl;
-		var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
-		imageModal.show();
-	}
+  function showImageModal(partNumber, imageUrl) {
+    document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
+    document.getElementById('modalImage').src = imageUrl;
+    var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    imageModal.show();
+  }
 
-	function filterPurchasesByVersion(version) {
-		const rows = document.querySelectorAll('#purchaseTable tbody tr');
-		rows.forEach(row => {
-			if (version === '' || row.dataset.version === version) {
-				row.style.display = '';
-			} else {
-				row.style.display = 'none';
-			}
-		});
-	}
+  function filterPurchasesByVersion(version) {
+    const rows = document.querySelectorAll('#purchaseTable tbody tr');
+    rows.forEach(row => {
+      if (version === '' || row.dataset.version === version) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
 
-	function showCreateVersionModal(entityType, entityId) {
-		console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
+  // Updated showCreateVersionModal function with proper error handling
+  function showCreateVersionModal(entityType, entityId) {
+    console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
 
-		// Load the change order modal
-		fetch(`/ChangeOrders/Create/${entityType}/${entityId}`)
-			.then(response => {
-				console.log(`Response status: ${response.status}`);
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-				return response.text();
-			})
-			.then(html => {
-				console.log('Modal HTML loaded successfully');
-				document.body.insertAdjacentHTML('beforeend', html);
-				const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
-				modal.show();
-			})
-			.catch(error => {
-				console.error('Error loading modal:', error);
-				alert('Error loading change order form: ' + error.message);
-			});
-	}
+    // Load the change order modal
+    fetch(`/ChangeOrders/Create/${entityType}/${entityId}`)
+      .then(response => {
+        console.log(`Response status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-	// Clean up modal when closed
-	document.addEventListener('hidden.bs.modal', function (event) {
-		if (event.target.id === 'changeOrderModal') {
-			event.target.remove();
-		}
-	});
+        // Check if the response is JSON (error response) or HTML (modal content)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          return response.json().then(data => {
+            throw new Error(JSON.stringify(data));
+          });
+        }
+
+        return response.text();
+      })
+      .then(html => {
+        console.log('Modal HTML loaded successfully');
+        document.body.insertAdjacentHTML('beforeend', html);
+        const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
+        modal.show();
+      })
+      .catch(error => {
+        console.error('Error loading modal:', error);
+
+        // Try to parse the error as JSON for validation errors
+        try {
+          const errorData = JSON.parse(error.message);
+          if (errorData.success === false) {
+            // Show the pending change orders modal instead of alert
+            showPendingChangeOrdersModal(errorData);
+            return;
+          }
+        } catch (e) {
+          // Not a JSON error, show generic error
+          console.error('Failed to parse error as JSON:', e);
+        }
+
+        alert('Error loading change order form: ' + error.message);
+      });
+  }
+
+  // Function to show pending change orders in a modal
+  function showPendingChangeOrdersModal(errorData) {
+    console.log('Showing pending change orders modal:', errorData);
+
+    // Set the message
+    document.getElementById('pendingModalMessage').textContent = errorData.message;
+
+    // Build the pending change orders list
+    let listHtml = '';
+    if (errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
+      errorData.pendingChangeOrders.forEach(co => {
+        listHtml += `
+          <div class="card border-warning mb-3">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-md-8">
+                  <h6 class="card-title mb-1">
+                    <strong>${co.changeOrderNumber}</strong>
+                    <span class="badge bg-warning text-dark ms-2">Version ${co.newVersion}</span>
+                  </h6>
+                  <p class="card-text mb-1">
+                    <small class="text-muted">
+                      Created by <strong>${co.createdBy}</strong> on ${co.createdDate}
+                    </small>
+                  </p>
+                </div>
+                <div class="col-md-4 text-end">
+                  <div class="btn-group-vertical btn-group-sm">
+                    <a href="/ChangeOrders/Details/${co.id}" class="btn btn-outline-info btn-sm" target="_blank">
+                      <i class="fas fa-eye"></i> View Details
+                    </a>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="implementChangeOrder(${co.id}, '${co.changeOrderNumber}')">
+                      <i class="fas fa-check"></i> Implement
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelChangeOrder(${co.id}, '${co.changeOrderNumber}')">
+                      <i class="fas fa-times"></i> Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    document.getElementById('pendingChangeOrdersList').innerHTML = listHtml;
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('pendingChangeOrdersModal'));
+    modal.show();
+  }
+
+  // Function to implement a change order via form submission
+  function implementChangeOrder(changeOrderId, changeOrderNumber) {
+    if (!confirm(`Are you sure you want to implement change order ${changeOrderNumber}? This will create the new version and cannot be undone.`)) {
+      return;
+    }
+
+    // Create a form and submit it
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/ChangeOrders/Implement/${changeOrderId}`;
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
+                     document.querySelector('meta[name="csrf-token"]')?.content;
+    if (csrfToken) {
+      const tokenInput = document.createElement('input');
+      tokenInput.type = 'hidden';
+      tokenInput.name = '__RequestVerificationToken';
+      tokenInput.value = csrfToken;
+      form.appendChild(tokenInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  // Function to cancel a change order via form submission
+  function cancelChangeOrder(changeOrderId, changeOrderNumber) {
+    if (!confirm(`Are you sure you want to cancel change order ${changeOrderNumber}? This action cannot be undone.`)) {
+      return;
+    }
+
+    // Create a form and submit it
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/ChangeOrders/Cancel/${changeOrderId}`;
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
+                     document.querySelector('meta[name="csrf-token"]')?.content;
+    if (csrfToken) {
+      const tokenInput = document.createElement('input');
+      tokenInput.type = 'hidden';
+      tokenInput.name = '__RequestVerificationToken';
+      tokenInput.value = csrfToken;
+      form.appendChild(tokenInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  function refreshPage() {
+    location.reload();
+  }
+
+  // Clean up modal when closed
+  document.addEventListener('hidden.bs.modal', function (event) {
+    if (event.target.id === 'changeOrderModal') {
+      event.target.remove();
+    }
+  });
+
+  // Debug: Add click event listener to test button functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('Item Details page loaded, checking for New Version button...');
+    const newVersionBtn = document.querySelector('button[onclick*="showCreateVersionModal"]');
+    if (newVersionBtn) {
+      console.log('Found New Version button:', newVersionBtn);
+    } else {
+      console.log('New Version button not found!');
+    }
+  });
 </script>
