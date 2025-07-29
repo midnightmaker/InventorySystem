@@ -130,6 +130,98 @@
       </div>
     </div>
 
+    <!-- BOM Documents Section -->
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>
+          <button class="btn btn-link text-decoration-none p-0 border-0 text-start" 
+                  type="button" 
+                  data-bs-toggle="collapse" 
+                  data-bs-target="#bomDocumentsCollapse" 
+                  aria-expanded="true" 
+                  aria-controls="bomDocumentsCollapse">
+            <i class="fas fa-file-alt"></i> BOM Documents (@(Model.DocumentCount))
+            <i class="fas fa-chevron-down ms-2 collapse-icon"></i>
+          </button>
+        </h5>
+        @if (Model.IsCurrentVersion)
+        {
+          <a href="/Documents/UploadBom?bomId=@Model.Id" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-plus"></i> Add Document
+          </a>
+        }
+      </div>
+      <div class="collapse show" id="bomDocumentsCollapse">
+        <div class="card-body">
+          @if (Model.HasDocuments)
+          {
+            <div class="list-group list-group-flush">
+              @foreach (var doc in Model.Documents.OrderBy(d => d.DocumentType).ThenBy(d => d.DocumentName))
+              {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <div class="d-flex align-items-center">
+                    <i class="@doc.FileTypeIcon fa-2x me-3"></i>
+                    <div>
+                      <h6 class="mb-1">@doc.DocumentName</h6>
+                      <small class="text-muted">
+                        <strong>Type:</strong> @doc.DocumentType<br>
+                        <strong>File:</strong> @doc.FileName (@doc.FileSizeFormatted)<br>
+                        <strong>Uploaded:</strong> @doc.UploadedDate.ToString("MM/dd/yyyy HH:mm")
+                      </small>
+                      @if (!string.IsNullOrEmpty(doc.Description))
+                      {
+                        <br>
+                        <small class="text-muted"><strong>Description:</strong> @doc.Description</small>
+                      }
+                    </div>
+                  </div>
+                  <div class="btn-group btn-group-sm">
+                    <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" target="_blank" title="Download">
+                      <i class="fas fa-download"></i>
+                    </a>
+                    @if (Model.IsCurrentVersion)
+                    {
+                      <form asp-controller="Documents" asp-action="DeleteBom" method="post" style="display:inline;">
+                        <input type="hidden" name="id" value="@doc.Id" />
+                        <button type="submit" class="btn btn-outline-danger"
+                                onclick="return confirm('Delete this document? This action cannot be undone.')"
+                                title="Delete Document">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </form>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          else
+          {
+            <div class="text-center py-4">
+              <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+              <h6 class="text-muted">No Documents Uploaded</h6>
+              <p class="text-muted">
+                @if (Model.IsCurrentVersion)
+                {
+                  <span>Upload assembly drawings, schematics, instructions, or other documents related to this BOM.</span>
+                }
+                else
+                {
+                  <span>No documents were uploaded for this BOM version.</span>
+                }
+              </p>
+              @if (Model.IsCurrentVersion)
+              {
+                <a href="/Documents/UploadBom?bomId=@Model.Id" class="btn btn-outline-success">
+                  <i class="fas fa-upload"></i> Upload First Document
+                </a>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
     <!-- Components Section with Version Context -->
     @if (Model.BomItems?.Any() == true)
     {

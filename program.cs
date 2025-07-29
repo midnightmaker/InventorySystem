@@ -5,10 +5,30 @@ using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure logging to include console output in debug window
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug(); // This adds output to Visual Studio's Debug Output window
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+
+// In development, also add detailed logging
+if (builder.Environment.IsDevelopment())
+{
+    builder.Logging.SetMinimumLevel(LogLevel.Debug);
+    // Enable Entity Framework query logging
+    builder.Services.AddDbContext<InventoryContext>(options =>
+        options.UseSqlite("Data Source=inventory.db")
+               .EnableSensitiveDataLogging()
+               .LogTo(Console.WriteLine, LogLevel.Information));
+}
+else
+{
+    builder.Services.AddDbContext<InventoryContext>(options =>
+        options.UseSqlite("Data Source=inventory.db"));
+}
+
 // Add services to the container
 builder.Services.AddControllersWithViews();
-builder.Services.AddDbContext<InventoryContext>(options =>
-    options.UseSqlite("Data Source=inventory.db"));
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IBomService, BomService>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
@@ -52,12 +72,12 @@ using (var scope = app.Services.CreateScope())
   try
   {
     context.Database.EnsureCreated();
-    // If you're using migrations, use this instead:
-    // context.Database.Migrate();
     
-    // Test service registration here instead (after app is built)
-    var versionService = scope.ServiceProvider.GetService<IVersionControlService>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Application started successfully");
+    
+    // Test service registration
+    var versionService = scope.ServiceProvider.GetService<IVersionControlService>();
     logger.LogInformation($"VersionControlService registered: {versionService != null}");
   }
   catch (Exception ex)

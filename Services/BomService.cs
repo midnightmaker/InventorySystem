@@ -78,6 +78,9 @@ namespace InventorySystem.Services
           .Include(b => b.SubAssemblies)
               .ThenInclude(sa => sa.BomItems)
                   .ThenInclude(bi => bi.Item)
+          .Include(b => b.Documents) // Add this line to include Documents
+          .Include(b => b.ParentBom)
+          .Include(b => b.CreatedFromChangeOrder)
           .FirstOrDefaultAsync(b => b.Id == id);
     }
 

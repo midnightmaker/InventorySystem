@@ -32,14 +32,26 @@ namespace InventorySystem.Controllers
         
         public async Task<IActionResult> Details(int id)
         {
-            var bom = await _bomService.GetBomByIdAsync(id);
+            var bom = await _bomService.GetBomByIdAsync(id); // Use existing method from IBomService
+
             if (bom == null) return NotFound();
-            
+
             ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
+
             // Check for pending change orders  
             var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("BOM", bom.BaseBomId ?? bom.Id);
             ViewBag.PendingChangeOrders = pendingChangeOrders;
             ViewBag.EntityType = "BOM";
+
+            // Add BOM versions for the version dropdown
+            var bomVersions = await _versionService.GetBomVersionsAsync(bom.BaseBomId ?? bom.Id);
+            ViewBag.BomVersions = bomVersions.Select(v => new {
+                Id = v.Id,
+                Version = v.Version,
+                IsCurrentVersion = v.IsCurrentVersion,
+                CreatedDate = v.CreatedDate
+            });
+
             return View(bom);
         }
         
@@ -143,7 +155,7 @@ namespace InventorySystem.Controllers
     // Optional: Add a method to update BOM item quantities inline (if you want this feature later)
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateBomItemQuantity(int bomItemId, int newQuantity, int bomId)
+    public IActionResult UpdateBomItemQuantity(int bomItemId, int newQuantity, int bomId)
     {
       try
       {
@@ -348,6 +360,17 @@ namespace InventorySystem.Controllers
       {
         return Json(new { success = false, error = ex.Message });
       }
+    }
+
+    // Add this method to the BomsController to help with BOM document upload
+    [HttpGet]
+    public async Task<IActionResult> UploadDocument(int id)
+    {
+        var bom = await _bomService.GetBomByIdAsync(id);
+        if (bom == null) return NotFound();
+
+        // Redirect to Documents controller with proper BOM ID
+        return RedirectToAction("UploadBom", "Documents", new { bomId = id });
     }
   }
 }

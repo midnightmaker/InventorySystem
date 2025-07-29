@@ -188,30 +188,35 @@
         </div>
         <div class="card-body">
           <div class="list-group list-group-flush">
-            @foreach (var doc in Model.DesignDocuments)
+            @foreach (var doc in Model.DesignDocuments.OrderBy(d => d.DocumentType).ThenBy(d => d.DocumentName))
             {
               <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="mb-1">@doc.DocumentName</h6>
-                  <small class="text-muted">
-                    Uploaded: @doc.UploadedDate.ToString("MM/dd/yyyy") | Size: @doc.FileSizeFormatted
-                  </small>
-                  @if (!string.IsNullOrEmpty(doc.Description))
-                  {
-                    <br>
-                    <small class="text-muted">@doc.Description</small>
-                  }
+                <div class="d-flex align-items-center">
+                  <i class="@doc.FileTypeIcon fa-2x me-3"></i>
+                  <div>
+                    <h6 class="mb-1">@doc.DocumentName</h6>
+                    <small class="text-muted">
+                      <strong>Type:</strong> @doc.DocumentType<br>
+                      <strong>File:</strong> @doc.FileName (@doc.FileSizeFormatted)<br>
+                      <strong>Uploaded:</strong> @doc.UploadedDate.ToString("MM/dd/yyyy HH:mm")
+                    </small>
+                    @if (!string.IsNullOrEmpty(doc.Description))
+                    {
+                      <br>
+                      <small class="text-muted"><strong>Description:</strong> @doc.Description</small>
+                    }
+                  </div>
                 </div>
                 <div class="btn-group btn-group-sm">
-                  <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" target="_blank">
-                    <i class="fas fa-download"></i> Download
+                  <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" target="_blank" title="Download">
+                    <i class="fas fa-download"></i>
                   </a>
                   @if (Model.IsCurrentVersion)
                   {
                     <form asp-controller="Documents" asp-action="Delete" method="post" style="display:inline;">
                       <input type="hidden" name="id" value="@doc.Id" />
                       <button type="submit" class="btn btn-outline-danger"
-                              onclick="return confirm('Delete this document?')"
+                              onclick="return confirm('Delete this document? This action cannot be undone.')"
                               title="Delete Document">
                         <i class="fas fa-trash"></i>
                       </button>
@@ -231,10 +236,12 @@
           <h6><i class="fas fa-file-alt"></i> Design Documents</h6>
         </div>
         <div class="card-body text-center">
-          <p class="text-muted mb-3">
+          <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+          <h6 class="text-muted">No Documents Uploaded</h6>
+          <p class="text-muted">
             @if (Model.IsCurrentVersion)
             {
-              <span>No design documents have been uploaded for this item. Upload drawings, specifications, datasheets, and other design documents.</span>
+              <span>Upload drawings, specifications, datasheets, and other design documents related to this item.</span>
             }
             else
             {

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InventorySystem.Models
 {
@@ -23,6 +24,9 @@ namespace InventorySystem.Models
     // Navigation properties
     public virtual ICollection<BomItem> BomItems { get; set; } = new List<BomItem>();
 
+    // NEW: Documents navigation property (reusing ItemDocument)
+    public virtual ICollection<ItemDocument> Documents { get; set; } = new List<ItemDocument>();
+
     // For hierarchical BOMs (up to 3 levels as requested)
     public int? ParentBomId { get; set; }
     public virtual Bom? ParentBom { get; set; }
@@ -40,5 +44,12 @@ namespace InventorySystem.Models
     // Helper properties
     public string VersionedName => $"{BomNumber} {Version}";
     public int VersionCount => Versions?.Count ?? 0;
+
+    // NEW: Document helper properties
+    [NotMapped]
+    public bool HasDocuments => Documents?.Any() == true;
+
+    [NotMapped]
+    public int DocumentCount => Documents?.Count ?? 0;
   }
 }

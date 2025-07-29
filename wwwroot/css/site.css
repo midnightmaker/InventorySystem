@@ -1,0 +1,16 @@
+/* Collapsible card styling */
+.collapse-icon {
+  transition: transform 0.3s ease;
+}
+
+.collapsed .collapse-icon {
+  transform: rotate(-90deg);
+}
+
+.btn-link:hover {
+  text-decoration: none !important;
+}
+
+.btn-link:focus {
+  box-shadow: none;
+}

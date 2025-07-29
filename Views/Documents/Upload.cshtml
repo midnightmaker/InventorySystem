@@ -1,326 +1,35 @@
 @model InventorySystem.ViewModels.DocumentUploadViewModel
 @{
-    ViewData["Title"] = "Upload Document";
+    ViewData["Title"] = $"Upload Document - {Model.EntityType}";
+    var entityDisplayName = Model.EntityType == "Item" ? "Item" : "BOM";
+    var entityNumber = Model.ItemPartNumber; // Used for both Items and BOMs
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-upload"></i> Upload Document</h1>
-    <a href="/Items/Details/@Model.ItemId" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left"></i> Back to Item
-    </a>
-</div>
-
-<div class="row">
+<div class="row justify-content-center">
     <div class="col-md-8">
-        <form asp-action="Upload" enctype="multipart/form-data">
-            @Html.HiddenFor(model => model.ItemId)
-            @Html.HiddenFor(model => model.ItemPartNumber)
-            @Html.HiddenFor(model => model.ItemDescription)
-            
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-info-circle"></i> Item Information</h5>
-                </div>
-                <div class="card-body">
-                    <dl class="row">
-                        <dt class="col-sm-3">Part Number:</dt>
-                        <dd class="col-sm-9"><strong>@Model.ItemPartNumber</strong></dd>
-                        
-                        <dt class="col-sm-3">Description:</dt>
-                        <dd class="col-sm-9">@Model.ItemDescription</dd>
-                    </dl>
-                </div>
-            </div>
-            
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5><i class="fas fa-file"></i> Document Details</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label asp-for="DocumentName" class="form-label"></label>
-                                <input asp-for="DocumentName" class="form-control" placeholder="e.g., Mechanical Drawing Rev A" />
-                                <span asp-validation-for="DocumentName" class="text-danger"></span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label asp-for="DocumentType" class="form-label"></label>
-                                <select asp-for="DocumentType" class="form-select" id="documentType">
-                                    <option value="">Select document type...</option>
-                                    @foreach (var docType in InventorySystem.ViewModels.DocumentUploadViewModel.DocumentTypes)
-                                    {
-                                        <option value="@docType">@docType</option>
-                                    }
-                                </select>
-                                <span asp-validation-for="DocumentType" class="text-danger"></span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label asp-for="Description" class="form-label"></label>
-                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Optional description of the document content and purpose"></textarea>
-                        <span asp-validation-for="Description" class="text-danger"></span>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label asp-for="DocumentFile" class="form-label"></label>
-                        <input asp-for="DocumentFile" class="form-control" type="file" id="documentFile" />
-                        <span asp-validation-for="DocumentFile" class="text-danger"></span>
-                        <div class="form-text">
-                            Supported formats: @Model.AllowedFileTypesDisplay (Max size: @Model.MaxFileSizeDisplay)
-                        </div>
-                    </div>
-                    
-                    <!-- File info display -->
-                    <div id="fileInfo" style="display: none;" class="mt-3">
-                        <div class="alert alert-info">
-                            <h6><i class="fas fa-file"></i> Selected File Information</h6>
-                            <div id="fileDetails"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary" id="uploadButton">
-                    <i class="fas fa-upload"></i> Upload Document
-                </button>
-                <a href="/Items/Details/@Model.ItemId" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
-    </div>
-    
-    <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h6><i class="fas fa-info-circle"></i> Document Types</h6>
+                <h4><i class="fas fa-upload"></i> Upload Document for @entityDisplayName @entityNumber</h4>
+                <p class="mb-0 text-muted">@Model.ItemDescription</p>
             </div>
             <div class="card-body">
-                <div class="row small">
-                    <div class="col-12">
-                        <ul class="list-unstyled">
-                            <li><strong>Drawing:</strong> Technical drawings, blueprints</li>
-                            <li><strong>Specification:</strong> Technical specifications</li>
-                            <li><strong>Manual:</strong> User manuals, instructions</li>
-                            <li><strong>Datasheet:</strong> Component datasheets</li>
-                            <li><strong>Certificate:</strong> Quality certificates</li>
-                            <li><strong>Test Report:</strong> Test results</li>
-                            <li><strong>Assembly Instructions:</strong> Build guides</li>
-                            <li><strong>CAD File:</strong> 2D CAD drawings</li>
-                            <li><strong>3D Model:</strong> 3D CAD models</li>
-                            <li><strong>Schematic:</strong> Electrical schematics</li>
-                            <li><strong>Layout:</strong> PCB layouts</li>
-                            <li><strong>Photo:</strong> Component photos</li>
-                            <li><strong>Reference:</strong> Reference materials</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6><i class="fas fa-file-alt"></i> Supported Formats</h6>
-            </div>
-            <div class="card-body">
-                <div class="small">
-                    <div class="mb-2">
-                        <strong>Documents:</strong>
-                        <br>PDF, Word, Excel, PowerPoint, Text files
-                    </div>
-                    <div class="mb-2">
-                        <strong>Images:</strong>
-                        <br>JPG, PNG, GIF, BMP, TIFF, SVG
-                    </div>
-                    <div class="mb-2">
-                        <strong>CAD Files:</strong>
-                        <br>• AutoCAD: DWG, DXF
-                        <br>• 3D Models: STEP (.step, .stp)
-                        <br>• 3D Models: IGES (.iges, .igs)
-                    </div>
-                    <div>
-                        <strong>Maximum Size:</strong> 50 MB
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6><i class="fas fa-lightbulb"></i> CAD File Guidelines</h6>
-            </div>
-            <div class="card-body">
-                <ul class="list-unstyled small">
-                    <li><i class="fas fa-cube text-primary"></i> <strong>STEP:</strong> Universal 3D format</li>
-                    <li><i class="fas fa-cubes text-info"></i> <strong>IGES:</strong> Legacy 3D format</li>
-                    <li><i class="fas fa-drafting-compass text-purple"></i> <strong>DWG/DXF:</strong> 2D drawings</li>
-                    <li><i class="fas fa-check text-success"></i> Include version info in names</li>
-                    <li><i class="fas fa-check text-success"></i> Use "3D Model" type for STEP/IGES</li>
-                    <li><i class="fas fa-check text-success"></i> Use "CAD File" type for DWG/DXF</li>
-                </ul>
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6><i class="fas fa-industry"></i> Industry Standards</h6>
-            </div>
-            <div class="card-body">
-                <ul class="list-unstyled small">
-                    <li><strong>STEP (.step, .stp):</strong> ISO 10303 standard for 3D data exchange</li>
-                    <li><strong>IGES (.iges, .igs):</strong> Initial Graphics Exchange Specification</li>
-                    <li><strong>DWG:</strong> AutoCAD native format</li>
-                    <li><strong>DXF:</strong> Drawing Exchange Format</li>
-                </ul>
+                @if (Model.EntityType == "BOM")
+                {
+                    <form asp-action="UploadBom" method="post" enctype="multipart/form-data">
+                        <input asp-for="BomId" type="hidden" />
+                        <input asp-for="EntityType" type="hidden" />
+                        @await Html.PartialAsync("_DocumentUploadForm", Model)
+                    </form>
+                }
+                else
+                {
+                    <form asp-action="Upload" method="post" enctype="multipart/form-data">
+                        <input asp-for="ItemId" type="hidden" />
+                        <input asp-for="EntityType" type="hidden" />
+                        @await Html.PartialAsync("_DocumentUploadForm", Model)
+                    </form>
+                }
             </div>
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const documentFileInput = document.getElementById('documentFile');
-    const fileInfo = document.getElementById('fileInfo');
-    const fileDetails = document.getElementById('fileDetails');
-    const uploadButton = document.getElementById('uploadButton');
-    const documentTypeSelect = document.getElementById('documentType');
-    const documentNameInput = document.querySelector('input[name="DocumentName"]');
-    
-    // Handle file selection
-    documentFileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            // Display file information
-            const fileSize = formatFileSize(file.size);
-            const fileType = getFileTypeDescription(file.type, file.name);
-            
-            fileDetails.innerHTML = `
-                <div class="row">
-                    <div class="col-sm-4"><strong>Name:</strong></div>
-                    <div class="col-sm-8">${file.name}</div>
-                </div>
-                <div class="row">
-                    <div class="col-sm-4"><strong>Type:</strong></div>
-                    <div class="col-sm-8">${fileType}</div>
-                </div>
-                <div class="row">
-                    <div class="col-sm-4"><strong>Size:</strong></div>
-                    <div class="col-sm-8">${fileSize}</div>
-                </div>
-            `;
-            
-            fileInfo.style.display = 'block';
-            
-            // Auto-suggest document name from filename
-            if (!documentNameInput.value) {
-                const baseName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
-                documentNameInput.value = baseName;
-            }
-            
-            // Auto-suggest document type based on file extension
-            autoSuggestDocumentType(file.name);
-            
-            // Validate file size
-            if (file.size > 50 * 1024 * 1024) { // 50MB
-                fileDetails.innerHTML += `
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="alert alert-danger mt-2 mb-0">
-                                <i class="fas fa-exclamation-triangle"></i> File size exceeds 50MB limit!
-                            </div>
-                        </div>
-                    </div>
-                `;
-                uploadButton.disabled = true;
-            } else {
-                uploadButton.disabled = false;
-            }
-        } else {
-            fileInfo.style.display = 'none';
-            uploadButton.disabled = false;
-        }
-    });
-    
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-    
-    function getFileTypeDescription(mimeType, fileName) {
-        const extension = fileName.split('.').pop().toLowerCase();
-        
-        if (mimeType.startsWith('image/')) return 'Image';
-        if (mimeType === 'application/pdf') return 'PDF Document';
-        if (mimeType.includes('word')) return 'Word Document';
-        if (mimeType.includes('excel')) return 'Excel Spreadsheet';
-        if (mimeType.includes('powerpoint')) return 'PowerPoint Presentation';
-        
-        // Enhanced CAD file detection
-        switch (extension) {
-            case 'dwg': return 'AutoCAD Drawing';
-            case 'dxf': return 'CAD Exchange File';
-            case 'step':
-            case 'stp': return 'STEP 3D Model';
-            case 'iges':
-            case 'igs': return 'IGES 3D Model';
-        }
-        
-        if (mimeType === 'text/plain') return 'Text File';
-        
-        return mimeType || 'Unknown';
-    }
-    
-    function autoSuggestDocumentType(fileName) {
-        const extension = fileName.split('.').pop().toLowerCase();
-        const currentValue = documentTypeSelect.value;
-        
-        if (currentValue) return; // Don't override user selection
-        
-        switch (extension) {
-            case 'pdf':
-                if (fileName.toLowerCase().includes('drawing') || fileName.toLowerCase().includes('dwg')) {
-                    documentTypeSelect.value = 'Drawing';
-                } else if (fileName.toLowerCase().includes('spec')) {
-                    documentTypeSelect.value = 'Specification';
-                } else if (fileName.toLowerCase().includes('manual')) {
-                    documentTypeSelect.value = 'Manual';
-                } else if (fileName.toLowerCase().includes('datasheet')) {
-                    documentTypeSelect.value = 'Datasheet';
-                }
-                break;
-            case 'dwg':
-            case 'dxf':
-                documentTypeSelect.value = 'CAD File';
-                break;
-            case 'step':
-            case 'stp':
-            case 'iges':
-            case 'igs':
-                documentTypeSelect.value = '3D Model';
-                break;
-            case 'jpg':
-            case 'jpeg':
-            case 'png':
-            case 'gif':
-            case 'bmp':
-                documentTypeSelect.value = 'Photo';
-                break;
-            case 'doc':
-            case 'docx':
-                documentTypeSelect.value = 'Manual';
-                break;
-            case 'xls':
-            case 'xlsx':
-                documentTypeSelect.value = 'Test Report';
-                break;
-        }
-    }
-});
-</script>

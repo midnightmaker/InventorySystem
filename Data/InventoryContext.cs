@@ -278,6 +278,34 @@ namespace InventorySystem.Data
         entity.Property(cod => cod.Description)
               .HasMaxLength(1000);
       });
+
+      // ItemDocument configuration - Updated to support both Items and BOMs
+      modelBuilder.Entity<ItemDocument>(entity =>
+      {
+          entity.HasKey(e => e.Id);
+          entity.Property(e => e.DocumentName).HasMaxLength(255).IsRequired();
+          entity.Property(e => e.DocumentType).HasMaxLength(100);
+          entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
+          entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
+          entity.Property(e => e.Description).HasMaxLength(1000);
+          
+          // Configure relationships
+          entity.HasOne(d => d.Item)
+                .WithMany(i => i.DesignDocuments)
+                .HasForeignKey(d => d.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+          // NEW: Add BOM relationship
+          entity.HasOne(d => d.Bom)
+                .WithMany(b => b.Documents)
+                .HasForeignKey(d => d.BomId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+          // Add constraint to ensure document belongs to either Item OR BOM, not both
+          entity.HasCheckConstraint("CK_ItemDocument_ItemOrBom", 
+              "(ItemId IS NOT NULL AND BomId IS NULL) OR (ItemId IS NULL AND BomId IS NOT NULL)");
+      });
+
       // Ensure SaleItem has either ItemId or FinishedGoodId, but not both
       modelBuilder.Entity<SaleItem>()
           .HasCheckConstraint("CK_SaleItem_ItemOrFinishedGood",

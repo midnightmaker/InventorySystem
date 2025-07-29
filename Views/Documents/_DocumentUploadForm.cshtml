@@ -1,0 +1,144 @@
+@model InventorySystem.ViewModels.DocumentUploadViewModel
+
+<!-- Add client-side logging for debugging -->
+<script>
+console.log('Document upload form loaded');
+console.log('EntityType:', '@Model.EntityType');
+console.log('BomId:', @Model.BomId);
+console.log('ItemId:', @Model.ItemId);
+</script>
+
+<div class="mb-3">
+    <label class="form-label" for="DocumentFile">Select File *</label>
+    <input asp-for="DocumentFile" class="form-control" required
+           accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.dxf,.step,.stp,.iges,.igs,.txt,.rtf"
+           onchange="handleFileChange(this)">
+    <div class="form-text">
+        <strong>Allowed file types:</strong> PDF, Office documents, Images, CAD files (DWG, DXF, STEP, IGES)<br>
+        <strong>Maximum file size:</strong> 50MB
+    </div>
+    <span asp-validation-for="DocumentFile" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="DocumentName" class="form-label"></label>
+    <input asp-for="DocumentName" class="form-control" placeholder="Enter document name" required />
+    <span asp-validation-for="DocumentName" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="DocumentType" class="form-label"></label>
+    <select asp-for="DocumentType" class="form-select" required>
+        <option value="">Select document type</option>
+        @if (Model.DocumentTypes != null)
+        {
+            @foreach (var docType in Model.DocumentTypes)
+            {
+                <option value="@docType">@docType</option>
+            }
+        }
+        else
+        {
+            <!-- Fallback options if DocumentTypes is null -->
+            <option value="Assembly Drawing">Assembly Drawing</option>
+            <option value="Schematic">Schematic</option>
+            <option value="Parts List">Parts List</option>
+            <option value="Assembly Instructions">Assembly Instructions</option>
+            <option value="CAD File">CAD File</option>
+            <option value="Specification">Specification</option>
+            <option value="Other">Other</option>
+        }
+    </select>
+    <span asp-validation-for="DocumentType" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Description" class="form-label"></label>
+    <textarea asp-for="Description" class="form-control" rows="3" 
+              placeholder="Optional description of the document"></textarea>
+    <span asp-validation-for="Description" class="text-danger"></span>
+</div>
+
+<div class="d-flex justify-content-between">
+    @if (Model.EntityType == "BOM")
+    {
+        <a href="/Boms/Details/@Model.BomId" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to BOM
+        </a>
+    }
+    else
+    {
+        <a href="/Items/Details/@Model.ItemId" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Item
+        </a>
+    }
+    <button type="submit" class="btn btn-primary" onclick="handleSubmit(event)">
+        <i class="fas fa-upload"></i> Upload Document
+    </button>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        function handleFileChange(input) {
+            console.log('File selected:', input.files[0]);
+            const documentNameInput = document.getElementById('DocumentName');
+            
+            if (input.files.length > 0 && !documentNameInput.value) {
+                const fileName = input.files[0].name;
+                const nameWithoutExtension = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+                documentNameInput.value = nameWithoutExtension;
+                console.log('Auto-filled document name:', nameWithoutExtension);
+            }
+        }
+        
+        function handleSubmit(event) {
+            console.log('Form submit clicked');
+            const form = event.target.form;
+            const formData = new FormData(form);
+            
+            console.log('Form data:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key, value);
+            }
+            
+            // Check required fields
+            const documentName = document.getElementById('DocumentName').value;
+            const documentType = document.getElementById('DocumentType').value;
+            const documentFile = document.getElementById('DocumentFile').files[0];
+            
+            console.log('Validation check:');
+            console.log('Document Name:', documentName);
+            console.log('Document Type:', documentType);
+            console.log('Document File:', documentFile);
+            
+            if (!documentName || !documentType || !documentFile) {
+                console.log('Validation failed - missing required fields');
+                event.preventDefault();
+                return false;
+            }
+            
+            console.log('Form validation passed, submitting...');
+            return true;
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Document upload form scripts loaded');
+            
+            // Log all form elements
+            const form = document.querySelector('form');
+            if (form) {
+                console.log('Form found:', form);
+                console.log('Form action:', form.action);
+                console.log('Form method:', form.method);
+                
+                form.addEventListener('submit', function(e) {
+                    console.log('Form submit event triggered');
+                });
+            } else {
+                console.log('Form not found!');
+            }
+        });
+    </script>
+}

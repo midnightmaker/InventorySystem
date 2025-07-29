@@ -11,11 +11,13 @@ namespace InventorySystem.Controllers
   {
     private readonly InventoryContext _context;
     private readonly IInventoryService _inventoryService;
+    private readonly ILogger<DocumentsController> _logger; // Add logger
 
-    public DocumentsController(InventoryContext context, IInventoryService inventoryService)
+    public DocumentsController(InventoryContext context, IInventoryService inventoryService, ILogger<DocumentsController> logger)
     {
       _context = context;
       _inventoryService = inventoryService;
+      _logger = logger; // Initialize logger
     }
 
     [HttpGet]
@@ -302,5 +304,246 @@ namespace InventorySystem.Controllers
 
     // Test this by navigating to: /Documents/Test
     // You should see JSON response if the controller is working
+
+    [HttpGet]
+    public async Task<IActionResult> UploadBom(int bomId)
+    {
+      // Use logger instead of Console.WriteLine
+      _logger.LogInformation("UploadBom GET called with bomId: {BomId}", bomId);
+      
+      var bom = await _context.Boms.FindAsync(bomId);
+      if (bom == null)
+      {
+          _logger.LogWarning("BOM not found for id: {BomId}", bomId);
+          return NotFound();
+      }
+
+      var viewModel = new DocumentUploadViewModel
+      {
+        BomId = bomId,
+        EntityType = "BOM",
+        ItemPartNumber = bom.BomNumber,
+        ItemDescription = bom.Description,
+        DocumentName = string.Empty,
+        DocumentType = string.Empty
+      };
+
+      _logger.LogInformation("Returning view with BomId: {BomId}, EntityType: {EntityType}", viewModel.BomId, viewModel.EntityType);
+      return View("Upload", viewModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadBom(DocumentUploadViewModel viewModel)
+    {
+      // Use structured logging instead of Console.WriteLine
+      _logger.LogInformation("=== UPLOAD BOM POST START ===");
+      _logger.LogInformation("BomId: {BomId}", viewModel.BomId);
+      _logger.LogInformation("EntityType: {EntityType}", viewModel.EntityType);
+      _logger.LogInformation("DocumentName: {DocumentName}", viewModel.DocumentName);
+      _logger.LogInformation("DocumentType: {DocumentType}", viewModel.DocumentType);
+      _logger.LogInformation("File provided: {FileProvided}", viewModel.DocumentFile != null);
+      
+      if (viewModel.DocumentFile != null)
+      {
+        _logger.LogInformation("File name: {FileName}", viewModel.DocumentFile.FileName);
+        _logger.LogInformation("File size: {FileSize}", viewModel.DocumentFile.Length);
+        _logger.LogInformation("Content type: {ContentType}", viewModel.DocumentFile.ContentType);
+      }
+      
+      _logger.LogInformation("ModelState.IsValid: {IsValid}", ModelState.IsValid);
+      
+      // Log validation errors with more detail
+      if (!ModelState.IsValid)
+      {
+        _logger.LogWarning("=== VALIDATION ERRORS ===");
+        foreach (var error in ModelState)
+        {
+            if (error.Value.Errors.Any())
+            {
+                _logger.LogWarning("Validation error for {Key}: {Errors}", 
+                    error.Key, 
+                    string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage)));
+            }
+        }
+      }
+      
+      // Ensure entity type is set
+      viewModel.EntityType = "BOM";
+      
+      // Remove validation for fields that might be causing issues
+      ModelState.Remove("ItemId");
+      ModelState.Remove("ItemPartNumber");
+      ModelState.Remove("ItemDescription");
+      
+      if (ModelState.IsValid)
+      {
+        var bom = await _context.Boms.FindAsync(viewModel.BomId);
+        if (bom == null) 
+        {
+            _logger.LogWarning("BOM not found for id: {BomId}", viewModel.BomId);
+            return NotFound();
+        }
+
+        if (viewModel.DocumentFile != null && viewModel.DocumentFile.Length > 0)
+        {
+            _logger.LogInformation("File validation starting...");
+            
+            // File size validation
+            if (viewModel.DocumentFile.Length > 50 * 1024 * 1024)
+            {
+                _logger.LogInformation("File too large");
+                ModelState.AddModelError("DocumentFile", "Document file size must be less than 50MB.");
+                viewModel.ItemPartNumber = bom.BomNumber;
+                viewModel.ItemDescription = bom.Description;
+                return View("Upload", viewModel);
+            }
+
+            // File type validation
+            var allowedTypes = new[]
+            {
+                "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                "text/plain", "image/jpeg", "image/png", "image/gif", "image/bmp", "image/tiff", "image/svg+xml",
+                "application/dwg", "application/dxf", "application/step", "application/stp", "application/iges", "application/igs",
+                "model/step", "model/iges", "application/octet-stream"
+            };
+
+              var fileExtension = Path.GetExtension(viewModel.DocumentFile.FileName).ToLower();
+            var allowedExtensions = new[]
+            {
+                ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt",
+                ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".svg",
+                ".dwg", ".dxf", ".step", ".stp", ".iges", ".igs"
+            };
+
+            if (!allowedTypes.Contains(viewModel.DocumentFile.ContentType.ToLower()) &&
+                !allowedExtensions.Contains(fileExtension))
+            {
+                _logger.LogWarning("Invalid file type: {ContentType}, extension: {FileExtension}", viewModel.DocumentFile.ContentType, fileExtension);
+                ModelState.AddModelError("DocumentFile",
+                    "Please upload a valid document file (PDF, Office documents, Images, or CAD files).");
+                viewModel.ItemPartNumber = bom.BomNumber;
+                viewModel.ItemDescription = bom.Description;
+                return View("Upload", viewModel);
+            }
+
+            _logger.LogInformation("File validation passed, saving document...");
+            
+            try
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    await viewModel.DocumentFile.CopyToAsync(memoryStream);
+
+                    var document = new ItemDocument
+                    {
+                        BomId = viewModel.BomId,
+                        ItemId = null, // Ensure ItemId is null for BOM documents
+                        DocumentName = viewModel.DocumentName,
+                        DocumentType = viewModel.DocumentType,
+                        FileName = viewModel.DocumentFile.FileName,
+                        ContentType = GetEffectiveContentType(viewModel.DocumentFile.ContentType, fileExtension),
+                        FileSize = viewModel.DocumentFile.Length,
+                        DocumentData = memoryStream.ToArray(),
+                        Description = viewModel.Description,
+                        UploadedDate = DateTime.Now
+                    };
+
+                    _logger.LogInformation("Creating document with BomId: {BomId}, ItemId: {ItemId}", document.BomId, document.ItemId);
+                    
+                    _context.ItemDocuments.Add(document);
+                    await _context.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Document uploaded successfully for BOM {BomId}", viewModel.BomId);
+                }
+
+                TempData["SuccessMessage"] = "Document uploaded successfully!";
+                _logger.LogInformation("Redirecting to BOM Details...");
+                return RedirectToAction("Details", "Boms", new { id = viewModel.BomId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading document for BOM {BomId}", viewModel.BomId);
+                ModelState.AddModelError("", $"Error uploading document: {ex.Message}");
+            }
+        }
+        else
+        {
+            _logger.LogWarning("No file provided");
+            ModelState.AddModelError("DocumentFile", "Please select a document file to upload.");
+        }
+      }
+
+      _logger.LogInformation("Returning to upload view with errors");
+      
+      // Reload BOM info for the view
+      var bomForView = await _context.Boms.FindAsync(viewModel.BomId);
+      if (bomForView != null)
+      {
+        viewModel.ItemPartNumber = bomForView.BomNumber;
+        viewModel.ItemDescription = bomForView.Description;
+      }
+
+      return View("Upload", viewModel);
+    }
+
+    // Add method to delete BOM documents
+    [HttpPost, ActionName("DeleteBom")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteBomConfirmed(int id)
+    {
+      var document = await _context.ItemDocuments.FindAsync(id);
+      if (document != null && document.BomId.HasValue)
+      {
+        var bomId = document.BomId.Value;
+        _context.ItemDocuments.Remove(document);
+        await _context.SaveChangesAsync();
+        return RedirectToAction("Details", "Boms", new { id = bomId });
+      }
+
+      return NotFound();
+    }
+
+    // Add this debug method to check if documents are being saved
+    [HttpGet]
+    public async Task<IActionResult> TestBomDocuments(int bomId)
+    {
+        try
+        {
+            // Check documents directly from database
+            var documents = await _context.ItemDocuments
+                .Where(d => d.BomId == bomId)
+                .Select(d => new { d.Id, d.DocumentName, d.BomId, d.ItemId })
+                .ToListAsync();
+                
+            // Check if BOM exists
+            var bom = await _context.Boms
+                .Include(b => b.Documents)
+                .FirstOrDefaultAsync(b => b.Id == bomId);
+                
+            return Json(new
+            {
+                Success = true,
+                BomId = bomId,
+                BomExists = bom != null,
+                BomNumber = bom?.BomNumber,
+                DirectDocumentCount = documents.Count,
+                NavigationDocumentCount = bom?.Documents?.Count ?? 0,
+                Documents = documents,
+                Message = "Debug info for BOM documents"
+            });
+        }
+        catch (Exception ex)
+        {
+            return Json(new
+            {
+                Success = false,
+                Error = ex.Message,
+                BomId = bomId
+            });
+        }
+    }
   }
 }

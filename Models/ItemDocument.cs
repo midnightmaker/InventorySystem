@@ -6,15 +6,20 @@ namespace InventorySystem.Models
     {
         public int Id { get; set; }
         
-        public int ItemId { get; set; }
-        public virtual Item Item { get; set; } = null!;
+        // Make these nullable to support both Items and BOMs
+        public int? ItemId { get; set; }
+        public virtual Item? Item { get; set; }
+        
+        // NEW: Add BOM support
+        public int? BomId { get; set; }
+        public virtual Bom? Bom { get; set; }
         
         [Required]
         [Display(Name = "Document Name")]
         public string DocumentName { get; set; } = string.Empty;
         
         [Display(Name = "Document Type")]
-        public string DocumentType { get; set; } = string.Empty; // e.g., "Drawing", "Specification", "Manual"
+        public string DocumentType { get; set; } = string.Empty;
         
         [Required]
         [Display(Name = "File Name")]
@@ -35,8 +40,13 @@ namespace InventorySystem.Models
         
         [Display(Name = "Description")]
         public string? Description { get; set; }
+
+        // NEW: Helper properties for generic usage
+        public string EntityType => ItemId.HasValue ? "Item" : "BOM";
+        public int EntityId => ItemId ?? BomId ?? 0;
+        public string EntityDisplayName => ItemId.HasValue ? Item?.PartNumber ?? "" : Bom?.BomNumber ?? "";
         
-        // Helper properties
+        // Existing helper properties remain the same
         public string FileSizeFormatted
         {
             get
@@ -49,9 +59,7 @@ namespace InventorySystem.Models
         }
         
         public bool IsPdf => ContentType?.ToLower() == "application/pdf";
-        
         public bool IsImage => ContentType?.StartsWith("image/") == true;
-        
         public bool IsOfficeDocument => ContentType?.Contains("officedocument") == true || 
                                        ContentType?.Contains("msword") == true || 
                                        ContentType?.Contains("excel") == true ||
@@ -66,14 +74,9 @@ namespace InventorySystem.Models
                 
                 var cadContentTypes = new[]
                 {
-                    "application/dwg",
-                    "application/dxf", 
-                    "application/step",
-                    "application/stp",
-                    "application/iges",
-                    "application/igs",
-                    "model/step",
-                    "model/iges"
+                    "application/dwg", "application/dxf", "application/step",
+                    "application/stp", "application/iges", "application/igs",
+                    "model/step", "model/iges"
                 };
                 
                 var cadExtensions = new[]
@@ -138,6 +141,28 @@ namespace InventorySystem.Models
                 }
                 return "Document";
             }
+        }
+
+        // Document type suggestions based on entity type
+        public static List<string> GetDocumentTypesForEntity(string entityType)
+        {
+            return entityType switch
+            {
+                "Item" => new List<string>
+                {
+                    "Datasheet", "Specification", "Drawing", "Manual", "Certificate",
+                    "Test Report", "Installation Guide", "Safety Document", "Other"
+                },
+                "BOM" => new List<string>
+                {
+                    "Assembly Drawing", "Schematic", "Component Layout", "Wiring Diagram",
+                    "Assembly Instructions", "Parts List", "Material Specification",
+                    "Quality Control Document", "Test Procedure", "Installation Guide",
+                    "Maintenance Manual", "Safety Documentation", "Compliance Certificate",
+                    "3D Model", "CAD File", "Other"
+                },
+                _ => new List<string> { "Document", "Other" }
+            };
         }
     }
 }
