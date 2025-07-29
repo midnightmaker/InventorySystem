@@ -10,7 +10,7 @@
   </a>
 </div>
 
-@if (TempData["SuccessMessage"] != null)
+@if (TempData != null && TempData["SuccessMessage"] != null)
 {
   <div class="alert alert-success alert-dismissible fade show">
     @TempData["SuccessMessage"]
@@ -18,7 +18,7 @@
   </div>
 }
 
-@if (TempData["ErrorMessage"] != null)
+@if (TempData != null && TempData["ErrorMessage"] != null)
 {
   <div class="alert alert-danger alert-dismissible fade show">
     @TempData["ErrorMessage"]
