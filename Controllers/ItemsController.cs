@@ -36,13 +36,28 @@ namespace InventorySystem.Controllers
       var item = await _inventoryService.GetItemByIdAsync(id);
       if (item == null) return NotFound();
 
+      // ? ADD: Get all versions for this item (similar to BOM implementation)
+      var itemVersions = await _versionService.GetItemVersionsAsync(item.BaseItemId ?? item.Id);
+      ViewBag.ItemVersions = itemVersions;
+
+      // ? ADD: Get purchases filtered by version (similar to BOM implementation)
+      var allPurchases = await _purchaseService.GetPurchasesByItemIdAsync(id);
+      
+      // Group purchases by version for the filter dropdown
+      var purchasesByVersion = allPurchases
+          .GroupBy(p => p.ItemVersion ?? "N/A")
+          .ToDictionary(g => g.Key, g => g.AsEnumerable());
+      ViewBag.PurchasesByVersion = purchasesByVersion;
+
       ViewBag.AverageCost = await _inventoryService.GetAverageCostAsync(id);
       ViewBag.FifoValue = await _inventoryService.GetFifoValueAsync(id);
-      ViewBag.Purchases = await _purchaseService.GetPurchasesByItemIdAsync(id);
+      ViewBag.Purchases = allPurchases; // ? CHANGED: Use allPurchases instead of specific call
+      
       // Check for pending change orders
       var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("Item", item.BaseItemId ?? item.Id);
       ViewBag.PendingChangeOrders = pendingChangeOrders;
       ViewBag.EntityType = "Item";
+      
       return View(item);
     }
 

@@ -58,7 +58,15 @@ namespace InventorySystem.Controllers
       try
       {
         var items = await _inventoryService.GetAllItemsAsync();
-        ViewBag.ItemId = new SelectList(items, "Id", "PartNumber", itemId);
+        
+        // ? FORMAT DROPDOWN TO SHOW BOTH PART NUMBER AND DESCRIPTION (like BOMs)
+        var formattedItems = items.Select(item => new
+        {
+          Value = item.Id,
+          Text = $"{item.PartNumber} - {item.Description}"
+        }).ToList();
+
+        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", itemId);
 
         var viewModel = new CreatePurchaseViewModel
         {
@@ -102,9 +110,15 @@ namespace InventorySystem.Controllers
           }
         }
 
-        // Reload dropdown
+        // ? RELOAD DROPDOWN WITH FORMATTED ITEMS (like BOMs)
         var items = await _inventoryService.GetAllItemsAsync();
-        ViewBag.ItemId = new SelectList(items, "Id", "PartNumber", viewModel.ItemId);
+        var formattedItems = items.Select(item => new
+        {
+          Value = item.Id,
+          Text = $"{item.PartNumber} - {item.Description}"
+        }).ToList();
+        
+        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", viewModel.ItemId);
         return View(viewModel);
       }
 
@@ -138,8 +152,15 @@ namespace InventorySystem.Controllers
         Console.WriteLine($"Error creating purchase: {ex.Message}");
         ModelState.AddModelError("", $"Error creating purchase: {ex.Message}");
 
+        // ? RELOAD DROPDOWN WITH FORMATTED ITEMS 
         var items = await _inventoryService.GetAllItemsAsync();
-        ViewBag.ItemId = new SelectList(items, "Id", "PartNumber", viewModel.ItemId);
+        var formattedItems = items.Select(item => new
+        {
+          Value = item.Id,
+          Text = $"{item.PartNumber} - {item.Description}"
+        }).ToList();
+        
+        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", viewModel.ItemId);
         return View(viewModel);
       }
     }
@@ -183,7 +204,15 @@ namespace InventorySystem.Controllers
         }
 
         var items = await _inventoryService.GetAllItemsAsync();
-        ViewBag.ItemId = new SelectList(items, "Id", "PartNumber", purchase.ItemId);
+        
+        // ? FORMAT DROPDOWN TO SHOW BOTH PART NUMBER AND DESCRIPTION (like BOMs)
+        var formattedItems = items.Select(item => new
+        {
+          Value = item.Id,
+          Text = $"{item.PartNumber} - {item.Description}"
+        }).ToList();
+
+        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", purchase.ItemId);
 
         return View(purchase);
       }
@@ -219,8 +248,15 @@ namespace InventorySystem.Controllers
         }
       }
 
+      // ? RELOAD DROPDOWN WITH FORMATTED ITEMS 
       var items = await _inventoryService.GetAllItemsAsync();
-      ViewBag.ItemId = new SelectList(items, "Id", "PartNumber", purchase.ItemId);
+      var formattedItems = items.Select(item => new
+      {
+        Value = item.Id,
+        Text = $"{item.PartNumber} - {item.Description}"
+      }).ToList();
+      
+      ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", purchase.ItemId);
       return View(purchase);
     }
 
