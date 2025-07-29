@@ -117,9 +117,14 @@ namespace InventorySystem.Data
           .HasForeignKey(si => si.FinishedGoodId)
           .IsRequired(false);
 
-      // Indexes for performance
+      // Indexes for performance - UPDATED for versioning
       modelBuilder.Entity<Item>()
-          .HasIndex(i => i.PartNumber)
+          .HasIndex(i => new { i.PartNumber, i.Version })
+          .IsUnique();
+
+      // Add BOM composite index as well
+      modelBuilder.Entity<Bom>()
+          .HasIndex(b => new { b.BomNumber, b.Version })
           .IsUnique();
 
       modelBuilder.Entity<FinishedGood>()

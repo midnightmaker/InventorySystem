@@ -155,7 +155,7 @@
     </div>
 
     <!-- Item Image Section -->
-    @if (Model.HasImage)
+    @if (Model.HasImage && Model.ImageData != null)
     {
       <div class="card mt-4">
         <div class="card-header">
@@ -339,7 +339,7 @@
     @if (ViewBag.ItemVersions != null)
     {
       var itemVersions = ViewBag.ItemVersions as IEnumerable<InventorySystem.Models.Item>;
-      if (itemVersions.Count() > 1)
+      if (itemVersions != null && itemVersions.Count() > 1)
       {
         <div class="card mt-4">
           <div class="card-header">
@@ -432,7 +432,7 @@
     @if (ViewBag.PendingChangeOrders != null)
     {
       var pendingChangeOrders = ViewBag.PendingChangeOrders as List<InventorySystem.Models.ChangeOrder>;
-      if (pendingChangeOrders.Any())
+      if (pendingChangeOrders != null && pendingChangeOrders.Any())
       {
         <div class="card mt-3">
           <div class="card-header bg-warning text-dark">
@@ -536,6 +536,13 @@
   function showCreateVersionModal(entityType, entityId) {
       console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
 
+      // Add visual feedback to the button
+      const button = event?.target;
+      if (button) {
+          button.disabled = true;
+          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+      }
+
       // Load the change order modal using the new route
       fetch(`/ChangeOrders/CreateModal/${entityType}/${entityId}`, {
           method: 'GET',
@@ -610,6 +617,13 @@
 
               // Show the actual error message for debugging
               alert(`Error loading change order form: ${error.message}\n\nPlease check the browser console for more details.`);
+          })
+          .finally(() => {
+              // Re-enable button
+              if (button) {
+                  button.disabled = false;
+                  button.innerHTML = '<i class="fas fa-code-branch"></i> New Version';
+              }
           });
   }
 
