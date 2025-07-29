@@ -63,7 +63,7 @@ namespace InventorySystem.Controllers
         var bom = await _bomService.GetBomByIdAsync(bomId.Value);
         if (bom != null)
         {
-          viewModel.BomName = bom.Name;
+          viewModel.BomName = bom.BomNumber;
           viewModel.BomDescription = bom.Description;
           viewModel.CanBuild = await _productionService.CanBuildBomAsync(bomId.Value, 1);
           viewModel.MaterialCost = await _productionService.CalculateBomMaterialCostAsync(bomId.Value, 1);
@@ -114,7 +114,7 @@ namespace InventorySystem.Controllers
         var bom = await _bomService.GetBomByIdAsync(viewModel.BomId);
         if (bom != null)
         {
-          viewModel.BomName = bom.Name;
+          viewModel.BomName = bom.BomNumber;
           viewModel.BomDescription = bom.Description;
           viewModel.CanBuild = await _productionService.CanBuildBomAsync(viewModel.BomId, viewModel.Quantity);
           viewModel.MaterialCost = await _productionService.CalculateBomMaterialCostAsync(viewModel.BomId, viewModel.Quantity);
@@ -140,7 +140,7 @@ namespace InventorySystem.Controllers
           success = true,
           canBuild = canBuild,
           materialCost = materialCost,
-          bomName = bom?.Name ?? "",
+          bomName = bom?.BomNumber ?? "",
           bomDescription = bom?.Description ?? "",
           unitCost = quantity > 0 ? materialCost / quantity : 0
         });

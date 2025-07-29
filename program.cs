@@ -61,4 +61,9 @@ using (var scope = app.Services.CreateScope())
 //  options.MaxRequestBodySize = 52428800; // 50MB
 //});
 
+var serviceProvider = builder.Services.BuildServiceProvider();
+var versionService = serviceProvider.GetService<IVersionControlService>();
+Console.WriteLine($"VersionControlService registered: {versionService != null}");
+
+
 app.Run();

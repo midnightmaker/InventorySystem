@@ -7,8 +7,8 @@ namespace InventorySystem.Models
     public int Id { get; set; }
 
     [Required]
-    [Display(Name = "BOM Name")]
-    public string Name { get; set; } = string.Empty;
+    [Display(Name = "BOM Number")]
+    public string BomNumber { get; set; } = string.Empty;
 
     public string Description { get; set; } = string.Empty;
 
@@ -38,7 +38,7 @@ namespace InventorySystem.Models
     public virtual ChangeOrder? CreatedFromChangeOrder { get; set; }
 
     // Helper properties
-    public string VersionedName => $"{Name} {Version}";
+    public string VersionedName => $"{BomNumber} {Version}";
     public int VersionCount => Versions?.Count ?? 0;
   }
 }

@@ -66,7 +66,7 @@ namespace InventorySystem.Services
               .ThenInclude(bi => bi.Item)
           .Include(b => b.SubAssemblies)
           .Where(b => b.ParentBomId == null) // Only top-level BOMs
-          .OrderBy(b => b.Name)
+          .OrderBy(b => b.BomNumber)
           .ToListAsync();
     }
 

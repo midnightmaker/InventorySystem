@@ -1,0 +1,144 @@
+﻿@model InventorySystem.Models.ChangeOrderDocument
+@{
+  ViewData["Title"] = "Upload Document";
+  var changeOrder = ViewBag.ChangeOrder as InventorySystem.Models.ChangeOrder;
+  var documentTypes = ViewBag.DocumentTypes as List<string>;
+  var allowedFileTypes = ViewBag.AllowedFileTypes as string;
+  var maxFileSize = ViewBag.MaxFileSize as long?;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-upload"></i> Upload Document</h1>
+  <a href="/ChangeOrders/Details/@Model.ChangeOrderId" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Change Order
+  </a>
+</div>
+
+@if (changeOrder != null)
+{
+  <div class="alert alert-info">
+    <h6><i class="fas fa-info-circle"></i> Uploading document for:</h6>
+    <strong>Change Order:</strong> @changeOrder.ChangeOrderNumber<br>
+    <strong>Entity:</strong> @changeOrder.EntityType (@changeOrder.NewVersion)<br>
+    <strong>Status:</strong> <span class="badge bg-@changeOrder.StatusBadgeColor">@changeOrder.Status</span>
+  </div>
+}
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-file-upload"></i> Document Upload</h5>
+      </div>
+      <div class="card-body">
+        <form asp-action="Upload" method="post" enctype="multipart/form-data">
+          @Html.HiddenFor(m => m.ChangeOrderId)
+
+          <div class="mb-3">
+            <label for="file" class="form-label">Select File *</label>
+            <input type="file" class="form-control" id="file" name="file" required
+                   accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.dxf,.step,.stp,.iges,.igs,.txt,.rtf,.zip,.rar,.7z">
+            <div asp-validation-for="file" class="text-danger"></div>
+            <div class="form-text">
+              <strong>Maximum file size:</strong> @((maxFileSize ?? 0) / (1024 * 1024))MB<br>
+              <strong>Allowed types:</strong> @allowedFileTypes
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="DocumentName" class="form-label">Document Name</label>
+            <input asp-for="DocumentName" class="form-control"
+                   placeholder="Enter a descriptive name (or leave blank to use filename)">
+            <span asp-validation-for="DocumentName" class="text-danger"></span>
+            <div class="form-text">If left blank, the filename (without extension) will be used</div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="DocumentType" class="form-label">Document Type</label>
+            <select asp-for="DocumentType" class="form-select">
+              <option value="">Select document type...</option>
+              @if (documentTypes != null)
+              {
+                @foreach (var type in documentTypes)
+                {
+                  <option value="@type">@type</option>
+                }
+              }
+            </select>
+            <span asp-validation-for="DocumentType" class="text-danger"></span>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">Description</label>
+            <textarea asp-for="Description" class="form-control" rows="3"
+                      placeholder="Optional description of the document..."></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <a href="/ChangeOrders/Details/@Model.ChangeOrderId" class="btn btn-secondary">
+              <i class="fas fa-times"></i> Cancel
+            </a>
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-upload"></i> Upload Document
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-info-circle"></i> Upload Guidelines</h6>
+      </div>
+      <div class="card-body">
+        <h6>Common Document Types:</h6>
+        <ul class="list-unstyled">
+          <li><i class="fas fa-file-pdf text-danger"></i> <strong>ECN:</strong> Engineering Change Notice</li>
+          <li><i class="fas fa-file-image text-info"></i> <strong>Drawings:</strong> Revised technical drawings</li>
+          <li><i class="fas fa-file-alt text-primary"></i> <strong>Specifications:</strong> Updated specifications</li>
+          <li><i class="fas fa-file-chart-line text-success"></i> <strong>Test Reports:</strong> Validation documents</li>
+          <li><i class="fas fa-file-contract text-warning"></i> <strong>Approvals:</strong> Sign-off documents</li>
+        </ul>
+
+        <hr>
+
+        <h6>Best Practices:</h6>
+        <ul class="small">
+          <li>Use descriptive document names</li>
+          <li>Include version numbers in filenames</li>
+          <li>Compress large files when possible</li>
+          <li>Add detailed descriptions for context</li>
+          <li>Upload supporting documentation together</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Update document name based on selected file
+  document.getElementById('file').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      const documentNameField = document.getElementById('DocumentName');
+
+      if (file && !documentNameField.value) {
+          const nameWithoutExtension = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+          documentNameField.value = nameWithoutExtension;
+      }
+  });
+
+  // File size validation
+  document.getElementById('file').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+          const maxSize = @(maxFileSize ?? 0);
+          if (file.size > maxSize) {
+              alert('File size exceeds the maximum allowed size of ' + (maxSize / (1024 * 1024)) + 'MB');
+              this.value = '';
+          }
+      }
+  });
+</script>

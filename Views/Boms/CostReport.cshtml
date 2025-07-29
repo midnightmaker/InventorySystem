@@ -5,7 +5,7 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-dollar-sign"></i> Cost Report - @Model.Name</h1>
+    <h1><i class="fas fa-dollar-sign"></i> Cost Report - @Model.BomNumber</h1>
     <button onclick="window.print()" class="btn btn-outline-primary">
         <i class="fas fa-print"></i> Print Report
     </button>
@@ -18,7 +18,7 @@
     <div class="card-body">
         <dl class="row">
             <dt class="col-sm-2">BOM Name:</dt>
-            <dd class="col-sm-4">@Model.Name</dd>
+            <dd class="col-sm-4">@Model.BomNumber</dd>
             
             <dt class="col-sm-2">Assembly P/N:</dt>
             <dd class="col-sm-4">@Model.AssemblyPartNumber</dd>
@@ -117,7 +117,7 @@
                         @foreach (var subAssembly in Model.SubAssemblies)
                         {
                             <tr>
-                                <td><strong>@subAssembly.Name</strong></td>
+                                <td><strong>@subAssembly.BomNumber</strong></td>
                                 <td>@subAssembly.AssemblyPartNumber</td>
                                 <td>@subAssembly.Version</td>
                                 <td>@subAssembly.BomItems.Count components</td>

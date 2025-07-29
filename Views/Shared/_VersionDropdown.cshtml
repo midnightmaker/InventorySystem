@@ -32,9 +32,54 @@
     }
     <li>
       <a class="dropdown-item text-primary" href="#"
-         onclick="showCreateVersionModal('@(entityType == "Items" ? "Item" : "BOM")', @entityId)">
+         onclick="showCreateVersionModal('@(entityType == "Items" ? "Item" : "BOM")', @entityId); return false;">
         <i class="fas fa-plus"></i> Create New Version
       </a>
     </li>
   </ul>
 </div>
+
+<script>
+  // Include the showCreateVersionModal function if not already defined
+  if (typeof showCreateVersionModal === 'undefined') {
+      function showCreateVersionModal(entityType, entityId) {
+          console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
+
+          // Load the change order modal using the new route
+          fetch(`/ChangeOrders/CreateModal/${entityType}/${entityId}`)
+              .then(response => {
+                  console.log(`Response status: ${response.status}`);
+                  if (!response.ok) {
+                      throw new Error(`HTTP error! status: ${response.status}`);
+                  }
+
+                  // Check if the response is JSON (error response) or HTML (modal content)
+                  const contentType = response.headers.get('content-type');
+                  if (contentType && contentType.includes('application/json')) {
+                      return response.json().then(data => {
+                          throw new Error(JSON.stringify(data));
+                      });
+                  }
+
+                  return response.text();
+              })
+              .then(html => {
+                  console.log('Modal HTML loaded successfully');
+
+                  // Remove any existing modal first
+                  const existingModal = document.getElementById('changeOrderModal');
+                  if (existingModal) {
+                      existingModal.remove();
+                  }
+
+                  document.body.insertAdjacentHTML('beforeend', html);
+                  const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
+                  modal.show();
+              })
+              .catch(error => {
+                  console.error('Error loading modal:', error);
+                  alert('Error loading change order form. Please try again.');
+              });
+      }
+  }
+</script>

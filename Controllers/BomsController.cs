@@ -82,7 +82,7 @@ namespace InventorySystem.Controllers
 
       Console.WriteLine("=== BOM EDIT DEBUG ===");
       Console.WriteLine($"BomId: {bom.Id}");
-      Console.WriteLine($"Name: {bom.Name}");
+      Console.WriteLine($"Name: {bom.BomNumber}");
       Console.WriteLine($"Version: {bom.Version}");
       Console.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
 
@@ -125,7 +125,7 @@ namespace InventorySystem.Controllers
       if (fullBom != null)
       {
         // Copy the form values to the full BOM object
-        fullBom.Name = bom.Name;
+        fullBom.BomNumber = bom.BomNumber;
         fullBom.Description = bom.Description;
         fullBom.Version = bom.Version;
         fullBom.AssemblyPartNumber = bom.AssemblyPartNumber;

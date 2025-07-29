@@ -222,7 +222,7 @@ namespace InventorySystem.Controllers
           activities.Add(new RecentActivity
           {
             Type = "bom",
-            Description = $"BOM {action}: {bom.Name}",
+            Description = $"BOM {action}: {bom.BomNumber}",
             Timestamp = bom.ModifiedDate,
             Icon = "fas fa-list",
             Color = "text-info"

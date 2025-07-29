@@ -44,55 +44,58 @@
   </div>
 </div>
 
-<!-- Include pending change orders alert if any exist -->
-@if (ViewBag.PendingChangeOrders != null)
+@if (TempData["SuccessMessage"] != null)
 {
-  @await Html.PartialAsync("_PendingChangeOrdersAlert", (IEnumerable<InventorySystem.Models.ChangeOrder>)ViewBag.PendingChangeOrders)
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+  <div class="alert alert-warning alert-dismissible fade show">
+    @TempData["WarningMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
 }
 
 <div class="row">
   <div class="col-md-8">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5>Item Information</h5>
-        <!-- Version Status Badge -->
-        @if (Model.IsCurrentVersion)
+        <h5><i class="fas fa-info-circle"></i> Item Information</h5>
+        @if (!Model.IsCurrentVersion)
         {
-          <span class="badge bg-success">Current Version</span>
+          <span class="badge bg-warning">Historical Version</span>
         }
         else
         {
-          <span class="badge bg-secondary">Historical Version</span>
+          <span class="badge bg-success">Current Version</span>
         }
       </div>
       <div class="card-body">
         <dl class="row">
+          <dt class="col-sm-3">Part Number:</dt>
+          <dd class="col-sm-9">
+            <strong>@Model.PartNumber</strong>
+            <span class="badge bg-primary ms-2">@Model.Version</span>
+          </dd>
+
           <dt class="col-sm-3">Description:</dt>
           <dd class="col-sm-9">@Model.Description</dd>
 
-          <!-- Version Information -->
-          <dt class="col-sm-3">Version:</dt>
-          <dd class="col-sm-9">
-            <strong>@Model.Version</strong>
-            @if (!Model.IsCurrentVersion)
-            {
-              <small class="text-muted">(Historical)</small>
-            }
-          </dd>
-
-          @if (Model.CreatedFromChangeOrder != null)
-          {
-            <dt class="col-sm-3">Change Order:</dt>
-            <dd class="col-sm-9">
-              <a href="/ChangeOrders/Details/@Model.CreatedFromChangeOrderId" class="text-decoration-none">
-                @Model.CreatedFromChangeOrder.ChangeOrderNumber
-              </a>
-            </dd>
-          }
-
           <dt class="col-sm-3">Current Stock:</dt>
           <dd class="col-sm-9">
-            <span class="badge bg-@(Model.CurrentStock <= Model.MinimumStock ? "danger" : "success") fs-6">
+            <span class="badge bg-@(Model.CurrentStock > Model.MinimumStock ? "success" : "danger") fs-6">
               @Model.CurrentStock
             </span>
             @if (Model.TrackInventory)
@@ -150,6 +153,25 @@
         </dl>
       </div>
     </div>
+
+    <!-- Item Image Section -->
+    @if (Model.HasImage)
+    {
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5><i class="fas fa-image"></i> Item Image</h5>
+        </div>
+        <div class="card-body text-center">
+          <img src="data:@Model.ImageContentType;base64,@Convert.ToBase64String(Model.ImageData)"
+               alt="@Model.PartNumber"
+               class="img-thumbnail"
+               style="max-height: 300px; cursor: pointer;"
+               onclick="showImageModal('@Model.PartNumber', 'data:@Model.ImageContentType;base64,@Convert.ToBase64String(Model.ImageData)')" />
+          <br>
+          <small class="text-muted">@Model.ImageFileName</small>
+        </div>
+      </div>
+    }
 
     <!-- Design Documents Section -->
     @if (Model.DesignDocuments?.Any() == true)
@@ -282,8 +304,8 @@
                       </span>
                     </td>
                     <td>@purchase.QuantityPurchased</td>
-                    <td>$@purchase.CostPerUnit.ToString("F2")</td>
-                    <td>$@purchase.TotalCost.ToString("F2")</td>
+                    <td>@purchase.CostPerUnit.ToString("C")</td>
+                    <td>@purchase.TotalCost.ToString("C")</td>
                     <td>@purchase.RemainingQuantity</td>
                     <td>@purchase.PurchaseOrderNumber</td>
                   </tr>
@@ -294,110 +316,139 @@
         }
         else
         {
-          <p class="text-muted">No purchase history available.</p>
+          <div class="text-center py-4">
+            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+            <h6 class="text-muted">No Purchase History</h6>
+            <p class="text-muted">No purchases have been recorded for this item.</p>
+            <a href="/Purchases/Create?itemId=@Model.Id" class="btn btn-outline-success">
+              <i class="fas fa-plus"></i> Add First Purchase
+            </a>
+          </div>
         }
       </div>
     </div>
+
+    <!-- Item Versions Section -->
+    @if (ViewBag.ItemVersions != null)
+    {
+      var itemVersions = ViewBag.ItemVersions as IEnumerable<InventorySystem.Models.Item>;
+      if (itemVersions.Count() > 1)
+      {
+        <div class="card mt-4">
+          <div class="card-header">
+            <h5><i class="fas fa-code-branch"></i> Version History (@itemVersions.Count())</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              @foreach (var version in itemVersions)
+              {
+                <div class="col-md-6 mb-3">
+                  <div class="card @(version.IsCurrentVersion ? "border-success" : version.Version == Model.Version ? "border-primary" : "")">
+                    <div class="card-body py-2 @(version.Version == Model.Version ? "bg-light" : version.IsCurrentVersion ? "bg-light" : "")">
+                      <div class="d-flex justify-content-between align-items-center @(version.Version == Model.Version ? "active" : "")">
+                        <div>
+                          <strong>@version.Version</strong>
+                          @if (version.IsCurrentVersion)
+                          {
+                            <span class="badge bg-success ms-2">Current</span>
+                          }
+                          <br>
+                          <small class="text-muted">@version.CreatedDate.ToString("MM/dd/yyyy")</small>
+                        </div>
+                        @if (version.Version != Model.Version)
+                        {
+                          <a href="/Items/Details/@version.Id" class="btn btn-sm btn-outline-primary">View</a>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    }
   </div>
 
   <div class="col-md-4">
     <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h6><i class="fas fa-image"></i> Item Image</h6>
-        @if (Model.HasImage && Model.IsCurrentVersion)
-        {
-          <form asp-controller="Items" asp-action="RemoveImage" method="post" style="display: inline;">
-            <input type="hidden" name="id" value="@Model.Id" />
-            <button type="submit" class="btn btn-sm btn-outline-danger"
-                    onclick="return confirm('Remove item image?')"
-                    title="Remove Image">
-              <i class="fas fa-trash"></i>
-            </button>
-          </form>
-        }
-      </div>
-      <div class="card-body text-center">
-        @if (Model.HasImage)
-        {
-          <img src="/Items/GetImage/@Model.Id"
-               alt="@Model.PartNumber"
-               class="img-fluid border rounded"
-               style="max-width: 100%; max-height: 300px; cursor: pointer;"
-               onclick="showImageModal('@Model.PartNumber', '/Items/GetImage/@Model.Id')" />
-          <div class="mt-2">
-            <small class="text-muted">@Model.ImageFileName</small>
-          </div>
-        }
-        else
-        {
-          <div class="no-image-placeholder d-flex align-items-center justify-content-center"
-               style="height: 200px; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
-            <div class="text-center">
-              <i class="fas fa-image fa-3x text-muted mb-2"></i>
-              <p class="text-muted">No image uploaded</p>
-            </div>
-          </div>
-        }
-      </div>
-    </div>
-
-    <div class="card mt-3">
       <div class="card-header">
-        <h6><i class="fas fa-chart-bar"></i> Quick Stats</h6>
+        <h6><i class="fas fa-chart-bar"></i> Item Summary</h6>
       </div>
       <div class="card-body">
-        <div class="row text-center">
-          <div class="col-6">
-            <div class="border-end">
-              <h5 class="text-primary">@purchases.Count()</h5>
-              <small class="text-muted">Purchases</small>
-            </div>
-          </div>
-          <div class="col-6">
-            <h5 class="text-info">@Model.DesignDocuments.Count</h5>
-            <small class="text-muted">Documents</small>
-          </div>
-        </div>
-        <hr>
-        <div class="row text-center">
-          <div class="col-12">
-            <h6 class="text-success">@fifoValue.ToString("C")</h6>
-            <small class="text-muted">Current Inventory Value</small>
-          </div>
-        </div>
+        <dl class="row small">
+          <dt class="col-sm-6">Version:</dt>
+          <dd class="col-sm-6">@Model.Version</dd>
+
+          <dt class="col-sm-6">Type:</dt>
+          <dd class="col-sm-6">@Model.ItemTypeDisplayName</dd>
+
+          <dt class="col-sm-6">Stock:</dt>
+          <dd class="col-sm-6">@Model.CurrentStock</dd>
+
+          <dt class="col-sm-6">Value:</dt>
+          <dd class="col-sm-6">@fifoValue.ToString("C")</dd>
+
+          <dt class="col-sm-6">Documents:</dt>
+          <dd class="col-sm-6">@(Model.DesignDocuments?.Count ?? 0)</dd>
+
+          <dt class="col-sm-6">Purchases:</dt>
+          <dd class="col-sm-6">@purchases.Count()</dd>
+        </dl>
       </div>
     </div>
 
-    <!-- Version History Card -->
-    @if (ViewBag.ItemVersions != null && ((IEnumerable<dynamic>)ViewBag.ItemVersions).Count() > 1)
+    @if (!Model.IsCurrentVersion)
     {
       <div class="card mt-3">
-        <div class="card-header">
-          <h6><i class="fas fa-history"></i> Version History</h6>
+        <div class="card-header bg-warning text-dark">
+          <h6><i class="fas fa-exclamation-triangle"></i> Historical Version</h6>
         </div>
         <div class="card-body">
-          <div class="list-group list-group-flush">
-            @foreach (var version in (IEnumerable<dynamic>)ViewBag.ItemVersions)
+          <p class="mb-2">This is version <strong>@Model.Version</strong> of the item.</p>
+          <p class="mb-3">To make changes, work with the current version.</p>
+          @if (ViewBag.ItemVersions != null)
+          {
+            var currentVersion = ((IEnumerable<InventorySystem.Models.Item>)ViewBag.ItemVersions).FirstOrDefault(v => v.IsCurrentVersion);
+            if (currentVersion != null)
             {
-              <div class="list-group-item d-flex justify-content-between align-items-center @(version.Version == Model.Version ? "active" : "")">
-                <div>
-                  <strong>@version.Version</strong>
-                  @if (version.IsCurrentVersion)
-                  {
-                    <span class="badge bg-success ms-2">Current</span>
-                  }
-                  <br>
-                  <small class="text-muted">@version.CreatedDate.ToString("MM/dd/yyyy")</small>
+              <a href="/Items/Details/@currentVersion.Id" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-arrow-right"></i> Go to Current Version (@currentVersion.Version)
+              </a>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    @if (ViewBag.PendingChangeOrders != null)
+    {
+      var pendingChangeOrders = ViewBag.PendingChangeOrders as List<InventorySystem.Models.ChangeOrder>;
+      if (pendingChangeOrders.Any())
+      {
+        <div class="card mt-3">
+          <div class="card-header bg-warning text-dark">
+            <h6><i class="fas fa-clock"></i> Pending Change Orders</h6>
+          </div>
+          <div class="card-body">
+            @foreach (var changeOrder in pendingChangeOrders)
+            {
+              <div class="mb-2">
+                <strong>@changeOrder.ChangeOrderNumber</strong>
+                <span class="badge bg-warning ms-2">@changeOrder.NewVersion</span>
+                <br>
+                <small class="text-muted">@changeOrder.CreatedDate.ToString("MM/dd/yyyy")</small>
+                <div class="mt-1">
+                  <a href="/ChangeOrders/Details/@changeOrder.Id" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-eye"></i> View
+                  </a>
                 </div>
-                @if (version.Version != Model.Version)
-                {
-                  <a href="/Items/Details/@version.Id" class="btn btn-sm btn-outline-primary">View</a>
-                }
               </div>
             }
           </div>
         </div>
-      </div>
+      }
     }
   </div>
 </div>
@@ -457,195 +508,172 @@
 
 <script>
   function showImageModal(partNumber, imageUrl) {
-    document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
-    document.getElementById('modalImage').src = imageUrl;
-    var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
-    imageModal.show();
+      document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
+      document.getElementById('modalImage').src = imageUrl;
+      var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+      imageModal.show();
   }
 
   function filterPurchasesByVersion(version) {
-    const rows = document.querySelectorAll('#purchaseTable tbody tr');
-    rows.forEach(row => {
-      if (version === '' || row.dataset.version === version) {
-        row.style.display = '';
-      } else {
-        row.style.display = 'none';
-      }
-    });
-  }
-
-  // Updated showCreateVersionModal function with proper error handling
-  function showCreateVersionModal(entityType, entityId) {
-    console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
-
-    // Load the change order modal
-    fetch(`/ChangeOrders/Create/${entityType}/${entityId}`)
-      .then(response => {
-        console.log(`Response status: ${response.status}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        // Check if the response is JSON (error response) or HTML (modal content)
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          return response.json().then(data => {
-            throw new Error(JSON.stringify(data));
-          });
-        }
-
-        return response.text();
-      })
-      .then(html => {
-        console.log('Modal HTML loaded successfully');
-        document.body.insertAdjacentHTML('beforeend', html);
-        const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
-        modal.show();
-      })
-      .catch(error => {
-        console.error('Error loading modal:', error);
-
-        // Try to parse the error as JSON for validation errors
-        try {
-          const errorData = JSON.parse(error.message);
-          if (errorData.success === false) {
-            // Show the pending change orders modal instead of alert
-            showPendingChangeOrdersModal(errorData);
-            return;
+      const rows = document.querySelectorAll('#purchaseTable tbody tr');
+      rows.forEach(row => {
+          if (version === '' || row.dataset.version === version) {
+              row.style.display = '';
+          } else {
+              row.style.display = 'none';
           }
-        } catch (e) {
-          // Not a JSON error, show generic error
-          console.error('Failed to parse error as JSON:', e);
-        }
-
-        alert('Error loading change order form: ' + error.message);
       });
   }
 
-  // Function to show pending change orders in a modal
+  // Updated showCreateVersionModal function with better error handling
+  function showCreateVersionModal(entityType, entityId) {
+      console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
+
+      // Load the change order modal using the new route
+      fetch(`/ChangeOrders/CreateModal/${entityType}/${entityId}`, {
+          method: 'GET',
+          headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+              'Accept': 'text/html,application/json'
+          }
+      })
+          .then(response => {
+              console.log(`Response status: ${response.status}`);
+              console.log(`Response content-type: ${response.headers.get('content-type')}`);
+
+              if (!response.ok) {
+                  // For server errors, try to get the response text for debugging
+                  return response.text().then(text => {
+                      console.error('Server error response:', text);
+                      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                  });
+              }
+
+              // Check if the response is JSON (error response) or HTML (modal content)
+              const contentType = response.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                  return response.json().then(data => {
+                      if (data.success === false) {
+                          throw new Error(JSON.stringify(data));
+                      }
+                      return data;
+                  });
+              }
+
+              return response.text();
+          })
+          .then(result => {
+              if (typeof result === 'string') {
+                  // HTML response - show modal
+                  console.log('Modal HTML loaded successfully');
+
+                  // Remove any existing modal first
+                  const existingModal = document.getElementById('changeOrderModal');
+                  if (existingModal) {
+                      existingModal.remove();
+                  }
+
+                  document.body.insertAdjacentHTML('beforeend', result);
+                  const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
+                  modal.show();
+              } else {
+                  // JSON response
+                  console.log('JSON response received:', result);
+              }
+          })
+          .catch(error => {
+              console.error('Error loading modal:', error);
+
+              // Try to parse the error as JSON for validation errors
+              try {
+                  const errorData = JSON.parse(error.message);
+                  if (errorData.success === false) {
+                      // Show the pending change orders modal instead of alert
+                      if (errorData.pendingChangeOrders) {
+                          showPendingChangeOrdersModal(errorData);
+                      } else {
+                          alert(`Error: ${errorData.message || errorData.error || 'Unknown error occurred'}`);
+                      }
+                      return;
+                  }
+              } catch (e) {
+                  // Not a JSON error, show the actual error message
+                  console.error('Failed to parse error as JSON:', e);
+              }
+
+              // Show the actual error message for debugging
+              alert(`Error loading change order form: ${error.message}\n\nPlease check the browser console for more details.`);
+          });
+  }
+
+  // Function to show pending change orders modal when there are conflicts
   function showPendingChangeOrdersModal(errorData) {
-    console.log('Showing pending change orders modal:', errorData);
+      console.log('Showing pending change orders modal:', errorData);
 
-    // Set the message
-    document.getElementById('pendingModalMessage').textContent = errorData.message;
+      // Update the modal content
+      const messageElement = document.getElementById('pendingModalMessage');
+      if (messageElement) {
+          messageElement.textContent = errorData.message;
+      }
 
-    // Build the pending change orders list
-    let listHtml = '';
-    if (errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
-      errorData.pendingChangeOrders.forEach(co => {
-        listHtml += `
-          <div class="card border-warning mb-3">
-            <div class="card-body">
-              <div class="row align-items-center">
-                <div class="col-md-8">
-                  <h6 class="card-title mb-1">
-                    <strong>${co.changeOrderNumber}</strong>
-                    <span class="badge bg-warning text-dark ms-2">Version ${co.newVersion}</span>
-                  </h6>
-                  <p class="card-text mb-1">
-                    <small class="text-muted">
-                      Created by <strong>${co.createdBy}</strong> on ${co.createdDate}
-                    </small>
-                  </p>
-                </div>
-                <div class="col-md-4 text-end">
-                  <div class="btn-group-vertical btn-group-sm">
-                    <a href="/ChangeOrders/Details/${co.id}" class="btn btn-outline-info btn-sm" target="_blank">
-                      <i class="fas fa-eye"></i> View Details
-                    </a>
-                    <button type="button" class="btn btn-outline-success btn-sm" onclick="implementChangeOrder(${co.id}, '${co.changeOrderNumber}')">
-                      <i class="fas fa-check"></i> Implement
-                    </button>
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelChangeOrder(${co.id}, '${co.changeOrderNumber}')">
-                      <i class="fas fa-times"></i> Cancel
-                    </button>
+      // Build the pending change orders list
+      const listContainer = document.getElementById('pendingChangeOrdersList');
+      if (listContainer && errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
+          const listHtml = errorData.pendingChangeOrders.map(co => `
+              <div class="card mb-2">
+                  <div class="card-body py-2">
+                      <div class="d-flex justify-content-between align-items-center">
+                          <div>
+                              <strong>${co.changeOrderNumber}</strong>
+                              <span class="badge bg-warning ms-2">Version ${co.newVersion}</span>
+                          </div>
+                          <div class="text-end">
+                              <small class="text-muted">Created: ${co.createdDate}</small><br>
+                              <small class="text-muted">By: ${co.createdBy}</small>
+                          </div>
+                      </div>
+                      <div class="mt-2">
+                          <a href="/ChangeOrders/Details/${co.id}" class="btn btn-sm btn-outline-primary">
+                              <i class="fas fa-eye"></i> View Details
+                          </a>
+                      </div>
                   </div>
-                </div>
               </div>
-            </div>
-          </div>
-        `;
-      });
-    }
+          `).join('');
+          listContainer.innerHTML = listHtml;
+      } else if (listContainer) {
+          listContainer.innerHTML = '<p class="text-muted">No pending change orders found.</p>';
+      }
 
-    document.getElementById('pendingChangeOrdersList').innerHTML = listHtml;
-
-    // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('pendingChangeOrdersModal'));
-    modal.show();
+      // Show the modal
+      const pendingModal = document.getElementById('pendingChangeOrdersModal');
+      if (pendingModal) {
+          const modal = new bootstrap.Modal(pendingModal);
+          modal.show();
+      } else {
+          console.error('Pending change orders modal not found in DOM');
+          alert(errorData.message);
+      }
   }
 
-  // Function to implement a change order via form submission
-  function implementChangeOrder(changeOrderId, changeOrderNumber) {
-    if (!confirm(`Are you sure you want to implement change order ${changeOrderNumber}? This will create the new version and cannot be undone.`)) {
-      return;
-    }
-
-    // Create a form and submit it
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/ChangeOrders/Implement/${changeOrderId}`;
-
-    // Add CSRF token
-    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
-                     document.querySelector('meta[name="csrf-token"]')?.content;
-    if (csrfToken) {
-      const tokenInput = document.createElement('input');
-      tokenInput.type = 'hidden';
-      tokenInput.name = '__RequestVerificationToken';
-      tokenInput.value = csrfToken;
-      form.appendChild(tokenInput);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
-  }
-
-  // Function to cancel a change order via form submission
-  function cancelChangeOrder(changeOrderId, changeOrderNumber) {
-    if (!confirm(`Are you sure you want to cancel change order ${changeOrderNumber}? This action cannot be undone.`)) {
-      return;
-    }
-
-    // Create a form and submit it
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/ChangeOrders/Cancel/${changeOrderId}`;
-
-    // Add CSRF token
-    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
-                     document.querySelector('meta[name="csrf-token"]')?.content;
-    if (csrfToken) {
-      const tokenInput = document.createElement('input');
-      tokenInput.type = 'hidden';
-      tokenInput.name = '__RequestVerificationToken';
-      tokenInput.value = csrfToken;
-      form.appendChild(tokenInput);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
-  }
-
+  // Function to refresh the current page
   function refreshPage() {
-    location.reload();
+      location.reload();
   }
 
-  // Clean up modal when closed
+  // Clean up modal when closed to prevent duplicates
   document.addEventListener('hidden.bs.modal', function (event) {
-    if (event.target.id === 'changeOrderModal') {
-      event.target.remove();
-    }
+      if (event.target.id === 'changeOrderModal') {
+          event.target.remove();
+      }
   });
 
-  // Debug: Add click event listener to test button functionality
+  // Debug helper - check if modal containers exist
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('Item Details page loaded, checking for New Version button...');
-    const newVersionBtn = document.querySelector('button[onclick*="showCreateVersionModal"]');
-    if (newVersionBtn) {
-      console.log('Found New Version button:', newVersionBtn);
-    } else {
-      console.log('New Version button not found!');
-    }
+      console.log('Change order modal script loaded for Items page');
+      const pendingModal = document.getElementById('pendingChangeOrdersModal');
+      if (!pendingModal) {
+          console.warn('pendingChangeOrdersModal not found - make sure it exists in the page');
+      }
   });
 </script>

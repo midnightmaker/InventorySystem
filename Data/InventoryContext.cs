@@ -24,6 +24,7 @@ namespace InventorySystem.Data
     public DbSet<Sale> Sales { get; set; }
     public DbSet<SaleItem> SaleItems { get; set; }
     public DbSet<ChangeOrder> ChangeOrders { get; set; } = null!;
+    public DbSet<ChangeOrderDocument> ChangeOrderDocuments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -184,6 +185,99 @@ namespace InventorySystem.Data
           .Property(si => si.UnitCost)
           .HasColumnType("decimal(18,2)");
 
+      // Configure ChangeOrder relationships
+      modelBuilder.Entity<ChangeOrder>(entity =>
+      {
+        // Configure ChangeOrder to ChangeOrderDocument relationship
+        entity.HasMany(co => co.ChangeOrderDocuments)
+              .WithOne(cod => cod.ChangeOrder)
+              .HasForeignKey(cod => cod.ChangeOrderId)
+              .OnDelete(DeleteBehavior.Cascade);
+
+        // Configure ChangeOrder to Item relationships
+        entity.HasOne(co => co.BaseItem)
+              .WithMany()
+              .HasForeignKey(co => co.BaseItemId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(co => co.NewItem)
+              .WithMany()
+              .HasForeignKey(co => co.NewItemId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure ChangeOrder to BOM relationships
+        entity.HasOne(co => co.BaseBom)
+              .WithMany()
+              .HasForeignKey(co => co.BaseBomId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(co => co.NewBom)
+              .WithMany()
+              .HasForeignKey(co => co.NewBomId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure string length constraints
+        entity.Property(co => co.ChangeOrderNumber)
+              .HasMaxLength(50);
+
+        entity.Property(co => co.EntityType)
+              .HasMaxLength(10);
+
+        entity.Property(co => co.PreviousVersion)
+              .HasMaxLength(20);
+
+        entity.Property(co => co.NewVersion)
+              .HasMaxLength(20);
+
+        entity.Property(co => co.Description)
+              .HasMaxLength(1000);
+
+        entity.Property(co => co.Reason)
+              .HasMaxLength(1000);
+
+        entity.Property(co => co.ImpactAnalysis)
+              .HasMaxLength(2000);
+
+        entity.Property(co => co.Status)
+              .HasMaxLength(20);
+
+        entity.Property(co => co.CreatedBy)
+              .HasMaxLength(200);
+
+        entity.Property(co => co.ImplementedBy)
+              .HasMaxLength(200);
+
+        entity.Property(co => co.CancelledBy)
+              .HasMaxLength(200);
+
+        entity.Property(co => co.CancellationReason)
+              .HasMaxLength(1000);
+      });
+
+      // Configure ChangeOrderDocument properties
+      modelBuilder.Entity<ChangeOrderDocument>(entity =>
+      {
+        entity.Property(cod => cod.DocumentData)
+              .HasColumnType("BLOB");
+
+        entity.Property(cod => cod.DocumentName)
+              .IsRequired()
+              .HasMaxLength(200);
+
+        entity.Property(cod => cod.FileName)
+              .IsRequired()
+              .HasMaxLength(255);
+
+        entity.Property(cod => cod.ContentType)
+              .IsRequired()
+              .HasMaxLength(100);
+
+        entity.Property(cod => cod.DocumentType)
+              .HasMaxLength(100);
+
+        entity.Property(cod => cod.Description)
+              .HasMaxLength(1000);
+      });
       // Ensure SaleItem has either ItemId or FinishedGoodId, but not both
       modelBuilder.Entity<SaleItem>()
           .HasCheckConstraint("CK_SaleItem_ItemOrFinishedGood",

@@ -37,30 +37,30 @@
           <div class="mb-3">
             <label asp-for="Reason" class="form-label">Reason for Change</label>
             <textarea asp-for="Reason" class="form-control" rows="2"
-                      placeholder="Why is this change necessary? (e.g., design improvement, customer requirement, cost reduction)"></textarea>
+                      placeholder="Why is this change necessary?"></textarea>
             <span asp-validation-for="Reason" class="text-danger"></span>
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Change Order Document (Optional)</label>
-            <input type="file" class="form-control" name="changeOrderDocument" accept=".pdf,.doc,.docx,.txt" />
-            <div class="form-text">Upload supporting documentation for this change order</div>
+            <label asp-for="ImpactAnalysis" class="form-label">Impact Analysis</label>
+            <textarea asp-for="ImpactAnalysis" class="form-control" rows="2"
+                      placeholder="What is the impact of this change?"></textarea>
+            <span asp-validation-for="ImpactAnalysis" class="text-danger"></span>
           </div>
 
           <div class="mb-3">
-            <div class="form-check">
-              <input type="checkbox" class="form-check-input" id="implementImmediately" name="implementImmediately" value="true" />
-              <label class="form-check-label" for="implementImmediately">
-                Implement change order immediately
-              </label>
-              <div class="form-text">If unchecked, the change order will be created in 'Pending' status and must be implemented later</div>
-            </div>
+            <label class="form-label">Initial Documents (Optional)</label>
+            <input type="file" class="form-control" name="documents" multiple
+                   accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.dxf,.step,.stp,.iges,.igs,.txt,.rtf,.zip,.rar,.7z">
+            <div class="form-text">You can upload supporting documents now or add them later. Multiple files allowed.</div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times"></i> Cancel
+          </button>
           <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save"></i> Create Change Order
+            <i class="fas fa-plus"></i> Create Change Order
           </button>
         </div>
       </form>
@@ -69,37 +69,54 @@
 </div>
 
 <script>
-  // Auto-generate change order number based on version
+  // Initialize the modal
   document.addEventListener('DOMContentLoaded', function() {
-    const newVersionInput = document.getElementById('NewVersion');
-    if (newVersionInput) {
-      newVersionInput.addEventListener('input', function(e) {
-        const version = e.target.value;
-        if (version) {
-          const entityType = '@Model.EntityType';
-          const entityId = '@Model.BaseEntityId';
-          // This could be enhanced to auto-generate change order numbers
-          // For now, we'll let the backend handle it
-        }
-      });
-    }
-  });
+      const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
 
-  // Form validation
-  document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('#changeOrderModal form');
-    if (form) {
-      form.addEventListener('submit', function(e) {
-        const newVersionInput = document.getElementById('NewVersion');
-        if (newVersionInput) {
-          const newVersion = newVersionInput.value.trim();
-          if (!newVersion) {
-            e.preventDefault();
-            alert('Please enter a new version number.');
-            return false;
-          }
-        }
-      });
-    }
+      // Handle form submission via AJAX
+      const form = document.querySelector('#changeOrderModal form');
+      if (form) {
+          form.addEventListener('submit', function(e) {
+              e.preventDefault();
+
+              const formData = new FormData(form);
+
+              fetch(form.action, {
+                  method: 'POST',
+                  body: formData,
+                  headers: {
+                      'X-Requested-With': 'XMLHttpRequest'
+                  }
+              })
+              .then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      // Close modal and redirect or refresh
+                      modal.hide();
+
+                      // Show success message
+                      const alertDiv = document.createElement('div');
+                      alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                      alertDiv.innerHTML = `
+                          ${data.message}
+                          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                      `;
+                      document.body.insertBefore(alertDiv, document.body.firstChild);
+
+                      // Redirect to change order details after a short delay
+                      setTimeout(() => {
+                          window.location.href = `/ChangeOrders/Details/${data.changeOrderId}`;
+                      }, 2000);
+                  } else {
+                      // Show error message
+                      alert(`Error: ${data.message || 'Unknown error occurred'}`);
+                  }
+              })
+              .catch(error => {
+                  console.error('Error:', error);
+                  alert('An error occurred while creating the change order.');
+              });
+          });
+      }
   });
 </script>

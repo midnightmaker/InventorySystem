@@ -93,7 +93,7 @@ namespace InventorySystem.Services
       {
         finishedGood = new FinishedGood
         {
-          PartNumber = bom.AssemblyPartNumber ?? $"FG-{bom.Name}",
+          PartNumber = bom.AssemblyPartNumber ?? $"FG-{bom.BomNumber}",
           Description = $"Finished: {bom.Description}",
           BomId = bomId,
           UnitCost = (materialCost + laborCost + overheadCost) / quantity,
@@ -319,7 +319,7 @@ namespace InventorySystem.Services
       return new MaterialShortageViewModel
       {
         BomId = bomId,
-        BomName = bom.Name,
+        BomName = bom.BomNumber,
         BomDescription = bom.Description,
         RequestedQuantity = quantity,
         CanBuild = canBuild,
@@ -403,7 +403,7 @@ namespace InventorySystem.Services
       // Check sub-assemblies recursively
       foreach (var subAssembly in bom.SubAssemblies)
       {
-        await GetBomMaterialShortagesRecursiveAsync(subAssembly.Id, quantity, shortages, $"Sub-Assembly: {subAssembly.Name}");
+        await GetBomMaterialShortagesRecursiveAsync(subAssembly.Id, quantity, shortages, $"Sub-Assembly: {subAssembly.BomNumber}");
       }
     }
 
@@ -464,7 +464,7 @@ namespace InventorySystem.Services
       // Process sub-assemblies recursively
       foreach (var subAssembly in bom.SubAssemblies)
       {
-        await GetBomMaterialRequirementsRecursiveAsync(subAssembly.Id, quantity, requirements, $"Sub-Assembly: {subAssembly.Name}");
+        await GetBomMaterialRequirementsRecursiveAsync(subAssembly.Id, quantity, requirements, $"Sub-Assembly: {subAssembly.BomNumber}");
       }
     }
   }

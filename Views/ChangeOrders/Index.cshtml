@@ -7,13 +7,12 @@
   <h1><i class="fas fa-code-branch"></i> Change Orders</h1>
   <div class="btn-group">
     <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-      <i class="fas fa-filter"></i> Filter
+      <i class="fas fa-filter"></i> Filter by Status
     </button>
     <ul class="dropdown-menu">
       <li><a class="dropdown-item" href="#" onclick="filterByStatus('')">All Statuses</a></li>
       <li><a class="dropdown-item" href="#" onclick="filterByStatus('Pending')">Pending</a></li>
       <li><a class="dropdown-item" href="#" onclick="filterByStatus('Implemented')">Implemented</a></li>
-      <li><a class="dropdown-item" href="#" onclick="filterByStatus('Failed')">Failed</a></li>
       <li><a class="dropdown-item" href="#" onclick="filterByStatus('Cancelled')">Cancelled</a></li>
     </ul>
   </div>
@@ -35,42 +34,49 @@
   </div>
 }
 
-@if (TempData["WarningMessage"] != null)
-{
-  <div class="alert alert-warning alert-dismissible fade show">
-    @TempData["WarningMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
-
 <div class="card">
   <div class="card-header">
-    <h5><i class="fas fa-list"></i> Change Order List</h5>
-    <small class="text-muted">Click on any row to view change order details</small>
+    <div class="row align-items-center">
+      <div class="col">
+        <h5 class="mb-0">Change Order List (@Model.Count())</h5>
+      </div>
+      <div class="col-auto">
+        @{
+          var stats = ViewBag.Statistics as dynamic;
+        }
+        @if (stats != null)
+        {
+          <div class="d-flex gap-3">
+            <span class="badge bg-warning">Pending: @stats.PendingCount</span>
+            <span class="badge bg-success">Implemented: @stats.ImplementedCount</span>
+            <span class="badge bg-danger">Cancelled: @stats.CancelledCount</span>
+            <span class="badge bg-info">Documents: @stats.TotalDocuments</span>
+          </div>
+        }
+      </div>
+    </div>
   </div>
-  <div class="card-body">
-    @if (Model?.Any() == true)
+  <div class="card-body p-0">
+    @if (Model.Any())
     {
       <div class="table-responsive">
-        <table class="table table-hover" id="changeOrderTable">
-          <thead class="table-dark">
+        <table class="table table-hover mb-0" id="changeOrderTable">
+          <thead class="table-light">
             <tr>
               <th>Change Order #</th>
-              <th>Entity & Description</th>
+              <th>Entity</th>
               <th>Version Change</th>
+              <th>Description</th>
               <th>Status</th>
-              <th>Created By</th>
-              <th>Created Date</th>
-              <th>Implemented</th>
-              <th style="width: 180px;">Actions</th>
+              <th>Documents</th>
+              <th>Created</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            @foreach (var changeOrder in Model.OrderByDescending(co => co.CreatedDate))
+            @foreach (var changeOrder in Model)
             {
-              <tr class="clickable-row" data-change-order-id="@changeOrder.Id"
-                  data-status="@changeOrder.Status"
-                  style="cursor: pointer;"
+              <tr data-status="@changeOrder.Status" style="cursor: pointer;"
                   onclick="window.location.href='/ChangeOrders/Details/@changeOrder.Id'">
                 <td>
                   <strong>@changeOrder.ChangeOrderNumber</strong>
@@ -80,77 +86,76 @@
                     <span class="badge bg-@(changeOrder.EntityType == "Item" ? "primary" : "info") me-2">
                       @changeOrder.EntityType
                     </span>
-                    <div>
-                      @if (changeOrder.EntityType == "Item" && changeOrder.RelatedItem != null)
-                      {
-                        <strong>@changeOrder.RelatedItem.PartNumber</strong>
-                        <br>
-                        <small class="text-muted">@changeOrder.RelatedItem.Description</small>
-                      }
-                      else if (changeOrder.EntityType == "BOM" && changeOrder.RelatedBom != null)
-                      {
-                        <strong>@changeOrder.RelatedBom.Name</strong>
-                        <br>
-                        <small class="text-muted">@changeOrder.RelatedBom.Description</small>
-                      }
-                      else
-                      {
-                        <span class="text-muted">ID: @changeOrder.BaseEntityId</span>
-                      }
-                    </div>
+                    @if (changeOrder.EntityType == "Item" && changeOrder.BaseItem != null)
+                    {
+                      <span class="text-muted">@changeOrder.BaseItem.PartNumber</span>
+                    }
+                    else if (changeOrder.EntityType == "BOM" && changeOrder.BaseBom != null)
+                    {
+                      <span class="text-muted">@changeOrder.BaseBom.BomNumber</span>
+                    }
                   </div>
                 </td>
                 <td>
-                  @if (!string.IsNullOrEmpty(changeOrder.PreviousVersion))
-                  {
-                    <span class="text-muted">@changeOrder.PreviousVersion</span>
-                    <i class="fas fa-arrow-right mx-1"></i>
-                  }
-                  <span class="fw-bold text-success">@changeOrder.NewVersion</span>
+                  <span class="text-nowrap">@changeOrder.PreviousVersion → @changeOrder.NewVersion</span>
                 </td>
                 <td>
-                  <span class="badge bg-@(GetStatusBadgeColor(changeOrder.Status))">
-                    @changeOrder.Status
-                  </span>
-                </td>
-                <td>@changeOrder.CreatedBy</td>
-                <td>@changeOrder.CreatedDate.ToString("MM/dd/yyyy")</td>
-                <td>
-                  @if (changeOrder.ImplementedDate.HasValue)
+                  @if (!string.IsNullOrEmpty(changeOrder.Description))
                   {
-                    <span>@changeOrder.ImplementedDate.Value.ToString("MM/dd/yyyy")</span>
-                    <br>
-                    <small class="text-muted">by @changeOrder.ImplementedBy</small>
+                    <span title="@changeOrder.Description">
+                      @(changeOrder.Description.Length > 50 ? changeOrder.Description.Substring(0, 50) + "..." : changeOrder.Description)
+                    </span>
                   }
                   else
                   {
-                    <span class="text-muted">Not implemented</span>
+                    <span class="text-muted">No description</span>
                   }
                 </td>
                 <td>
-                  <div class="btn-group btn-group-sm">
-                    <a href="/ChangeOrders/Details/@changeOrder.Id" class="btn btn-outline-primary"
-                       title="View Details" onclick="event.stopPropagation();">
+                  <span class="badge bg-@changeOrder.StatusBadgeColor">@changeOrder.Status</span>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center">
+                    @if (changeOrder.HasDocuments)
+                    {
+                      <i class="fas fa-file-alt text-success me-1"></i>
+                      <span class="badge bg-light text-dark">@changeOrder.DocumentCount</span>
+                    }
+                    else
+                    {
+                      <i class="fas fa-file-alt text-muted me-1"></i>
+                      <span class="text-muted">0</span>
+                    }
+                  </div>
+                </td>
+                <td>
+                  <div>
+                    <small class="text-muted">@changeOrder.CreatedDate.ToString("MM/dd/yyyy")</small><br>
+                    <small class="text-muted">@changeOrder.CreatedBy</small>
+                  </div>
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+                    <a href="/ChangeOrders/Details/@changeOrder.Id" class="btn btn-outline-primary" title="View Details">
                       <i class="fas fa-eye"></i>
                     </a>
+
                     @if (changeOrder.Status == "Pending")
                     {
-                      <form asp-action="Implement" method="post" style="display:inline;"
-                            onsubmit="event.stopPropagation();">
+                      <a href="/ChangeOrderDocuments/Upload?changeOrderId=@changeOrder.Id" class="btn btn-outline-info" title="Upload Document">
+                        <i class="fas fa-upload"></i>
+                      </a>
+                      <form asp-action="Implement" method="post" style="display:inline;">
                         <input type="hidden" name="id" value="@changeOrder.Id" />
-                        <button type="submit" class="btn btn-outline-success"
-                                title="Implement Change Order"
-                                onclick="return confirm('Implement this change order? This will create the new version and cannot be undone.')">
+                        <button type="submit" class="btn btn-outline-success" title="Implement"
+                                onclick="return confirm('Implement change order @changeOrder.ChangeOrderNumber?')">
                           <i class="fas fa-check"></i>
                         </button>
                       </form>
-
-                      <form asp-action="Cancel" method="post" style="display:inline;"
-                            onsubmit="event.stopPropagation();">
+                      <form asp-action="Cancel" method="post" style="display:inline;">
                         <input type="hidden" name="id" value="@changeOrder.Id" />
-                        <button type="submit" class="btn btn-outline-danger"
-                                title="Cancel Change Order"
-                                onclick="return confirm('Cancel this change order? This action cannot be undone.')">
+                        <button type="submit" class="btn btn-outline-danger" title="Cancel"
+                                onclick="return confirm('Cancel change order @changeOrder.ChangeOrderNumber? This action cannot be undone.')">
                           <i class="fas fa-times"></i>
                         </button>
                       </form>
@@ -217,100 +222,4 @@
       const statusText = status === '' ? 'All Statuses' : status;
       filterButton.innerHTML = `<i class="fas fa-filter"></i> ${statusText}`;
   }
-
-  // Make table rows clickable
-  document.addEventListener('DOMContentLoaded', function() {
-      const clickableRows = document.querySelectorAll('.clickable-row');
-
-      clickableRows.forEach(function(row) {
-          row.addEventListener('click', function(e) {
-              // Only proceed if the click wasn't on a button, form, or link
-              if (e.target.closest('.btn-group') || e.target.closest('form') || e.target.closest('button') || e.target.closest('a')) {
-                  return;
-              }
-
-              const changeOrderId = this.getAttribute('data-change-order-id');
-              if (changeOrderId) {
-                  window.location.href = '/ChangeOrders/Details/' + changeOrderId;
-              }
-          });
-
-          // Add hover effect
-          row.addEventListener('mouseenter', function() {
-              if (!this.classList.contains('table-active')) {
-                  this.style.backgroundColor = '#f8f9fa';
-              }
-          });
-
-          row.addEventListener('mouseleave', function() {
-              if (!this.classList.contains('table-active')) {
-                  this.style.backgroundColor = '';
-              }
-          });
-      });
-
-      // Prevent action buttons from triggering row click
-      const actionButtons = document.querySelectorAll('.btn-group button, .btn-group a');
-      actionButtons.forEach(function(button) {
-          button.addEventListener('click', function(e) {
-              e.stopPropagation();
-          });
-      });
-  });
 </script>
-
-<style>
-  .clickable-row {
-    transition: background-color 0.2s ease;
-    cursor: pointer;
-  }
-
-    .clickable-row:hover {
-      background-color: #f8f9fa !important;
-    }
-
-    .clickable-row:active {
-      background-color: #e9ecef !important;
-    }
-
-    /* Ensure action buttons don't inherit pointer cursor */
-    .clickable-row .btn-group {
-      cursor: default;
-    }
-
-  /* Prevent text selection on clickable rows for better UX */
-  .clickable-row {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-  }
-
-    /* But allow text selection in specific areas */
-    .clickable-row td:nth-child(1),
-    .clickable-row td:nth-child(2) {
-      -webkit-user-select: text;
-      -moz-user-select: text;
-      -ms-user-select: text;
-      user-select: text;
-    }
-
-  /* Badge styling */
-  .badge {
-    font-size: 0.75em;
-  }
-</style>
-
-@functions {
-  string GetStatusBadgeColor(string status)
-  {
-    return status switch
-    {
-      "Pending" => "warning",
-      "Implemented" => "success",
-      "Failed" => "danger",
-      "Cancelled" => "secondary",
-      _ => "secondary"
-    };
-  }
-}
