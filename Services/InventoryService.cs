@@ -19,6 +19,7 @@ namespace InventorySystem.Services
     public async Task<IEnumerable<Item>> GetAllItemsAsync()
     {
       return await _context.Items
+          .Where(i => i.IsCurrentVersion) // ? ONLY SHOW CURRENT VERSIONS
           .Include(i => i.Purchases)
           .Include(i => i.DesignDocuments)
           .OrderBy(i => i.PartNumber)

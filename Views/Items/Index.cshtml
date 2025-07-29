@@ -115,10 +115,6 @@ else
                 </td>
                 <td>
                   <strong>@item.PartNumber</strong>
-                  @if (!item.IsCurrentVersion)
-                  {
-                    <span class="badge bg-secondary ms-1">Historical</span>
-                  }
                 </td>
                 <td>
                   @item.Description
@@ -143,10 +139,6 @@ else
                 </td>
                 <td>
                   <span class="badge bg-outline-dark">@item.Version</span>
-                  @if (item.IsCurrentVersion)
-                  {
-                    <span class="badge bg-success ms-1">Current</span>
-                  }
                 </td>
                 <td>
                   @if (item.TrackInventory)
@@ -197,12 +189,9 @@ else
                     <a href="/Items/Details/@item.Id" class="btn btn-outline-primary" title="View Details">
                       <i class="fas fa-eye"></i>
                     </a>
-                    @if (item.IsCurrentVersion)
-                    {
-                      <a href="/Items/Edit/@item.Id" class="btn btn-outline-warning" title="Edit">
-                        <i class="fas fa-edit"></i>
-                      </a>
-                    }
+                    <a href="/Items/Edit/@item.Id" class="btn btn-outline-warning" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
                     @if (item.TrackInventory)
                     {
                       <a href="/Purchases/Create?itemId=@item.Id" class="btn btn-outline-success" title="Add Purchase">
@@ -321,6 +310,7 @@ else
   }
 </script>
 
+<!-- Keep the existing CSS styles -->
 <style>
   /* Item thumbnail styles */
   .item-thumbnail {

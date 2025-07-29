@@ -112,8 +112,12 @@ namespace InventorySystem.Services
 
     public async Task<Bom> CreateBomVersionAsync(int baseBomId, string newVersion, int changeOrderId)
     {
+      // Load the base BOM with ALL related data that needs to be transferred
       var baseBom = await _context.Boms
           .Include(b => b.BomItems)
+          .ThenInclude(bi => bi.Item)
+          .Include(b => b.SubAssemblies)
+          .Include(b => b.Documents) // Include BOM documents
           .FirstOrDefaultAsync(b => b.Id == baseBomId);
 
       if (baseBom == null)
@@ -135,7 +139,7 @@ namespace InventorySystem.Services
         version.IsCurrentVersion = false;
       }
 
-      // Create new version (copy from base BOM but with no components)
+      // ✅ CREATE NEW VERSION WITH ALL TRANSFERRED DATA
       var newBom = new Bom
       {
         BomNumber = baseBom.BomNumber,
@@ -148,14 +152,88 @@ namespace InventorySystem.Services
         CreatedFromChangeOrderId = changeOrderId,
         CreatedDate = DateTime.Now,
         ModifiedDate = DateTime.Now
-        // BomItems collection starts empty as required
       };
 
       _context.Boms.Add(newBom);
+      await _context.SaveChangesAsync(); // Save to get the new BOM ID
+
+      // ✅ TRANSFER ALL BOM ITEMS FROM CURRENT VERSION
+      if (baseBom.BomItems?.Any() == true)
+      {
+        foreach (var originalBomItem in baseBom.BomItems)
+        {
+          var newBomItem = new BomItem
+          {
+            BomId = newBom.Id, // Link to new BOM version
+            ItemId = originalBomItem.ItemId, // Same item
+            Quantity = originalBomItem.Quantity, // Same quantity
+            ReferenceDesignator = originalBomItem.ReferenceDesignator, // Same reference
+            UnitCost = originalBomItem.UnitCost, // Copy current cost
+            // Note: ExtendedCost will be calculated automatically by the model
+          };
+
+          _context.BomItems.Add(newBomItem);
+        }
+      }
+
+      // ✅ TRANSFER ALL SUB-ASSEMBLIES (CHILD BOMS)
+      if (baseBom.SubAssemblies?.Any() == true)
+      {
+        foreach (var originalSubAssembly in baseBom.SubAssemblies)
+        {
+          var newSubAssembly = new Bom
+          {
+            BomNumber = originalSubAssembly.BomNumber,
+            Description = originalSubAssembly.Description,
+            Version = originalSubAssembly.Version, // Keep same version for sub-assemblies
+            AssemblyPartNumber = originalSubAssembly.AssemblyPartNumber,
+            ParentBomId = newBom.Id, // Link to new parent BOM
+            BaseBomId = originalSubAssembly.BaseBomId,
+            IsCurrentVersion = originalSubAssembly.IsCurrentVersion,
+            CreatedFromChangeOrderId = changeOrderId,
+            CreatedDate = DateTime.Now,
+            ModifiedDate = DateTime.Now
+          };
+
+          _context.Boms.Add(newSubAssembly);
+        }
+      }
+
+      // ✅ TRANSFER ALL BOM DOCUMENTS
+      if (baseBom.Documents?.Any() == true)
+      {
+        foreach (var originalDocument in baseBom.Documents)
+        {
+          // Create a copy of the document for the new BOM version
+          var newDocument = new ItemDocument
+          {
+            BomId = newBom.Id, // Link to new BOM version
+            ItemId = null, // This is a BOM document, not an Item document
+            DocumentName = originalDocument.DocumentName,
+            DocumentType = originalDocument.DocumentType,
+            FileName = originalDocument.FileName,
+            ContentType = originalDocument.ContentType,
+            FileSize = originalDocument.FileSize,
+            DocumentData = originalDocument.DocumentData, // Copy the actual file data
+            Description = originalDocument.Description,
+            UploadedDate = DateTime.Now // Mark as uploaded now for the new version
+          };
+
+          _context.ItemDocuments.Add(newDocument);
+        }
+      }
+
+      // Save all the transferred items, sub-assemblies, and documents
       await _context.SaveChangesAsync();
 
-      _logger.LogInformation("Created new BOM version {Version} for BOM {BomName} (ID: {BomId})",
-          newVersion, baseBom.BomNumber, newBom.Id);
+      _logger.LogInformation(
+        "Created new BOM version {Version} for BOM {BomName} (ID: {BomId}) with {ItemCount} items, {SubAssemblyCount} sub-assemblies, and {DocumentCount} documents transferred",
+        newVersion, 
+        baseBom.BomNumber, 
+        newBom.Id,
+        baseBom.BomItems?.Count ?? 0,
+        baseBom.SubAssemblies?.Count ?? 0,
+        baseBom.Documents?.Count ?? 0);
 
       return newBom;
     }

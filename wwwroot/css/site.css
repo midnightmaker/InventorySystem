@@ -14,3 +14,195 @@
 .btn-link:focus {
   box-shadow: none;
 }
+
+/* ===================================
+   NAVBAR STYLING IMPROVEMENTS
+   =================================== */
+
+/* Override Bootstrap's dark bg-primary with a lighter color */
+.navbar.bg-primary {
+  background-color: #e3f2fd !important; /* Very light blue background */
+  border-bottom: 2px solid #bbdefb !important; /* Subtle border */
+}
+
+/* Update navbar text colors for better contrast on light background */
+.navbar.bg-primary .navbar-brand {
+  color: #1565c0 !important; /* Dark blue for brand text */
+  font-weight: 600 !important;
+}
+
+.navbar.bg-primary .navbar-brand:hover,
+.navbar.bg-primary .navbar-brand:focus {
+  color: #0d47a1 !important; /* Even darker blue on hover */
+}
+
+/* Navigation links styling */
+.navbar.bg-primary .navbar-nav .nav-link {
+  color: #1976d2 !important; /* Dark blue for nav links */
+  font-weight: 500 !important;
+}
+
+.navbar.bg-primary .navbar-nav .nav-link:hover,
+.navbar.bg-primary .navbar-nav .nav-link:focus {
+  color: #0d47a1 !important; /* Darker blue on hover */
+  background-color: rgba(25, 118, 210, 0.1) !important; /* Light blue background on hover */
+  border-radius: 4px !important;
+}
+
+/* Active/current page nav link */
+.navbar.bg-primary .navbar-nav .nav-link.active {
+  color: #0d47a1 !important;
+  background-color: rgba(25, 118, 210, 0.15) !important;
+  border-radius: 4px !important;
+  font-weight: 600 !important;
+}
+
+/* Dropdown toggle styling */
+.navbar.bg-primary .navbar-nav .dropdown-toggle {
+  color: #1976d2 !important;
+}
+
+.navbar.bg-primary .navbar-nav .dropdown-toggle:hover,
+.navbar.bg-primary .navbar-nav .dropdown-toggle:focus {
+  color: #0d47a1 !important;
+  background-color: rgba(25, 118, 210, 0.1) !important;
+  border-radius: 4px !important;
+}
+
+/* Navbar toggler (mobile menu button) */
+.navbar.bg-primary .navbar-toggler {
+  border-color: #1976d2 !important;
+  color: #1976d2 !important;
+}
+
+.navbar.bg-primary .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25) !important;
+}
+
+/* Navbar toggler icon */
+.navbar.bg-primary .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%231976d2' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+}
+
+/* Dropdown menu styling for navbar dropdowns */
+.navbar.bg-primary .dropdown-menu {
+  border: 1px solid #bbdefb !important;
+  box-shadow: 0 0.5rem 1rem rgba(25, 118, 210, 0.15) !important;
+}
+
+.navbar.bg-primary .dropdown-menu .dropdown-item {
+  color: #1976d2 !important;
+}
+
+.navbar.bg-primary .dropdown-menu .dropdown-item:hover,
+.navbar.bg-primary .dropdown-menu .dropdown-item:focus {
+  background-color: #e3f2fd !important;
+  color: #0d47a1 !important;
+}
+
+/* Icons in navbar */
+.navbar.bg-primary .fas,
+.navbar.bg-primary .fab {
+  color: inherit !important;
+}
+
+/* ===================================
+   VERSION HISTORY STYLING IMPROVEMENTS
+   =================================== */
+
+/* Version Dropdown - Current Selection - More specific selectors */
+.dropdown-menu .dropdown-item.active,
+.dropdown-menu .dropdown-item:active {
+  background-color: #e8f4fd !important; /* Very light blue */
+  color: #1565c0 !important; /* Darker blue text for better contrast */
+  border-left: 3px solid #2196f3 !important; /* Blue left border for emphasis */
+}
+
+.dropdown-menu .dropdown-item.active:hover,
+.dropdown-menu .dropdown-item.active:focus {
+  background-color: #e3f2fd !important; /* Slightly different light blue on hover */
+  color: #0d47a1 !important; /* Even darker blue text */
+}
+
+/* Version History Card - Current Selection - More specific selectors */
+.card-body .list-group .list-group-item.active {
+  background-color: #f1f8e9 !important; /* Very light green */
+  color: #2e7d32 !important; /* Dark green text */
+  border-left: 4px solid #4caf50 !important; /* Green left border */
+  border-color: #c8e6c9 !important;
+}
+
+.card-body .list-group .list-group-item.active:hover {
+  background-color: #e8f5e8 !important; /* Slightly darker light green on hover */
+  color: #1b5e20 !important; /* Even darker green text */
+}
+
+/* Item Version History Cards - More specific targeting */
+.card .card-body.py-2.bg-light {
+  background-color: #f3e5f5 !important; /* Very light purple */
+  color: #6a1b9a !important; /* Dark purple text */
+  border-left: 3px solid #9c27b0 !important; /* Purple left border */
+}
+
+/* Version card highlighting for currently viewed version */
+.card .card-body.py-2.bg-light .d-flex.active {
+  font-weight: 600 !important; /* Make text slightly bolder */
+}
+
+/* Ensure badges remain visible with better contrast */
+.dropdown-menu .dropdown-item.active .badge,
+.card-body .list-group-item.active .badge {
+  background-color: #4caf50 !important; /* Keep success badges green */
+  color: white !important;
+  border: 1px solid rgba(255,255,255,0.3) !important; /* Subtle border */
+}
+
+/* Small text improvements for better readability */
+.dropdown-menu .dropdown-item.active small,
+.card-body .list-group-item.active small {
+  color: #424242 !important; /* Dark gray for small text */
+  opacity: 0.8 !important;
+}
+
+/* Hover effects for non-active items */
+.dropdown-menu .dropdown-item:hover:not(.active) {
+  background-color: #f8f9fa !important; /* Very light gray on hover */
+  color: #495057 !important;
+}
+
+.card-body .list-group-item:hover:not(.active) {
+  background-color: #fafafa !important; /* Very light gray on hover */
+  color: #495057 !important;
+}
+
+/* Focus states for accessibility */
+.dropdown-menu .dropdown-item:focus {
+  background-color: #fff3cd !important; /* Light yellow for focus */
+  color: #856404 !important; /* Dark yellow text */
+  outline: 2px solid #ffc107 !important; /* Yellow outline */
+  outline-offset: -2px !important;
+}
+
+.card-body .list-group-item:focus {
+  background-color: #fff3cd !important; /* Light yellow for focus */
+  color: #856404 !important; /* Dark yellow text */
+  outline: 2px solid #ffc107 !important; /* Yellow outline */
+  outline-offset: -2px !important;
+}
+
+/* Additional improvements for version history sections */
+.version-history-card .card-header {
+  background-color: #f8f9fa !important;
+  border-bottom: 2px solid #dee2e6 !important;
+}
+
+/* Better spacing and visual hierarchy */
+.dropdown-menu .dropdown-item.active {
+  padding-left: 1.5rem !important; /* Extra padding for active items */
+  margin: 2px 0 !important; /* Small margin for separation */
+}
+
+.card-body .list-group-item.active {
+  padding-left: 1.5rem !important; /* Extra padding for active items */
+  margin: 2px 0 !important; /* Small margin for separation */
+}
