@@ -9,7 +9,7 @@ namespace InventorySystem.Controllers
   public class ChangeOrdersController : Controller
   {
     private readonly InventoryContext _context;
-    private readonly VersionControlService _versionService;
+    private readonly IVersionControlService _versionService;  // ✅ Use interface
     private readonly ILogger<ChangeOrdersController> _logger;
 
     // Allowed file types for change order documents
@@ -27,7 +27,7 @@ namespace InventorySystem.Controllers
 
     public ChangeOrdersController(
         InventoryContext context,
-        VersionControlService versionService,
+        IVersionControlService versionService,  // ✅ Use interface
         ILogger<ChangeOrdersController> logger)
     {
       _context = context;
@@ -86,6 +86,9 @@ namespace InventorySystem.Controllers
     {
       try
       {
+        // Remove validation error for ChangeOrderNumber since it's auto-generated
+        ModelState.Remove("ChangeOrderNumber");
+        
         // Validate the change order data
         if (!ModelState.IsValid)
         {
@@ -105,9 +108,12 @@ namespace InventorySystem.Controllers
         _logger.LogInformation("Change order {ChangeOrderNumber} created by {User}",
             createdChangeOrder.ChangeOrderNumber, User.Identity?.Name);
 
+        // Return the format that matches your JavaScript expectations
         return Json(new
         {
           success = true,
+          redirect = true,
+          redirectUrl = Url.Action("Details", "ChangeOrders", new { id = createdChangeOrder.Id }),
           message = $"Change order {createdChangeOrder.ChangeOrderNumber} created successfully.",
           changeOrderId = createdChangeOrder.Id,
           changeOrderNumber = createdChangeOrder.ChangeOrderNumber

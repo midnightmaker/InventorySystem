@@ -98,12 +98,12 @@
 
           <dt class="col-sm-3">Components:</dt>
           <dd class="col-sm-9">
-            <span class="badge bg-info">@Model.BomItems.Count</span>
+            <span class="badge bg-info">@(Model.BomItems?.Count ?? 0)</span>
           </dd>
 
           <dt class="col-sm-3">Sub-Assemblies:</dt>
           <dd class="col-sm-9">
-            <span class="badge bg-secondary">@Model.SubAssemblies.Count</span>
+            <span class="badge bg-secondary">@(Model.SubAssemblies?.Count ?? 0)</span>
           </dd>
 
           <dt class="col-sm-3">Total Cost:</dt>
@@ -284,7 +284,7 @@
       <div class="collapse" id="materialCheck">
         <div class="card-body">
           <p class="text-muted small">Check if sufficient materials are available for this BOM:</p>
-          @if (Model.BomItems.Any())
+          @if (Model.BomItems?.Any() == true)
           {
             <div class="list-group list-group-flush">
               @foreach (var bomItem in Model.BomItems.Take(5))
@@ -324,12 +324,12 @@
         <div class="row text-center">
           <div class="col-6">
             <div class="border-end">
-              <h5 class="text-primary">@Model.BomItems.Count</h5>
+              <h5 class="text-primary">@(Model.BomItems?.Count ?? 0)</h5>
               <small class="text-muted">Components</small>
             </div>
           </div>
           <div class="col-6">
-            <h5 class="text-info">@Model.SubAssemblies.Count</h5>
+            <h5 class="text-info">@(Model.SubAssemblies?.Count ?? 0)</h5>
             <small class="text-muted">Sub-Assemblies</small>
           </div>
         </div>
@@ -340,7 +340,7 @@
             <small class="text-muted">Total Material Cost</small>
           </div>
         </div>
-        @if (Model.BomItems.Any())
+        @if (Model.BomItems?.Any() == true)
         {
           <hr>
           <div class="row text-center">
@@ -428,217 +428,156 @@
 </div>
 
 <script>
-  // Updated showCreateVersionModal function with proper error handling
-       function showCreateVersionModal(entityType, entityId) {
-      console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
+  // Define the showCreateVersionModal function for this page
+  function showCreateVersionModal(entityType, entityId) {
+    console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
 
-      // Load the change order modal using the new route
-      fetch(`/ChangeOrders/CreateModal/${entityType}/${entityId}`, {
-          method: 'GET',
-          headers: {
-              'X-Requested-With': 'XMLHttpRequest',
-              'Accept': 'text/html,application/json'
-          }
-      })
-          .then(response => {
-              console.log(`Response status: ${response.status}`);
-              console.log(`Response content-type: ${response.headers.get('content-type')}`);
+    // Add visual feedback to the button
+    const button = event?.target;
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    }
 
-              if (!response.ok) {
-                  // For server errors, try to get the response text for debugging
-                  return response.text().then(text => {
-                      console.error('Server error response:', text);
-                      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                  });
-              }
+    // Load the change order modal using the new route
+    fetch(`/ChangeOrders/CreateModal/${entityType}/${entityId}`, {
+      method: 'GET',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'text/html,application/json'
+      }
+    })
+    .then(response => {
+      console.log(`Response status: ${response.status}`);
+      console.log(`Response content-type: ${response.headers.get('content-type')}`);
 
-              // Check if the response is JSON (error response) or HTML (modal content)
-              const contentType = response.headers.get('content-type');
-              if (contentType && contentType.includes('application/json')) {
-                  return response.json().then(data => {
-                      if (data.success === false) {
-                          throw new Error(JSON.stringify(data));
-                      }
-                      return data;
-                  });
-              }
+      if (!response.ok) {
+        return response.text().then(text => {
+          console.error('Server error response:', text);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        });
+      }
 
-              return response.text();
-          })
-          .then(result => {
-              if (typeof result === 'string') {
-                  // HTML response - show modal
-                  console.log('Modal HTML loaded successfully');
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      }
 
-                  // Remove any existing modal first
-                  const existingModal = document.getElementById('changeOrderModal');
-                  if (existingModal) {
-                      existingModal.remove();
-                  }
+      return response.text();
+    })
+    .then(result => {
+      if (typeof result === 'string') {
+        // HTML response - show modal
+        console.log('Modal HTML loaded successfully');
 
-                  document.body.insertAdjacentHTML('beforeend', result);
-                  const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
-                  modal.show();
-              } else {
-                  // JSON response
-                  console.log('JSON response received:', result);
-              }
-          })
-          .catch(error => {
-              console.error('Error loading modal:', error);
+        // Remove any existing modal first
+        const existingModal = document.getElementById('changeOrderModal');
+        if (existingModal) {
+          existingModal.remove();
+        }
 
-              // Try to parse the error as JSON for validation errors
-              try {
-                  const errorData = JSON.parse(error.message);
-                  if (errorData.success === false) {
-                      // Show the pending change orders modal instead of alert
-                      if (errorData.pendingChangeOrders) {
-                          showPendingChangeOrdersModal(errorData);
-                      } else {
-                          alert(`Error: ${errorData.message || errorData.error || 'Unknown error occurred'}`);
-                      }
-                      return;
-                  }
-              } catch (e) {
-                  // Not a JSON error, show the actual error message
-                  console.error('Failed to parse error as JSON:', e);
-              }
-
-              // Show the actual error message for debugging
-              alert(`Error loading change order form: ${error.message}\n\nPlease check the browser console for more details.`);
-          });
+        document.body.insertAdjacentHTML('beforeend', result);
+        const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
+        modal.show();
+      } else if (result.success === false) {
+        // JSON error response - show pending change orders modal
+        if (result.pendingChangeOrders) {
+          showPendingChangeOrdersModal(result);
+        } else {
+          alert(`Error: ${result.message || result.error || 'Unknown error occurred'}`);
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error loading modal:', error);
+      alert(`Error loading change order form: ${error.message}\n\nPlease check the browser console for more details.`);
+    })
+    .finally(() => {
+      // Re-enable button
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-code-branch"></i> New Version';
+      }
+    });
   }
 
-  // Function to show pending change orders modal when there are conflicts
+  // Helper functions specific to this page
   function showPendingChangeOrdersModal(errorData) {
-      console.log('Showing pending change orders modal:', errorData);
+    console.log('Showing pending change orders modal:', errorData);
 
-      // Update the modal content
-      const messageElement = document.getElementById('pendingModalMessage');
-      if (messageElement) {
-          messageElement.textContent = errorData.message;
-      }
+    // Update the modal content
+    const messageElement = document.getElementById('pendingModalMessage');
+    if (messageElement) {
+      messageElement.textContent = errorData.message;
+    }
 
-      // Build the pending change orders list
-      const listContainer = document.getElementById('pendingChangeOrdersList');
-      if (listContainer && errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
-          const listHtml = errorData.pendingChangeOrders.map(co => `
-              <div class="card mb-2">
-                  <div class="card-body py-2">
-                      <div class="d-flex justify-content-between align-items-center">
-                          <div>
-                              <strong>${co.changeOrderNumber}</strong>
-                              <span class="badge bg-warning ms-2">Version ${co.newVersion}</span>
-                          </div>
-                          <div class="text-end">
-                              <small class="text-muted">Created: ${co.createdDate}</small><br>
-                              <small class="text-muted">By: ${co.createdBy}</small>
-                          </div>
-                      </div>
-                      <div class="mt-2">
-                          <a href="/ChangeOrders/Details/${co.id}" class="btn btn-sm btn-outline-primary">
-                              <i class="fas fa-eye"></i> View Details
-                          </a>
-                      </div>
-                  </div>
+    // Build the pending change orders list
+    const listContainer = document.getElementById('pendingChangeOrdersList');
+    if (listContainer && errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
+      const listHtml = errorData.pendingChangeOrders.map(co => `
+        <div class="card mb-2">
+          <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <strong>${co.changeOrderNumber}</strong>
+                <span class="badge bg-warning ms-2">Version ${co.newVersion}</span>
               </div>
-          `).join('');
-          listContainer.innerHTML = listHtml;
-      } else if (listContainer) {
-          listContainer.innerHTML = '<p class="text-muted">No pending change orders found.</p>';
-      }
-
-      // Show the modal
-      const pendingModal = document.getElementById('pendingChangeOrdersModal');
-      if (pendingModal) {
-          const modal = new bootstrap.Modal(pendingModal);
-          modal.show();
-      } else {
-          console.error('Pending change orders modal not found in DOM');
-          alert(errorData.message);
-      }
-  }
-
-
-  // Function to implement a change order via form submission
-  function implementChangeOrder(changeOrderId, changeOrderNumber) {
-    if (!confirm(`Are you sure you want to implement change order ${changeOrderNumber}? This will create the new version and cannot be undone.`)) {
-      return;
+              <div class="text-end">
+                <small class="text-muted">Created: ${co.createdDate}</small><br>
+                <small class="text-muted">By: ${co.createdBy}</small>
+              </div>
+            </div>
+            <div class="mt-2">
+              <a href="/ChangeOrders/Details/${co.id}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-eye"></i> View Details
+              </a>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      listContainer.innerHTML = listHtml;
+    } else if (listContainer) {
+      listContainer.innerHTML = '<p class="text-muted">No pending change orders found.</p>';
     }
 
-    // Create a form and submit it
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/ChangeOrders/Implement/${changeOrderId}`;
-
-    // Add CSRF token
-    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
-                     document.querySelector('meta[name="csrf-token"]')?.content;
-    if (csrfToken) {
-      const tokenInput = document.createElement('input');
-      tokenInput.type = 'hidden';
-      tokenInput.name = '__RequestVerificationToken';
-      tokenInput.value = csrfToken;
-      form.appendChild(tokenInput);
+    // Show the modal
+    const pendingModal = document.getElementById('pendingChangeOrdersModal');
+    if (pendingModal) {
+      const modal = new bootstrap.Modal(pendingModal);
+      modal.show();
+    } else {
+      console.error('Pending change orders modal not found in DOM');
+      alert(errorData.message);
     }
-
-    document.body.appendChild(form);
-    form.submit();
-  }
-
-  // Function to cancel a change order via form submission
-  function cancelChangeOrder(changeOrderId, changeOrderNumber) {
-    if (!confirm(`Are you sure you want to cancel change order ${changeOrderNumber}? This action cannot be undone.`)) {
-      return;
-    }
-
-    // Create a form and submit it
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/ChangeOrders/Cancel/${changeOrderId}`;
-
-    // Add CSRF token
-    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
-                     document.querySelector('meta[name="csrf-token"]')?.content;
-    if (csrfToken) {
-      const tokenInput = document.createElement('input');
-      tokenInput.type = 'hidden';
-      tokenInput.name = '__RequestVerificationToken';
-      tokenInput.value = csrfToken;
-      form.appendChild(tokenInput);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
   }
 
   function refreshPage() {
     location.reload();
   }
 
-  // Clean up modal when closed
-  document.addEventListener('hidden.bs.modal', function (event) {
-    if (event.target.id === 'changeOrderModal') {
-      event.target.remove();
-    }
-  });
-
-  // Debug: Add click event listener to test button functionality
+  // Page-specific initialization
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('BOM Details page loaded, checking for New Version button...');
+    console.log('BOM Details page loaded');
+    
+    // Check if the New Version button exists
     const newVersionBtn = document.querySelector('button[onclick*="showCreateVersionModal"]');
     if (newVersionBtn) {
       console.log('Found New Version button:', newVersionBtn);
     } else {
       console.log('New Version button not found!');
     }
-  }
-    // Debug helper - check if modal containers exist
-  document.addEventListener('DOMContentLoaded', function() {
-      console.log('Change order modal script loaded');
-      const pendingModal = document.getElementById('pendingChangeOrdersModal');
-      if (!pendingModal) {
-          console.warn('pendingChangeOrdersModal not found - make sure it exists in the page');
-      }
+
+    // Check if the pending change orders modal exists
+    const pendingModal = document.getElementById('pendingChangeOrdersModal');
+    if (!pendingModal) {
+      console.warn('pendingChangeOrdersModal not found - make sure it exists in the page');
+    }
+  });
+
+  // Clean up modal when closed
+  document.addEventListener('hidden.bs.modal', function (event) {
+    if (event.target.id === 'changeOrderModal') {
+      event.target.remove();
+    }
   });
 </script>

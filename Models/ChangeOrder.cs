@@ -7,7 +7,7 @@ namespace InventorySystem.Models
   {
     public int Id { get; set; }
 
-    [Required]
+    // Remove [Required] attribute since this is auto-generated
     [Display(Name = "Change Order Number")]
     public string ChangeOrderNumber { get; set; } = string.Empty;
 

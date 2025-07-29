@@ -5,6 +5,7 @@
   var documentTypes = ViewBag.DocumentTypes as List<string>;
   var allowedFileTypes = ViewBag.AllowedFileTypes as string;
   var maxFileSize = ViewBag.MaxFileSize as long?;
+  var maxFileSizeMB = (maxFileSize ?? 0) / (1024 * 1024);
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -20,7 +21,16 @@
     <h6><i class="fas fa-info-circle"></i> Uploading document for:</h6>
     <strong>Change Order:</strong> @changeOrder.ChangeOrderNumber<br>
     <strong>Entity:</strong> @changeOrder.EntityType (@changeOrder.NewVersion)<br>
-    <strong>Status:</strong> <span class="badge bg-@changeOrder.StatusBadgeColor">@changeOrder.Status</span>
+    <strong>Status:</strong> <span class="badge bg-secondary">@changeOrder.Status</span>
+  </div>
+}
+
+<!-- Add validation summary -->
+@if (!ViewData.ModelState.IsValid)
+{
+  <div class="alert alert-danger">
+    <h6><i class="fas fa-exclamation-triangle"></i> Please fix the following errors:</h6>
+    <div asp-validation-summary="All" class="text-danger"></div>
   </div>
 }
 
@@ -39,8 +49,20 @@
             <input type="file" class="form-control" id="file" name="file" required
                    accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.dxf,.step,.stp,.iges,.igs,.txt,.rtf,.zip,.rar,.7z">
             <div asp-validation-for="file" class="text-danger"></div>
+            @{
+              var fileErrors = ViewData.ModelState["file"]?.Errors;
+            }
+            @if (fileErrors?.Any() == true)
+            {
+              <div class="text-danger">
+                @foreach (var error in fileErrors)
+                {
+                  <div>@error.ErrorMessage</div>
+                }
+              </div>
+            }
             <div class="form-text">
-              <strong>Maximum file size:</strong> @((maxFileSize ?? 0) / (1024 * 1024))MB<br>
+              <strong>Maximum file size:</strong> @maxFileSizeMB MB<br>
               <strong>Allowed types:</strong> @allowedFileTypes
             </div>
           </div>
@@ -119,6 +141,9 @@
 </div>
 
 <script>
+  // Get the max file size from server
+  const maxFileSize = @Html.Raw(maxFileSize ?? 0);
+
   // Update document name based on selected file
   document.getElementById('file').addEventListener('change', function(e) {
       const file = e.target.files[0];
@@ -134,9 +159,9 @@
   document.getElementById('file').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (file) {
-          const maxSize = @(maxFileSize ?? 0);
-          if (file.size > maxSize) {
-              alert('File size exceeds the maximum allowed size of ' + (maxSize / (1024 * 1024)) + 'MB');
+          if (file.size > maxFileSize) {
+              const maxSizeMB = maxFileSize / (1024 * 1024);
+              alert('File size exceeds the maximum allowed size of ' + maxSizeMB + 'MB');
               this.value = '';
           }
       }

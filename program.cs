@@ -17,6 +17,17 @@ builder.Services.AddScoped<ISalesService, SalesService>();
 builder.Services.AddScoped<IBulkUploadService, BulkUploadService>();
 builder.Services.AddScoped<IVersionControlService, VersionControlService>();
 
+// Configure file upload limits
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 52428800; // 50MB
+});
+
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = 52428800; // 50MB
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -43,6 +54,11 @@ using (var scope = app.Services.CreateScope())
     context.Database.EnsureCreated();
     // If you're using migrations, use this instead:
     // context.Database.Migrate();
+    
+    // Test service registration here instead (after app is built)
+    var versionService = scope.ServiceProvider.GetService<IVersionControlService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation($"VersionControlService registered: {versionService != null}");
   }
   catch (Exception ex)
   {
@@ -50,20 +66,5 @@ using (var scope = app.Services.CreateScope())
     logger.LogError(ex, "An error occurred creating the database.");
   }
 }
-
-//builder.Services.Configure<FormOptions>(options =>
-//{
-//  options.MultipartBodyLengthLimit = 52428800; // 50MB
-//});
-
-//builder.Services.Configure<IISServerOptions>(options =>
-//{
-//  options.MaxRequestBodySize = 52428800; // 50MB
-//});
-
-var serviceProvider = builder.Services.BuildServiceProvider();
-var versionService = serviceProvider.GetService<IVersionControlService>();
-Console.WriteLine($"VersionControlService registered: {versionService != null}");
-
 
 app.Run();

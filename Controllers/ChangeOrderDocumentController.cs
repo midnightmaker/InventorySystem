@@ -53,31 +53,47 @@ namespace InventorySystem.Controllers
     // POST: ChangeOrderDocuments/Upload
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequestSizeLimit(52428800)] // 50MB limit
     public async Task<IActionResult> Upload(ChangeOrderDocument model, IFormFile file)
     {
       try
       {
+        _logger.LogInformation("Starting document upload for ChangeOrderId: {ChangeOrderId}", model.ChangeOrderId);
+        
         var changeOrder = await _context.ChangeOrders
             .FirstOrDefaultAsync(co => co.Id == model.ChangeOrderId);
 
         if (changeOrder == null)
         {
+          _logger.LogWarning("Change order not found: {ChangeOrderId}", model.ChangeOrderId);
           TempData["ErrorMessage"] = "Change order not found.";
           return RedirectToAction("Index", "ChangeOrders");
         }
 
+        // Clear validation errors for fields that will be populated from the file or are navigation properties
+        ModelState.Remove("FileName");
+        ModelState.Remove("ContentType");
+        ModelState.Remove("FileSize");
+        ModelState.Remove("DocumentData");
+        ModelState.Remove("ChangeOrder"); // Remove the navigation property validation
+
         if (file == null || file.Length == 0)
         {
+          _logger.LogWarning("No file uploaded for ChangeOrderId: {ChangeOrderId}", model.ChangeOrderId);
           ModelState.AddModelError("file", "Please select a file to upload.");
           ViewBag.ChangeOrder = changeOrder;
           ViewBag.DocumentTypes = ChangeOrderDocument.ChangeOrderDocumentTypes;
           ViewBag.AllowedFileTypes = GetAllowedFileTypesForDisplay();
+          ViewBag.MaxFileSize = MaxFileSizeBytes;
           return View(model);
         }
+
+        _logger.LogInformation("File received: {FileName}, Size: {FileSize} bytes", file.FileName, file.Length);
 
         // Validate file size
         if (file.Length > MaxFileSizeBytes)
         {
+          _logger.LogWarning("File too large: {FileName}, Size: {FileSize} bytes", file.FileName, file.Length);
           ModelState.AddModelError("file", $"File size cannot exceed {MaxFileSizeBytes / (1024 * 1024)}MB.");
         }
 
@@ -85,14 +101,23 @@ namespace InventorySystem.Controllers
         var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!IsAllowedFileType(fileExtension))
         {
+          _logger.LogWarning("Invalid file type: {FileName}, Extension: {Extension}", file.FileName, fileExtension);
           ModelState.AddModelError("file", "File type not allowed. Please check the allowed file types.");
         }
 
         if (!ModelState.IsValid)
         {
+          _logger.LogWarning("Model validation failed for ChangeOrderId: {ChangeOrderId}", model.ChangeOrderId);
+          foreach (var error in ModelState)
+          {
+            _logger.LogWarning("Validation error - Field: {Field}, Errors: {Errors}", 
+              error.Key, string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage)));
+          }
+          
           ViewBag.ChangeOrder = changeOrder;
           ViewBag.DocumentTypes = ChangeOrderDocument.ChangeOrderDocumentTypes;
           ViewBag.AllowedFileTypes = GetAllowedFileTypesForDisplay();
+          ViewBag.MaxFileSize = MaxFileSizeBytes;
           return View(model);
         }
 
@@ -113,11 +138,12 @@ namespace InventorySystem.Controllers
           UploadedDate = DateTime.Now
         };
 
+        _logger.LogInformation("Adding document to database: {DocumentName}", document.DocumentName);
         _context.ChangeOrderDocuments.Add(document);
         await _context.SaveChangesAsync();
 
         TempData["SuccessMessage"] = $"Document '{document.DocumentName}' uploaded successfully.";
-        _logger.LogInformation("Document {DocumentName} uploaded for change order {ChangeOrderNumber}",
+        _logger.LogInformation("Document {DocumentName} uploaded successfully for change order {ChangeOrderNumber}",
             document.DocumentName, changeOrder.ChangeOrderNumber);
 
         return RedirectToAction("Details", "ChangeOrders", new { id = model.ChangeOrderId });

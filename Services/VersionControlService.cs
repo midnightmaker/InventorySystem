@@ -327,11 +327,12 @@ namespace InventorySystem.Services
     {
       var changeOrders = await _context.ChangeOrders
           .Include(co => co.ChangeOrderDocuments)
+          .Include(co => co.BaseItem) // ✅ Add this
+          .Include(co => co.BaseBom)  // ✅ Add this
           .Where(co => co.Status == "Pending")
           .OrderByDescending(co => co.CreatedDate)
           .ToListAsync();
 
-      await LoadRelatedEntitiesForChangeOrdersAsync(changeOrders);
       return changeOrders;
     }
 
@@ -339,10 +340,11 @@ namespace InventorySystem.Services
     {
       var changeOrders = await _context.ChangeOrders
           .Include(co => co.ChangeOrderDocuments)
+          .Include(co => co.BaseItem) // ✅ Add this
+          .Include(co => co.BaseBom)  // ✅ Add this
           .OrderByDescending(co => co.CreatedDate)
           .ToListAsync();
 
-      await LoadRelatedEntitiesForChangeOrdersAsync(changeOrders);
       return changeOrders;
     }
 
@@ -350,11 +352,12 @@ namespace InventorySystem.Services
     {
       var changeOrders = await _context.ChangeOrders
           .Include(co => co.ChangeOrderDocuments)
+          .Include(co => co.BaseItem) // ✅ Add this
+          .Include(co => co.BaseBom)  // ✅ Add this
           .Where(co => co.Status == status)
           .OrderByDescending(co => co.CreatedDate)
           .ToListAsync();
 
-      await LoadRelatedEntitiesForChangeOrdersAsync(changeOrders);
       return changeOrders;
     }
 
@@ -362,11 +365,12 @@ namespace InventorySystem.Services
     {
       var changeOrders = await _context.ChangeOrders
           .Include(co => co.ChangeOrderDocuments)
+          .Include(co => co.BaseItem) // ✅ Add this
+          .Include(co => co.BaseBom)  // ✅ Add this
           .Where(co => co.EntityType == entityType && co.BaseEntityId == entityId)
           .OrderByDescending(co => co.CreatedDate)
           .ToListAsync();
 
-      await LoadRelatedEntitiesForChangeOrdersAsync(changeOrders);
       return changeOrders;
     }
 
@@ -379,12 +383,11 @@ namespace InventorySystem.Services
     {
       var changeOrder = await _context.ChangeOrders
           .Include(co => co.ChangeOrderDocuments)
+          .Include(co => co.BaseItem) // ✅ Add this - this was missing!
+          .Include(co => co.BaseBom)  // ✅ Add this - this was missing!
+          .Include(co => co.NewItem)  // ✅ Add this for implementation results
+          .Include(co => co.NewBom)   // ✅ Add this for implementation results
           .FirstOrDefaultAsync(co => co.Id == changeOrderId);
-
-      if (changeOrder != null)
-      {
-        await LoadRelatedEntitiesForChangeOrdersAsync(new[] { changeOrder });
-      }
 
       return changeOrder;
     }
@@ -401,6 +404,8 @@ namespace InventorySystem.Services
     {
       return await _context.ChangeOrders
           .Include(co => co.ChangeOrderDocuments)
+          .Include(co => co.BaseItem) // ✅ Add this
+          .Include(co => co.BaseBom)  // ✅ Add this
           .Where(co => co.EntityType == entityType &&
                       co.BaseEntityId == entityId &&
                       co.Status == "Pending")

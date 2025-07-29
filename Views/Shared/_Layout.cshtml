@@ -110,6 +110,143 @@
     </main>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Global Change Order AJAX Handler -->
+  <script>
+    console.log('Global Change Order Handler Loading...');
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, attaching Change Order AJAX handler');
+      
+      // Use event delegation for dynamically loaded forms
+      document.addEventListener('submit', function(e) {
+        if (e.target && e.target.classList && e.target.classList.contains('ajax-form')) {
+          console.log('AJAX form submission intercepted!');
+          e.preventDefault();
+          e.stopPropagation();
+
+          const form = e.target;
+          const submitButton = form.querySelector('button[type="submit"]');
+          const formData = new FormData(form);
+
+          // Disable submit button during processing
+          if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+          }
+
+          console.log('Sending AJAX request to:', form.action);
+
+          fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(response => {
+            console.log('Response received:', response.status);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('JSON data received:', data);
+
+            if (data.success) {
+              console.log('Success! Closing modal...');
+              
+              // Close modal
+              const modalElement = document.getElementById('changeOrderModal');
+              if (modalElement) {
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                  modal.hide();
+                }
+              }
+
+              // Handle redirect
+              if (data.redirect && data.redirectUrl) {
+                console.log('Redirecting to:', data.redirectUrl);
+                setTimeout(() => {
+                  window.location.href = data.redirectUrl;
+                }, 300);
+              } else if (data.showToast) {
+                // Show toast and refresh
+                showSuccessToast(data.message);
+                setTimeout(() => {
+                  location.reload();
+                }, 1500);
+              }
+            } else {
+              console.log('Server returned error:', data.message);
+              showErrorAlert(data.message || 'Unknown error occurred');
+            }
+          })
+          .catch(error => {
+            console.error('Fetch error:', error);
+            showErrorAlert('An error occurred while creating the change order: ' + error.message);
+          })
+          .finally(() => {
+            // Re-enable submit button
+            if (submitButton) {
+              submitButton.disabled = false;
+              submitButton.innerHTML = '<i class="fas fa-plus"></i> Create Change Order';
+            }
+          });
+        }
+      });
+    });
+
+    // Helper functions
+    function showSuccessToast(message) {
+      const toastHtml = `
+        <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+          <div class="d-flex">
+            <div class="toast-body">
+              <i class="fas fa-check-circle me-2"></i>${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        </div>
+      `;
+      
+      const toastElement = document.createElement('div');
+      toastElement.innerHTML = toastHtml;
+      document.body.appendChild(toastElement.firstElementChild);
+      
+      const toast = new bootstrap.Toast(toastElement.firstElementChild, {
+        delay: 5000
+      });
+      toast.show();
+      
+      toastElement.firstElementChild.addEventListener('hidden.bs.toast', function() {
+        this.remove();
+      });
+    }
+
+    function showErrorAlert(message) {
+      const alertHtml = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;">
+          <i class="fas fa-exclamation-triangle me-2"></i>${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+      
+      const alertElement = document.createElement('div');
+      alertElement.innerHTML = alertHtml;
+      document.body.appendChild(alertElement.firstElementChild);
+      
+      setTimeout(() => {
+        const alert = document.querySelector('.alert-danger');
+        if (alert) {
+          alert.remove();
+        }
+      }, 5000);
+    }
+  </script>
+  
   @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

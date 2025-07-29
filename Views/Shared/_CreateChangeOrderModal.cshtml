@@ -3,7 +3,7 @@
 <div class="modal fade" id="changeOrderModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form asp-controller="ChangeOrders" asp-action="CreateEntry" method="post" enctype="multipart/form-data">
+      <form asp-controller="ChangeOrders" asp-action="CreateEntry" method="post" enctype="multipart/form-data" id="changeOrderForm" class="ajax-form">
         <div class="modal-header">
           <h5 class="modal-title">
             <i class="fas fa-code-branch"></i> Create Change Order
@@ -59,7 +59,7 @@
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             <i class="fas fa-times"></i> Cancel
           </button>
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-primary" id="submitChangeOrder">
             <i class="fas fa-plus"></i> Create Change Order
           </button>
         </div>
@@ -68,55 +68,3 @@
   </div>
 </div>
 
-<script>
-  // Initialize the modal
-  document.addEventListener('DOMContentLoaded', function() {
-      const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
-
-      // Handle form submission via AJAX
-      const form = document.querySelector('#changeOrderModal form');
-      if (form) {
-          form.addEventListener('submit', function(e) {
-              e.preventDefault();
-
-              const formData = new FormData(form);
-
-              fetch(form.action, {
-                  method: 'POST',
-                  body: formData,
-                  headers: {
-                      'X-Requested-With': 'XMLHttpRequest'
-                  }
-              })
-              .then(response => response.json())
-              .then(data => {
-                  if (data.success) {
-                      // Close modal and redirect or refresh
-                      modal.hide();
-
-                      // Show success message
-                      const alertDiv = document.createElement('div');
-                      alertDiv.className = 'alert alert-success alert-dismissible fade show';
-                      alertDiv.innerHTML = `
-                          ${data.message}
-                          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                      `;
-                      document.body.insertBefore(alertDiv, document.body.firstChild);
-
-                      // Redirect to change order details after a short delay
-                      setTimeout(() => {
-                          window.location.href = `/ChangeOrders/Details/${data.changeOrderId}`;
-                      }, 2000);
-                  } else {
-                      // Show error message
-                      alert(`Error: ${data.message || 'Unknown error occurred'}`);
-                  }
-              })
-              .catch(error => {
-                  console.error('Error:', error);
-                  alert('An error occurred while creating the change order.');
-              });
-          });
-      }
-  });
-</script>
