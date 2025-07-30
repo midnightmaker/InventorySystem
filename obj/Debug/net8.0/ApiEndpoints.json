@@ -1,1 +1,202 @@
-[]
+[
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "GetProductionTimeline",
+    "RelativePath": "api/Workflow/{productionId}/timeline",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "GetValidNextStatuses",
+    "RelativePath": "api/Workflow/{productionId}/valid-statuses",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "GetProductionWorkflow",
+    "RelativePath": "api/Workflow/{productionId}/workflow",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "AssignProduction",
+    "RelativePath": "api/Workflow/assign/{productionId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "InventorySystem.Controllers.AssignProductionRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "CancelProduction",
+    "RelativePath": "api/Workflow/cancel/{productionId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "InventorySystem.Controllers.CancelProductionRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "PutOnHold",
+    "RelativePath": "api/Workflow/hold/{productionId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "InventorySystem.Controllers.PutOnHoldRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "CompleteQualityCheck",
+    "RelativePath": "api/Workflow/quality-check/{productionId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "InventorySystem.Controllers.QualityCheckRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "ResumeFromHold",
+    "RelativePath": "api/Workflow/resume/{productionId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "StartProduction",
+    "RelativePath": "api/Workflow/start/{productionId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "InventorySystem.Controllers.StartProductionRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "UpdateStatus",
+    "RelativePath": "api/Workflow/status/{productionId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "productionId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "InventorySystem.Controllers.UpdateStatusRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InventorySystem.Controllers.WorkflowController",
+    "Method": "GetEmployeeWorkload",
+    "RelativePath": "api/Workflow/workload",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  }
+]

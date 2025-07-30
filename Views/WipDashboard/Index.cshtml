@@ -1,0 +1,279 @@
+﻿@* Views/WipDashboard/Index.cshtml *@
+@using InventorySystem.Domain.Enums
+@using InventorySystem.ViewModels
+@model WipDashboardResult
+@{
+  ViewData["Title"] = "WIP Dashboard";
+}
+
+<div class="container-fluid">
+  <div class="row mb-4">
+    <div class="col-12">
+      <h2><i class="fas fa-tachometer-alt"></i> Work in Progress Dashboard</h2>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-md-2">
+      <div class="card bg-primary text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Statistics.TotalActiveProductions</h3>
+          <p class="mb-0">Active Productions</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card bg-info text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Statistics.PlannedCount</h3>
+          <p class="mb-0">Planned</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card bg-warning text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Statistics.InProgressCount</h3>
+          <p class="mb-0">In Progress</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card bg-secondary text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Statistics.QualityCheckCount</h3>
+          <p class="mb-0">Quality Check</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card bg-danger text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Statistics.OnHoldCount</h3>
+          <p class="mb-0">On Hold</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card bg-success text-white">
+        <div class="card-body text-center">
+          <h3>@Model.Statistics.CompletedTodayCount</h3>
+          <p class="mb-0">Completed Today</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-filter"></i> Filters</h5>
+        </div>
+        <div class="card-body">
+          <form method="get" class="row">
+            <div class="col-md-3">
+              <label for="fromDate" class="form-label">From Date</label>
+              <input type="date" class="form-control" id="fromDate" name="fromDate" value="@ViewBag.FromDate?.ToString("yyyy-MM-dd")">
+            </div>
+            <div class="col-md-3">
+              <label for="toDate" class="form-label">To Date</label>
+              <input type="date" class="form-control" id="toDate" name="toDate" value="@ViewBag.ToDate?.ToString("yyyy-MM-dd")">
+            </div>
+            <div class="col-md-3">
+              <label for="assignedTo" class="form-label">Assigned To</label>
+              <input type="text" class="form-control" id="assignedTo" name="assignedTo" value="@ViewBag.AssignedTo" placeholder="Employee name">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <button type="submit" class="btn btn-primary me-2">Filter</button>
+              <a href="@Url.Action("Index")" class="btn btn-outline-secondary">Clear</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kanban Board -->
+  <div class="row">
+    @foreach (var status in Enum.GetValues<ProductionStatus>().Where(s => s != ProductionStatus.Completed && s != ProductionStatus.Cancelled))
+    {
+      <div class="col-md-2">
+        <div class="card">
+          <div class="card-header bg-@GetStatusColor(status) text-white">
+            <h6 class="mb-0">@status.ToString().Replace("InProgress", "In Progress")</h6>
+            <small>@(Model.ProductionsByStatus.ContainsKey(status) ? Model.ProductionsByStatus[status].Count : 0) items</small>
+          </div>
+          <div class="card-body p-2 kanban-column" data-status="@status" style="min-height: 400px; max-height: 400px; overflow-y: auto;">
+            @if (Model.ProductionsByStatus.ContainsKey(status))
+            {
+              @foreach (var production in Model.ProductionsByStatus[status])
+              {
+                <div class="card mb-2 production-card" data-production-id="@production.ProductionId" draggable="true">
+                  <div class="card-body p-2">
+                    <h6 class="card-title mb-1">
+                      <a href="@Url.Action("Details", "Production", new { id = production.ProductionId })" class="text-decoration-none">
+                        @production.BomNumber
+                      </a>
+                    </h6>
+                    <p class="card-text small mb-1">@production.FinishedGoodName</p>
+                    <p class="card-text small mb-1">Qty: @production.Quantity</p>
+                    @if (!string.IsNullOrEmpty(production.AssignedTo))
+                    {
+                      <p class="card-text small mb-1">
+                        <i class="fas fa-user"></i> @production.AssignedTo
+                      </p>
+                    }
+                    @if (production.EstimatedCompletionDate.HasValue)
+                    {
+                      <p class="card-text small mb-1">
+                        <i class="fas fa-clock"></i>
+                        <span class="@(production.IsOverdue ? "text-danger" : "")">
+                          @production.EstimatedCompletionDate.Value.ToString("MM/dd HH:mm")
+                        </span>
+                      </p>
+                    }
+                    @if (production.Priority != Priority.Normal)
+                    {
+                      <span class="badge bg-@GetPriorityColor(production.Priority)">@production.Priority</span>
+                    }
+                    @if (production.IsOverdue)
+                    {
+                      <span class="badge bg-danger">Overdue</span>
+                    }
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Overdue Productions Alert -->
+  @if (Model.OverdueProductions.Any())
+  {
+    <div class="row mt-4">
+      <div class="col-12">
+        <div class="alert alert-danger">
+          <h5><i class="fas fa-exclamation-triangle"></i> Overdue Productions (@Model.OverdueProductions.Count)</h5>
+          <div class="row">
+            @foreach (var overdue in Model.OverdueProductions.Take(6))
+            {
+              <div class="col-md-2">
+                <strong>@overdue.BomNumber</strong><br>
+                <small>Due: @overdue.EstimatedCompletionDate?.ToString("MM/dd HH:mm")</small><br>
+                <small>Assigned: @(overdue.AssignedTo ?? "Unassigned")</small>
+              </div>
+            }
+          </div>
+          @if (Model.OverdueProductions.Count > 6)
+          {
+            <p class="mb-0 mt-2"><em>... and @(Model.OverdueProductions.Count - 6) more</em></p>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+@functions {
+  string GetStatusColor(ProductionStatus status)
+  {
+    return status switch
+    {
+      ProductionStatus.Planned => "info",
+      ProductionStatus.InProgress => "warning",
+      ProductionStatus.QualityCheck => "secondary",
+      ProductionStatus.OnHold => "danger",
+      _ => "light"
+    };
+  }
+
+  string GetPriorityColor(Priority priority)
+  {
+    return priority switch
+    {
+      Priority.Low => "success",
+      Priority.Normal => "primary",
+      Priority.High => "warning",
+      Priority.Critical => "danger",
+      _ => "secondary"
+    };
+  }
+}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      // Enable drag and drop functionality
+      const cards = document.querySelectorAll('.production-card');
+      const columns = document.querySelectorAll('.kanban-column');
+
+      cards.forEach(card => {
+          card.addEventListener('dragstart', function(e) {
+              e.dataTransfer.setData('text/plain', this.dataset.productionId);
+              this.style.opacity = '0.5';
+          });
+
+          card.addEventListener('dragend', function(e) {
+              this.style.opacity = '1';
+          });
+      });
+
+      columns.forEach(column => {
+          column.addEventListener('dragover', function(e) {
+              e.preventDefault();
+              this.style.backgroundColor = '#f8f9fa';
+          });
+
+          column.addEventListener('dragleave', function(e) {
+              this.style.backgroundColor = '';
+          });
+
+          column.addEventListener('drop', function(e) {
+              e.preventDefault();
+              this.style.backgroundColor = '';
+
+              const productionId = e.dataTransfer.getData('text/plain');
+              const newStatus = this.dataset.status;
+
+              // Call API to update status
+              updateProductionStatus(productionId, newStatus);
+          });
+      });
+
+      // Auto-refresh every 30 seconds
+      setInterval(function() {
+          location.reload();
+      }, 30000);
+  });
+
+  function updateProductionStatus(productionId, newStatus) {
+      fetch(`/api/workflow/status/${productionId}`, {
+          method: 'PUT',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+              newStatus: parseInt(newStatus),
+              reason: 'Updated via dashboard'
+          })
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (data.success) {
+              // Reload the page to show updated state
+              location.reload();
+          } else {
+              alert('Failed to update status: ' + data.error);
+          }
+      })
+      .catch(error => {
+          console.error('Error:', error);
+          alert('Failed to update status');
+      });
+  }
+</script>
