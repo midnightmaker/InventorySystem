@@ -15,18 +15,34 @@
   </div>
 </div>
 
-@if (TempData["SuccessMessage"] != null)
+@* Safe TempData handling *@
+@{
+  string successMessage = null;
+  string errorMessage = null;
+
+  try
+  {
+    successMessage = TempData["SuccessMessage"]?.ToString();
+    errorMessage = TempData["ErrorMessage"]?.ToString();
+  }
+  catch (Exception)
+  {
+    // Silently handle any TempData access issues
+  }
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
 {
   <div class="alert alert-success alert-dismissible fade show">
-    @TempData["SuccessMessage"]
+    @successMessage
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 }
 
-@if (TempData["ErrorMessage"] != null)
+@if (!string.IsNullOrEmpty(errorMessage))
 {
   <div class="alert alert-danger alert-dismissible fade show">
-    @TempData["ErrorMessage"]
+    @errorMessage
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 }
@@ -98,7 +114,13 @@
                   <h6>Total Value: <span class="badge bg-info">@Model.Sum(p => p.TotalCost).ToString("C")</span></h6>
                 </div>
                 <div class="col-md-3">
-                  <h6>Avg Unit Cost: <span class="badge bg-warning">@(Model.Any() ? (Model.Sum(p => p.TotalCost) / Model.Sum(p => p.QuantityProduced)).ToString("C") : "$0.00")</span></h6>
+                  @* FIXED: Safe average calculation with divide by zero protection *@
+                  @{
+                    var totalCost = Model.Sum(p => p.TotalCost);
+                    var totalQuantity = Model.Sum(p => p.QuantityProduced);
+                    var avgUnitCost = totalQuantity > 0 ? totalCost / totalQuantity : 0;
+                  }
+                  <h6>Avg Unit Cost: <span class="badge bg-warning">@avgUnitCost.ToString("C")</span></h6>
                 </div>
               </div>
             </div>

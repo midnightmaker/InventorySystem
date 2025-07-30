@@ -1,4 +1,4 @@
-﻿// Controllers/ProductionController.cs
+﻿// Controllers/ProductionController.cs - FIXED VERSION
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using InventorySystem.Services;
@@ -31,46 +31,86 @@ namespace InventorySystem.Controllers
     // Production Index
     public async Task<IActionResult> Index()
     {
-      var productions = await _productionService.GetAllProductionsAsync();
-      return View(productions);
+      try
+      {
+        var productions = await _productionService.GetAllProductionsAsync();
+        return View(productions);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading productions: {ex.Message}";
+        return View(new List<Production>());
+      }
     }
 
     // Production Details
     public async Task<IActionResult> Details(int id)
     {
-      var production = await _productionService.GetProductionByIdAsync(id);
-      if (production == null) return NotFound();
-      return View(production);
+      try
+      {
+        var production = await _productionService.GetProductionByIdAsync(id);
+        if (production == null) return NotFound();
+        return View(production);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading production details: {ex.Message}";
+        return RedirectToAction("Index");
+      }
     }
 
     // Build BOM - GET
     public async Task<IActionResult> BuildBom(int? bomId)
     {
-      var boms = await _bomService.GetAllBomsAsync();
-      ViewBag.BomId = new SelectList(boms, "Id", "Name", bomId);
-
-      var viewModel = new BuildBomViewModel
+      try
       {
-        BomId = bomId ?? 0,
-        Quantity = 1,
-        ProductionDate = DateTime.Now,
-        LaborCost = 0,
-        OverheadCost = 0
-      };
+        // FIXED: Use current version BOMs and correct property name
+        var boms = await _bomService.GetCurrentVersionBomsAsync();
 
-      if (bomId.HasValue)
-      {
-        var bom = await _bomService.GetBomByIdAsync(bomId.Value);
-        if (bom != null)
+        // FIXED: Use BomNumber instead of Name (which doesn't exist on Bom model)
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", bomId);
+
+        var viewModel = new BuildBomViewModel
         {
-          viewModel.BomName = bom.BomNumber;
-          viewModel.BomDescription = bom.Description;
-          viewModel.CanBuild = await _productionService.CanBuildBomAsync(bomId.Value, 1);
-          viewModel.MaterialCost = await _productionService.CalculateBomMaterialCostAsync(bomId.Value, 1);
-        }
-      }
+          BomId = bomId ?? 0,
+          Quantity = 1,
+          ProductionDate = DateTime.Now,
+          LaborCost = 0,
+          OverheadCost = 0
+        };
 
-      return View(viewModel);
+        if (bomId.HasValue)
+        {
+          // FIXED: Use current version method
+          var bom = await _bomService.GetCurrentVersionBomByIdAsync(bomId.Value);
+          if (bom != null)
+          {
+            viewModel.BomName = bom.BomNumber;
+            viewModel.BomDescription = bom.Description;
+            viewModel.CanBuild = await _productionService.CanBuildBomAsync(bomId.Value, 1);
+            viewModel.MaterialCost = await _productionService.CalculateBomMaterialCostAsync(bomId.Value, 1);
+          }
+          else
+          {
+            TempData["ErrorMessage"] = "Selected BOM is not available for production. It may not be the current version.";
+            viewModel.BomId = 0; // Reset selection
+          }
+        }
+
+        return View(viewModel);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading Build BOM page: {ex.Message}";
+        return View(new BuildBomViewModel
+        {
+          BomId = 0,
+          Quantity = 1,
+          ProductionDate = DateTime.Now,
+          LaborCost = 0,
+          OverheadCost = 0
+        });
+      }
     }
 
     // Build BOM - POST
@@ -82,46 +122,47 @@ namespace InventorySystem.Controllers
       {
         try
         {
+          // FIXED: Validate BOM exists and is current version
+          var currentBom = await _bomService.GetCurrentVersionBomByIdAsync(viewModel.BomId);
+          if (currentBom == null)
+          {
+            TempData["ErrorMessage"] = "Selected BOM is not available for production. Please select a current version BOM.";
+            return await RefreshBuildBomView(viewModel);
+          }
+
+          // Check material availability
           if (!await _productionService.CanBuildBomAsync(viewModel.BomId, viewModel.Quantity))
           {
             TempData["ErrorMessage"] = "Insufficient materials to build the specified quantity.";
+            return await RefreshBuildBomView(viewModel);
           }
-          else
-          {
-            var production = await _productionService.BuildBomAsync(
-                viewModel.BomId,
-                viewModel.Quantity,
-                viewModel.LaborCost,
-                viewModel.OverheadCost,
-                viewModel.Notes);
 
-            TempData["SuccessMessage"] = $"Successfully built {viewModel.Quantity} units. Production ID: {production.Id}";
-            return RedirectToAction("Details", new { id = production.Id });
-          }
+          // Build the BOM
+          var production = await _productionService.BuildBomAsync(
+              viewModel.BomId,
+              viewModel.Quantity,
+              viewModel.LaborCost,
+              viewModel.OverheadCost,
+              viewModel.Notes);
+
+          TempData["SuccessMessage"] = $"Successfully built {viewModel.Quantity} units. Production ID: {production.Id}";
+          return RedirectToAction("Details", new { id = production.Id });
+        }
+        catch (ArgumentException ex)
+        {
+          TempData["ErrorMessage"] = $"BOM Error: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
+        {
+          TempData["ErrorMessage"] = $"Production Error: {ex.Message}";
         }
         catch (Exception ex)
         {
-          TempData["ErrorMessage"] = $"Error building BOM: {ex.Message}";
+          TempData["ErrorMessage"] = $"Unexpected error building BOM: {ex.Message}";
         }
       }
 
-      // Reload data for view
-      var boms = await _bomService.GetAllBomsAsync();
-      ViewBag.BomId = new SelectList(boms, "Id", "Name", viewModel.BomId);
-
-      if (viewModel.BomId > 0)
-      {
-        var bom = await _bomService.GetBomByIdAsync(viewModel.BomId);
-        if (bom != null)
-        {
-          viewModel.BomName = bom.BomNumber;
-          viewModel.BomDescription = bom.Description;
-          viewModel.CanBuild = await _productionService.CanBuildBomAsync(viewModel.BomId, viewModel.Quantity);
-          viewModel.MaterialCost = await _productionService.CalculateBomMaterialCostAsync(viewModel.BomId, viewModel.Quantity);
-        }
-      }
-
-      return View(viewModel);
+      return await RefreshBuildBomView(viewModel);
     }
 
     // Check BOM Availability (AJAX)
@@ -130,48 +171,118 @@ namespace InventorySystem.Controllers
     {
       try
       {
+        // FIXED: Check if BOM is current version first
+        var bom = await _bomService.GetCurrentVersionBomByIdAsync(bomId);
+        if (bom == null)
+        {
+          return Json(new
+          {
+            success = false,
+            error = "Selected BOM is not the current version and cannot be used for production."
+          });
+        }
+
         var canBuild = await _productionService.CanBuildBomAsync(bomId, quantity);
         var materialCost = await _productionService.CalculateBomMaterialCostAsync(bomId, quantity);
-
-        var bom = await _bomService.GetBomByIdAsync(bomId);
 
         return Json(new
         {
           success = true,
           canBuild = canBuild,
           materialCost = materialCost,
-          bomName = bom?.BomNumber ?? "",
-          bomDescription = bom?.Description ?? "",
+          bomName = bom.BomNumber,
+          bomDescription = bom.Description,
           unitCost = quantity > 0 ? materialCost / quantity : 0
         });
       }
       catch (Exception ex)
       {
-        return Json(new { success = false, error = ex.Message });
+        return Json(new
+        {
+          success = false,
+          error = ex.Message
+        });
       }
+    }
+
+    // FIXED: Helper method to refresh view data safely
+    private async Task<IActionResult> RefreshBuildBomView(BuildBomViewModel viewModel)
+    {
+      try
+      {
+        // FIXED: Use current version BOMs and correct property name
+        var boms = await _bomService.GetCurrentVersionBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+
+        if (viewModel.BomId > 0)
+        {
+          var bom = await _bomService.GetCurrentVersionBomByIdAsync(viewModel.BomId);
+          if (bom != null)
+          {
+            viewModel.BomName = bom.BomNumber;
+            viewModel.BomDescription = bom.Description;
+            viewModel.CanBuild = await _productionService.CanBuildBomAsync(viewModel.BomId, viewModel.Quantity);
+            viewModel.MaterialCost = await _productionService.CalculateBomMaterialCostAsync(viewModel.BomId, viewModel.Quantity);
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error refreshing BOM data: {ex.Message}";
+        // Set empty dropdown if there's an error
+        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
+      }
+
+      return View(viewModel);
     }
 
     // Finished Goods Index
     public async Task<IActionResult> FinishedGoods()
     {
-      var finishedGoods = await _productionService.GetAllFinishedGoodsAsync();
-      return View(finishedGoods);
+      try
+      {
+        var finishedGoods = await _productionService.GetAllFinishedGoodsAsync();
+        return View(finishedGoods);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading finished goods: {ex.Message}";
+        return View(new List<FinishedGood>());
+      }
     }
 
     // Finished Good Details
     public async Task<IActionResult> FinishedGoodDetails(int id)
     {
-      var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
-      if (finishedGood == null) return NotFound();
-      return View(finishedGood);
+      try
+      {
+        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
+        if (finishedGood == null) return NotFound();
+        return View(finishedGood);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading finished good details: {ex.Message}";
+        return RedirectToAction("FinishedGoods");
+      }
     }
 
     // Create Finished Good - GET
     public async Task<IActionResult> CreateFinishedGood()
     {
-      var boms = await _bomService.GetAllBomsAsync();
-      ViewBag.BomId = new SelectList(boms, "Id", "Name");
-      return View(new FinishedGood());
+      try
+      {
+        // FIXED: Use current version BOMs and correct property name
+        var boms = await _bomService.GetCurrentVersionBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber");
+        return View(new FinishedGood());
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading create finished good page: {ex.Message}";
+        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
+        return View(new FinishedGood());
+      }
     }
 
     // Create Finished Good - POST
@@ -193,20 +304,38 @@ namespace InventorySystem.Controllers
         }
       }
 
-      var boms = await _bomService.GetAllBomsAsync();
-      ViewBag.BomId = new SelectList(boms, "Id", "Name", finishedGood.BomId);
+      // FIXED: Reload dropdown with correct property name
+      try
+      {
+        var boms = await _bomService.GetCurrentVersionBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", finishedGood.BomId);
+      }
+      catch (Exception)
+      {
+        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
+      }
+
       return View(finishedGood);
     }
 
     // Edit Finished Good - GET
     public async Task<IActionResult> EditFinishedGood(int id)
     {
-      var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
-      if (finishedGood == null) return NotFound();
+      try
+      {
+        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
+        if (finishedGood == null) return NotFound();
 
-      var boms = await _bomService.GetAllBomsAsync();
-      ViewBag.BomId = new SelectList(boms, "Id", "Name", finishedGood.BomId);
-      return View(finishedGood);
+        // FIXED: Use current version BOMs and correct property name
+        var boms = await _bomService.GetCurrentVersionBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", finishedGood.BomId);
+        return View(finishedGood);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading finished good for editing: {ex.Message}";
+        return RedirectToAction("FinishedGoods");
+      }
     }
 
     // Edit Finished Good - POST
@@ -228,8 +357,17 @@ namespace InventorySystem.Controllers
         }
       }
 
-      var boms = await _bomService.GetAllBomsAsync();
-      ViewBag.BomId = new SelectList(boms, "Id", "Name", finishedGood.BomId);
+      // FIXED: Reload dropdown with correct property name
+      try
+      {
+        var boms = await _bomService.GetCurrentVersionBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", finishedGood.BomId);
+      }
+      catch (Exception)
+      {
+        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
+      }
+
       return View(finishedGood);
     }
 
@@ -283,170 +421,5 @@ namespace InventorySystem.Controllers
         return Json(new { success = false, error = ex.Message });
       }
     }
-
-    // Bulk Purchase Request - GET
-    public async Task<IActionResult> CreateBulkPurchaseRequest(int bomId, int quantity)
-    {
-      try
-      {
-        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
-
-        var bulkRequest = new BulkPurchaseRequest
-        {
-          BomId = bomId,
-          Quantity = quantity,
-          ExpectedDeliveryDate = DateTime.Now.AddDays(14), // Default 2 weeks
-          ItemsToPurchase = shortageAnalysis.MaterialShortages.Select(s => new ShortageItemPurchase
-          {
-            ItemId = s.ItemId,
-            Selected = true,
-            QuantityToPurchase = s.SuggestedPurchaseQuantity,
-            EstimatedUnitCost = s.EstimatedUnitCost,
-            PreferredVendor = s.PreferredVendor
-          }).ToList()
-        };
-
-        ViewBag.ShortageAnalysis = shortageAnalysis;
-        return View(bulkRequest);
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error creating bulk purchase request: {ex.Message}";
-        return RedirectToAction("MaterialShortageReport", new { bomId, quantity });
-      }
-    }
-
-    // Bulk Purchase Request - POST
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateBulkPurchaseRequest(BulkPurchaseRequest request)
-    {
-      if (ModelState.IsValid)
-      {
-        try
-        {
-          var createdPurchases = new List<int>();
-          var errors = new List<string>();
-
-          foreach (var itemPurchase in request.ItemsToPurchase.Where(ip => ip.Selected))
-          {
-            try
-            {
-              var purchase = new Purchase
-              {
-                ItemId = itemPurchase.ItemId,
-                Vendor = itemPurchase.PreferredVendor ?? "TBD",
-                PurchaseDate = DateTime.Now,
-                QuantityPurchased = itemPurchase.QuantityToPurchase,
-                CostPerUnit = itemPurchase.EstimatedUnitCost,
-                PurchaseOrderNumber = request.PurchaseOrderNumber,
-                Notes = $"Bulk purchase for BOM production. {request.Notes}",
-                RemainingQuantity = itemPurchase.QuantityToPurchase,
-                CreatedDate = DateTime.Now
-              };
-
-              var createdPurchase = await _purchaseService.CreatePurchaseAsync(purchase);
-              createdPurchases.Add(createdPurchase.Id);
-            }
-            catch (Exception ex)
-            {
-              var item = await _inventoryService.GetItemByIdAsync(itemPurchase.ItemId);
-              errors.Add($"Error creating purchase for {item?.PartNumber}: {ex.Message}");
-            }
-          }
-
-          if (createdPurchases.Any())
-          {
-            TempData["SuccessMessage"] = $"Successfully created {createdPurchases.Count} purchase orders for material shortages.";
-
-            if (errors.Any())
-            {
-              TempData["WarningMessage"] = $"Some purchases failed: {string.Join(", ", errors)}";
-            }
-
-            return RedirectToAction("MaterialShortageReport", new { bomId = request.BomId, quantity = request.Quantity });
-          }
-          else
-          {
-            TempData["ErrorMessage"] = $"Failed to create any purchases. Errors: {string.Join(", ", errors)}";
-          }
-        }
-        catch (Exception ex)
-        {
-          TempData["ErrorMessage"] = $"Error processing bulk purchase request: {ex.Message}";
-        }
-      }
-
-      // Reload view with errors
-      var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(request.BomId, request.Quantity);
-      ViewBag.ShortageAnalysis = shortageAnalysis;
-      return View(request);
-    }
-
-    // Quick Purchase for Single Item
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> QuickPurchaseShortageItem(int itemId, int quantity, decimal estimatedCost, string? vendor, int bomId, int bomQuantity)
-    {
-      try
-      {
-        var item = await _inventoryService.GetItemByIdAsync(itemId);
-        if (item == null)
-        {
-          TempData["ErrorMessage"] = "Item not found.";
-          return RedirectToAction("MaterialShortageReport", new { bomId, quantity = bomQuantity });
-        }
-
-        var purchase = new Purchase
-        {
-          ItemId = itemId,
-          Vendor = vendor ?? "Quick Purchase",
-          PurchaseDate = DateTime.Now,
-          QuantityPurchased = quantity,
-          CostPerUnit = estimatedCost,
-          PurchaseOrderNumber = $"QP-{DateTime.Now:yyyyMMddHHmm}",
-          Notes = $"Quick purchase to resolve shortage for BOM production",
-          RemainingQuantity = quantity,
-          CreatedDate = DateTime.Now
-        };
-
-        await _purchaseService.CreatePurchaseAsync(purchase);
-        TempData["SuccessMessage"] = $"Quick purchase created for {item.PartNumber} - {quantity} units at {estimatedCost:C} each.";
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error creating quick purchase: {ex.Message}";
-      }
-
-      return RedirectToAction("MaterialShortageReport", new { bomId, quantity = bomQuantity });
-    }
-
-    // Export Shortage Report to CSV
-    public async Task<IActionResult> ExportShortageReport(int bomId, int quantity)
-    {
-      try
-      {
-        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
-
-        var csv = new StringBuilder();
-        csv.AppendLine("Part Number,Description,Required Qty,Available Qty,Shortage Qty,Shortage Value,Suggested Purchase Qty,Last Purchase Price,Preferred Vendor,BOM Context");
-
-        foreach (var shortage in shortageAnalysis.MaterialShortages)
-        {
-          csv.AppendLine($"\"{shortage.PartNumber}\",\"{shortage.Description}\",{shortage.RequiredQuantity},{shortage.AvailableQuantity},{shortage.ShortageQuantity},{shortage.ShortageValue:F2},{shortage.SuggestedPurchaseQuantity},{shortage.LastPurchasePrice:F2},\"{shortage.PreferredVendor}\",\"{shortage.BomContext}\"");
-        }
-
-        var bytes = Encoding.UTF8.GetBytes(csv.ToString());
-        var fileName = $"MaterialShortageReport_{shortageAnalysis.BomName}_{DateTime.Now:yyyyMMdd}.csv";
-
-        return File(bytes, "text/csv", fileName);
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error exporting report: {ex.Message}";
-        return RedirectToAction("MaterialShortageReport", new { bomId, quantity });
-      }
-    }
   }
 }
-

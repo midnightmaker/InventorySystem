@@ -73,17 +73,33 @@ namespace InventorySystem.Services
       }
     }
 
+    // Fixed BuildBomAsync method in ProductionService.cs
     public async Task<Production> BuildBomAsync(int bomId, int quantity, decimal laborCost = 0, decimal overheadCost = 0, string? notes = null)
     {
-      var bom = await _bomService.GetBomByIdAsync(bomId);
+      // Validate inputs
+      if (quantity <= 0)
+        throw new ArgumentException("Quantity must be greater than 0", nameof(quantity));
+
+      if (laborCost < 0)
+        throw new ArgumentException("Labor cost cannot be negative", nameof(laborCost));
+
+      if (overheadCost < 0)
+        throw new ArgumentException("Overhead cost cannot be negative", nameof(overheadCost));
+
+      // Get BOM using current version
+      var bom = await _bomService.GetCurrentVersionBomByIdAsync(bomId);
       if (bom == null)
-        throw new ArgumentException("BOM not found");
+        throw new ArgumentException("BOM not found or is not the current version");
 
       if (!await CanBuildBomAsync(bomId, quantity))
         throw new InvalidOperationException("Insufficient materials to build BOM");
 
       // Calculate material cost
       var materialCost = await CalculateBomMaterialCostAsync(bomId, quantity);
+
+      // FIXED: Calculate unit costs safely
+      var totalCost = materialCost + laborCost + overheadCost;
+      var unitCost = quantity > 0 ? totalCost / quantity : 0;
 
       // Find or create finished good for this BOM
       var finishedGood = await _context.FinishedGoods
@@ -96,7 +112,7 @@ namespace InventorySystem.Services
           PartNumber = bom.AssemblyPartNumber ?? $"FG-{bom.BomNumber}",
           Description = $"Finished: {bom.Description}",
           BomId = bomId,
-          UnitCost = (materialCost + laborCost + overheadCost) / quantity,
+          UnitCost = unitCost, // FIXED: Use pre-calculated safe unit cost
           SellingPrice = 0, // To be set later
           CurrentStock = 0,
           MinimumStock = 1
@@ -105,7 +121,7 @@ namespace InventorySystem.Services
         await _context.SaveChangesAsync();
       }
 
-      // Create production record
+      // Create production record with explicit values
       var production = new Production
       {
         FinishedGoodId = finishedGood.Id,
@@ -116,6 +132,7 @@ namespace InventorySystem.Services
         LaborCost = laborCost,
         OverheadCost = overheadCost,
         Notes = notes
+        // NOTE: TotalCost and UnitCost are calculated properties in the model
       };
 
       _context.Productions.Add(production);
@@ -124,12 +141,42 @@ namespace InventorySystem.Services
       // Consume materials and record consumption
       await ConsumeMaterialsAsync(production.Id, bom, quantity);
 
-      // Update finished good inventory and cost
+      // Update finished good inventory and cost using safe calculation
       finishedGood.CurrentStock += quantity;
-      finishedGood.UnitCost = await CalculateWeightedAverageCostAsync(finishedGood.Id, quantity, production.UnitCost);
+
+      // FIXED: Use pre-calculated unit cost to avoid accessing production.UnitCost before it's safe
+      finishedGood.UnitCost = await CalculateWeightedAverageCostAsync(finishedGood.Id, quantity, unitCost);
       await _context.SaveChangesAsync();
 
       return production;
+    }
+
+    // FIXED: Safe weighted average calculation
+    private async Task<decimal> CalculateWeightedAverageCostAsync(int finishedGoodId, int newQuantity, decimal newUnitCost)
+    {
+      try
+      {
+        var finishedGood = await _context.FinishedGoods.FindAsync(finishedGoodId);
+        if (finishedGood == null) return newUnitCost;
+
+        var currentValue = finishedGood.CurrentStock * finishedGood.UnitCost;
+        var newValue = newQuantity * newUnitCost;
+        var totalQuantity = finishedGood.CurrentStock + newQuantity;
+
+        // FIXED: Safe division with validation
+        if (totalQuantity <= 0)
+        {
+          return newUnitCost;
+        }
+
+        return (currentValue + newValue) / totalQuantity;
+      }
+      catch (Exception ex)
+      {
+        // Log error and return safe fallback
+        // _logger.LogError(ex, "Error calculating weighted average cost for finished good {Id}", finishedGoodId);
+        return newUnitCost;
+      }
     }
 
     public async Task<bool> CanBuildBomAsync(int bomId, int quantity)
@@ -221,18 +268,6 @@ namespace InventorySystem.Services
       }
 
       await _context.SaveChangesAsync();
-    }
-
-    private async Task<decimal> CalculateWeightedAverageCostAsync(int finishedGoodId, int newQuantity, decimal newUnitCost)
-    {
-      var finishedGood = await _context.FinishedGoods.FindAsync(finishedGoodId);
-      if (finishedGood == null) return newUnitCost;
-
-      var currentValue = finishedGood.CurrentStock * finishedGood.UnitCost;
-      var newValue = newQuantity * newUnitCost;
-      var totalQuantity = finishedGood.CurrentStock + newQuantity;
-
-      return totalQuantity > 0 ? (currentValue + newValue) / totalQuantity : 0;
     }
 
     // Finished Goods methods

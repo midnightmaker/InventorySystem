@@ -10,7 +10,8 @@
   </a>
 </div>
 
-@if (TempData != null && TempData["SuccessMessage"] != null)
+@* FIXED: Safe TempData access - check for key existence instead of TempData null *@
+@if (TempData.ContainsKey("SuccessMessage") && TempData["SuccessMessage"] != null)
 {
   <div class="alert alert-success alert-dismissible fade show">
     @TempData["SuccessMessage"]
@@ -18,7 +19,8 @@
   </div>
 }
 
-@if (TempData != null && TempData["ErrorMessage"] != null)
+@* FIXED: Safe TempData access - check for key existence instead of TempData null *@
+@if (TempData.ContainsKey("ErrorMessage") && TempData["ErrorMessage"] != null)
 {
   <div class="alert alert-danger alert-dismissible fade show">
     @TempData["ErrorMessage"]
