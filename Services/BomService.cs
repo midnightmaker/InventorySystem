@@ -294,11 +294,12 @@ namespace InventorySystem.Services
       try
       {
         // Calculate unit cost using average purchase pricing
-        var averageCost = await _context.Purchases
+        var costs = await _context.Purchases
             .Where(p => p.ItemId == bomItem.ItemId)
-            .Select(p => p.CostPerUnit)
-            .DefaultIfEmpty(0)
-            .AverageAsync();
+            .Select(p => (decimal?)p.CostPerUnit)
+            .ToListAsync();
+
+        var averageCost = costs.Any() ? costs.Average() ?? 0 : 0;
 
         bomItem.UnitCost = averageCost;
 

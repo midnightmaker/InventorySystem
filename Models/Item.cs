@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Models
@@ -44,10 +45,13 @@ namespace InventorySystem.Models
     public string Version { get; set; } = "A";
 
     // Computed properties
+    [NotMapped]
     public bool TrackInventory => ItemType == ItemType.Inventoried;
 
+    [NotMapped]
     public string DisplayPartNumber => $"{PartNumber}-{Version}";
 
+    [NotMapped]
     public string ItemTypeDisplayName => ItemType switch
     {
       ItemType.Inventoried => "Inventoried",
@@ -66,6 +70,7 @@ namespace InventorySystem.Models
     public byte[]? ImageData { get; set; }
     public string? ImageContentType { get; set; }
     public string? ImageFileName { get; set; }
+    [NotMapped]
     public bool HasImage => ImageData != null && ImageData.Length > 0;
 
     // Version Control Properties
@@ -78,7 +83,9 @@ namespace InventorySystem.Models
     public virtual ChangeOrder? CreatedFromChangeOrder { get; set; }
 
     // Helper properties
+    [NotMapped]
     public string VersionedPartNumber => $"{PartNumber} Rev {Version}";
+    [NotMapped]
     public int VersionCount => Versions?.Count ?? 0;
   }
 }

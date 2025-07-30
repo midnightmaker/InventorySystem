@@ -1,11 +1,13 @@
-﻿// Controllers/ProductionController.cs - FIXED VERSION
+﻿// Controllers/ProductionController.cs - Enhanced Version
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using InventorySystem.Services;
 using InventorySystem.Models;
 using InventorySystem.ViewModels;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+using InventorySystem.Domain.Services;
+using InventorySystem.Domain.Queries;
+using InventorySystem.Domain.Commands;
+using InventorySystem.Domain.Enums;
 
 namespace InventorySystem.Controllers
 {
@@ -15,85 +17,115 @@ namespace InventorySystem.Controllers
     private readonly IBomService _bomService;
     private readonly IInventoryService _inventoryService;
     private readonly IPurchaseService _purchaseService;
+    private readonly IProductionOrchestrator _orchestrator;
+    private readonly IWorkflowEngine _workflowEngine;
+    private readonly ILogger<ProductionController> _logger;
 
     public ProductionController(
         IProductionService productionService,
         IBomService bomService,
         IInventoryService inventoryService,
-        IPurchaseService purchaseService)
+        IPurchaseService purchaseService,
+        IProductionOrchestrator orchestrator,
+        IWorkflowEngine workflowEngine,
+        ILogger<ProductionController> logger)
     {
       _productionService = productionService;
       _bomService = bomService;
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
+      _orchestrator = orchestrator;
+      _workflowEngine = workflowEngine;
+      _logger = logger;
     }
 
-    // Production Index
+    // Production Index with Workflow Status
     public async Task<IActionResult> Index()
     {
       try
       {
-        var productions = await _productionService.GetAllProductionsAsync();
-        return View(productions);
+        var query = new GetActiveProductionsQuery();
+        var activeProductions = await _orchestrator.GetActiveProductionsAsync(query);
+
+        // Get traditional production list for comparison
+        var allProductions = await _productionService.GetAllProductionsAsync();
+
+        var viewModel = new ProductionIndexViewModel
+        {
+          ActiveProductions = activeProductions,
+          AllProductions = allProductions.ToList(),
+          ShowWorkflowView = true
+        };
+
+        return View(viewModel);
       }
       catch (Exception ex)
       {
+        _logger.LogError(ex, "Error loading productions");
         TempData["ErrorMessage"] = $"Error loading productions: {ex.Message}";
-        return View(new List<Production>());
+        return View(new ProductionIndexViewModel());
       }
     }
 
-    // Production Details
+    // Enhanced Production Details with Workflow
     public async Task<IActionResult> Details(int id)
     {
       try
       {
         var production = await _productionService.GetProductionByIdAsync(id);
         if (production == null) return NotFound();
-        return View(production);
+
+        // Get workflow information
+        var workflowQuery = new GetProductionWorkflowQuery(id);
+        var workflow = await _orchestrator.GetProductionWorkflowAsync(workflowQuery);
+
+        // Get timeline
+        var timelineQuery = new GetProductionTimelineQuery(id);
+        var timeline = await _orchestrator.GetProductionTimelineAsync(timelineQuery);
+
+        var viewModel = new ProductionDetailsViewModel
+        {
+          Production = production,
+          Workflow = workflow,
+          Timeline = timeline,
+          ValidNextStatuses = workflow?.ValidNextStatuses ?? new List<ProductionStatus>()
+        };
+
+        return View(viewModel);
       }
       catch (Exception ex)
       {
+        _logger.LogError(ex, "Error loading production details for {ProductionId}", id);
         TempData["ErrorMessage"] = $"Error loading production details: {ex.Message}";
         return RedirectToAction("Index");
       }
     }
 
-    // Build BOM - GET
+    // Enhanced Build BOM with Workflow Integration
     public async Task<IActionResult> BuildBom(int? bomId)
     {
       try
       {
-        // FIXED: Use current version BOMs and correct property name
         var boms = await _bomService.GetCurrentVersionBomsAsync();
-
-        // FIXED: Use BomNumber instead of Name (which doesn't exist on Bom model)
         ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", bomId);
 
         var viewModel = new BuildBomViewModel
         {
           BomId = bomId ?? 0,
           Quantity = 1,
-          ProductionDate = DateTime.Now,
-          LaborCost = 0,
-          OverheadCost = 0
+          ProductionDate = DateTime.Today,
+          CreateWithWorkflow = true // New option
         };
 
-        if (bomId.HasValue)
+        if (bomId.HasValue && bomId.Value > 0)
         {
-          // FIXED: Use current version method
           var bom = await _bomService.GetCurrentVersionBomByIdAsync(bomId.Value);
           if (bom != null)
           {
             viewModel.BomName = bom.BomNumber;
             viewModel.BomDescription = bom.Description;
-            viewModel.CanBuild = await _productionService.CanBuildBomAsync(bomId.Value, 1);
-            viewModel.MaterialCost = await _productionService.CalculateBomMaterialCostAsync(bomId.Value, 1);
-          }
-          else
-          {
-            TempData["ErrorMessage"] = "Selected BOM is not available for production. It may not be the current version.";
-            viewModel.BomId = 0; // Reset selection
+            viewModel.CanBuild = await _productionService.CanBuildBomAsync(bomId.Value, viewModel.Quantity);
+            viewModel.MaterialCost = await _productionService.CalculateBomMaterialCostAsync(bomId.Value, viewModel.Quantity);
           }
         }
 
@@ -101,19 +133,13 @@ namespace InventorySystem.Controllers
       }
       catch (Exception ex)
       {
-        TempData["ErrorMessage"] = $"Error loading Build BOM page: {ex.Message}";
-        return View(new BuildBomViewModel
-        {
-          BomId = 0,
-          Quantity = 1,
-          ProductionDate = DateTime.Now,
-          LaborCost = 0,
-          OverheadCost = 0
-        });
+        _logger.LogError(ex, "Error loading build BOM page");
+        TempData["ErrorMessage"] = $"Error loading page: {ex.Message}";
+        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
+        return View(new BuildBomViewModel());
       }
     }
 
-    // Build BOM - POST
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> BuildBom(BuildBomViewModel viewModel)
@@ -122,31 +148,60 @@ namespace InventorySystem.Controllers
       {
         try
         {
-          // FIXED: Validate BOM exists and is current version
-          var currentBom = await _bomService.GetCurrentVersionBomByIdAsync(viewModel.BomId);
-          if (currentBom == null)
+          if (viewModel.BomId <= 0)
           {
-            TempData["ErrorMessage"] = "Selected BOM is not available for production. Please select a current version BOM.";
+            TempData["ErrorMessage"] = "Please select a BOM to build.";
             return await RefreshBuildBomView(viewModel);
           }
 
-          // Check material availability
-          if (!await _productionService.CanBuildBomAsync(viewModel.BomId, viewModel.Quantity))
+          CommandResult result;
+
+          if (viewModel.CreateWithWorkflow)
           {
-            TempData["ErrorMessage"] = "Insufficient materials to build the specified quantity.";
-            return await RefreshBuildBomView(viewModel);
+            // Use the new orchestrated workflow
+            result = await _orchestrator.CreateProductionWithWorkflowAsync(
+                viewModel.BomId,
+                viewModel.Quantity,
+                viewModel.LaborCost,
+                viewModel.OverheadCost,
+                viewModel.Notes,
+                User.Identity?.Name);
+          }
+          else
+          {
+            // Use traditional production creation
+            var production = await _productionService.BuildBomAsync(
+                viewModel.BomId,
+                viewModel.Quantity,
+                viewModel.LaborCost,
+                viewModel.OverheadCost,
+                viewModel.Notes);
+
+            result = CommandResult.SuccessResult(production);
           }
 
-          // Build the BOM
-          var production = await _productionService.BuildBomAsync(
-              viewModel.BomId,
-              viewModel.Quantity,
-              viewModel.LaborCost,
-              viewModel.OverheadCost,
-              viewModel.Notes);
+          if (result.Success)
+          {
+            var productionData = result.Data;
+            int productionId;
 
-          TempData["SuccessMessage"] = $"Successfully built {viewModel.Quantity} units. Production ID: {production.Id}";
-          return RedirectToAction("Details", new { id = production.Id });
+            if (viewModel.CreateWithWorkflow && productionData != null)
+            {
+              var data = (dynamic)productionData;
+              productionId = data.Production.Id;
+            }
+            else
+            {
+              productionId = ((Production)productionData!).Id;
+            }
+
+            TempData["SuccessMessage"] = $"Successfully built {viewModel.Quantity} units. Production ID: {productionId}";
+            return RedirectToAction("Details", new { id = productionId });
+          }
+          else
+          {
+            TempData["ErrorMessage"] = result.ErrorMessage;
+          }
         }
         catch (ArgumentException ex)
         {
@@ -165,13 +220,132 @@ namespace InventorySystem.Controllers
       return await RefreshBuildBomView(viewModel);
     }
 
-    // Check BOM Availability (AJAX)
+    // Workflow Action Methods
+    [HttpPost]
+    public async Task<IActionResult> StartProduction(int productionId, string? assignedTo = null, DateTime? estimatedCompletion = null)
+    {
+      try
+      {
+        var command = new StartProductionCommand(productionId, assignedTo, estimatedCompletion, User.Identity?.Name);
+        var result = await _orchestrator.StartProductionAsync(command);
+
+        if (result.Success)
+        {
+          TempData["SuccessMessage"] = "Production started successfully";
+        }
+        else
+        {
+          TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error starting production {ProductionId}", productionId);
+        TempData["ErrorMessage"] = "Failed to start production";
+      }
+
+      return RedirectToAction("Details", new { id = productionId });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateStatus(int productionId, ProductionStatus newStatus, string? reason = null, string? notes = null)
+    {
+      try
+      {
+        var command = new UpdateProductionStatusCommand(productionId, newStatus, reason, notes, User.Identity?.Name);
+        var result = await _orchestrator.UpdateProductionStatusAsync(command);
+
+        if (result.Success)
+        {
+          TempData["SuccessMessage"] = $"Status updated to {newStatus}";
+        }
+        else
+        {
+          TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error updating status for production {ProductionId}", productionId);
+        TempData["ErrorMessage"] = "Failed to update status";
+      }
+
+      return RedirectToAction("Details", new { id = productionId });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AssignProduction(int productionId, string assignedTo)
+    {
+      try
+      {
+        var command = new AssignProductionCommand(productionId, assignedTo, User.Identity?.Name);
+        var result = await _orchestrator.AssignProductionAsync(command);
+
+        if (result.Success)
+        {
+          TempData["SuccessMessage"] = $"Production assigned to {assignedTo}";
+        }
+        else
+        {
+          TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error assigning production {ProductionId}", productionId);
+        TempData["ErrorMessage"] = "Failed to assign production";
+      }
+
+      return RedirectToAction("Details", new { id = productionId });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CompleteQualityCheck(int productionId, bool passed, string? notes = null, int? qualityCheckerId = null)
+    {
+      try
+      {
+        var command = new CompleteQualityCheckCommand(productionId, passed, notes, qualityCheckerId, User.Identity?.Name);
+        var result = await _orchestrator.ProcessQualityCheckAsync(command);
+
+        if (result.Success)
+        {
+          TempData["SuccessMessage"] = passed ? "Quality check passed - production completed" : "Quality check failed - returned to production";
+        }
+        else
+        {
+          TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error completing quality check for production {ProductionId}", productionId);
+        TempData["ErrorMessage"] = "Failed to complete quality check";
+      }
+
+      return RedirectToAction("Details", new { id = productionId });
+    }
+
+    // AJAX endpoints for dynamic updates
+    [HttpGet]
+    public async Task<IActionResult> GetValidStatuses(int productionId)
+    {
+      try
+      {
+        var validStatuses = await _workflowEngine.GetValidNextStatusesAsync(productionId);
+        return Json(new { success = true, data = validStatuses });
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting valid statuses for production {ProductionId}", productionId);
+        return Json(new { success = false, error = "Failed to get valid statuses" });
+      }
+    }
+
     [HttpGet]
     public async Task<IActionResult> CheckBomAvailability(int bomId, int quantity)
     {
       try
       {
-        // FIXED: Check if BOM is current version first
         var bom = await _bomService.GetCurrentVersionBomByIdAsync(bomId);
         if (bom == null)
         {
@@ -205,12 +379,11 @@ namespace InventorySystem.Controllers
       }
     }
 
-    // FIXED: Helper method to refresh view data safely
+    // Helper methods
     private async Task<IActionResult> RefreshBuildBomView(BuildBomViewModel viewModel)
     {
       try
       {
-        // FIXED: Use current version BOMs and correct property name
         var boms = await _bomService.GetCurrentVersionBomsAsync();
         ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
 
@@ -229,14 +402,13 @@ namespace InventorySystem.Controllers
       catch (Exception ex)
       {
         TempData["ErrorMessage"] = $"Error refreshing BOM data: {ex.Message}";
-        // Set empty dropdown if there's an error
         ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
       }
 
       return View(viewModel);
     }
 
-    // Finished Goods Index
+    // Existing finished goods methods remain the same...
     public async Task<IActionResult> FinishedGoods()
     {
       try
@@ -251,7 +423,6 @@ namespace InventorySystem.Controllers
       }
     }
 
-    // Finished Good Details
     public async Task<IActionResult> FinishedGoodDetails(int id)
     {
       try
@@ -267,159 +438,8 @@ namespace InventorySystem.Controllers
       }
     }
 
-    // Create Finished Good - GET
-    public async Task<IActionResult> CreateFinishedGood()
-    {
-      try
-      {
-        // FIXED: Use current version BOMs and correct property name
-        var boms = await _bomService.GetCurrentVersionBomsAsync();
-        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber");
-        return View(new FinishedGood());
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error loading create finished good page: {ex.Message}";
-        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
-        return View(new FinishedGood());
-      }
-    }
-
-    // Create Finished Good - POST
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateFinishedGood(FinishedGood finishedGood)
-    {
-      if (ModelState.IsValid)
-      {
-        try
-        {
-          await _productionService.CreateFinishedGoodAsync(finishedGood);
-          TempData["SuccessMessage"] = "Finished good created successfully!";
-          return RedirectToAction("FinishedGoods");
-        }
-        catch (Exception ex)
-        {
-          TempData["ErrorMessage"] = $"Error creating finished good: {ex.Message}";
-        }
-      }
-
-      // FIXED: Reload dropdown with correct property name
-      try
-      {
-        var boms = await _bomService.GetCurrentVersionBomsAsync();
-        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", finishedGood.BomId);
-      }
-      catch (Exception)
-      {
-        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
-      }
-
-      return View(finishedGood);
-    }
-
-    // Edit Finished Good - GET
-    public async Task<IActionResult> EditFinishedGood(int id)
-    {
-      try
-      {
-        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
-        if (finishedGood == null) return NotFound();
-
-        // FIXED: Use current version BOMs and correct property name
-        var boms = await _bomService.GetCurrentVersionBomsAsync();
-        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", finishedGood.BomId);
-        return View(finishedGood);
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error loading finished good for editing: {ex.Message}";
-        return RedirectToAction("FinishedGoods");
-      }
-    }
-
-    // Edit Finished Good - POST
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditFinishedGood(FinishedGood finishedGood)
-    {
-      if (ModelState.IsValid)
-      {
-        try
-        {
-          await _productionService.UpdateFinishedGoodAsync(finishedGood);
-          TempData["SuccessMessage"] = "Finished good updated successfully!";
-          return RedirectToAction("FinishedGoodDetails", new { id = finishedGood.Id });
-        }
-        catch (Exception ex)
-        {
-          TempData["ErrorMessage"] = $"Error updating finished good: {ex.Message}";
-        }
-      }
-
-      // FIXED: Reload dropdown with correct property name
-      try
-      {
-        var boms = await _bomService.GetCurrentVersionBomsAsync();
-        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", finishedGood.BomId);
-      }
-      catch (Exception)
-      {
-        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
-      }
-
-      return View(finishedGood);
-    }
-
-    // Material Shortage Report - GET
-    public async Task<IActionResult> MaterialShortageReport(int bomId, int quantity = 1)
-    {
-      try
-      {
-        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
-        return View(shortageAnalysis);
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error generating shortage report: {ex.Message}";
-        return RedirectToAction("BuildBom", new { bomId });
-      }
-    }
-
-    // AJAX endpoint to get shortage data
-    [HttpGet]
-    public async Task<IActionResult> GetMaterialShortageData(int bomId, int quantity)
-    {
-      try
-      {
-        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
-
-        return Json(new
-        {
-          success = true,
-          canBuild = shortageAnalysis.CanBuild,
-          hasShortages = shortageAnalysis.HasShortages,
-          totalShortageItems = shortageAnalysis.TotalShortageItems,
-          shortageValue = shortageAnalysis.ShortageValue,
-          shortages = shortageAnalysis.MaterialShortages.Select(s => new
-          {
-            itemId = s.ItemId,
-            partNumber = s.PartNumber,
-            description = s.Description,
-            requiredQuantity = s.RequiredQuantity,
-            availableQuantity = s.AvailableQuantity,
-            shortageQuantity = s.ShortageQuantity,
-            shortageValue = s.ShortageValue,
-            suggestedPurchaseQuantity = s.SuggestedPurchaseQuantity,
-            bomContext = s.BomContext,
-            isCritical = s.IsCriticalShortage
-          })
-        });
-      }
-      catch (Exception ex)
-      {
-        return Json(new { success = false, error = ex.Message });
-      }
-    }
+    
   }
+
+  
 }

@@ -27,7 +27,7 @@ namespace InventorySystem.Services
       var items = new List<BulkItemPreview>();
 
       using var reader = new StreamReader(file.OpenReadStream());
-      string line;
+      string? line;
       int rowNumber = 0;
 
       while ((line = await reader.ReadLineAsync()) != null)

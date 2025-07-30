@@ -35,5 +35,6 @@ namespace InventorySystem.ViewModels
     public decimal MaterialCost { get; set; }
     public decimal TotalCost => MaterialCost + LaborCost + OverheadCost;
     public decimal UnitCost => Quantity > 0 ? TotalCost / Quantity : 0;
+    public bool CreateWithWorkflow { get; set; } = true;
   }
 }

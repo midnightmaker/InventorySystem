@@ -6,6 +6,7 @@
   <title>@ViewData["Title"] - Inventory Management System</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
   @if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
   {
       <link href="~/css/site.css?v=@DateTime.Now.Ticks" rel="stylesheet" />
@@ -14,243 +15,377 @@
   {
       <link href="~/css/site.css" rel="stylesheet" />
   }
-
 </head>
 <body>
   <header>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-      <div class="container">
-        <a class="navbar-brand" href="/">
-          <i class="fas fa-boxes"></i> Inventory Management
+    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark border-bottom box-shadow mb-3">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold" asp-area="" asp-controller="Home" asp-action="Index">
+          <i class="fas fa-boxes text-primary"></i> Inventory System
         </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav me-auto">
+        <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+          <ul class="navbar-nav flex-grow-1 me-auto">
+            <!-- Dashboard -->
             <li class="nav-item">
-              <a class="nav-link" href="/">Dashboard</a>
+              <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+              </a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/Items">Items</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/Purchases">Purchases</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/Boms">BOMs</a>
-            </li>
-            <!-- ?? NEW: Change Orders Menu Item -->
+
+            <!-- Inventory Management Dropdown -->
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="changeOrdersDropdown" role="button" data-bs-toggle="dropdown">
-                <i class="fas fa-code-branch"></i> Change Orders
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-cube"></i> Inventory
               </a>
               <ul class="dropdown-menu">
                 <li>
-                  <a class="dropdown-item" href="/ChangeOrders">
-                    <i class="fas fa-list"></i> All Change Orders
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index">
+                    <i class="fas fa-list"></i> All Items
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" href="/ChangeOrders/Pending">
-                    <i class="fas fa-clock"></i> Pending Orders
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Create">
+                    <i class="fas fa-plus"></i> Add Item
                   </a>
                 </li>
-                
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="BulkUpload">
+                    <i class="fas fa-upload"></i> Bulk Upload
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="LowStock">
+                    <i class="fas fa-exclamation-triangle text-warning"></i> Low Stock Items
+                  </a>
+                </li>
               </ul>
             </li>
+
+            <!-- Production & Workflow Dropdown -->
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="productionDropdown" role="button" data-bs-toggle="dropdown">
-                Production
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-cogs"></i> Production
               </a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="/Production">Productions</a></li>
-                <li><a class="dropdown-item" href="/Production/FinishedGoods">Finished Goods</a></li>
-                <li><a class="dropdown-item" href="/Production/BuildBom">Build BOM</a></li>
+                <!-- WIP Dashboard - Featured -->
+                <li>
+                  <a class="dropdown-item fw-bold" asp-controller="WipDashboard" asp-action="Index">
+                    <i class="fas fa-tachometer-alt text-primary"></i> WIP Dashboard
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="WipDashboard" asp-action="Kanban">
+                    <i class="fas fa-columns text-info"></i> Kanban Board
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <!-- Traditional Production -->
+                <li>
+                  <a class="dropdown-item" asp-controller="Production" asp-action="Index">
+                    <i class="fas fa-list"></i> All Productions
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Production" asp-action="BuildBom">
+                    <i class="fas fa-hammer text-success"></i> Build BOM
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <!-- Finished Goods -->
+                <li>
+                  <a class="dropdown-item" asp-controller="Production" asp-action="FinishedGoods">
+                    <i class="fas fa-box"></i> Finished Goods
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Production" asp-action="CreateFinishedGood">
+                    <i class="fas fa-plus"></i> Add Finished Good
+                  </a>
+                </li>
               </ul>
             </li>
+
+            <!-- BOMs Dropdown -->
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="salesDropdown" role="button" data-bs-toggle="dropdown">
-                Sales
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-layer-group"></i> BOMs
               </a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="/Sales">Sales</a></li>
-                <li><a class="dropdown-item" href="/Sales/Create">New Sale</a></li>
-                <li><a class="dropdown-item" href="/Sales/Reports">Reports</a></li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Boms" asp-action="Index">
+                    <i class="fas fa-list"></i> All BOMs
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Boms" asp-action="Create">
+                    <i class="fas fa-plus"></i> Create BOM
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Boms" asp-action="CurrentVersions">
+                    <i class="fas fa-check-circle text-success"></i> Current Versions
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Boms" asp-action="PendingChanges">
+                    <i class="fas fa-clock text-warning"></i> Pending Changes
+                  </a>
+                </li>
               </ul>
             </li>
+
+            <!-- Purchasing Dropdown -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-shopping-cart"></i> Purchasing
+              </a>
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Index">
+                    <i class="fas fa-list"></i> All Purchases
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Create">
+                    <i class="fas fa-plus"></i> New Purchase
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Vendors">
+                    <i class="fas fa-building"></i> Vendors
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="RecentOrders">
+                    <i class="fas fa-clock"></i> Recent Orders
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Sales Dropdown -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-chart-line"></i> Sales
+              </a>
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item" asp-controller="Sales" asp-action="Index">
+                    <i class="fas fa-list"></i> All Sales
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Sales" asp-action="Create">
+                    <i class="fas fa-plus"></i> New Sale
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Sales" asp-action="Reports">
+                    <i class="fas fa-chart-bar"></i> Sales Reports
+                  </a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+
+          <!-- Right side navbar items -->
+          <ul class="navbar-nav ms-auto">
+            <!-- Workflow Quick Actions -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-bolt text-warning"></i> Quick Actions
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a class="dropdown-item" asp-controller="Production" asp-action="BuildBom">
+                    <i class="fas fa-hammer text-success"></i> Start Production
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Create">
+                    <i class="fas fa-cube text-primary"></i> Add New Item
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Create">
+                    <i class="fas fa-shopping-cart text-info"></i> Record Purchase
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" asp-controller="WipDashboard" asp-action="GetOverdueProductions">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> View Overdue Items
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Notifications (placeholder for future feature) -->
             <li class="nav-item">
-              <a class="nav-link" href="/Inventory/History">Inventory</a>
+              <a class="nav-link position-relative" href="#" onclick="showNotifications()" title="Notifications">
+                <i class="fas fa-bell"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notificationCount" style="display: none;">
+                  0
+                </span>
+              </a>
+            </li>
+
+            <!-- User Profile (placeholder) -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-user-circle"></i> User
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a class="dropdown-item" href="#">
+                    <i class="fas fa-user"></i> Profile
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="#">
+                    <i class="fas fa-cog"></i> Settings
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="#">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                  </a>
+                </li>
+              </ul>
             </li>
           </ul>
         </div>
       </div>
     </nav>
   </header>
-  <div class="container mt-4">
-    <main role="main">
-      @if (TempData["SuccessMessage"] != null)
-      {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-          <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      }
-      @if (TempData["ErrorMessage"] != null)
-      {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-          <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      }
-      @if (TempData["WarningMessage"] != null)
-      {
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-          <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      }
+
+  <!-- Alert container for notifications -->
+  <div class="container-fluid">
+    <div id="alertContainer"></div>
+  </div>
+
+  <div class="container-fluid">
+    <main role="main" class="pb-3">
       @RenderBody()
     </main>
   </div>
+
+  <footer class="border-top footer text-muted">
+    <div class="container">
+      &copy; 2025 - Inventory Management System -
+      <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a> |
+      <a href="#" onclick="showSystemInfo()">System Info</a> |
+      <span class="small">v2.0 with Workflow</span>
+    </div>
+  </footer>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="~/js/site.js" asp-append-version="true"></script>
+
   
-  <!-- Global Change Order AJAX Handler -->
+  <!-- Global workflow JavaScript -->
   <script>
-    console.log('Global Change Order Handler Loading...');
-    
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM loaded, attaching Change Order AJAX handler');
-      
-      // Use event delegation for dynamically loaded forms
-      document.addEventListener('submit', function(e) {
-        if (e.target && e.target.classList && e.target.classList.contains('ajax-form')) {
-          console.log('AJAX form submission intercepted!');
-          e.preventDefault();
-          e.stopPropagation();
+    // Global notification system
+    function showNotification(message, type = 'info') {
+        const alertContainer = document.getElementById('alertContainer');
+        const alertId = 'alert-' + Date.now();
 
-          const form = e.target;
-          const submitButton = form.querySelector('button[type="submit"]');
-          const formData = new FormData(form);
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${alertId}">
+                <i class="fas fa-${getIconForType(type)}"></i> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
 
-          // Disable submit button during processing
-          if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-          }
+        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
 
-          console.log('Sending AJAX request to:', form.action);
-
-          fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest'
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const alert = document.getElementById(alertId);
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
             }
-          })
-          .then(response => {
-            console.log('Response received:', response.status);
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then(data => {
-            console.log('JSON data received:', data);
+        }, 5000);
+    }
 
-            if (data.success) {
-              console.log('Success! Closing modal...');
-              
-              // Close modal
-              const modalElement = document.getElementById('changeOrderModal');
-              if (modalElement) {
-                const modal = bootstrap.Modal.getInstance(modalElement);
-                if (modal) {
-                  modal.hide();
-                }
-              }
-
-              // Handle redirect
-              if (data.redirect && data.redirectUrl) {
-                console.log('Redirecting to:', data.redirectUrl);
-                setTimeout(() => {
-                  window.location.href = data.redirectUrl;
-                }, 300);
-              } else if (data.showToast) {
-                // Show toast and refresh
-                showSuccessToast(data.message);
-                setTimeout(() => {
-                  location.reload();
-                }, 1500);
-              }
-            } else {
-              console.log('Server returned error:', data.message);
-              showErrorAlert(data.message || 'Unknown error occurred');
-            }
-          })
-          .catch(error => {
-            console.error('Fetch error:', error);
-            showErrorAlert('An error occurred while creating the change order: ' + error.message);
-          })
-          .finally(() => {
-            // Re-enable submit button
-            if (submitButton) {
-              submitButton.disabled = false;
-              submitButton.innerHTML = '<i class="fas fa-plus"></i> Create Change Order';
-            }
-          });
+    function getIconForType(type) {
+        switch(type) {
+            case 'success': return 'check-circle';
+            case 'danger': return 'exclamation-triangle';
+            case 'warning': return 'exclamation-circle';
+            case 'info': return 'info-circle';
+            default: return 'info-circle';
         }
-      });
+    }
+
+    // Placeholder notification function
+    function showNotifications() {
+        showNotification('Notification system coming soon!', 'info');
+    }
+
+    // System info modal
+    function showSystemInfo() {
+        alert('Inventory Management System v2.0\nWith Advanced Workflow Management\n\nFeatures:\n• Real-time WIP Dashboard\n• Kanban Board\n• Production Workflow\n• Quality Control\n• Employee Assignment');
+    }
+
+    // Check for workflow updates every 30 seconds
+    setInterval(function() {
+        if (window.location.pathname.includes('WipDashboard') ||
+            window.location.pathname.includes('Production')) {
+            // Refresh workflow data if on relevant pages
+            // This would call an API endpoint to check for updates
+        }
+    }, 30000);
+
+    // Highlight active navigation item
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('.navbar-nav .nav-link, .dropdown-item');
+
+        navLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && currentPath.includes(href) && href !== '/') {
+                link.classList.add('active');
+                // Also highlight parent dropdown if it's a dropdown item
+                const dropdown = link.closest('.dropdown');
+                if (dropdown) {
+                    dropdown.querySelector('.nav-link').classList.add('active');
+                }
+            }
+        });
     });
 
-    // Helper functions
-    function showSuccessToast(message) {
-      const toastHtml = `
-        <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
-          <div class="d-flex">
-            <div class="toast-body">
-              <i class="fas fa-check-circle me-2"></i>${message}
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-          </div>
-        </div>
-      `;
-      
-      const toastElement = document.createElement('div');
-      toastElement.innerHTML = toastHtml;
-      document.body.appendChild(toastElement.firstElementChild);
-      
-      const toast = new bootstrap.Toast(toastElement.firstElementChild, {
-        delay: 5000
-      });
-      toast.show();
-      
-      toastElement.firstElementChild.addEventListener('hidden.bs.toast', function() {
-        this.remove();
-      });
-    }
-
-    function showErrorAlert(message) {
-      const alertHtml = `
-        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;">
-          <i class="fas fa-exclamation-triangle me-2"></i>${message}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      `;
-      
-      const alertElement = document.createElement('div');
-      alertElement.innerHTML = alertHtml;
-      document.body.appendChild(alertElement.firstElementChild);
-      
-      setTimeout(() => {
-        const alert = document.querySelector('.alert-danger');
-        if (alert) {
-          alert.remove();
+    // Quick keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+Shift+P = Quick Production
+        if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+            e.preventDefault();
+            window.location.href = '/Production/BuildBom';
         }
-      }, 5000);
-    }
+        // Ctrl+Shift+D = Dashboard
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            e.preventDefault();
+            window.location.href = '/WipDashboard';
+        }
+        // Ctrl+Shift+I = Items
+        if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+            e.preventDefault();
+            window.location.href = '/Items';
+        }
+    });
   </script>
-  
+
   @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
