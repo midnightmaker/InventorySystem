@@ -26,8 +26,8 @@ namespace InventorySystem.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal UnitCost { get; set; }
         
+        [NotMapped]
         [Display(Name = "Extended Cost")]
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal ExtendedCost => Quantity * UnitCost;
+        public decimal ExtendedCost => Quantity * UnitCost; // Assuming you have a Quantity property
     }
 }

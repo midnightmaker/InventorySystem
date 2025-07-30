@@ -437,36 +437,9 @@ namespace InventorySystem.Controllers
         return RedirectToAction("FinishedGoods");
       }
     }
+
+    
   }
 
-  // Enhanced ViewModels
-  public class ProductionIndexViewModel
-  {
-    public List<ProductionSummary> ActiveProductions { get; set; } = new();
-    public List<Production> AllProductions { get; set; } = new();
-    public bool ShowWorkflowView { get; set; } = true;
-  }
-
-  public class ProductionDetailsViewModel
-  {
-    public Production Production { get; set; } = null!;
-    public ProductionWorkflowResult? Workflow { get; set; }
-    public ProductionTimelineResult? Timeline { get; set; }
-    public List<ProductionStatus> ValidNextStatuses { get; set; } = new();
-  }
-
-  public class BuildBomViewModel
-  {
-    public int BomId { get; set; }
-    public string? BomName { get; set; }
-    public string? BomDescription { get; set; }
-    public int Quantity { get; set; } = 1;
-    public DateTime ProductionDate { get; set; } = DateTime.Today;
-    public decimal LaborCost { get; set; }
-    public decimal OverheadCost { get; set; }
-    public string? Notes { get; set; }
-    public bool CanBuild { get; set; }
-    public decimal MaterialCost { get; set; }
-    public bool CreateWithWorkflow { get; set; } = true;
-  }
+  
 }

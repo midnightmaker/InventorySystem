@@ -33,20 +33,21 @@ namespace InventorySystem.Models
     [Column(TypeName = "decimal(18,2)")]
     public decimal UnitCost { get; set; }
 
+    [NotMapped]
     [Display(Name = "Total Price")]
     [Column(TypeName = "decimal(18,2)")]
     public decimal TotalPrice => QuantitySold * UnitPrice;
 
     [Display(Name = "Total Cost")]
-    [Column(TypeName = "decimal(18,2)")]
+    [NotMapped]
     public decimal TotalCost => QuantitySold * UnitCost;
 
     [Display(Name = "Profit")]
-    [Column(TypeName = "decimal(18,2)")]
+    [NotMapped]
     public decimal Profit => TotalPrice - TotalCost;
 
     [Display(Name = "Profit Margin")]
-    [Column(TypeName = "decimal(18,4)")]
+    [NotMapped]
     public decimal ProfitMargin => TotalPrice > 0 ? (Profit / TotalPrice) * 100 : 0;
 
     public string? Notes { get; set; }

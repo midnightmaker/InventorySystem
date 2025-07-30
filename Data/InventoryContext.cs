@@ -19,8 +19,6 @@ namespace InventorySystem.Data
     public DbSet<Bom> Boms { get; set; }
     public DbSet<BomItem> BomItems { get; set; }
     public DbSet<InventoryAdjustment> InventoryAdjustments { get; set; }
-    
-
     public DbSet<FinishedGood> FinishedGoods { get; set; }
     public DbSet<Production> Productions { get; set; }
     public DbSet<ProductionConsumption> ProductionConsumptions { get; set; }
@@ -28,8 +26,6 @@ namespace InventorySystem.Data
     public DbSet<SaleItem> SaleItems { get; set; }
     public DbSet<ChangeOrder> ChangeOrders { get; set; } = null!;
     public DbSet<ChangeOrderDocument> ChangeOrderDocuments { get; set; }
-    //public DbSet<SaleDocument> SaleDocuments { get; set; }
-    
 
     // New Workflow DbSets
     public DbSet<ProductionWorkflow> ProductionWorkflows { get; set; }
@@ -42,7 +38,7 @@ namespace InventorySystem.Data
     {
       base.OnModelCreating(modelBuilder);
 
-      // Existing model configurations remain the same...
+      // Configure existing entities with proper relationships
       ConfigureExistingEntities(modelBuilder);
 
       // Configure new workflow entities
@@ -58,6 +54,17 @@ namespace InventorySystem.Data
         entity.Property(e => e.PartNumber).IsRequired().HasMaxLength(100);
         entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
         entity.HasIndex(e => e.PartNumber).IsUnique();
+
+        // Configure relationships
+        entity.HasMany(i => i.Purchases)
+              .WithOne(p => p.Item)
+              .HasForeignKey(p => p.ItemId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasMany(i => i.DesignDocuments)
+              .WithOne(d => d.Item)
+              .HasForeignKey(d => d.ItemId)
+              .OnDelete(DeleteBehavior.Cascade);
       });
 
       // Purchase configuration
@@ -65,19 +72,80 @@ namespace InventorySystem.Data
       {
         entity.HasKey(e => e.Id);
         entity.Property(e => e.CostPerUnit).HasColumnType("decimal(18,2)");
-        entity.Property(e => e.TotalCost).HasColumnType("decimal(18,2)");
+
+        // Explicit relationship configuration
         entity.HasOne(p => p.Item)
               .WithMany(i => i.Purchases)
-              .HasForeignKey(p => p.ItemId);
+              .HasForeignKey(p => p.ItemId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        // If ItemVersionReference exists, configure it separately
+        entity.HasOne(p => p.ItemVersionReference)
+              .WithMany()
+              .HasForeignKey(p => p.ItemVersionId)
+              .OnDelete(DeleteBehavior.Restrict);
       });
 
-      // BOM configuration
+      // BOM configuration with explicit self-referencing relationships
       modelBuilder.Entity<Bom>(entity =>
       {
         entity.HasKey(e => e.Id);
         entity.Property(e => e.BomNumber).IsRequired().HasMaxLength(100);
         entity.Property(e => e.AssemblyPartNumber).IsRequired().HasMaxLength(100);
         entity.HasIndex(e => e.BomNumber).IsUnique();
+
+        // Configure self-referencing relationships explicitly
+        entity.HasOne(b => b.ParentBom)
+              .WithMany(b => b.SubAssemblies)
+              .HasForeignKey(b => b.ParentBomId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(b => b.BaseBom)
+              .WithMany(b => b.Versions)
+              .HasForeignKey(b => b.BaseBomId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure relationship with ChangeOrder
+        entity.HasOne(b => b.CreatedFromChangeOrder)
+              .WithOne(c => c.NewBom)
+              .HasForeignKey<Bom>(b => b.CreatedFromChangeOrderId)
+              .OnDelete(DeleteBehavior.SetNull);
+
+        entity.HasMany(b => b.Documents)
+              .WithOne(d => d.Bom)
+              .HasForeignKey(d => d.BomId)
+              .OnDelete(DeleteBehavior.Cascade);
+      });
+
+      // ChangeOrder configuration with explicit relationships
+      modelBuilder.Entity<ChangeOrder>(entity =>
+      {
+        entity.HasKey(e => e.Id);
+        entity.Property(e => e.ChangeOrderNumber).IsRequired().HasMaxLength(100);
+        entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
+        entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
+        entity.HasIndex(e => e.ChangeOrderNumber).IsUnique();
+
+        // Configure explicit relationships to avoid ambiguity
+        entity.HasOne(c => c.BaseBom)
+              .WithMany()
+              .HasForeignKey(c => c.BaseBomId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(c => c.NewBom)
+              .WithOne(b => b.CreatedFromChangeOrder)
+              .HasForeignKey<ChangeOrder>(c => c.NewBomId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(c => c.BaseItem)
+              .WithMany()
+              .HasForeignKey(c => c.BaseItemId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(c => c.NewItem)
+              .WithOne(i => i.CreatedFromChangeOrder)
+              .HasForeignKey<ChangeOrder>(c => c.NewItemId)
+              .OnDelete(DeleteBehavior.Restrict);
       });
 
       // BOM Item configuration
@@ -86,10 +154,28 @@ namespace InventorySystem.Data
         entity.HasKey(e => e.Id);
         entity.HasOne(bi => bi.Bom)
               .WithMany(b => b.BomItems)
-              .HasForeignKey(bi => bi.BomId);
+              .HasForeignKey(bi => bi.BomId)
+              .OnDelete(DeleteBehavior.Cascade);
         entity.HasOne(bi => bi.Item)
               .WithMany()
-              .HasForeignKey(bi => bi.ItemId);
+              .HasForeignKey(bi => bi.ItemId)
+              .OnDelete(DeleteBehavior.Restrict);
+      });
+
+      // ItemDocument configuration
+      modelBuilder.Entity<ItemDocument>(entity =>
+      {
+        entity.HasKey(e => e.Id);
+
+        entity.HasOne(d => d.Item)
+              .WithMany(i => i.DesignDocuments)
+              .HasForeignKey(d => d.ItemId)
+              .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasOne(d => d.Bom)
+              .WithMany(b => b.Documents)
+              .HasForeignKey(d => d.BomId)
+              .OnDelete(DeleteBehavior.Cascade);
       });
 
       // Production configuration
@@ -101,10 +187,12 @@ namespace InventorySystem.Data
         entity.Property(e => e.OverheadCost).HasColumnType("decimal(18,2)");
         entity.HasOne(p => p.FinishedGood)
               .WithMany(fg => fg.Productions)
-              .HasForeignKey(p => p.FinishedGoodId);
+              .HasForeignKey(p => p.FinishedGoodId)
+              .OnDelete(DeleteBehavior.Restrict);
         entity.HasOne(p => p.Bom)
               .WithMany()
-              .HasForeignKey(p => p.BomId);
+              .HasForeignKey(p => p.BomId)
+              .OnDelete(DeleteBehavior.Restrict);
       });
 
       // Production Consumption configuration
@@ -114,10 +202,12 @@ namespace InventorySystem.Data
         entity.Property(e => e.UnitCostAtConsumption).HasColumnType("decimal(18,2)");
         entity.HasOne(pc => pc.Production)
               .WithMany(p => p.MaterialConsumptions)
-              .HasForeignKey(pc => pc.ProductionId);
+              .HasForeignKey(pc => pc.ProductionId)
+              .OnDelete(DeleteBehavior.Cascade);
         entity.HasOne(pc => pc.Item)
               .WithMany()
-              .HasForeignKey(pc => pc.ItemId);
+              .HasForeignKey(pc => pc.ItemId)
+              .OnDelete(DeleteBehavior.Restrict);
       });
 
       // Finished Good configuration
@@ -129,7 +219,8 @@ namespace InventorySystem.Data
         entity.Property(e => e.SellingPrice).HasColumnType("decimal(18,2)");
         entity.HasOne(fg => fg.Bom)
               .WithMany()
-              .HasForeignKey(fg => fg.BomId);
+              .HasForeignKey(fg => fg.BomId)
+              .OnDelete(DeleteBehavior.Restrict);
       });
 
       // Sales configuration
@@ -150,23 +241,14 @@ namespace InventorySystem.Data
       {
         entity.HasKey(e => e.Id);
         entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
-        entity.Property(e => e.TotalPrice).HasColumnType("decimal(18,2)");
         entity.HasOne(si => si.Sale)
               .WithMany(s => s.SaleItems)
-              .HasForeignKey(si => si.SaleId);
+              .HasForeignKey(si => si.SaleId)
+              .OnDelete(DeleteBehavior.Cascade);
         entity.HasOne(si => si.FinishedGood)
               .WithMany()
-              .HasForeignKey(si => si.FinishedGoodId);
-      });
-
-      // Change Order configuration
-      modelBuilder.Entity<ChangeOrder>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.ChangeOrderNumber).IsRequired().HasMaxLength(100);
-        entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
-        entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
-        entity.HasIndex(e => e.ChangeOrderNumber).IsUnique();
+              .HasForeignKey(si => si.FinishedGoodId)
+              .OnDelete(DeleteBehavior.Restrict);
       });
     }
 

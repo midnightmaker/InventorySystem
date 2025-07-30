@@ -1,5 +1,3 @@
-// Make sure your Purchase.cs model has these validation attributes:
-
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -32,8 +30,8 @@ namespace InventorySystem.Models
     [Range(0.01, double.MaxValue, ErrorMessage = "Cost per unit must be greater than 0")]
     public decimal CostPerUnit { get; set; }
 
+    [NotMapped]
     [Display(Name = "Total Cost")]
-    [Column(TypeName = "decimal(18,2)")]
     public decimal TotalCost => QuantityPurchased * CostPerUnit;
 
     [Display(Name = "Remaining Quantity")]
@@ -56,22 +54,20 @@ namespace InventorySystem.Models
     [Range(0, double.MaxValue, ErrorMessage = "Tax amount cannot be negative")]
     public decimal TaxAmount { get; set; } = 0;
 
+    [NotMapped]
     [Display(Name = "Total Paid")]
-    [Column(TypeName = "decimal(18,2)")]
     public decimal TotalPaid => TotalCost + ShippingCost + TaxAmount;
 
     [Display(Name = "Item Version")]
     public string? ItemVersion { get; set; }
 
-    public int? ItemVersionId { get; set; } // Specific version reference
+    public int? ItemVersionId { get; set; }
     public virtual Item? ItemVersionReference { get; set; }
 
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
-    // Navigation property for purchase documents
     public virtual ICollection<PurchaseDocument> PurchaseDocuments { get; set; } = new List<PurchaseDocument>();
 
-    // Helper properties
     [NotMapped]
     public bool HasDocuments => PurchaseDocuments?.Any() == true;
 
