@@ -1,3 +1,4 @@
+using InventorySystem.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -66,12 +67,39 @@ namespace InventorySystem.Models
 
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
+    [Display(Name = "Purchase Status")]
+    public PurchaseStatus Status { get; set; } = PurchaseStatus.Pending;
+
+    [Display(Name = "Expected Delivery Date")]
+    [DataType(DataType.Date)]
+    public DateTime? ExpectedDeliveryDate { get; set; }
+
+    [Display(Name = "Actual Delivery Date")]
+    [DataType(DataType.Date)]
+    public DateTime? ActualDeliveryDate { get; set; }
+
+    // Navigation properties
     public virtual ICollection<PurchaseDocument> PurchaseDocuments { get; set; } = new List<PurchaseDocument>();
 
+    // Computed properties
     [NotMapped]
     public bool HasDocuments => PurchaseDocuments?.Any() == true;
 
     [NotMapped]
     public int DocumentCount => PurchaseDocuments?.Count ?? 0;
+
+    [NotMapped]
+    public bool IsOverdue => ExpectedDeliveryDate.HasValue &&
+                            ExpectedDeliveryDate.Value < DateTime.Today &&
+                            Status != PurchaseStatus.Received &&
+                            Status != PurchaseStatus.Cancelled;
+
+    [NotMapped]
+    public bool IsDelivered => Status == PurchaseStatus.Received ||
+                              Status == PurchaseStatus.PartiallyReceived;
+
+    [NotMapped]
+    public int DaysUntilExpected => ExpectedDeliveryDate.HasValue ?
+                                   (ExpectedDeliveryDate.Value - DateTime.Today).Days : 0;
   }
 }

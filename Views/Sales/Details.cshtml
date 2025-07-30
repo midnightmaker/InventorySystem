@@ -79,11 +79,11 @@
 
           <dt class="col-sm-3">Payment Status:</dt>
           <dd class="col-sm-9">
-            @if (Model.PaymentStatus == InventorySystem.Models.PaymentStatus.Paid)
+            @if (Model.PaymentStatus == PaymentStatus.Paid)
             {
               <span class="badge bg-success">Paid</span>
             }
-            else if (Model.PaymentStatus == InventorySystem.Models.PaymentStatus.Pending)
+            else if (Model.PaymentStatus == PaymentStatus.Pending)
             {
               <span class="badge bg-warning">Pending</span>
             }
@@ -95,15 +95,15 @@
 
           <dt class="col-sm-3">Sale Status:</dt>
           <dd class="col-sm-9">
-            @if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Processing)
+            @if (Model.SaleStatus == SaleStatus.Processing)
             {
               <span class="badge bg-primary">Processing</span>
             }
-            else if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Shipped)
+            else if (Model.SaleStatus == SaleStatus.Shipped)
             {
               <span class="badge bg-success">Shipped</span>
             }
-            else if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Delivered)
+            else if (Model.SaleStatus == SaleStatus.Delivered)
             {
               <span class="badge bg-info">Delivered</span>
             }
@@ -246,7 +246,7 @@
           </table>
         }
 
-        @if (Model.SaleStatus == InventorySystem.Models.SaleStatus.Processing && Model.SaleItems?.Any() == true)
+        @if (Model.SaleStatus == SaleStatus.Processing && Model.SaleItems?.Any() == true)
         {
           <hr>
           <form asp-action="ProcessSale" method="post">

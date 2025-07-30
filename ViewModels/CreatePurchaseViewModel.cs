@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using InventorySystem.Models.Enums;
 
 namespace InventorySystem.ViewModels
 {
@@ -43,6 +44,18 @@ namespace InventorySystem.ViewModels
 
     [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
     public string? Notes { get; set; }
+
+    // NEW FIELDS
+    [Display(Name = "Purchase Status")]
+    public InventorySystem.Models.Enums.PurchaseStatus Status { get; set; } = InventorySystem.Models.Enums.PurchaseStatus.Pending;
+
+    [Display(Name = "Expected Delivery Date")]
+    [DataType(DataType.Date)]
+    public DateTime? ExpectedDeliveryDate { get; set; }
+
+    [Display(Name = "Actual Delivery Date")]
+    [DataType(DataType.Date)]
+    public DateTime? ActualDeliveryDate { get; set; }
 
     // Helper properties for display
     public decimal TotalCost => QuantityPurchased * CostPerUnit;

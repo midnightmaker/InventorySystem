@@ -72,6 +72,7 @@ namespace InventorySystem.Services
       }
     }
 
+    // Update this method in PurchaseService.cs
     public async Task<Purchase> UpdatePurchaseAsync(Purchase purchase)
     {
       try
@@ -96,8 +97,11 @@ namespace InventorySystem.Services
         existingPurchase.PurchaseOrderNumber = purchase.PurchaseOrderNumber;
         existingPurchase.Notes = purchase.Notes;
         existingPurchase.RemainingQuantity += remainingDifference;
-        // TotalCost is calculated automatically by the model
 
+        // Update status and delivery dates
+        existingPurchase.Status = purchase.Status;
+        existingPurchase.ExpectedDeliveryDate = purchase.ExpectedDeliveryDate;
+        existingPurchase.ActualDeliveryDate = purchase.ActualDeliveryDate;
         await _context.SaveChangesAsync();
 
         // Adjust inventory if quantity changed
@@ -352,7 +356,7 @@ namespace InventorySystem.Services
     }
 
     #endregion
-
+    
     #region Helper Methods
 
     public async Task<decimal> GetAverageCostAsync(int itemId)

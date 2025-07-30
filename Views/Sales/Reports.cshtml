@@ -198,7 +198,7 @@
                     </td>
                     <td>@sale.TotalAmount.ToString("C")</td>
                     <td>
-                      <span class="badge bg-@(sale.PaymentStatus == InventorySystem.Models.PaymentStatus.Paid ? "success" : "warning")">
+                      <span class="badge bg-@(sale.PaymentStatus == PaymentStatus.Paid ? "success" : "warning")">
                         @sale.PaymentStatus
                       </span>
                     </td>

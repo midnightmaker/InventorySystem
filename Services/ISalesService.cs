@@ -1,5 +1,6 @@
 ﻿// Services/ISalesService.cs
 using InventorySystem.Models;
+using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Services
 {

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Xml.Linq;
 
 namespace InventorySystem.Domain.Enums
 {
@@ -20,7 +21,10 @@ namespace InventorySystem.Domain.Enums
     OnHold = 4,
 
     [Display(Name = "Cancelled", Description = "Production order cancelled")]
-    Cancelled = 5
+    Cancelled = 5,
+    
+    [Display(Name = "Ready to Ship", Description = "Ready to ship")]
+    ReadyToShip = 6
   }
 
   public enum WorkflowEventType

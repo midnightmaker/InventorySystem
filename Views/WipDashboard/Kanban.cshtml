@@ -1,0 +1,272 @@
+﻿@* Views/WipDashboard/Kanban.cshtml *@
+@using InventorySystem.Domain.Enums
+@using InventorySystem.ViewModels
+@model WipDashboardResult
+@{
+  ViewData["Title"] = "Kanban Board";
+}
+
+<div class="container-fluid">
+  <div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+      <h2><i class="fas fa-columns"></i> Kanban Board</h2>
+      <div class="btn-group">
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+          <i class="fas fa-tachometer-alt"></i> Dashboard View
+        </a>
+        <button class="btn btn-primary" onclick="refreshBoard()">
+          <i class="fas fa-sync"></i> Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <form method="get" class="row align-items-end">
+            <div class="col-md-4">
+              <label for="assignedTo" class="form-label">Filter by Assigned To</label>
+              <input type="text" class="form-control" id="assignedTo" name="assignedTo"
+                     value="@ViewBag.AssignedTo" placeholder="Employee name">
+            </div>
+            <div class="col-md-4">
+              <button type="submit" class="btn btn-primary">Apply Filter</button>
+              <a href="@Url.Action("Kanban")" class="btn btn-outline-secondary">Clear</a>
+            </div>
+            <div class="col-md-4 text-end">
+              <small class="text-muted">
+                Showing @Model.Statistics.TotalActiveProductions active productions
+              </small>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kanban Board -->
+  <div class="row kanban-board">
+    @foreach (var status in Enum.GetValues<ProductionStatus>().Where(s => s != ProductionStatus.Completed && s != ProductionStatus.Cancelled))
+    {
+      <div class="col-md-2">
+        <div class="card h-100">
+          <div class="card-header bg-@GetStatusColor(status) text-white">
+            <h6 class="mb-0">@status.ToString().Replace("InProgress", "In Progress")</h6>
+            <small>@(Model.ProductionsByStatus.ContainsKey(status) ? Model.ProductionsByStatus[status].Count : 0) items</small>
+          </div>
+          <div class="card-body p-2 kanban-column" data-status="@((int)status)"
+               style="min-height: 500px; max-height: 500px; overflow-y: auto;">
+            @if (Model.ProductionsByStatus.ContainsKey(status))
+            {
+              @foreach (var production in Model.ProductionsByStatus[status])
+              {
+                <div class="card mb-2 production-card shadow-sm"
+                     data-production-id="@production.ProductionId"
+                     draggable="true"
+                     style="cursor: move;">
+                  <div class="card-body p-2">
+                    <h6 class="card-title mb-1">
+                      <a href="@Url.Action("Details", "Production", new { id = production.ProductionId })"
+                         class="text-decoration-none text-dark">
+                        @production.BomNumber
+                      </a>
+                    </h6>
+                    <p class="card-text small mb-1 text-muted">@production.FinishedGoodName</p>
+                    <p class="card-text small mb-1">
+                      <i class="fas fa-cubes"></i> Qty: @production.Quantity
+                    </p>
+                    @if (!string.IsNullOrEmpty(production.AssignedTo))
+                    {
+                      <p class="card-text small mb-1">
+                        <i class="fas fa-user text-primary"></i> @production.AssignedTo
+                      </p>
+                    }
+                    @if (production.EstimatedCompletionDate.HasValue)
+                    {
+                      <p class="card-text small mb-1">
+                        <i class="fas fa-clock"></i>
+                        <span class="@(production.IsOverdue ? "text-danger" : "text-success")">
+                          @production.EstimatedCompletionDate.Value.ToString("MM/dd")
+                        </span>
+                      </p>
+                    }
+                    @if (production.IsHighPriority)
+                    {
+                      <span class="badge bg-danger">
+                        <i class="fas fa-exclamation"></i> @production.Priority
+                      </span>
+                    }
+                    @if (production.IsOverdue)
+                    {
+                      <span class="badge bg-warning">
+                        <i class="fas fa-clock"></i> Overdue
+                      </span>
+                    }
+                  </div>
+                </div>
+              }
+            }
+            @if (!Model.ProductionsByStatus.ContainsKey(status) || !Model.ProductionsByStatus[status].Any())
+            {
+              <div class="text-center text-muted mt-4">
+                <i class="fas fa-inbox fa-2x"></i>
+                <p class="mt-2">No items</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@functions {
+  string GetStatusColor(ProductionStatus status)
+  {
+    return status switch
+    {
+      ProductionStatus.Planned => "secondary",
+      ProductionStatus.InProgress => "warning",
+      ProductionStatus.QualityCheck => "info",
+      ProductionStatus.OnHold => "danger",
+      ProductionStatus.ReadyToShip => "success",
+      _ => "light"
+    };
+  }
+}
+
+
+
+@section Scripts {
+  <style>
+    .kanban-board {
+      height: calc(100vh - 250px);
+    }
+
+    .production-card {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+      .production-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+      }
+
+    .kanban-column {
+      background-color: #f8f9fa;
+      border-radius: 0.375rem;
+    }
+
+      .kanban-column.drag-over {
+        background-color: #e3f2fd;
+        border: 2px dashed #2196f3;
+      }
+
+    .production-card.dragging {
+      opacity: 0.5;
+      transform: rotate(5deg);
+    }
+
+    .drop-zone {
+      min-height: 50px;
+      border: 2px dashed #ccc;
+      border-radius: 0.375rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.production-card');
+        const columns = document.querySelectorAll('.kanban-column');
+
+        // Drag and drop functionality
+        cards.forEach(card => {
+            card.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', this.dataset.productionId);
+                this.classList.add('dragging');
+            });
+
+            card.addEventListener('dragend', function(e) {
+                this.classList.remove('dragging');
+            });
+        });
+
+        columns.forEach(column => {
+            column.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+
+            column.addEventListener('dragleave', function(e) {
+                this.classList.remove('drag-over');
+            });
+
+            column.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+
+                const productionId = e.dataTransfer.getData('text/plain');
+                const newStatus = this.dataset.status;
+
+                updateProductionStatus(productionId, newStatus);
+            });
+        });
+
+        // Auto-refresh every 60 seconds
+        setInterval(refreshBoard, 60000);
+    });
+
+    function updateProductionStatus(productionId, newStatus) {
+        fetch(`/Production/UpdateStatus`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `productionId=${productionId}&newStatus=${newStatus}&reason=Updated via Kanban board`
+        })
+        .then(response => {
+            if (response.ok) {
+                // Show success message
+                showNotification('Status updated successfully', 'success');
+                // Reload the page after a short delay
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification('Failed to update status', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Failed to update status', 'error');
+        });
+    }
+
+    function refreshBoard() {
+        location.reload();
+    }
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(notification);
+
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    }
+  </script>
+}

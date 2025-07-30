@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using InventorySystem.Services;
 using InventorySystem.Models;
 using InventorySystem.ViewModels;
+using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Controllers
 {

@@ -1,10 +1,11 @@
+using InventorySystem.Data;
+using InventorySystem.Models;
+using InventorySystem.Models.Enums;
+using InventorySystem.Services;
+using InventorySystem.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using InventorySystem.Models;
-using InventorySystem.Services;
-using InventorySystem.Data;
-using InventorySystem.ViewModels;
 
 namespace InventorySystem.Controllers
 {
@@ -300,10 +301,6 @@ namespace InventorySystem.Controllers
       }
     }
 
-    // =============================================================================
-    // PURCHASE DOCUMENT UPLOAD METHODS - THIS IS WHAT WAS MISSING!
-    // =============================================================================
-
     [HttpGet]
     public async Task<IActionResult> UploadDocument(int purchaseId)
     {
@@ -542,6 +539,89 @@ namespace InventorySystem.Controllers
         Message = "Create GET route is working",
         Timestamp = DateTime.Now
       });
+    }
+
+    // Add to PurchasesController for status updates
+    [HttpPost]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusRequest request)
+    {
+      try
+      {
+        var purchase = await _purchaseService.GetPurchaseByIdAsync(id);
+        if (purchase == null)
+        {
+          return Json(new { success = false, message = "Purchase not found" });
+        }
+
+        // Parse the status
+        if (!Enum.TryParse<PurchaseStatus>(request.Status, out var newStatus))
+        {
+          return Json(new { success = false, message = "Invalid status" });
+        }
+
+        purchase.Status = newStatus;
+
+        // If marking as received, set actual delivery date
+        if (newStatus == PurchaseStatus.Received && request.ActualDeliveryDate.HasValue)
+        {
+          purchase.ActualDeliveryDate = request.ActualDeliveryDate.Value;
+        }
+
+        await _purchaseService.UpdatePurchaseAsync(purchase);
+
+        return Json(new { success = true, message = "Status updated successfully" });
+      }
+      catch (Exception ex)
+      {
+        return Json(new { success = false, message = ex.Message });
+      }
+    }
+
+    public class UpdateStatusRequest
+    {
+      public string Status { get; set; } = string.Empty;
+      public DateTime? ActualDeliveryDate { get; set; }
+    }
+    // Add this method to your PurchasesController.cs
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStatusForm(int id, string status, DateTime? actualDeliveryDate = null)
+    {
+      try
+      {
+        var purchase = await _purchaseService.GetPurchaseByIdAsync(id);
+        if (purchase == null)
+        {
+          TempData["ErrorMessage"] = "Purchase not found";
+          return RedirectToAction("Index");
+        }
+
+        // Parse the status
+        if (!Enum.TryParse<PurchaseStatus>(status, out var newStatus))
+        {
+          TempData["ErrorMessage"] = "Invalid status";
+          return RedirectToAction("Details", new { id });
+        }
+
+        purchase.Status = newStatus;
+
+        // If marking as received, set actual delivery date
+        if (newStatus == PurchaseStatus.Received)
+        {
+          purchase.ActualDeliveryDate = actualDeliveryDate ?? DateTime.Today;
+        }
+
+        await _purchaseService.UpdatePurchaseAsync(purchase);
+
+        TempData["SuccessMessage"] = $"Status updated to {newStatus}";
+        return RedirectToAction("Details", new { id });
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error updating status: {ex.Message}";
+        return RedirectToAction("Details", new { id });
+      }
     }
   }
 }

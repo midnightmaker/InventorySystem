@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Data;
 using InventorySystem.Models;
+using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Services
 {

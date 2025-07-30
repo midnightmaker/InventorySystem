@@ -76,11 +76,11 @@
                                 </td>
                                 <td>@sale.TotalAmount.ToString("C")</td>
                                 <td>
-                                    @if (sale.PaymentStatus == InventorySystem.Models.PaymentStatus.Paid)
+                                    @if (sale.PaymentStatus == PaymentStatus.Paid)
                                     {
                                         <span class="badge bg-success">Paid</span>
                                     }
-                                    else if (sale.PaymentStatus == InventorySystem.Models.PaymentStatus.Pending)
+                                    else if (sale.PaymentStatus == PaymentStatus.Pending)
                                     {
                                         <span class="badge bg-warning">Pending</span>
                                     }
@@ -90,15 +90,15 @@
                                     }
                                 </td>
                                 <td>
-                                    @if (sale.SaleStatus == InventorySystem.Models.SaleStatus.Processing)
+                                    @if (sale.SaleStatus == SaleStatus.Processing)
                                     {
                                         <span class="badge bg-primary">Processing</span>
                                     }
-                                    else if (sale.SaleStatus == InventorySystem.Models.SaleStatus.Shipped)
+                                    else if (sale.SaleStatus == SaleStatus.Shipped)
                                     {
                                         <span class="badge bg-success">Shipped</span>
                                     }
-                                    else if (sale.SaleStatus == InventorySystem.Models.SaleStatus.Delivered)
+                                    else if (sale.SaleStatus == SaleStatus.Delivered)
                                     {
                                         <span class="badge bg-info">Delivered</span>
                                     }
@@ -135,10 +135,10 @@
                                     <h6>Total Value: <span class="badge bg-success">@Model.Sum(s => s.TotalAmount).ToString("C")</span></h6>
                                 </div>
                                 <div class="col-md-3">
-                                    <h6>Paid: <span class="badge bg-success">@Model.Count(s => s.PaymentStatus == InventorySystem.Models.PaymentStatus.Paid)</span></h6>
+                                    <h6>Paid: <span class="badge bg-success">@Model.Count(s => s.PaymentStatus == PaymentStatus.Paid)</span></h6>
                                 </div>
                                 <div class="col-md-3">
-                                    <h6>Pending: <span class="badge bg-warning">@Model.Count(s => s.PaymentStatus == InventorySystem.Models.PaymentStatus.Pending)</span></h6>
+                                    <h6>Pending: <span class="badge bg-warning">@Model.Count(s => s.PaymentStatus == PaymentStatus.Pending)</span></h6>
                                 </div>
                             </div>
                         </div>
