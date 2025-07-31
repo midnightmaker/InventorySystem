@@ -57,6 +57,7 @@ builder.Services.AddScoped<IEventHandler<QualityCheckFailedEvent>, QualityCheckF
 builder.Services.AddScoped<IBackorderNotificationService, BackorderNotificationService>();
 builder.Services.AddScoped<IBackorderFulfillmentService, BackorderFulfillmentService>();
 
+builder.Services.AddScoped<BomImportService>();
 
 // Make sure ISalesService is also registered:
 builder.Services.AddScoped<ISalesService, SalesService>();

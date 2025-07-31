@@ -1,81 +1,88 @@
+using InventorySystem.Models;
+using InventorySystem.Models.ViewModels;
+using InventorySystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using InventorySystem.Models;
-using InventorySystem.Services;
+using Microsoft.Extensions.Logging;
+using System.Text;
 
 namespace InventorySystem.Controllers
 {
-    public class BomsController : Controller
-    {
+  public class BomsController : Controller
+  {
     private readonly IBomService _bomService;
     private readonly IInventoryService _inventoryService;
-    private readonly IProductionService _productionService; 
+    private readonly IProductionService _productionService;
     private readonly IVersionControlService _versionService;
+    private readonly ILogger<BomsController> _logger; 
 
     public BomsController(
         IBomService bomService,
         IInventoryService inventoryService,
         IProductionService productionService,
-        IVersionControlService versionService) 
+        IVersionControlService versionService,
+        ILogger<BomsController> logger)
     {
       _bomService = bomService;
       _inventoryService = inventoryService;
       _productionService = productionService;
       _versionService = versionService;
+      _logger = logger; // Assign logger
     }
 
     public async Task<IActionResult> Index()
-        {
-            var boms = await _bomService.GetAllBomsAsync();
-            return View(boms);
-        }
-        
-        public async Task<IActionResult> Details(int id)
-        {
-            var bom = await _bomService.GetBomByIdAsync(id); // Use existing method from IBomService
+    {
+      var boms = await _bomService.GetAllBomsAsync();
+      return View(boms);
+    }
 
-            if (bom == null) return NotFound();
+    public async Task<IActionResult> Details(int id)
+    {
+      var bom = await _bomService.GetBomByIdAsync(id); // Use existing method from IBomService
 
-            ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
+      if (bom == null) return NotFound();
 
-            // Check for pending change orders  
-            var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("BOM", bom.BaseBomId ?? bom.Id);
-            ViewBag.PendingChangeOrders = pendingChangeOrders;
-            ViewBag.EntityType = "BOM";
+      ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
 
-            // Add BOM versions for the version dropdown
-            var bomVersions = await _versionService.GetBomVersionsAsync(bom.BaseBomId ?? bom.Id);
-            ViewBag.BomVersions = bomVersions.Select(v => new {
-                Id = v.Id,
-                Version = v.Version,
-                IsCurrentVersion = v.IsCurrentVersion,
-                CreatedDate = v.CreatedDate
-            });
+      // Check for pending change orders  
+      var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("BOM", bom.BaseBomId ?? bom.Id);
+      ViewBag.PendingChangeOrders = pendingChangeOrders;
+      ViewBag.EntityType = "BOM";
 
-            return View(bom);
-        }
-        
-        public IActionResult Create(int? parentBomId)
-        {
-            var bom = new Bom();
-            if (parentBomId.HasValue)
-            {
-                bom.ParentBomId = parentBomId.Value;
-            }
-            return View(bom);
-        }
-        
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Bom bom)
-        {
-            if (ModelState.IsValid)
-            {
-                await _bomService.CreateBomAsync(bom);
-                return RedirectToAction(nameof(Index));
-            }
-            return View(bom);
-        }
+      // Add BOM versions for the version dropdown
+      var bomVersions = await _versionService.GetBomVersionsAsync(bom.BaseBomId ?? bom.Id);
+      ViewBag.BomVersions = bomVersions.Select(v => new
+      {
+        Id = v.Id,
+        Version = v.Version,
+        IsCurrentVersion = v.IsCurrentVersion,
+        CreatedDate = v.CreatedDate
+      });
+
+      return View(bom);
+    }
+
+    public IActionResult Create(int? parentBomId)
+    {
+      var bom = new Bom();
+      if (parentBomId.HasValue)
+      {
+        bom.ParentBomId = parentBomId.Value;
+      }
+      return View(bom);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(Bom bom)
+    {
+      if (ModelState.IsValid)
+      {
+        await _bomService.CreateBomAsync(bom);
+        return RedirectToAction(nameof(Index));
+      }
+      return View(bom);
+    }
 
     public async Task<IActionResult> Edit(int id)
     {
@@ -197,7 +204,7 @@ namespace InventorySystem.Controllers
       return View(bomItem);
     }
 
-    
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddItem(BomItem bomItem)
@@ -275,36 +282,35 @@ namespace InventorySystem.Controllers
     }
 
     [HttpPost]
-        public async Task<IActionResult> RemoveItem(int bomItemId, int bomId)
-        {
-            await _bomService.DeleteBomItemAsync(bomItemId);
-            return RedirectToAction("Details", new { id = bomId });
-        }
-        
-        public async Task<IActionResult> CostReport(int id)
-        {
-            var bom = await _bomService.GetBomByIdAsync(id);
-            if (bom == null) return NotFound();
-            
-            ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
-            return View(bom);
-        }
-        
-        public async Task<IActionResult> Delete(int id)
-        {
-            var bom = await _bomService.GetBomByIdAsync(id);
-            if (bom == null) return NotFound();
-            return View(bom);
-        }
-        
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            await _bomService.DeleteBomAsync(id);
-            return RedirectToAction(nameof(Index));
-        }
-    // Add these methods to your BomsController:
+    public async Task<IActionResult> RemoveItem(int bomItemId, int bomId)
+    {
+      await _bomService.DeleteBomItemAsync(bomItemId);
+      return RedirectToAction("Details", new { id = bomId });
+    }
+
+    public async Task<IActionResult> CostReport(int id)
+    {
+      var bom = await _bomService.GetBomByIdAsync(id);
+      if (bom == null) return NotFound();
+
+      ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
+      return View(bom);
+    }
+
+    public async Task<IActionResult> Delete(int id)
+    {
+      var bom = await _bomService.GetBomByIdAsync(id);
+      if (bom == null) return NotFound();
+      return View(bom);
+    }
+
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+      await _bomService.DeleteBomAsync(id);
+      return RedirectToAction(nameof(Index));
+    }
 
     // Quick Material Check - GET
     public async Task<IActionResult> QuickMaterialCheck(int id, int quantity = 1)
@@ -366,11 +372,151 @@ namespace InventorySystem.Controllers
     [HttpGet]
     public async Task<IActionResult> UploadDocument(int id)
     {
-        var bom = await _bomService.GetBomByIdAsync(id);
-        if (bom == null) return NotFound();
+      var bom = await _bomService.GetBomByIdAsync(id);
+      if (bom == null) return NotFound();
 
-        // Redirect to Documents controller with proper BOM ID
-        return RedirectToAction("UploadBom", "Documents", new { bomId = id });
+      // Redirect to Documents controller with proper BOM ID
+      return RedirectToAction("UploadBom", "Documents", new { bomId = id });
+    }
+    
+    [HttpGet]
+    public IActionResult Import()
+    {
+      return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Import(IFormFile file)
+    {
+      if (file == null || file.Length == 0)
+      {
+        TempData["ErrorMessage"] = "Please select a valid CSV file.";
+        return View();
+      }
+
+      // Validate file extension
+      var allowedExtensions = new[] { ".csv", ".txt" };
+      var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+      if (!allowedExtensions.Contains(fileExtension))
+      {
+        TempData["ErrorMessage"] = "Only CSV files (.csv, .txt) are supported.";
+        return View();
+      }
+
+      try
+      {
+        using var stream = file.OpenReadStream();
+        var bomImportService = HttpContext.RequestServices.GetRequiredService<BomImportService>();
+        var result = await bomImportService.ImportBomFromCsvAsync(stream, file.FileName);
+
+        if (result.IsSuccess)
+        {
+          TempData["SuccessMessage"] = result.GetSummary();
+
+          // Store detailed results in TempData for display
+          TempData["ImportDetails"] = System.Text.Json.JsonSerializer.Serialize(new
+          {
+            result.BomsCreated,
+            result.ItemsCreated,
+            result.BomItemsCreated,
+            result.CreatedBoms,
+            result.CreatedItems,
+            result.Warnings
+          });
+
+          return RedirectToAction("ImportResults");
+        }
+        else
+        {
+          TempData["ErrorMessage"] = $"Import failed: {result.ErrorMessage}";
+          return View();
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error during BOM import");
+        TempData["ErrorMessage"] = $"An error occurred during import: {ex.Message}";
+        return View();
+      }
+    }
+
+
+    [HttpGet]
+    public IActionResult DownloadSample()
+    {
+      try
+      {
+        var csv = new StringBuilder();
+
+        // Add CSV headers
+        csv.AppendLine("Level,Part Number,Description,Revision,Quantity");
+
+        // Add sample data demonstrating hierarchy
+        var sampleData = new[]
+        {
+            "1,ASSY-001,Main Assembly,A,1",
+            "1.1,PART-001,Component 1,B,2",
+            "1.2,PART-002,Component 2,A,1",
+            "1.3,SCREW-001,M4x10 Screw,,4",
+            "1.4,SUB-ASSY-001,Sub Assembly 1,A,1",
+            "1.4.1,PART-003,Sub Component 1,A,3",
+            "1.4.2,PART-004,Sub Component 2,B,2",
+            "1.4.3,GASKET-001,Rubber Gasket,,1",
+            "1.5,PART-005,Component 3,A,1",
+            "1.6,SUB-ASSY-002,Sub Assembly 2,B,2",
+            "1.6.1,PART-006,Sub Component 3,A,1",
+            "1.6.2,PART-007,Sub Component 4,A,2",
+            "1.6.2.1,PART-008,Nested Component,A,1",
+            "1.7,LABEL-001,Product Label,,1"
+        };
+
+        // Add sample data to CSV
+        foreach (var line in sampleData)
+        {
+          csv.AppendLine(line);
+        }
+
+        // Add notes as comments (lines starting with #)
+        csv.AppendLine();
+        csv.AppendLine("# NOTES:");
+        csv.AppendLine("# Level 1 = Main Assembly");
+        csv.AppendLine("# Level 1.x = Direct Components");
+        csv.AppendLine("# Level 1.x.x = Sub-Assembly Components");
+        csv.AppendLine("# Level 1.x.x.x = Nested Components");
+        csv.AppendLine("# Sub-assemblies will be created as separate BOMs");
+        csv.AppendLine("# Missing items will be created automatically");
+        csv.AppendLine("# Use quotes around fields that contain commas");
+        csv.AppendLine("# Example: \"1.5,PART-005,\"\"Component with, comma\"\",A,1\"");
+
+        // Convert to byte array
+        var fileBytes = Encoding.UTF8.GetBytes(csv.ToString());
+
+        // Return CSV file
+        return File(fileBytes,
+            "text/csv",
+            "BOM_Import_Sample.csv");
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error generating sample BOM CSV file");
+        TempData["ErrorMessage"] = "Error generating sample file. Please try again.";
+        return RedirectToAction("Import");
+      }
+    }
+    
+    [HttpGet]
+    public IActionResult ImportResults()
+    {
+      var importDetailsJson = TempData["ImportDetails"] as string;
+      if (string.IsNullOrEmpty(importDetailsJson))
+      {
+        return RedirectToAction("Index");
+      }
+
+      var importDetails = System.Text.Json.JsonSerializer.Deserialize<ImportResultsViewModel>(importDetailsJson);
+      return View(importDetails);
     }
   }
 }

@@ -1,0 +1,176 @@
+﻿@{
+  ViewData["Title"] = "Import BOM from CSV";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-file-import"></i> Import BOM from CSV</h1>
+  <a href="/Boms" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to BOMs
+  </a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-upload"></i> Upload Excel File</h5>
+      </div>
+      <div class="card-body">
+        <form asp-action="Import" method="post" enctype="multipart/form-data" id="importForm">
+          <div class="mb-3">
+            <label for="file" class="form-label">Select CSV File (.csv or .txt)</label>
+            <input type="file" class="form-control" id="file" name="file"
+                   accept=".csv,.txt" required>
+            <div class="form-text">
+              Maximum file size: 10MB. Only CSV files are supported.
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary" id="importBtn">
+              <i class="fas fa-file-import"></i> Import BOM
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> Import Requirements</h5>
+      </div>
+      <div class="card-body">
+        <h6>CSV File Format:</h6>
+        <ul class="list-unstyled">
+          <li><i class="fas fa-check text-success"></i> Column 1: Level (1, 1.1, 1.9, 1.9.1, etc.)</li>
+          <li><i class="fas fa-check text-success"></i> Column 2: Part Number</li>
+          <li><i class="fas fa-check text-success"></i> Column 3: Description</li>
+          <li><i class="fas fa-check text-success"></i> Column 4: Revision (optional)</li>
+          <li><i class="fas fa-check text-success"></i> Column 5: Quantity</li>
+        </ul>
+
+        <h6 class="mt-3">CSV Requirements:</h6>
+        <ul class="list-unstyled">
+          <li><i class="fas fa-info-circle text-info"></i> Comma-separated values</li>
+          <li><i class="fas fa-info-circle text-info"></i> First row should contain headers</li>
+          <li><i class="fas fa-info-circle text-info"></i> Use quotes for fields containing commas</li>
+          <li><i class="fas fa-info-circle text-info"></i> UTF-8 encoding recommended</li>
+        </ul>
+
+        <h6 class="mt-3">Level Structure:</h6>
+        <ul class="list-unstyled">
+          <li><strong>1</strong> - Main assembly</li>
+          <li><strong>1.1, 1.2</strong> - Direct components</li>
+          <li><strong>1.9</strong> - Sub-assembly</li>
+          <li><strong>1.9.1, 1.9.2</strong> - Sub-assembly components</li>
+        </ul>
+
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-lightbox"></i>
+            <strong>Note:</strong> Missing items will be created automatically.
+            Sub-assemblies will be created as separate BOMs.
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5><i class="fas fa-download"></i> Sample File</h5>
+      </div>
+      <div class="card-body text-center">
+        <p class="text-muted mb-3">Download a sample CSV file to see the expected format.</p>
+        <a href="/Boms/DownloadSample" class="btn btn-outline-primary">
+          <i class="fas fa-download"></i> Download Sample CSV
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        const importBtn = document.getElementById('importBtn');
+        const fileInput = document.getElementById('file');
+
+        if (!fileInput.files.length) {
+            e.preventDefault();
+            alert('Please select a file to import.');
+            return;
+        }
+
+        // Show loading state
+        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+        importBtn.disabled = true;
+
+        // Optional: Add progress indication
+        const progressDiv = document.createElement('div');
+        progressDiv.innerHTML = `
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle"></i>
+                Processing file... This may take a few moments for large BOMs.
+            </div>
+        `;
+
+        this.appendChild(progressDiv);
+    });
+
+    // File validation
+    document.getElementById('file').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const allowedTypes = [
+                'text/csv',
+                'text/plain',
+                'application/csv'
+            ];
+
+            if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
+                alert('Please select a valid CSV file (.csv or .txt)');
+                this.value = '';
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                alert('File size must be less than 10MB');
+                this.value = '';
+                return;
+            }
+
+            // Show file info
+            const fileInfo = document.createElement('small');
+            fileInfo.className = 'text-muted d-block mt-1';
+            fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+
+            // Remove existing file info
+            const existingInfo = this.parentNode.querySelector('.file-info');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+
+            fileInfo.className += ' file-info';
+            this.parentNode.appendChild(fileInfo);
+        }
+    });
+  </script>
+}
