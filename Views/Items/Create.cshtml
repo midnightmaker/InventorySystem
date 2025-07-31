@@ -1,9 +1,37 @@
 @model InventorySystem.ViewModels.CreateItemViewModel
+@using InventorySystem.Helpers
+@using InventorySystem.Models.Enums
 @{
   ViewData["Title"] = "Create Item";
 }
 
-<h1><i class="fas fa-plus"></i> Create Item</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-plus"></i> Create Item</h1>
+  <div class="btn-group">
+    <a href="/Items" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Items
+    </a>
+    <a href="/Items/BulkUpload" class="btn btn-outline-info">
+      <i class="fas fa-upload"></i> Bulk Upload
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
 
 <div class="row">
   <div class="col-md-8">
@@ -18,14 +46,20 @@
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="PartNumber" class="form-label"></label>
-                <input asp-for="PartNumber" class="form-control" required />
+                <label asp-for="PartNumber" class="form-label">
+                  <i class="fas fa-tag text-primary"></i>
+                  Part Number <span class="text-danger">*</span>
+                </label>
+                <input asp-for="PartNumber" class="form-control" required placeholder="e.g., R-001, CAP-100" />
                 <span asp-validation-for="PartNumber" class="text-danger"></span>
               </div>
             </div>
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="Version" class="form-label"></label>
+                <label asp-for="Version" class="form-label">
+                  <i class="fas fa-code-branch text-info"></i>
+                  Version <span class="text-danger">*</span>
+                </label>
                 <input asp-for="Version" class="form-control" placeholder="A" />
                 <span asp-validation-for="Version" class="text-danger"></span>
                 <div class="form-text">Item revision (A, B, C or 1.0, 1.1, etc.)</div>
@@ -34,20 +68,26 @@
           </div>
 
           <div class="mb-3">
-            <label asp-for="Description" class="form-label"></label>
-            <input asp-for="Description" class="form-control" required />
+            <label asp-for="Description" class="form-label">
+              <i class="fas fa-file-text text-success"></i>
+              Description <span class="text-danger">*</span>
+            </label>
+            <input asp-for="Description" class="form-control" required placeholder="Brief description of the item" />
             <span asp-validation-for="Description" class="text-danger"></span>
           </div>
 
           <div class="mb-3">
-            <label asp-for="Comments" class="form-label"></label>
+            <label asp-for="Comments" class="form-label">
+              <i class="fas fa-comment text-muted"></i>
+              Comments
+            </label>
             <textarea asp-for="Comments" class="form-control" rows="3" placeholder="Component specifications for optical, mechanical, or electronic parts"></textarea>
             <span asp-validation-for="Comments" class="text-danger"></span>
           </div>
         </div>
       </div>
 
-      <!-- NEW: Item Properties Card -->
+      <!-- Item Properties Card -->
       <div class="card mt-3">
         <div class="card-header">
           <h5><i class="fas fa-cog"></i> Item Properties</h5>
@@ -56,7 +96,10 @@
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="ItemType" class="form-label">Item Type *</label>
+                <label asp-for="ItemType" class="form-label">
+                  <i class="fas fa-tags text-warning"></i>
+                  Item Type <span class="text-danger">*</span>
+                </label>
                 <select asp-for="ItemType" class="form-select" id="itemTypeSelect">
                   <option value="0">Inventoried - Physical items with stock tracking</option>
                   <option value="1">Non-Inventoried - Firmware, software, documentation</option>
@@ -68,19 +111,57 @@
               </div>
             </div>
             <div class="col-md-6">
-              <div class="form-check mt-4">
-                <input asp-for="IsSellable" class="form-check-input" type="checkbox" />
-                <label asp-for="IsSellable" class="form-check-label">
-                  This item can be sold to customers
+              <div class="mb-3">
+                <label asp-for="UnitOfMeasure" class="form-label">
+                  <i class="fas fa-ruler-combined text-info"></i>
+                  Unit of Measure <span class="text-danger">*</span>
                 </label>
-                <div class="form-text">Uncheck for raw materials, components, or internal-use items.</div>
+                <select asp-for="UnitOfMeasure"
+                        class="form-select"
+                        asp-items="@UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(Model.UnitOfMeasure)">
+                </select>
+                <span asp-validation-for="UnitOfMeasure" class="text-danger"></span>
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i>
+                  Select the unit of measure for this item. Default is "Each" (EA).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <div class="form-check mt-2">
+                  <input asp-for="IsSellable" class="form-check-input" type="checkbox" />
+                  <label asp-for="IsSellable" class="form-check-label">
+                    <i class="fas fa-dollar-sign text-success"></i>
+                    This item can be sold to customers
+                  </label>
+                  <div class="form-text">Uncheck for raw materials, components, or internal-use items.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stock Management (only for Inventoried items) -->
+          <div class="row" id="stockManagement">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="MinimumStock" class="form-label">
+                  <i class="fas fa-exclamation-triangle text-warning"></i>
+                  Minimum Stock
+                </label>
+                <input asp-for="MinimumStock" class="form-control" type="number" min="0" />
+                <span asp-validation-for="MinimumStock" class="text-danger"></span>
+                <div class="form-text">Alert threshold for low stock warnings.</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- NEW: Vendor Information Card -->
+      <!-- Vendor Information Card -->
       <div class="card mt-3">
         <div class="card-header">
           <h5><i class="fas fa-truck"></i> Vendor Information</h5>
@@ -89,129 +170,152 @@
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="PreferredVendor" class="form-label">Preferred Vendor</label>
-                <input asp-for="PreferredVendor" class="form-control" placeholder="ABC Suppliers Inc." />
+                <label asp-for="PreferredVendor" class="form-label">
+                  <i class="fas fa-star text-warning"></i>
+                  Preferred Vendor
+                </label>
+                <input asp-for="PreferredVendor" class="form-control" placeholder="Primary supplier for this item" />
                 <span asp-validation-for="PreferredVendor" class="text-danger"></span>
-                <div class="form-text">Primary supplier for this item (optional).</div>
               </div>
             </div>
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="VendorPartNumber" class="form-label">Vendor Part Number</label>
-                <input asp-for="VendorPartNumber" class="form-control" placeholder="ABC-12345" />
+                <label asp-for="VendorPartNumber" class="form-label">
+                  <i class="fas fa-barcode text-info"></i>
+                  Vendor Part Number
+                </label>
+                <input asp-for="VendorPartNumber" class="form-control" placeholder="Vendor's part number for this item" />
                 <span asp-validation-for="VendorPartNumber" class="text-danger"></span>
-                <div class="form-text">Supplier's part number for ordering (optional).</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Inventory & Stock Card (conditional based on item type) -->
-      <div class="card mt-3" id="inventorySection">
+      <!-- Initial Purchase Card (only for Inventoried items) -->
+      <div class="card mt-3" id="initialPurchaseCard">
         <div class="card-header">
-          <h5><i class="fas fa-boxes"></i> Inventory & Stock</h5>
+          <h5>
+            <i class="fas fa-shopping-cart"></i>
+            Initial Purchase (Optional)
+          </h5>
         </div>
         <div class="card-body">
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="MinimumStock" class="form-label">Minimum Stock Level</label>
-                <input asp-for="MinimumStock" class="form-control" type="number" min="0" value="0" />
-                <span asp-validation-for="MinimumStock" class="text-danger"></span>
-                <div class="form-text">Alert when stock falls below this level.</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Initial Purchase Section -->
           <div class="form-check mb-3">
-            <input asp-for="HasInitialPurchase" class="form-check-input" type="checkbox" id="hasInitialPurchase" />
+            <input asp-for="HasInitialPurchase" class="form-check-input" type="checkbox" id="hasInitialPurchaseCheckbox" />
             <label asp-for="HasInitialPurchase" class="form-check-label">
-              Add initial purchase/inventory
+              <i class="fas fa-plus-circle text-success"></i>
+              Add initial purchase to create starting inventory
             </label>
+            <div class="form-text">Check this to add initial stock and set up the first purchase record.</div>
           </div>
 
-          <div id="initialPurchaseSection" style="display: none;" class="border rounded p-3 bg-light">
-            <h6><i class="fas fa-shopping-cart"></i> Initial Purchase Details</h6>
-            <div class="row">
-              <div class="col-md-4">
-                <div class="mb-3">
-                  <label asp-for="InitialQuantity" class="form-label">Quantity *</label>
-                  <input asp-for="InitialQuantity" class="form-control initial-purchase-field" type="number" min="1" id="initialQuantity" />
-                  <span asp-validation-for="InitialQuantity" class="text-danger"></span>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="mb-3">
-                  <label asp-for="InitialCostPerUnit" class="form-label">Cost Per Unit *</label>
-                  <input asp-for="InitialCostPerUnit" class="form-control initial-purchase-field" type="number" step="0.01" min="0.01" id="initialCostPerUnit" />
-                  <span asp-validation-for="InitialCostPerUnit" class="text-danger"></span>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="mb-3">
-                  <label for="initialTotalCost" class="form-label">Total Cost</label>
-                  <input type="text" class="form-control" id="initialTotalCost" readonly />
-                  <div class="form-text">Calculated automatically</div>
-                </div>
-              </div>
-            </div>
-
+          <div id="initialPurchaseSection" style="display: none;">
             <div class="row">
               <div class="col-md-6">
                 <div class="mb-3">
-                  <label asp-for="InitialVendor" class="form-label">Vendor *</label>
-                  <input asp-for="InitialVendor" class="form-control initial-purchase-field" />
+                  <label asp-for="InitialVendor" class="form-label">
+                    <i class="fas fa-building text-primary"></i>
+                    Initial Vendor <span class="text-danger">*</span>
+                  </label>
+                  <input asp-for="InitialVendor" class="form-control" placeholder="Vendor name" disabled />
                   <span asp-validation-for="InitialVendor" class="text-danger"></span>
                 </div>
               </div>
               <div class="col-md-6">
                 <div class="mb-3">
-                  <label asp-for="InitialPurchaseDate" class="form-label">Purchase Date</label>
-                  <input asp-for="InitialPurchaseDate" class="form-control initial-purchase-field" type="date" />
+                  <label asp-for="InitialPurchaseDate" class="form-label">
+                    <i class="fas fa-calendar text-info"></i>
+                    Purchase Date
+                  </label>
+                  <input asp-for="InitialPurchaseDate" class="form-control" type="date" disabled />
                   <span asp-validation-for="InitialPurchaseDate" class="text-danger"></span>
                 </div>
               </div>
             </div>
 
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label asp-for="InitialQuantity" class="form-label">
+                    <i class="fas fa-cubes text-success"></i>
+                    Quantity <span class="text-danger">*</span>
+                  </label>
+                  <input asp-for="InitialQuantity" class="form-control" type="number" min="1" id="initialQuantity" disabled />
+                  <span asp-validation-for="InitialQuantity" class="text-danger"></span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label asp-for="InitialCostPerUnit" class="form-label">
+                    <i class="fas fa-dollar-sign text-warning"></i>
+                    Cost Per Unit <span class="text-danger">*</span>
+                  </label>
+                  <input asp-for="InitialCostPerUnit" class="form-control" type="number" step="0.01" min="0.01" id="initialCostPerUnit" disabled />
+                  <span asp-validation-for="InitialCostPerUnit" class="text-danger"></span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">
+                    <i class="fas fa-calculator text-muted"></i>
+                    Total Cost
+                  </label>
+                  <input type="text" class="form-control" id="initialTotalCost" readonly disabled />
+                  <div class="form-text">Automatically calculated</div>
+                </div>
+              </div>
+            </div>
+
             <div class="mb-3">
-              <label asp-for="InitialPurchaseOrderNumber" class="form-label">Purchase Order Number</label>
-              <input asp-for="InitialPurchaseOrderNumber" class="form-control initial-purchase-field" />
+              <label asp-for="InitialPurchaseOrderNumber" class="form-label">
+                <i class="fas fa-file-invoice text-secondary"></i>
+                Purchase Order Number
+              </label>
+              <input asp-for="InitialPurchaseOrderNumber" class="form-control" placeholder="Optional PO number" disabled />
               <span asp-validation-for="InitialPurchaseOrderNumber" class="text-danger"></span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Item Image Card (existing) -->
+      <!-- Image Upload Card -->
       <div class="card mt-3">
         <div class="card-header">
           <h5><i class="fas fa-image"></i> Item Image (Optional)</h5>
         </div>
         <div class="card-body">
           <div class="mb-3">
-            <label asp-for="ImageFile" class="form-label"></label>
+            <label asp-for="ImageFile" class="form-label">
+              <i class="fas fa-upload text-primary"></i>
+              Upload Image
+            </label>
             <input asp-for="ImageFile" class="form-control" type="file" accept="image/*" id="imageFile" />
             <span asp-validation-for="ImageFile" class="text-danger"></span>
             <div class="form-text">
-              Upload JPG, PNG, GIF, or BMP images up to 5MB
+              <i class="fas fa-info-circle"></i>
+              Upload an image (JPG, PNG, GIF, BMP - Max 5MB)
             </div>
           </div>
 
+          <!-- Image preview -->
           <div id="imagePreview" style="display: none;">
-            <img id="previewImg" class="img-thumbnail" style="max-width: 200px; max-height: 200px;" />
+            <label class="form-label">Image Preview:</label>
+            <div>
+              <img id="previewImg" src="#" alt="Image preview"
+                   style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" />
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Submit Button -->
+      <!-- Submit Buttons -->
       <div class="card mt-3">
         <div class="card-body text-center">
-          <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+          <button type="submit" class="btn btn-success btn-lg">
             <i class="fas fa-save"></i> Create Item
           </button>
-          <a asp-action="Index" class="btn btn-outline-secondary btn-lg ms-2">
+          <a href="/Items" class="btn btn-outline-secondary btn-lg ms-2">
             <i class="fas fa-times"></i> Cancel
           </a>
         </div>
@@ -219,189 +323,300 @@
     </form>
   </div>
 
-  <!-- Right sidebar with tips -->
+  <!-- Right Column - Help and Quick Info -->
   <div class="col-md-4">
+    <!-- Item Type Guide -->
     <div class="card">
       <div class="card-header">
-        <h5><i class="fas fa-lightbulb"></i> Quick Tips</h5>
+        <h6><i class="fas fa-question-circle"></i> Item Type Guide</h6>
       </div>
       <div class="card-body">
-        <h6>Item Types:</h6>
-        <ul class="small">
-          <li><strong>Inventoried:</strong> Physical parts that need stock tracking</li>
-          <li><strong>Non-Inventoried:</strong> Firmware, software, documentation</li>
-          <li><strong>Service:</strong> Labor, consulting, or service offerings</li>
-          <li><strong>Virtual:</strong> Licenses, digital assets</li>
-        </ul>
+        <div class="list-group list-group-flush">
+          <div class="list-group-item border-0 px-0">
+            <div class="d-flex align-items-center">
+              <span class="badge bg-primary me-2">INV</span>
+              <div>
+                <strong>Inventoried</strong>
+                <small class="text-muted d-block">Physical items tracked in stock</small>
+              </div>
+            </div>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <div class="d-flex align-items-center">
+              <span class="badge bg-info me-2">NON</span>
+              <div>
+                <strong>Non-Inventoried</strong>
+                <small class="text-muted d-block">Software, firmware, docs</small>
+              </div>
+            </div>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <div class="d-flex align-items-center">
+              <span class="badge bg-success me-2">SVC</span>
+              <div>
+                <strong>Service</strong>
+                <small class="text-muted d-block">Labor, consulting, repairs</small>
+              </div>
+            </div>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <div class="d-flex align-items-center">
+              <span class="badge bg-warning me-2">VRT</span>
+              <div>
+                <strong>Virtual</strong>
+                <small class="text-muted d-block">Licenses, digital assets</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        <h6>Initial Purchase:</h6>
-        <small class="text-muted">
-          You can:
-          <ul class="mt-2 mb-0">
-            <li>Create items without any purchase information</li>
-            <li>Add purchases later from the item details page</li>
-            <li>Use the initial purchase for immediate inventory setup</li>
-          </ul>
-        </small>
+    <!-- Unit of Measure Guide -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-ruler-combined"></i> Unit of Measure Guide</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="text-center p-2 bg-light rounded">
+              <small class="text-muted">Count</small>
+              <div><strong>EA</strong></div>
+              <small>Each (Default)</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="text-center p-2 bg-light rounded">
+              <small class="text-muted">Weight</small>
+              <div><strong>kg/lb</strong></div>
+              <small>Metric/Imperial</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="text-center p-2 bg-light rounded">
+              <small class="text-muted">Length</small>
+              <div><strong>m/ft</strong></div>
+              <small>Metric/Imperial</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="text-center p-2 bg-light rounded">
+              <small class="text-muted">Volume</small>
+              <div><strong>L/gal</strong></div>
+              <small>Metric/Imperial</small>
+            </div>
+          </div>
+        </div>
+        <div class="mt-2">
+          <small class="text-muted">
+            <i class="fas fa-info-circle"></i>
+            Units affect how quantities are displayed throughout the system.
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Creation Tips -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-lightbulb"></i> Creation Tips</h6>
+      </div>
+      <div class="card-body">
+        <div class="list-group list-group-flush">
+          <div class="list-group-item border-0 px-0">
+            <strong>Part Numbers:</strong>
+            <small class="text-muted d-block">Use consistent naming: R-001, CAP-100, IC-ADC-001</small>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <strong>Initial Purchase:</strong>
+            <small class="text-muted d-block">Saves time by creating first purchase record automatically</small>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <strong>Preferred Vendor:</strong>
+            <small class="text-muted d-block">Helps with procurement and reordering</small>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <strong>Images:</strong>
+            <small class="text-muted d-block">Visual identification helps with inventory management</small>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const itemTypeSelect = document.getElementById('itemTypeSelect');
-    const inventorySection = document.getElementById('inventorySection');
-    const hasInitialPurchaseCheckbox = document.getElementById('hasInitialPurchase');
-    const initialPurchaseSection = document.getElementById('initialPurchaseSection');
-    const initialPurchaseFields = document.querySelectorAll('.initial-purchase-field');
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      console.log('Create Item page loaded');
 
-    function updateFormBasedOnItemType() {
-      const itemType = parseInt(itemTypeSelect.value);
-      const isInventoried = itemType === 0; // ItemType.Inventoried
+      // Get elements
+      const itemTypeSelect = document.getElementById('itemTypeSelect');
+      const stockManagement = document.getElementById('stockManagement');
+      const initialPurchaseCard = document.getElementById('initialPurchaseCard');
+      const hasInitialPurchaseCheckbox = document.getElementById('hasInitialPurchaseCheckbox');
+      const initialPurchaseSection = document.getElementById('initialPurchaseSection');
 
-      // Show/hide inventory section
-      if (isInventoried) {
-        inventorySection.style.display = 'block';
-      } else {
-        inventorySection.style.display = 'none';
-        // Clear and uncheck initial purchase when not inventoried
-        hasInitialPurchaseCheckbox.checked = false;
-        initialPurchaseSection.style.display = 'none';
+      // Get all initial purchase fields
+      const initialPurchaseFields = document.querySelectorAll('#initialPurchaseSection input, #initialPurchaseSection select');
 
-        // Clear initial purchase fields
-        initialPurchaseFields.forEach(field => {
-          field.value = '';
-          field.setAttribute('disabled', 'disabled');
+      function updateFormBasedOnItemType() {
+        const itemType = parseInt(itemTypeSelect.value);
+        const isInventoried = itemType === 0; // Inventoried = 0
+
+        if (isInventoried) {
+          stockManagement.style.display = 'block';
+          initialPurchaseCard.style.display = 'block';
+        } else {
+          stockManagement.style.display = 'none';
+          initialPurchaseCard.style.display = 'none';
+          // Clear and uncheck initial purchase when not inventoried
+          hasInitialPurchaseCheckbox.checked = false;
+          initialPurchaseSection.style.display = 'none';
+
+          // Clear initial purchase fields
+          initialPurchaseFields.forEach(field => {
+            field.value = '';
+            field.setAttribute('disabled', 'disabled');
+          });
+        }
+      }
+
+      // Initial setup
+      updateFormBasedOnItemType();
+
+      // Handle item type changes
+      itemTypeSelect.addEventListener('change', updateFormBasedOnItemType);
+
+      // Handle initial purchase section toggle
+      if (hasInitialPurchaseCheckbox && initialPurchaseSection) {
+        hasInitialPurchaseCheckbox.addEventListener('change', function () {
+          if (this.checked) {
+            initialPurchaseSection.style.display = 'block';
+            // Enable fields and remove disabled attribute
+            initialPurchaseFields.forEach(field => {
+              field.removeAttribute('disabled');
+            });
+            // Set default purchase date to today
+            const purchaseDateField = document.querySelector('input[name="InitialPurchaseDate"]');
+            if (purchaseDateField && !purchaseDateField.value) {
+              purchaseDateField.value = new Date().toISOString().split('T')[0];
+            }
+          } else {
+            initialPurchaseSection.style.display = 'none';
+            // Disable fields and clear values
+            initialPurchaseFields.forEach(field => {
+              field.setAttribute('disabled', 'disabled');
+              field.value = '';
+            });
+            // Clear total cost
+            const totalCostField = document.getElementById('initialTotalCost');
+            if (totalCostField) {
+              totalCostField.value = '';
+            }
+          }
         });
       }
-    }
 
-    // Initial setup
-    updateFormBasedOnItemType();
+      // Handle total cost calculation
+      const quantityInput = document.getElementById('initialQuantity');
+      const costInput = document.getElementById('initialCostPerUnit');
+      const totalCostInput = document.getElementById('initialTotalCost');
 
-    // Handle item type changes
-    itemTypeSelect.addEventListener('change', updateFormBasedOnItemType);
-
-    // Handle initial purchase section toggle
-    if (hasInitialPurchaseCheckbox && initialPurchaseSection) {
-      hasInitialPurchaseCheckbox.addEventListener('change', function () {
-        if (this.checked) {
-          initialPurchaseSection.style.display = 'block';
-          // Enable fields and remove disabled attribute
-          initialPurchaseFields.forEach(field => {
-            field.removeAttribute('disabled');
-          });
-        } else {
-          initialPurchaseSection.style.display = 'none';
-          // Disable fields and clear values
-          initialPurchaseFields.forEach(field => {
-            field.setAttribute('disabled', 'disabled');
-            field.value = '';
-          });
-          // Clear total cost
-          document.getElementById('initialTotalCost').value = '';
+      function updateInitialTotal() {
+        if (quantityInput && costInput && totalCostInput) {
+          const quantity = parseFloat(quantityInput.value) || 0;
+          const cost = parseFloat(costInput.value) || 0;
+          const total = quantity * cost;
+          totalCostInput.value = total > 0 ? '$' + total.toFixed(2) : '';
         }
+      }
+
+      if (quantityInput && costInput) {
+        quantityInput.addEventListener('input', updateInitialTotal);
+        costInput.addEventListener('input', updateInitialTotal);
+      }
+
+      // Handle image preview
+      const imageFileInput = document.getElementById('imageFile');
+      const imagePreview = document.getElementById('imagePreview');
+      const previewImg = document.getElementById('previewImg');
+
+      if (imageFileInput && imagePreview && previewImg) {
+        imageFileInput.addEventListener('change', function (e) {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              previewImg.src = e.target.result;
+              imagePreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+          } else {
+            imagePreview.style.display = 'none';
+          }
+        });
+      }
+
+      // Form submission validation
+      const form = document.getElementById('createItemForm');
+      if (!form) {
+        console.error('Form not found!');
+        return;
+      }
+
+      form.addEventListener('submit', function (e) {
+        console.log('Form submission started');
+
+        // Check required fields
+        const partNumber = document.querySelector('input[name="PartNumber"]').value.trim();
+        const description = document.querySelector('input[name="Description"]').value.trim();
+
+        if (!partNumber || !description) {
+          e.preventDefault();
+          alert('Please fill in the required fields: Part Number and Description');
+          return false;
+        }
+
+        const itemType = parseInt(itemTypeSelect.value);
+        const isInventoried = itemType === 0;
+        const hasInitialPurchase = hasInitialPurchaseCheckbox.checked;
+
+        console.log('Item Type:', itemType, 'Is Inventoried:', isInventoried, 'Has initial purchase:', hasInitialPurchase);
+
+        if (isInventoried && hasInitialPurchase) {
+          const vendor = document.querySelector('input[name="InitialVendor"]').value.trim();
+          const quantity = document.querySelector('input[name="InitialQuantity"]').value;
+          const cost = document.querySelector('input[name="InitialCostPerUnit"]').value;
+
+          console.log('Vendor:', vendor, 'Quantity:', quantity, 'Cost:', cost);
+
+          if (!vendor) {
+            e.preventDefault();
+            alert('Please enter the vendor name for the initial purchase.');
+            document.querySelector('input[name="InitialVendor"]').focus();
+            return false;
+          }
+
+          if (!quantity || quantity <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid quantity (greater than 0) for the initial purchase.');
+            document.querySelector('input[name="InitialQuantity"]').focus();
+            return false;
+          }
+
+          if (!cost || cost <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid cost per unit (greater than 0) for the initial purchase.');
+            document.querySelector('input[name="InitialCostPerUnit"]').focus();
+            return false;
+          }
+        }
+
+        console.log('Form validation passed, submitting...');
+        return true;
       });
-    }
-
-    // Handle total cost calculation
-    const quantityInput = document.getElementById('initialQuantity');
-    const costInput = document.getElementById('initialCostPerUnit');
-    const totalCostInput = document.getElementById('initialTotalCost');
-
-    function updateInitialTotal() {
-      if (quantityInput && costInput && totalCostInput) {
-        const quantity = parseFloat(quantityInput.value) || 0;
-        const cost = parseFloat(costInput.value) || 0;
-        const total = quantity * cost;
-        totalCostInput.value = total > 0 ? '$' + total.toFixed(2) : '';
-      }
-    }
-
-    if (quantityInput && costInput) {
-      quantityInput.addEventListener('input', updateInitialTotal);
-      costInput.addEventListener('input', updateInitialTotal);
-    }
-
-    // Handle image preview
-    const imageFileInput = document.getElementById('imageFile');
-    const imagePreview = document.getElementById('imagePreview');
-    const previewImg = document.getElementById('previewImg');
-
-    if (imageFileInput && imagePreview && previewImg) {
-      imageFileInput.addEventListener('change', function (e) {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = function (e) {
-            previewImg.src = e.target.result;
-            imagePreview.style.display = 'block';
-          };
-          reader.readAsDataURL(file);
-        } else {
-          imagePreview.style.display = 'none';
-        }
-      });
-    }
-
-    // Form submission validation
-    const form = document.getElementById('createItemForm');
-    if (!form) {
-      console.error('Form not found!');
-      return;
-    }
-
-    form.addEventListener('submit', function(e) {
-      console.log('Form submission started');
-
-      // Check required fields
-      const partNumber = document.querySelector('input[name="PartNumber"]').value.trim();
-      const description = document.querySelector('input[name="Description"]').value.trim();
-
-      if (!partNumber || !description) {
-        e.preventDefault();
-        alert('Please fill in the required fields: Part Number and Description');
-        return false;
-      }
-
-      const itemType = parseInt(itemTypeSelect.value);
-      const isInventoried = itemType === 0;
-      const hasInitialPurchase = hasInitialPurchaseCheckbox.checked;
-
-      console.log('Item Type:', itemType, 'Is Inventoried:', isInventoried, 'Has initial purchase:', hasInitialPurchase);
-
-      if (isInventoried && hasInitialPurchase) {
-        const vendor = document.querySelector('input[name="InitialVendor"]').value.trim();
-        const quantity = document.querySelector('input[name="InitialQuantity"]').value;
-        const cost = document.querySelector('input[name="InitialCostPerUnit"]').value;
-
-        console.log('Vendor:', vendor, 'Quantity:', quantity, 'Cost:', cost);
-
-        if (!vendor) {
-          e.preventDefault();
-          alert('Please enter the vendor name for the initial purchase.');
-          document.querySelector('input[name="InitialVendor"]').focus();
-          return false;
-        }
-
-        if (!quantity || quantity <= 0) {
-          e.preventDefault();
-          alert('Please enter a valid quantity (greater than 0) for the initial purchase.');
-          document.querySelector('input[name="InitialQuantity"]').focus();
-          return false;
-        }
-
-        if (!cost || cost <= 0) {
-          e.preventDefault();
-          alert('Please enter a valid cost per unit (greater than 0) for the initial purchase.');
-          document.querySelector('input[name="InitialCostPerUnit"]').focus();
-          return false;
-        }
-      }
-
-      console.log('Form validation passed, submitting...');
-      // Let the form submit normally
     });
-  });
-</script>
+  </script>
+}

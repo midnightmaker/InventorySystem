@@ -3,6 +3,42 @@
   "WorkspaceRootPath": "C:\\InventorySystem\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\itemscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\itemscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\viewmodels\\createitemviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:viewmodels\\createitemviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\items\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\items\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\items\\create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\items\\create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\boms\\create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\boms\\create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\helpers\\unitofmeasurehelper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:helpers\\unitofmeasurehelper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\inventorysystem.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:inventorysystem.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\item.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\item.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\enums\\unitofmeasure.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\enums\\unitofmeasure.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\boms\\importresults.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\boms\\importresults.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
@@ -203,10 +239,6 @@
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\bomitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\item.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\item.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\_viewstart.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\_viewstart.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
@@ -218,7 +250,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 9,
+          "SelectedChildIndex": 7,
           "Children": [
             {
               "$type": "Bookmark",
@@ -237,20 +269,105 @@
               "Name": "ST:129:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
             },
             {
-              "$type": "Bookmark",
-              "Name": "ST:130:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Edit.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\Edit.cshtml",
+              "RelativeDocumentMoniker": "Views\\Items\\Edit.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Items\\Edit.cshtml",
+              "RelativeToolTip": "Views\\Items\\Edit.cshtml",
+              "ViewState": "AgIAAAACAAAAAAAAAAAQwCICAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-31T19:52:52.839Z"
             },
             {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Create.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\Create.cshtml",
+              "RelativeDocumentMoniker": "Views\\Items\\Create.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Items\\Create.cshtml",
+              "RelativeToolTip": "Views\\Items\\Create.cshtml",
+              "ViewState": "AgIAAEsCAAAAAAAAAAAQwG0CAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-31T19:52:27.084Z"
             },
             {
-              "$type": "Bookmark",
-              "Name": "ST:131:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Create.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\Create.cshtml",
+              "RelativeDocumentMoniker": "Views\\Boms\\Create.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Boms\\Create.cshtml",
+              "RelativeToolTip": "Views\\Boms\\Create.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-07-31T19:52:18.55Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ItemsController.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Controllers\\ItemsController.cs",
+              "RelativeDocumentMoniker": "Controllers\\ItemsController.cs",
+              "ToolTip": "C:\\InventorySystem\\Controllers\\ItemsController.cs",
+              "RelativeToolTip": "Controllers\\ItemsController.cs",
+              "ViewState": "AgIAAEkBAAAAAAAAAAAQwIwBAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-31T19:38:01.819Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "CreateItemViewModel.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\CreateItemViewModel.cs",
+              "RelativeDocumentMoniker": "ViewModels\\CreateItemViewModel.cs",
+              "ToolTip": "C:\\InventorySystem\\ViewModels\\CreateItemViewModel.cs",
+              "RelativeToolTip": "ViewModels\\CreateItemViewModel.cs",
+              "ViewState": "AgIAACwAAAAAAAAAAAAQwE4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-31T19:35:45.578Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "UnitOfMeasureHelper.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Helpers\\UnitOfMeasureHelper.cs",
+              "RelativeDocumentMoniker": "Helpers\\UnitOfMeasureHelper.cs",
+              "ToolTip": "C:\\InventorySystem\\Helpers\\UnitOfMeasureHelper.cs",
+              "RelativeToolTip": "Helpers\\UnitOfMeasureHelper.cs",
+              "ViewState": "AgIAAJ8AAAAAAAAAAAAAwD0BAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-31T19:33:56.381Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "InventorySystem.csproj",
+              "DocumentMoniker": "C:\\InventorySystem\\InventorySystem.csproj",
+              "RelativeDocumentMoniker": "InventorySystem.csproj",
+              "ToolTip": "C:\\InventorySystem\\InventorySystem.csproj",
+              "RelativeToolTip": "InventorySystem.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-07-31T19:33:30.509Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "UnitOfMeasure.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Models\\Enums\\UnitOfMeasure.cs",
+              "RelativeDocumentMoniker": "Models\\Enums\\UnitOfMeasure.cs",
+              "ToolTip": "C:\\InventorySystem\\Models\\Enums\\UnitOfMeasure.cs",
+              "RelativeToolTip": "Models\\Enums\\UnitOfMeasure.cs",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAAAG4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-31T19:29:46.601Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
               "Title": "ImportResultsViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\ImportResultsViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\ImportResultsViewModel.cs",
@@ -258,12 +375,11 @@
               "RelativeToolTip": "ViewModels\\ImportResultsViewModel.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAlAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-31T16:14:05.261Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T16:14:05.261Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 15,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Boms\\Index.cshtml",
@@ -271,25 +387,23 @@
               "RelativeToolTip": "Views\\Boms\\Index.cshtml",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAACMAAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-31T15:48:01.158Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T15:48:01.158Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 9,
               "Title": "ImportResults.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\ImportResults.cshtml",
               "RelativeDocumentMoniker": "Views\\Boms\\ImportResults.cshtml",
               "ToolTip": "C:\\InventorySystem\\Views\\Boms\\ImportResults.cshtml",
               "RelativeToolTip": "Views\\Boms\\ImportResults.cshtml",
-              "ViewState": "AgIAAJsAAAAAAAAAAAAAABYAAAAxAAAAAAAAAA==",
+              "ViewState": "AgIAAJsAAAAAAAAAAAAAAKoAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-31T15:37:24.613Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T15:37:24.613Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 17,
               "Title": "Import.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\Import.cshtml",
               "RelativeDocumentMoniker": "Views\\Boms\\Import.cshtml",
@@ -297,25 +411,23 @@
               "RelativeToolTip": "Views\\Boms\\Import.cshtml",
               "ViewState": "AgIAAI8AAAAAAAAAAAAYwK8AAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-31T15:36:47.154Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T15:36:47.154Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 11,
               "Title": "BomsController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\BomsController.cs",
               "RelativeDocumentMoniker": "Controllers\\BomsController.cs",
               "ToolTip": "C:\\InventorySystem\\Controllers\\BomsController.cs",
               "RelativeToolTip": "Controllers\\BomsController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUCAABxAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAnAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-31T15:32:08.17Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T15:32:08.17Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 12,
               "Title": "BomImportService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\BomImportService.cs",
               "RelativeDocumentMoniker": "Services\\BomImportService.cs",
@@ -323,12 +435,11 @@
               "RelativeToolTip": "Services\\BomImportService.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAoAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-31T15:31:13.034Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T15:31:13.034Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 18,
               "Title": "FinishedGood.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\FinishedGood.cs",
               "RelativeDocumentMoniker": "Models\\FinishedGood.cs",
@@ -336,12 +447,11 @@
               "RelativeToolTip": "Models\\FinishedGood.cs",
               "ViewState": "AgIAACMBAAAAAAAAAAAgwEMBAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-31T14:01:57.017Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T14:01:57.017Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 21,
               "Title": "IProductionService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\IProductionService.cs",
               "RelativeDocumentMoniker": "Services\\IProductionService.cs",
@@ -349,12 +459,11 @@
               "RelativeToolTip": "Services\\IProductionService.cs",
               "ViewState": "AgIAABIAAAAAAAAAAADwvyUAAAADAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-31T14:00:08.157Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T14:00:08.157Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 22,
               "Title": "CreateFinishedGood.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\CreateFinishedGood.cshtml",
               "RelativeDocumentMoniker": "Views\\Production\\CreateFinishedGood.cshtml",
@@ -362,12 +471,11 @@
               "RelativeToolTip": "Views\\Production\\CreateFinishedGood.cshtml",
               "ViewState": "AgIAAMkAAAAAAAAAAAAQwFwBAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-31T13:47:40.93Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T13:47:40.93Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 23,
               "Title": "CreateFinishedGoodViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\CreateFinishedGoodViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\CreateFinishedGoodViewModel.cs",
@@ -375,12 +483,11 @@
               "RelativeToolTip": "ViewModels\\CreateFinishedGoodViewModel.cs",
               "ViewState": "AgIAAAwAAAAAAAAAAAAUwC0AAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-31T13:46:54.012Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T13:46:54.012Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 19,
+              "DocumentIndex": 28,
               "Title": "BackorderFulfillmentService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\BackorderFulfillmentService.cs",
               "RelativeDocumentMoniker": "Services\\BackorderFulfillmentService.cs",
@@ -388,12 +495,11 @@
               "RelativeToolTip": "Services\\BackorderFulfillmentService.cs",
               "ViewState": "AgIAAEQAAAAAAAAAAAAswGoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-31T12:20:21.206Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T12:20:21.206Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 18,
+              "DocumentIndex": 27,
               "Title": "ProductionOrchestrator.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Infrastructure\\Services\\ProductionOrchestrator.cs",
               "RelativeDocumentMoniker": "Infrastructure\\Services\\ProductionOrchestrator.cs",
@@ -401,12 +507,11 @@
               "RelativeToolTip": "Infrastructure\\Services\\ProductionOrchestrator.cs",
               "ViewState": "AgIAAFQAAAAAAAAAAAAcwHQAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-31T00:07:02.708Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-31T00:07:02.708Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 22,
+              "DocumentIndex": 31,
               "Title": "HomeController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\HomeController.cs",
               "RelativeDocumentMoniker": "Controllers\\HomeController.cs",
@@ -414,12 +519,11 @@
               "RelativeToolTip": "Controllers\\HomeController.cs",
               "ViewState": "AgIAADsAAAAAAAAAAAAuwE8AAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T23:59:50.607Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:59:50.607Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 21,
+              "DocumentIndex": 30,
               "Title": "DashboardViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\DashboardViewModel.cs",
               "RelativeDocumentMoniker": "Models\\DashboardViewModel.cs",
@@ -427,12 +531,11 @@
               "RelativeToolTip": "Models\\DashboardViewModel.cs",
               "ViewState": "AgIAADoAAAAAAAAAAAAuwE4AAAAPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T23:56:19.269Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:56:19.269Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 20,
+              "DocumentIndex": 29,
               "Title": "BackorderNotificationService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\BackorderNotificationService.cs",
               "RelativeDocumentMoniker": "Services\\BackorderNotificationService.cs",
@@ -440,12 +543,11 @@
               "RelativeToolTip": "Services\\BackorderNotificationService.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAhAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T23:54:43.616Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:54:43.616Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 23,
+              "DocumentIndex": 32,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\Index.cshtml",
@@ -453,12 +555,11 @@
               "RelativeToolTip": "Views\\Sales\\Index.cshtml",
               "ViewState": "AgIAADYAAAAAAAAAAAAAAFAAAAAlAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T23:45:57.093Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:45:57.093Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 24,
+              "DocumentIndex": 33,
               "Title": "Details.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Details.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\Details.cshtml",
@@ -466,12 +567,11 @@
               "RelativeToolTip": "Views\\Sales\\Details.cshtml",
               "ViewState": "AgIAAB0BAAAAAAAAAAAgwCgBAAAUAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T23:43:38.824Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:43:38.824Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 25,
+              "DocumentIndex": 34,
               "Title": "Backorders.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Backorders.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\Backorders.cshtml",
@@ -479,12 +579,11 @@
               "RelativeToolTip": "Views\\Sales\\Backorders.cshtml",
               "ViewState": "AgIAALAAAAAAAAAAAAAYwNAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T23:42:37.519Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:42:37.519Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 26,
+              "DocumentIndex": 35,
               "Title": "AddItem.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\AddItem.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\AddItem.cshtml",
@@ -492,12 +591,11 @@
               "RelativeToolTip": "Views\\Sales\\AddItem.cshtml",
               "ViewState": "AgIAAIkAAAAAAAAAAAAiwB4BAAALAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T23:41:37.263Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:41:37.263Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 19,
               "Title": "ProductionService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\ProductionService.cs",
               "RelativeDocumentMoniker": "Services\\ProductionService.cs",
@@ -505,12 +603,11 @@
               "RelativeToolTip": "Services\\ProductionService.cs",
               "ViewState": "AgIAAJoBAAAAAAAAAAAQwKIBAAAwAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T23:40:07.929Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:40:07.929Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 25,
               "Title": "SalesController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\SalesController.cs",
               "RelativeDocumentMoniker": "Controllers\\SalesController.cs",
@@ -518,12 +615,11 @@
               "RelativeToolTip": "Controllers\\SalesController.cs",
               "ViewState": "AgIAAPwAAAAAAAAAAAAmwBQBAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T23:36:48.651Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:36:48.651Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 17,
+              "DocumentIndex": 26,
               "Title": "SalesService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\SalesService.cs",
               "RelativeDocumentMoniker": "Services\\SalesService.cs",
@@ -531,12 +627,11 @@
               "RelativeToolTip": "Services\\SalesService.cs",
               "ViewState": "AgIAAL8AAAAAAAAAAAAcwMYAAAAsAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T23:34:31.046Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:34:31.046Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 27,
+              "DocumentIndex": 36,
               "Title": "ISalesService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\ISalesService.cs",
               "RelativeDocumentMoniker": "Services\\ISalesService.cs",
@@ -544,12 +639,11 @@
               "RelativeToolTip": "Services\\ISalesService.cs",
               "ViewState": "AgIAAAEAAAAAAAAAAAAmwCcAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T23:33:56.385Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T23:33:56.385Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 30,
+              "DocumentIndex": 39,
               "Title": "EventPublisher.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Infrastructure\\Events\\EventPublisher.cs",
               "RelativeDocumentMoniker": "Infrastructure\\Events\\EventPublisher.cs",
@@ -557,12 +651,11 @@
               "RelativeToolTip": "Infrastructure\\Events\\EventPublisher.cs",
               "ViewState": "AgIAADwAAAAAAAAAAAAmwE4AAAAzAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T20:49:11.599Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T20:49:11.599Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 31,
+              "DocumentIndex": 40,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Production\\Index.cshtml",
@@ -570,12 +663,11 @@
               "RelativeToolTip": "Views\\Production\\Index.cshtml",
               "ViewState": "AgIAAM8AAAAAAAAAAAAmwOIAAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T20:43:39.373Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T20:43:39.373Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 33,
+              "DocumentIndex": 42,
               "Title": "20250726184749_AddSalesAndProduction.Designer.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Migrations\\20250726184749_AddSalesAndProduction.Designer.cs",
               "RelativeDocumentMoniker": "Migrations\\20250726184749_AddSalesAndProduction.Designer.cs",
@@ -583,12 +675,11 @@
               "RelativeToolTip": "Migrations\\20250726184749_AddSalesAndProduction.Designer.cs",
               "ViewState": "AgIAABUBAAAAAAAAAAAAACMBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T20:40:01.285Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T20:40:01.285Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 32,
+              "DocumentIndex": 41,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Purchases\\Index.cshtml",
@@ -596,12 +687,11 @@
               "RelativeToolTip": "Views\\Purchases\\Index.cshtml",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAABAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T20:36:33.394Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T20:36:33.394Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 34,
+              "DocumentIndex": 43,
               "Title": "PurchaseService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\PurchaseService.cs",
               "RelativeDocumentMoniker": "Services\\PurchaseService.cs",
@@ -609,12 +699,11 @@
               "RelativeToolTip": "Services\\PurchaseService.cs",
               "ViewState": "AgIAAFMAAAAAAAAAAAAAAGgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T20:18:11.165Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T20:18:11.165Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 35,
+              "DocumentIndex": 44,
               "Title": "PurchasesController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\PurchasesController.cs",
               "RelativeDocumentMoniker": "Controllers\\PurchasesController.cs",
@@ -622,12 +711,11 @@
               "RelativeToolTip": "Controllers\\PurchasesController.cs",
               "ViewState": "AgIAAFwCAAAAAAAAAAAmwHICAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T20:03:07.438Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T20:03:07.438Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 37,
+              "DocumentIndex": 46,
               "Title": "CreatePurchaseViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\CreatePurchaseViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\CreatePurchaseViewModel.cs",
@@ -635,12 +723,11 @@
               "RelativeToolTip": "ViewModels\\CreatePurchaseViewModel.cs",
               "ViewState": "AgIAABgAAAAAAAAAAAAAADEAAABqAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T19:58:47.201Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T19:58:47.201Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 36,
+              "DocumentIndex": 45,
               "Title": "Details.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\Details.cshtml",
               "RelativeDocumentMoniker": "Views\\Purchases\\Details.cshtml",
@@ -648,12 +735,11 @@
               "RelativeToolTip": "Views\\Purchases\\Details.cshtml",
               "ViewState": "AgIAAPEAAAAAAAAAAAAvwA4BAAAjAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T19:57:56.651Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T19:57:56.651Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 29,
+              "DocumentIndex": 38,
               "Title": "Enum.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Enums\\Enum.cs",
               "RelativeDocumentMoniker": "Models\\Enums\\Enum.cs",
@@ -661,12 +747,11 @@
               "RelativeToolTip": "Models\\Enums\\Enum.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAB8AAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T19:53:49.985Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T19:53:49.985Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 39,
+              "DocumentIndex": 48,
               "Title": "ItemType.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Enums\\ItemType.cs",
               "RelativeDocumentMoniker": "Models\\Enums\\ItemType.cs",
@@ -674,12 +759,11 @@
               "RelativeToolTip": "Models\\Enums\\ItemType.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAADwvwoAAAAXAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T19:52:13.442Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T19:52:13.442Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 41,
+              "DocumentIndex": 50,
               "Title": "ProductionStatus.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Domain\\ProductionStatus.cs",
               "RelativeDocumentMoniker": "Domain\\ProductionStatus.cs",
@@ -687,12 +771,11 @@
               "RelativeToolTip": "Domain\\ProductionStatus.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAKAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T19:20:56.764Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T19:20:56.764Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 40,
+              "DocumentIndex": 49,
               "Title": "Kanban.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\WipDashboard\\Kanban.cshtml",
               "RelativeDocumentMoniker": "Views\\WipDashboard\\Kanban.cshtml",
@@ -700,12 +783,11 @@
               "RelativeToolTip": "Views\\WipDashboard\\Kanban.cshtml",
               "ViewState": "AgIAAOgAAAAAAAAAAAAcwA8BAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T19:19:50.503Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T19:19:50.503Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 42,
+              "DocumentIndex": 51,
               "Title": "QuickMaterialCheck.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Boms\\QuickMaterialCheck.cshtml",
               "RelativeDocumentMoniker": "Views\\Boms\\QuickMaterialCheck.cshtml",
@@ -713,12 +795,11 @@
               "RelativeToolTip": "Views\\Boms\\QuickMaterialCheck.cshtml",
               "ViewState": "AgIAAF8AAAAAAAAAAAAMwHMAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T18:37:46.032Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T18:37:46.032Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 43,
+              "DocumentIndex": 52,
               "Title": "BuildBom.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\BuildBom.cshtml",
               "RelativeDocumentMoniker": "Views\\Production\\BuildBom.cshtml",
@@ -726,12 +807,11 @@
               "RelativeToolTip": "Views\\Production\\BuildBom.cshtml",
               "ViewState": "AgIAALsAAAAAAAAAAAAMwNoAAABAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T18:35:42.591Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T18:35:42.591Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 44,
+              "DocumentIndex": 53,
               "Title": "MaterialShortageReport.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\MaterialShortageReport.cshtml",
               "RelativeDocumentMoniker": "Views\\Production\\MaterialShortageReport.cshtml",
@@ -739,12 +819,11 @@
               "RelativeToolTip": "Views\\Production\\MaterialShortageReport.cshtml",
               "ViewState": "AgIAAAYAAAAAAAAAAAAAABgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T18:13:55.706Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T18:13:55.706Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 24,
               "Title": "ProductionController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\ProductionController.cs",
               "RelativeDocumentMoniker": "Controllers\\ProductionController.cs",
@@ -752,12 +831,11 @@
               "RelativeToolTip": "Controllers\\ProductionController.cs",
               "ViewState": "AgIAAPcCAAAAAAAAAAAUwA8DAAAzAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T18:08:06.075Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T18:08:06.075Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 45,
+              "DocumentIndex": 54,
               "Title": "BuildBomViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\BuildBomViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\BuildBomViewModel.cs",
@@ -765,12 +843,11 @@
               "RelativeToolTip": "ViewModels\\BuildBomViewModel.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAACYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T18:07:45.636Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T18:07:45.636Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 46,
+              "DocumentIndex": 55,
               "Title": "BomService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\BomService.cs",
               "RelativeDocumentMoniker": "Services\\BomService.cs",
@@ -778,12 +855,11 @@
               "RelativeToolTip": "Services\\BomService.cs",
               "ViewState": "AgIAACYBAAAAAAAAAAAMwC0BAABBAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T17:55:55.621Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T17:55:55.621Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 20,
               "Title": "InventoryContext.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Data\\InventoryContext.cs",
               "RelativeDocumentMoniker": "Data\\InventoryContext.cs",
@@ -791,12 +867,11 @@
               "RelativeToolTip": "Data\\InventoryContext.cs",
               "ViewState": "AgIAANcAAAAAAAAAAAAgwN8AAAAqAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T17:22:34.793Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T17:22:34.793Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 47,
+              "DocumentIndex": 56,
               "Title": "InventoryService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\InventoryService.cs",
               "RelativeDocumentMoniker": "Services\\InventoryService.cs",
@@ -804,12 +879,11 @@
               "RelativeToolTip": "Services\\InventoryService.cs",
               "ViewState": "AgIAADgAAAAAAAAAAAAnwFEAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T17:15:40.098Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T17:15:40.098Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 48,
+              "DocumentIndex": 57,
               "Title": "Production.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Production.cs",
               "RelativeDocumentMoniker": "Models\\Production.cs",
@@ -817,12 +891,11 @@
               "RelativeToolTip": "Models\\Production.cs",
               "ViewState": "AgIAABYAAAAAAAAAAAAnwCsAAAATAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T17:14:48.569Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T17:14:48.569Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 13,
               "Title": "program.cs",
               "DocumentMoniker": "C:\\InventorySystem\\program.cs",
               "RelativeDocumentMoniker": "program.cs",
@@ -830,12 +903,11 @@
               "RelativeToolTip": "program.cs",
               "ViewState": "AgIAABcAAAAAAAAAAAAQwEcAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T17:12:38.099Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T17:12:38.099Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 49,
+              "DocumentIndex": 58,
               "Title": "BomItem.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\BomItem.cs",
               "RelativeDocumentMoniker": "Models\\BomItem.cs",
@@ -843,25 +915,23 @@
               "RelativeToolTip": "Models\\BomItem.cs",
               "ViewState": "AgIAAAgAAAAAAAAAAAAMwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T17:12:18.317Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T17:12:18.317Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 50,
+              "DocumentIndex": 7,
               "Title": "Item.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Item.cs",
               "RelativeDocumentMoniker": "Models\\Item.cs",
               "ToolTip": "C:\\InventorySystem\\Models\\Item.cs",
               "RelativeToolTip": "Models\\Item.cs",
-              "ViewState": "AgIAAEAAAAAAAAAAAAAqwAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAHAAAAAAAAAAAAAAwJMAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T17:12:01.121Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T17:12:01.121Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 38,
+              "DocumentIndex": 47,
               "Title": "Purchase.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Purchase.cs",
               "RelativeDocumentMoniker": "Models\\Purchase.cs",
@@ -869,12 +939,11 @@
               "RelativeToolTip": "Models\\Purchase.cs",
               "ViewState": "AgIAADwAAAAAAAAAAAAuwEUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T16:51:05.215Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T16:51:05.215Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 28,
+              "DocumentIndex": 37,
               "Title": "SaleItem.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\SaleItem.cs",
               "RelativeDocumentMoniker": "Models\\SaleItem.cs",
@@ -882,12 +951,11 @@
               "RelativeToolTip": "Models\\SaleItem.cs",
               "ViewState": "AgIAACcAAAAAAAAAAAAmwE0AAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-30T16:46:55.411Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T16:46:55.411Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 14,
               "Title": "BulkUploadService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\BulkUploadService.cs",
               "RelativeDocumentMoniker": "Services\\BulkUploadService.cs",
@@ -900,7 +968,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 16,
               "Title": "_Layout.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
               "RelativeDocumentMoniker": "Views\\Shared\\_Layout.cshtml",
@@ -908,12 +976,11 @@
               "RelativeToolTip": "Views\\Shared\\_Layout.cshtml",
               "ViewState": "AgIAAGEAAAAAAAAAAAAIwHEAAAAUAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T16:23:34.217Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T16:23:34.217Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 51,
+              "DocumentIndex": 59,
               "Title": "_ViewStart.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\_ViewStart.cshtml",
               "RelativeDocumentMoniker": "Views\\_ViewStart.cshtml",
@@ -921,8 +988,7 @@
               "RelativeToolTip": "Views\\_ViewStart.cshtml",
               "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-07-30T16:23:12.08Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-30T16:23:12.08Z"
             }
           ]
         }

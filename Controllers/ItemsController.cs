@@ -1,10 +1,12 @@
 using InventorySystem.Data;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
+using InventorySystem.Helpers;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+
 
 namespace InventorySystem.Controllers
 {
@@ -61,14 +63,31 @@ namespace InventorySystem.Controllers
       return View(item);
     }
 
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
-      var viewModel = new CreateItemViewModel
+      try
       {
-        InitialPurchaseDate = DateTime.Today
-      };
-      return View(viewModel);
+        var viewModel = new CreateItemViewModel
+        {
+          ItemType = ItemType.Inventoried,
+          Version = "A",
+          IsSellable = true,
+          UnitOfMeasure = UnitOfMeasure.Each, // Set default to "Each"
+          InitialPurchaseDate = DateTime.Today
+        };
+
+        // Pass UOM options to the view
+        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList();
+
+        return View(viewModel);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading create form: {ex.Message}";
+        return RedirectToAction("Index");
+      }
     }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> BulkUpload(BulkItemUploadViewModel viewModel)
@@ -171,6 +190,7 @@ namespace InventorySystem.Controllers
       if (viewModel == null)
       {
         ModelState.AddModelError("", "ViewModel is null");
+        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList();
         return View(new CreateItemViewModel());
       }
 
@@ -191,7 +211,7 @@ namespace InventorySystem.Controllers
         viewModel.HasInitialPurchase = false;
       }
 
-      // CRITICAL FIX: Remove validation for initial purchase fields when not selected
+      // Remove validation for initial purchase fields when not selected
       if (!viewModel.HasInitialPurchase || viewModel.ItemType != ItemType.Inventoried)
       {
         ModelState.Remove("InitialQuantity");
@@ -230,6 +250,7 @@ namespace InventorySystem.Controllers
             Comments = viewModel.Comments ?? string.Empty,
             MinimumStock = viewModel.ItemType == ItemType.Inventoried ? viewModel.MinimumStock : 0,
             CurrentStock = 0, // Will be updated if initial purchase is added
+            UnitOfMeasure = viewModel.UnitOfMeasure, // NEW: Set the Unit of Measure
 
             // NEW PHASE 1 PROPERTIES
             VendorPartNumber = viewModel.VendorPartNumber,
@@ -246,12 +267,14 @@ namespace InventorySystem.Controllers
             if (!allowedTypes.Contains(viewModel.ImageFile.ContentType.ToLower()))
             {
               ModelState.AddModelError("ImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
+              ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
               return View(viewModel);
             }
 
             if (viewModel.ImageFile.Length > 5 * 1024 * 1024) // 5MB limit
             {
               ModelState.AddModelError("ImageFile", "Image file size must be less than 5MB.");
+              ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
               return View(viewModel);
             }
 
@@ -281,17 +304,17 @@ namespace InventorySystem.Controllers
               QuantityPurchased = viewModel.InitialQuantity,
               CostPerUnit = viewModel.InitialCostPerUnit,
               PurchaseOrderNumber = viewModel.InitialPurchaseOrderNumber,
-              Notes = "Initial inventory entry"
+              Notes = $"Initial inventory entry - {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}"
             };
 
             await _purchaseService.CreatePurchaseAsync(initialPurchase);
 
-            TempData["SuccessMessage"] = $"Item created successfully with initial purchase of {viewModel.InitialQuantity} units!";
+            TempData["SuccessMessage"] = $"Item created successfully with initial purchase of {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}!";
           }
           else
           {
             var itemTypeMsg = viewModel.ItemType == ItemType.Inventoried ? "inventoried item" : $"{viewModel.ItemType.ToString().ToLower()} item";
-            TempData["SuccessMessage"] = $"New {itemTypeMsg} created successfully!";
+            TempData["SuccessMessage"] = $"New {itemTypeMsg} created successfully! Unit: {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}";
           }
 
           return RedirectToAction("Details", new { id = createdItem.Id });
@@ -302,6 +325,9 @@ namespace InventorySystem.Controllers
         }
       }
 
+
+      // Reload UOM options if validation fails
+      ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
       return View(viewModel);
     }
 
@@ -310,9 +336,14 @@ namespace InventorySystem.Controllers
     {
       var item = await _inventoryService.GetItemByIdAsync(id);
       if (item == null) return NotFound();
+
+      // Pass UOM options to the view with current selection
+      ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
+
       return View(item);
     }
 
+    // UPDATE your existing Edit POST action to handle UnitOfMeasure
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, Item item, IFormFile? newImageFile)
@@ -330,12 +361,14 @@ namespace InventorySystem.Controllers
             if (!allowedTypes.Contains(newImageFile.ContentType.ToLower()))
             {
               ModelState.AddModelError("newImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
+              ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
               return View(item);
             }
 
             if (newImageFile.Length > 5 * 1024 * 1024) // 5MB limit
             {
               ModelState.AddModelError("newImageFile", "Image file size must be less than 5MB.");
+              ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
               return View(item);
             }
 
@@ -349,7 +382,7 @@ namespace InventorySystem.Controllers
           }
 
           await _inventoryService.UpdateItemAsync(item);
-          TempData["SuccessMessage"] = "Item updated successfully!";
+          TempData["SuccessMessage"] = $"Item updated successfully! Unit: {UnitOfMeasureHelper.GetAbbreviation(item.UnitOfMeasure)}";
           return RedirectToAction("Details", new { id = item.Id });
         }
         catch (Exception ex)
@@ -358,6 +391,8 @@ namespace InventorySystem.Controllers
         }
       }
 
+      // Reload UOM options if validation fails
+      ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
       return View(item);
     }
 

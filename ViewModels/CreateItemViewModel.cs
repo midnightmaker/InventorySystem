@@ -23,6 +23,10 @@ namespace InventorySystem.ViewModels
     [Display(Name = "Minimum Stock")]
     public int MinimumStock { get; set; }
 
+    // UNIT OF MEASURE - NEW PROPERTY
+    [Display(Name = "Unit of Measure")]
+    public UnitOfMeasure UnitOfMeasure { get; set; } = UnitOfMeasure.Each;
+
     // NEW PHASE 1 FIELDS
 
     [StringLength(100, ErrorMessage = "Vendor Part Number cannot exceed 100 characters.")]

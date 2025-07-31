@@ -23,6 +23,10 @@ namespace InventorySystem.Models
     public int CurrentStock { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
+    // UNIT OF MEASURE - NEW PROPERTY
+    [Display(Name = "Unit of Measure")]
+    public UnitOfMeasure UnitOfMeasure { get; set; } = UnitOfMeasure.Each;
+
     // NEW PHASE 1 PROPERTIES
 
     [StringLength(100)]
@@ -59,6 +63,59 @@ namespace InventorySystem.Models
       ItemType.Service => "Service",
       ItemType.Virtual => "Virtual",
       _ => "Unknown"
+    };
+
+    // UNIT OF MEASURE DISPLAY PROPERTIES
+    [NotMapped]
+    [Display(Name = "Unit of Measure")]
+    public string UnitOfMeasureDisplayName => UnitOfMeasure switch
+    {
+      UnitOfMeasure.Each => "EA",
+      UnitOfMeasure.Gram => "g",
+      UnitOfMeasure.Kilogram => "kg",
+      UnitOfMeasure.Ounce => "oz",
+      UnitOfMeasure.Pound => "lb",
+      UnitOfMeasure.Millimeter => "mm",
+      UnitOfMeasure.Centimeter => "cm",
+      UnitOfMeasure.Meter => "m",
+      UnitOfMeasure.Inch => "in",
+      UnitOfMeasure.Foot => "ft",
+      UnitOfMeasure.Yard => "yd",
+      UnitOfMeasure.Milliliter => "ml",
+      UnitOfMeasure.Liter => "L",
+      UnitOfMeasure.FluidOunce => "fl oz",
+      UnitOfMeasure.Pint => "pt",
+      UnitOfMeasure.Quart => "qt",
+      UnitOfMeasure.Gallon => "gal",
+      UnitOfMeasure.SquareCentimeter => "cm²",
+      UnitOfMeasure.SquareMeter => "m²",
+      UnitOfMeasure.SquareInch => "in²",
+      UnitOfMeasure.SquareFoot => "ft²",
+      UnitOfMeasure.Box => "BOX",
+      UnitOfMeasure.Case => "CASE",
+      UnitOfMeasure.Dozen => "DOZ",
+      UnitOfMeasure.Pair => "PR",
+      UnitOfMeasure.Set => "SET",
+      UnitOfMeasure.Roll => "ROLL",
+      UnitOfMeasure.Sheet => "SHT",
+      UnitOfMeasure.Hour => "hr",
+      UnitOfMeasure.Day => "day",
+      UnitOfMeasure.Month => "mo",
+      _ => "EA"
+    };
+
+    [NotMapped]
+    [Display(Name = "UOM Category")]
+    public string UnitOfMeasureCategory => UnitOfMeasure switch
+    {
+      UnitOfMeasure.Each => "Count",
+      UnitOfMeasure.Gram or UnitOfMeasure.Kilogram or UnitOfMeasure.Ounce or UnitOfMeasure.Pound => "Weight",
+      UnitOfMeasure.Millimeter or UnitOfMeasure.Centimeter or UnitOfMeasure.Meter or UnitOfMeasure.Inch or UnitOfMeasure.Foot or UnitOfMeasure.Yard => "Length",
+      UnitOfMeasure.Milliliter or UnitOfMeasure.Liter or UnitOfMeasure.FluidOunce or UnitOfMeasure.Pint or UnitOfMeasure.Quart or UnitOfMeasure.Gallon => "Volume",
+      UnitOfMeasure.SquareCentimeter or UnitOfMeasure.SquareMeter or UnitOfMeasure.SquareInch or UnitOfMeasure.SquareFoot => "Area",
+      UnitOfMeasure.Box or UnitOfMeasure.Case or UnitOfMeasure.Dozen or UnitOfMeasure.Pair or UnitOfMeasure.Set or UnitOfMeasure.Roll or UnitOfMeasure.Sheet => "Packaging",
+      UnitOfMeasure.Hour or UnitOfMeasure.Day or UnitOfMeasure.Month => "Time",
+      _ => "Other"
     };
 
     // Existing navigation properties
