@@ -1,0 +1,539 @@
+﻿@model InventorySystem.Models.Vendor
+@{
+  ViewData["Title"] = "Vendor Details";
+  var vendorItems = ViewBag.VendorItems as IEnumerable<InventorySystem.Models.VendorItem>;
+  var purchaseHistory = ViewBag.PurchaseHistory as IEnumerable<InventorySystem.Models.Purchase>;
+  var totalPurchases = ViewBag.TotalPurchases as decimal? ?? 0;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1><i class="fas fa-truck"></i> @Model.CompanyName</h1>
+    @if (!string.IsNullOrEmpty(Model.VendorCode))
+    {
+      <p class="text-muted mb-0">Vendor Code: @Model.VendorCode</p>
+    }
+  </div>
+  <div class="btn-group">
+    <a href="/Vendors/Edit/@Model.Id" class="btn btn-outline-primary">
+      <i class="fas fa-edit"></i> Edit
+    </a>
+    <a href="/Vendors/ManageItems/@Model.Id" class="btn btn-success">
+      <i class="fas fa-boxes"></i> Manage Items
+    </a>
+    <a href="/Purchases/Create?vendor=@Model.CompanyName" class="btn btn-outline-success">
+      <i class="fas fa-shopping-cart"></i> Create Purchase
+    </a>
+    <a href="/Vendors" class="btn btn-outline-secondary">
+      <i class="fas fa-list"></i> All Vendors
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <!-- Left Column - Details -->
+  <div class="col-md-8">
+    <!-- Status and Overview -->
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> Vendor Overview</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <dl class="row">
+              <dt class="col-sm-6">Status:</dt>
+              <dd class="col-sm-6">
+                @if (Model.IsActive)
+                {
+                  <span class="badge bg-success">Active</span>
+                }
+                else
+                {
+                  <span class="badge bg-secondary">Inactive</span>
+                }
+                @if (Model.IsPreferred)
+                {
+                  <span class="badge bg-warning ms-1">Preferred</span>
+                }
+              </dd>
+
+              <dt class="col-sm-6">Overall Rating:</dt>
+              <dd class="col-sm-6">
+                <div class="d-flex align-items-center">
+                  <span class="me-2">@Model.OverallRating.ToString("F1")</span>
+                  <div>
+                    @for (int i = 1; i <= 5; i++)
+                    {
+                      <i class="fas fa-star @(i <= Model.OverallRating ? "text-warning" : "text-muted")"></i>
+                    }
+                  </div>
+                </div>
+              </dd>
+
+              <dt class="col-sm-6">Payment Terms:</dt>
+              <dd class="col-sm-6">@Model.PaymentTerms</dd>
+
+              @if (Model.DiscountPercentage > 0)
+              {
+                <dt class="col-sm-6">Discount:</dt>
+                <dd class="col-sm-6">@Model.DiscountPercentage%</dd>
+              }
+            </dl>
+          </div>
+          <div class="col-md-6">
+            <dl class="row">
+              <dt class="col-sm-6">Total Purchases:</dt>
+              <dd class="col-sm-6"><strong>@totalPurchases.ToString("C")</strong></dd>
+
+              <dt class="col-sm-6">Purchase Orders:</dt>
+              <dd class="col-sm-6">@Model.PurchaseCount</dd>
+
+              <dt class="col-sm-6">Items Supplied:</dt>
+              <dd class="col-sm-6">@Model.ItemsSuppliedCount</dd>
+
+              @if (Model.LastPurchaseDate.HasValue)
+              {
+                <dt class="col-sm-6">Last Purchase:</dt>
+                <dd class="col-sm-6">@Model.LastPurchaseDate.Value.ToString("MM/dd/yyyy")</dd>
+              }
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Information -->
+    @if (!string.IsNullOrEmpty(Model.ContactName) || !string.IsNullOrEmpty(Model.ContactEmail) || !string.IsNullOrEmpty(Model.ContactPhone))
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-address-book"></i> Contact Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            @if (!string.IsNullOrEmpty(Model.ContactName))
+            {
+              <div class="col-md-4">
+                <strong><i class="fas fa-user text-primary"></i> Contact:</strong>
+                <div>@Model.ContactName</div>
+              </div>
+            }
+            @if (!string.IsNullOrEmpty(Model.ContactEmail))
+            {
+              <div class="col-md-4">
+                <strong><i class="fas fa-envelope text-warning"></i> Email:</strong>
+                <div><a href="mailto:@Model.ContactEmail">@Model.ContactEmail</a></div>
+              </div>
+            }
+            @if (!string.IsNullOrEmpty(Model.ContactPhone))
+            {
+              <div class="col-md-4">
+                <strong><i class="fas fa-phone text-success"></i> Phone:</strong>
+                <div><a href="tel:@Model.ContactPhone">@Model.ContactPhone</a></div>
+              </div>
+            }
+          </div>
+          @if (!string.IsNullOrEmpty(Model.Website))
+          {
+            <div class="mt-3">
+              <strong><i class="fas fa-globe text-info"></i> Website:</strong>
+              <a href="@Model.Website" target="_blank" rel="noopener noreferrer">@Model.Website</a>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Address -->
+    @if (!string.IsNullOrEmpty(Model.FullAddress))
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-map-marker-alt"></i> Address</h5>
+        </div>
+        <div class="card-body">
+          <address class="mb-0">
+            @if (!string.IsNullOrEmpty(Model.AddressLine1))
+            {
+              @Model.AddressLine1<br />
+            }
+            @if (!string.IsNullOrEmpty(Model.AddressLine2))
+            {
+              @Model.AddressLine2<br />
+            }
+            @if (!string.IsNullOrEmpty(Model.City) || !string.IsNullOrEmpty(Model.State) || !string.IsNullOrEmpty(Model.PostalCode))
+            {
+              <span>@Model.City @Model.State @Model.PostalCode</span><br />
+            }
+            @if (!string.IsNullOrEmpty(Model.Country))
+            {
+              @Model.Country
+            }
+          </address>
+        </div>
+      </div>
+    }
+
+    <!-- Items Supplied -->
+    @if (vendorItems != null && vendorItems.Any())
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-boxes"></i> Items Supplied (@vendorItems.Count())</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Part Number</th>
+                  <th>Description</th>
+                  <th>Unit Cost</th>
+                  <th>Lead Time</th>
+                  <th>Min Qty</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var item in vendorItems.Take(10))
+                {
+                  <tr>
+                    <td>
+                      <a href="/Items/Details/@item.Item.Id">@item.Item.PartNumber</a>
+                      @if (item.IsPrimary)
+                      {
+                        <span class="badge bg-primary ms-1">Primary</span>
+                      }
+                    </td>
+                    <td>@item.Item.Description</td>
+                    <td>@item.UnitCost.ToString("C")</td>
+                    <td>@item.LeadTimeDescription</td>
+                    <td>@item.MinimumOrderQuantity</td>
+                    <td>
+                      @if (item.IsActive)
+                      {
+                        <span class="badge bg-success">Active</span>
+                      }
+                      else
+                      {
+                        <span class="badge bg-secondary">Inactive</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (vendorItems.Count() > 10)
+          {
+            <div class="text-center mt-3">
+              <a href="/Vendors/ManageItems/@Model.Id" class="btn btn-outline-primary">
+                View All @vendorItems.Count() Items
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Recent Purchase History -->
+    @if (purchaseHistory != null && purchaseHistory.Any())
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-shopping-cart"></i> Recent Purchase History</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Item</th>
+                  <th>Quantity</th>
+                  <th>Unit Cost</th>
+                  <th>Total</th>
+                  <th>PO Number</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var purchase in purchaseHistory)
+                {
+                  <tr>
+                    <td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
+                    <td>
+                      <a href="/Items/Details/@purchase.ItemId">@purchase.Item.PartNumber</a>
+                    </td>
+                    <td>@purchase.QuantityPurchased</td>
+                    <td>@purchase.CostPerUnit.ToString("C")</td>
+                    <td>@purchase.TotalCost.ToString("C")</td>
+                    <td>@purchase.PurchaseOrderNumber</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (Model.PurchaseCount > 10)
+          {
+            <div class="text-center mt-3">
+              <a href="/Purchases?vendor=@Model.CompanyName" class="btn btn-outline-primary">
+                View All @Model.PurchaseCount Purchases
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Notes -->
+    @if (!string.IsNullOrEmpty(Model.Notes))
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-sticky-note"></i> Notes</h5>
+        </div>
+        <div class="card-body">
+          <p class="mb-0">@Model.Notes</p>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Right Column - Quick Info and Actions -->
+  <div class="col-md-4">
+    <!-- Ratings Breakdown -->
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-star"></i> Performance Ratings</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="d-flex justify-content-between">
+            <span>Quality:</span>
+            <div>
+              @for (int i = 1; i <= 5; i++)
+              {
+                <i class="fas fa-star @(i <= Model.QualityRating ? "text-warning" : "text-muted")"></i>
+              }
+              <span class="ms-1">(@Model.QualityRating/5)</span>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="d-flex justify-content-between">
+            <span>Delivery:</span>
+            <div>
+              @for (int i = 1; i <= 5; i++)
+              {
+                <i class="fas fa-star @(i <= Model.DeliveryRating ? "text-warning" : "text-muted")"></i>
+              }
+              <span class="ms-1">(@Model.DeliveryRating/5)</span>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="d-flex justify-content-between">
+            <span>Service:</span>
+            <div>
+              @for (int i = 1; i <= 5; i++)
+              {
+                <i class="fas fa-star @(i <= Model.ServiceRating ? "text-warning" : "text-muted")"></i>
+              }
+              <span class="ms-1">(@Model.ServiceRating/5)</span>
+            </div>
+          </div>
+        </div>
+        <hr>
+        <div class="text-center">
+          <strong>Overall: @Model.OverallRating.ToString("F1")/5.0</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-chart-bar"></i> Quick Stats</h6>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-6">
+            <div class="h4 mb-0 text-success">@totalPurchases.ToString("C0")</div>
+            <small class="text-muted">Total Spent</small>
+          </div>
+          <div class="col-6">
+            <div class="h4 mb-0 text-primary">@Model.ItemsSuppliedCount</div>
+            <small class="text-muted">Items</small>
+          </div>
+        </div>
+        <hr>
+        <div class="row text-center">
+          <div class="col-6">
+            <div class="h4 mb-0 text-info">@Model.PurchaseCount</div>
+            <small class="text-muted">Orders</small>
+          </div>
+          <div class="col-6">
+            @if (Model.LastPurchaseDate.HasValue)
+            {
+              <div class="h6 mb-0 text-secondary">@((DateTime.Now - Model.LastPurchaseDate.Value).Days) days</div>
+              <small class="text-muted">Since Last Order</small>
+            }
+            else
+            {
+              <div class="h6 mb-0 text-muted">N/A</div>
+              <small class="text-muted">No Orders</small>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business Details -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-handshake"></i> Business Details</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-6">Terms:</dt>
+          <dd class="col-sm-6">@Model.PaymentTerms</dd>
+
+          @if (Model.CreditLimit > 0)
+          {
+            <dt class="col-sm-6">Credit Limit:</dt>
+            <dd class="col-sm-6">@Model.CreditLimit.ToString("C")</dd>
+          }
+
+          @if (Model.DiscountPercentage > 0)
+          {
+            <dt class="col-sm-6">Discount:</dt>
+            <dd class="col-sm-6">@Model.DiscountPercentage%</dd>
+          }
+
+          @if (!string.IsNullOrEmpty(Model.TaxId))
+          {
+            <dt class="col-sm-6">Tax ID:</dt>
+            <dd class="col-sm-6">@Model.TaxId</dd>
+          }
+
+          <dt class="col-sm-6">Created:</dt>
+          <dd class="col-sm-6">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-lightning-bolt"></i> Quick Actions</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="/Vendors/ManageItems/@Model.Id" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-boxes"></i> Manage Items
+          </a>
+          <a href="/Purchases/Create?vendor=@Model.CompanyName" class="btn btn-outline-success btn-sm">
+            <i class="fas fa-shopping-cart"></i> Create Purchase
+          </a>
+          <a href="/Vendors/ItemVendors?vendorId=@Model.Id" class="btn btn-outline-info btn-sm">
+            <i class="fas fa-list"></i> View Item Vendors
+          </a>
+          @if (Model.IsActive)
+          {
+            <form asp-action="Deactivate" method="post" class="d-grid">
+              <input type="hidden" name="id" value="@Model.Id" />
+              <button type="submit" class="btn btn-outline-danger btn-sm" 
+                      onclick="return confirm('Deactivate this vendor? This will hide them from new purchase forms.')">
+                <i class="fas fa-ban"></i> Deactivate Vendor
+              </button>
+            </form>
+          }
+          else
+          {
+            <form asp-action="Activate" method="post" class="d-grid">
+              <input type="hidden" name="id" value="@Model.Id" />
+              <button type="submit" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-check"></i> Activate Vendor
+              </button>
+            </form>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance Summary -->
+    @if (Model.PurchaseCount > 0)
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h6><i class="fas fa-trophy"></i> Performance Summary</h6>
+        </div>
+        <div class="card-body">
+          <small class="text-muted">
+            Based on @Model.PurchaseCount purchase orders and @Model.ItemsSuppliedCount items supplied.
+            @if (Model.IsPreferred)
+            {
+              <div class="mt-2">
+                <span class="badge bg-warning">
+                  <i class="fas fa-star"></i> Preferred Vendor
+                </span>
+              </div>
+            }
+            @if (Model.OverallRating >= 4)
+            {
+              <div class="mt-2 text-success">
+                <i class="fas fa-thumbs-up"></i> High-performing vendor
+              </div>
+            }
+            else if (Model.OverallRating < 3)
+            {
+              <div class="mt-2 text-warning">
+                <i class="fas fa-exclamation-triangle"></i> Performance needs attention
+              </div>
+            }
+          </small>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Add hover effects to action buttons
+      const actionButtons = document.querySelectorAll('.quick-actions .btn');
+      actionButtons.forEach(button => {
+        button.addEventListener('mouseenter', function() {
+          this.classList.add('shadow-sm');
+        });
+        button.addEventListener('mouseleave', function() {
+          this.classList.remove('shadow-sm');
+        });
+      });
+
+      // Initialize tooltips for star ratings
+      const stars = document.querySelectorAll('.fas.fa-star');
+      stars.forEach(star => {
+        star.setAttribute('title', 'Performance rating');
+      });
+    });
+  </script>
+}

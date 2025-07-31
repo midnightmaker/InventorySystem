@@ -59,8 +59,10 @@ builder.Services.AddScoped<IBackorderFulfillmentService, BackorderFulfillmentSer
 
 builder.Services.AddScoped<BomImportService>();
 
-// Make sure ISalesService is also registered:
+// Register the ISalesService and its implementation
 builder.Services.AddScoped<ISalesService, SalesService>();
+// Register the new Vendor service
+builder.Services.AddScoped<IVendorService, VendorService>();
 
 // Configure file upload limits
 builder.Services.Configure<FormOptions>(options =>

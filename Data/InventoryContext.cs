@@ -34,6 +34,10 @@ namespace InventorySystem.Data
     // Additional DbSet for ItemDocument
     public DbSet<ItemDocument> ItemDocuments { get; set; }
 
+    // Additional DbSet for Vendor and VendorItem
+    public DbSet<Vendor> Vendors { get; set; }
+    public DbSet<VendorItem> VendorItems { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
       base.OnModelCreating(modelBuilder);
@@ -262,6 +266,39 @@ namespace InventorySystem.Data
               .HasForeignKey(si => si.FinishedGoodId)
               .OnDelete(DeleteBehavior.Restrict);
       });
+      // Vendor unique constraint on company name
+      modelBuilder.Entity<Vendor>()
+          .HasIndex(v => v.CompanyName)
+          .IsUnique()
+          .HasDatabaseName("IX_Vendors_CompanyName");
+
+      // VendorItem composite key and relationships
+      modelBuilder.Entity<VendorItem>()
+          .HasIndex(vi => new { vi.VendorId, vi.ItemId })
+          .IsUnique()
+          .HasDatabaseName("IX_VendorItems_VendorId_ItemId");
+
+      // VendorItem relationships
+      modelBuilder.Entity<VendorItem>()
+          .HasOne(vi => vi.Vendor)
+          .WithMany(v => v.VendorItems)
+          .HasForeignKey(vi => vi.VendorId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      modelBuilder.Entity<VendorItem>()
+          .HasOne(vi => vi.Item)
+          .WithMany() // Items don't need to track their vendors directly
+          .HasForeignKey(vi => vi.ItemId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // Update Purchase entity to optionally reference Vendor
+      // This maintains backward compatibility while allowing future integration
+      modelBuilder.Entity<Purchase>()
+          .Property(p => p.Vendor)
+          .HasMaxLength(200)
+          .IsRequired();
+
+      base.OnModelCreating(modelBuilder);
     }
 
     private void ConfigureWorkflowEntities(ModelBuilder modelBuilder)

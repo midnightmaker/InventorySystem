@@ -1,0 +1,226 @@
+﻿@model IEnumerable<InventorySystem.Models.Vendor>
+@{
+  ViewData["Title"] = "Vendors";
+  var searchTerm = ViewBag.SearchTerm as string;
+  var activeOnly = ViewBag.ActiveOnly as bool? ?? true;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-truck"></i> Vendor Management</h1>
+  <div class="btn-group">
+    <a href="/Vendors/Create" class="btn btn-success">
+      <i class="fas fa-plus"></i> Add Vendor
+    </a>
+    <a href="/Vendors/Reports" class="btn btn-outline-info">
+      <i class="fas fa-chart-bar"></i> Reports
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Search and Filter -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Search Vendors</label>
+        <input type="text" name="search" class="form-control" value="@searchTerm"
+               placeholder="Search by company name, contact, or vendor code..." />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Filter</label>
+        <div class="form-check mt-2">
+          <input type="checkbox" name="activeOnly" value="true" class="form-check-input"
+                 @(activeOnly ? "checked" : "") id="activeOnlyCheck" />
+          <label class="form-check-label" for="activeOnlyCheck">
+            Active vendors only
+          </label>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">&nbsp;</label>
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Search
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Vendors Table -->
+<div class="card">
+  <div class="card-header">
+    <h5><i class="fas fa-list"></i> Vendors (@Model.Count())</h5>
+  </div>
+  <div class="card-body">
+    @if (Model.Any())
+    {
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Contact</th>
+              <th>Location</th>
+              <th>Rating</th>
+              <th>Items</th>
+              <th>Purchases</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var vendor in Model)
+            {
+              <tr class="@(!vendor.IsActive ? "table-secondary" : "")">
+                <td>
+                  <div>
+                    <strong>@vendor.CompanyName</strong>
+                    @if (!string.IsNullOrEmpty(vendor.VendorCode))
+                    {
+                      <small class="text-muted d-block">Code: @vendor.VendorCode</small>
+                    }
+                  </div>
+                </td>
+                <td>
+                  @if (!string.IsNullOrEmpty(vendor.ContactName))
+                  {
+                    <div>@vendor.ContactName</div>
+                  }
+                  @if (!string.IsNullOrEmpty(vendor.ContactEmail))
+                  {
+                    <small><a href="mailto:@vendor.ContactEmail">@vendor.ContactEmail</a></small>
+                  }
+                  @if (!string.IsNullOrEmpty(vendor.ContactPhone))
+                  {
+                    <small class="d-block">@vendor.ContactPhone</small>
+                  }
+                </td>
+                <td>
+                  @if (!string.IsNullOrEmpty(vendor.City) && !string.IsNullOrEmpty(vendor.State))
+                  {
+                    <span>@vendor.City, @vendor.State</span>
+                  }
+                  @if (!string.IsNullOrEmpty(vendor.Country))
+                  {
+                    <small class="text-muted d-block">@vendor.Country</small>
+                  }
+                </td>
+                <td>
+                  <div class="text-center">
+                    <div class="h6 mb-0">@vendor.OverallRating.ToString("F1")</div>
+                    <div class="rating-stars">
+                      @for (int i = 1; i <= 5; i++)
+                      {
+                        <i class="fas fa-star @(i <= vendor.OverallRating ? "text-warning" : "text-muted")"></i>
+                      }
+                    </div>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <span class="badge bg-info">@vendor.ItemsSuppliedCount</span>
+                </td>
+                <td class="text-center">
+                  <div>@vendor.TotalPurchases.ToString("C")</div>
+                  <small class="text-muted">(@vendor.PurchaseCount orders)</small>
+                </td>
+                <td>
+                  @if (vendor.IsActive)
+                  {
+                    <span class="badge bg-success">Active</span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-secondary">Inactive</span>
+                  }
+                  @if (vendor.IsPreferred)
+                  {
+                    <span class="badge bg-warning">Preferred</span>
+                  }
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="/Vendors/Details/@vendor.Id" class="btn btn-outline-primary">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/Vendors/Edit/@vendor.Id" class="btn btn-outline-secondary">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    @if (vendor.IsActive)
+                    {
+                      <form asp-action="Deactivate" method="post" class="d-inline">
+                        <input type="hidden" name="id" value="@vendor.Id" />
+                        <button type="submit" class="btn btn-outline-danger"
+                                onclick="return confirm('Deactivate this vendor?')">
+                          <i class="fas fa-ban"></i>
+                        </button>
+                      </form>
+                    }
+                    else
+                    {
+                      <form asp-action="Activate" method="post" class="d-inline">
+                        <input type="hidden" name="id" value="@vendor.Id" />
+                        <button type="submit" class="btn btn-outline-success">
+                          <i class="fas fa-check"></i>
+                        </button>
+                      </form>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    else
+    {
+      <div class="text-center py-4">
+        <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+        <h5>No vendors found</h5>
+        <p class="text-muted">
+          @if (!string.IsNullOrEmpty(searchTerm))
+          {
+            <span>No vendors match your search criteria.</span>
+          }
+          else
+          {
+            <span>Get started by adding your first vendor.</span>
+          }
+        </p>
+        <a href="/Vendors/Create" class="btn btn-success">
+          <i class="fas fa-plus"></i> Add First Vendor
+        </a>
+      </div>
+    }
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Enable tooltips for rating stars
+      const stars = document.querySelectorAll('.rating-stars i');
+      stars.forEach(star => {
+        star.setAttribute('title', 'Overall rating based on Quality, Delivery, and Service');
+      });
+    });
+  </script>
+}

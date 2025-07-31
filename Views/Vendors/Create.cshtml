@@ -1,0 +1,372 @@
+﻿@model InventorySystem.Models.Vendor
+@{
+  ViewData["Title"] = "Create Vendor";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-plus"></i> Create Vendor</h1>
+  <div class="btn-group">
+    <a href="/Vendors" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Vendors
+    </a>
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <div class="col-md-8">
+    <form asp-action="Create" method="post">
+      <!-- Basic Information -->
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="mb-3">
+                <label asp-for="CompanyName" class="form-label">
+                  <i class="fas fa-building text-primary"></i>
+                  Company Name <span class="text-danger">*</span>
+                </label>
+                <input asp-for="CompanyName" class="form-control" required />
+                <span asp-validation-for="CompanyName" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="VendorCode" class="form-label">
+                  <i class="fas fa-barcode text-info"></i>
+                  Vendor Code
+                </label>
+                <input asp-for="VendorCode" class="form-control" placeholder="VND001" />
+                <span asp-validation-for="VendorCode" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="ContactName" class="form-label">
+                  <i class="fas fa-user text-success"></i>
+                  Contact Name
+                </label>
+                <input asp-for="ContactName" class="form-control" />
+                <span asp-validation-for="ContactName" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="ContactEmail" class="form-label">
+                  <i class="fas fa-envelope text-warning"></i>
+                  Contact Email
+                </label>
+                <input asp-for="ContactEmail" class="form-control" type="email" />
+                <span asp-validation-for="ContactEmail" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="ContactPhone" class="form-label">
+                  <i class="fas fa-phone text-info"></i>
+                  Contact Phone
+                </label>
+                <input asp-for="ContactPhone" class="form-control" type="tel" />
+                <span asp-validation-for="ContactPhone" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="Website" class="form-label">
+                  <i class="fas fa-globe text-primary"></i>
+                  Website
+                </label>
+                <input asp-for="Website" class="form-control" type="url" placeholder="https://example.com" />
+                <span asp-validation-for="Website" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Address Information -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-map-marker-alt"></i> Address Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label asp-for="AddressLine1" class="form-label">Address Line 1</label>
+            <input asp-for="AddressLine1" class="form-control" />
+            <span asp-validation-for="AddressLine1" class="text-danger"></span>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="AddressLine2" class="form-label">Address Line 2</label>
+            <input asp-for="AddressLine2" class="form-control" />
+            <span asp-validation-for="AddressLine2" class="text-danger"></span>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="City" class="form-label">City</label>
+                <input asp-for="City" class="form-control" />
+                <span asp-validation-for="City" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="State" class="form-label">State/Province</label>
+                <input asp-for="State" class="form-control" />
+                <span asp-validation-for="State" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="PostalCode" class="form-label">Postal Code</label>
+                <input asp-for="PostalCode" class="form-control" />
+                <span asp-validation-for="PostalCode" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Country" class="form-label">Country</label>
+            <input asp-for="Country" class="form-control" />
+            <span asp-validation-for="Country" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Business Information -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-handshake"></i> Business Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="PaymentTerms" class="form-label">Payment Terms</label>
+                <select asp-for="PaymentTerms" class="form-select">
+                  <option value="Net 15">Net 15</option>
+                  <option value="Net 30" selected>Net 30</option>
+                  <option value="Net 45">Net 45</option>
+                  <option value="Net 60">Net 60</option>
+                  <option value="COD">Cash on Delivery (COD)</option>
+                  <option value="Prepaid">Prepaid</option>
+                </select>
+                <span asp-validation-for="PaymentTerms" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="TaxId" class="form-label">Tax ID/EIN</label>
+                <input asp-for="TaxId" class="form-control" />
+                <span asp-validation-for="TaxId" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="CreditLimit" class="form-label">Credit Limit</label>
+                <input asp-for="CreditLimit" class="form-control" type="number" step="0.01" min="0" />
+                <span asp-validation-for="CreditLimit" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="DiscountPercentage" class="form-label">Discount Percentage</label>
+                <input asp-for="DiscountPercentage" class="form-control" type="number" step="0.1" min="0" max="100" />
+                <span asp-validation-for="DiscountPercentage" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ratings and Status -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-star"></i> Ratings & Status</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="QualityRating" class="form-label">Quality Rating</label>
+                <select asp-for="QualityRating" class="form-select">
+                  <option value="1">1 - Poor</option>
+                  <option value="2">2 - Fair</option>
+                  <option value="3" selected>3 - Good</option>
+                  <option value="4">4 - Very Good</option>
+                  <option value="5">5 - Excellent</option>
+                </select>
+                <span asp-validation-for="QualityRating" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="DeliveryRating" class="form-label">Delivery Rating</label>
+                <select asp-for="DeliveryRating" class="form-select">
+                  <option value="1">1 - Poor</option>
+                  <option value="2">2 - Fair</option>
+                  <option value="3" selected>3 - Good</option>
+                  <option value="4">4 - Very Good</option>
+                  <option value="5">5 - Excellent</option>
+                </select>
+                <span asp-validation-for="DeliveryRating" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="ServiceRating" class="form-label">Service Rating</label>
+                <select asp-for="ServiceRating" class="form-select">
+                  <option value="1">1 - Poor</option>
+                  <option value="2">2 - Fair</option>
+                  <option value="3" selected>3 - Good</option>
+                  <option value="4">4 - Very Good</option>
+                  <option value="5">5 - Excellent</option>
+                </select>
+                <span asp-validation-for="ServiceRating" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                <label asp-for="IsActive" class="form-check-label">
+                  <i class="fas fa-check-circle text-success"></i>
+                  Active Vendor
+                </label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input asp-for="IsPreferred" class="form-check-input" type="checkbox" />
+                <label asp-for="IsPreferred" class="form-check-label">
+                  <i class="fas fa-star text-warning"></i>
+                  Preferred Vendor
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Notes" class="form-label">Notes</label>
+            <textarea asp-for="Notes" class="form-control" rows="3" 
+                      placeholder="Additional notes about this vendor..."></textarea>
+            <span asp-validation-for="Notes" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Buttons -->
+      <div class="card mt-3">
+        <div class="card-body text-center">
+          <button type="submit" class="btn btn-success btn-lg">
+            <i class="fas fa-save"></i> Create Vendor
+          </button>
+          <a href="/Vendors" class="btn btn-outline-secondary btn-lg ms-2">
+            <i class="fas fa-times"></i> Cancel
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Right Column - Help -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-question-circle"></i> Creating Vendors</h6>
+      </div>
+      <div class="card-body">
+        <div class="list-group list-group-flush">
+          <div class="list-group-item border-0 px-0">
+            <strong>Company Name:</strong>
+            <small class="text-muted d-block">The primary business name for this vendor.</small>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <strong>Vendor Code:</strong>
+            <small class="text-muted d-block">Optional short code for quick identification (e.g., VND001).</small>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <strong>Ratings:</strong>
+            <small class="text-muted d-block">Rate quality, delivery, and service from 1-5 stars.</small>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <strong>Preferred Status:</strong>
+            <small class="text-muted d-block">Mark as preferred for priority in purchasing decisions.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-lightbulb"></i> Tips</h6>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0">
+          <li class="mb-2">
+            <i class="fas fa-check text-success"></i>
+            Complete contact information helps with communication
+          </li>
+          <li class="mb-2">
+            <i class="fas fa-check text-success"></i>
+            Set realistic ratings based on past performance
+          </li>
+          <li class="mb-2">
+            <i class="fas fa-check text-success"></i>
+            Use vendor codes for easy identification in reports
+          </li>
+          <li class="mb-0">
+            <i class="fas fa-check text-success"></i>
+            Mark trusted vendors as "Preferred" for priority
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Auto-generate vendor code from company name
+      const companyNameInput = document.querySelector('input[name="CompanyName"]');
+      const vendorCodeInput = document.querySelector('input[name="VendorCode"]');
+      
+      if (companyNameInput && vendorCodeInput) {
+        companyNameInput.addEventListener('blur', function() {
+          if (!vendorCodeInput.value && this.value) {
+            // Generate a simple vendor code from company name
+            const code = this.value
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase())
+              .join('')
+              .substring(0, 5);
+            vendorCodeInput.value = code;
+          }
+        });
+      }
+    });
+  </script>
+}
