@@ -210,16 +210,28 @@ namespace InventorySystem.Data
               .OnDelete(DeleteBehavior.Restrict);
       });
 
-      // Finished Good configuration
+      
+      // FinishedGood configurations
       modelBuilder.Entity<FinishedGood>(entity =>
       {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.Description).IsRequired().HasMaxLength(200);
-        entity.Property(e => e.UnitCost).HasColumnType("decimal(18,2)");
-        entity.Property(e => e.SellingPrice).HasColumnType("decimal(18,2)");
-        entity.HasOne(fg => fg.Bom)
+        entity.HasIndex(e => e.PartNumber).IsUnique();
+        entity.Property(e => e.PartNumber).HasMaxLength(50);
+        entity.Property(e => e.Description).HasMaxLength(200);
+
+        // Configure relationships
+        entity.HasOne(e => e.Bom)
               .WithMany()
-              .HasForeignKey(fg => fg.BomId)
+              .HasForeignKey(e => e.BomId)
+              .OnDelete(DeleteBehavior.SetNull);
+
+        entity.HasMany(e => e.Productions)
+              .WithOne(p => p.FinishedGood)
+              .HasForeignKey(p => p.FinishedGoodId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasMany(e => e.SaleItems)
+              .WithOne(si => si.FinishedGood)
+              .HasForeignKey(si => si.FinishedGoodId)
               .OnDelete(DeleteBehavior.Restrict);
       });
 

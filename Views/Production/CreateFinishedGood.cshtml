@@ -1,0 +1,349 @@
+﻿@model InventorySystem.ViewModels.CreateFinishedGoodViewModel
+@{
+  ViewData["Title"] = Model.IsEditing ? "Edit Finished Good" : "Create Finished Good";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>
+    <i class="fas fa-box"></i>
+    @(Model.IsEditing ? "Edit Finished Good" : "Create Finished Good")
+  </h1>
+  <div class="btn-group">
+    <a href="/Production/FinishedGoods" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Finished Goods
+    </a>
+    @if (Model.IsEditing)
+    {
+      <a href="/Production/FinishedGoodDetails/@Model.Id" class="btn btn-outline-info">
+        <i class="fas fa-eye"></i> View Details
+      </a>
+    }
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<form asp-action="@(Model.IsEditing ? "EditFinishedGood" : "CreateFinishedGood")" method="post">
+  <input asp-for="Id" type="hidden" />
+
+  <div class="row">
+    <div class="col-md-8">
+      <!-- Basic Information -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="PartNumber" class="form-label">Part Number *</label>
+                <input asp-for="PartNumber" class="form-control" placeholder="e.g., FG-001" />
+                <span asp-validation-for="PartNumber" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="BomId" class="form-label">Linked BOM</label>
+                <select asp-for="BomId" class="form-select" asp-items="ViewBag.BomId" id="bomSelect">
+                  <option value="">Select a BOM (optional)</option>
+                </select>
+                <small class="form-text text-muted">Link this finished good to a BOM for cost calculation</small>
+                <span asp-validation-for="BomId" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">Description *</label>
+            <textarea asp-for="Description" class="form-control" rows="3" placeholder="Enter a detailed description of the finished good"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing Information -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-dollar-sign"></i> Pricing Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="UnitCost" class="form-label">Unit Cost *</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="UnitCost" class="form-control" step="0.01" id="unitCostInput" />
+                </div>
+                <small class="form-text text-muted">Cost to produce one unit</small>
+                <span asp-validation-for="UnitCost" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="SellingPrice" class="form-label">Selling Price</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="SellingPrice" class="form-control" step="0.01" id="sellingPriceInput" />
+                </div>
+                <small class="form-text text-muted">Price to sell to customers</small>
+                <span asp-validation-for="SellingPrice" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory Information -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-warehouse"></i> Inventory Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="CurrentStock" class="form-label">Current Stock *</label>
+                <input asp-for="CurrentStock" class="form-control" type="number" min="0" />
+                <small class="form-text text-muted">Current quantity in inventory</small>
+                <span asp-validation-for="CurrentStock" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="MinimumStock" class="form-label">Minimum Stock *</label>
+                <input asp-for="MinimumStock" class="form-control" type="number" min="0" />
+                <small class="form-text text-muted">Minimum quantity before low stock alert</small>
+                <span asp-validation-for="MinimumStock" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <button type="submit" class="btn btn-success">
+                <i class="fas fa-save"></i> @(Model.IsEditing ? "Update" : "Create") Finished Good
+              </button>
+              <a href="/Production/FinishedGoods" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancel
+              </a>
+            </div>
+            @if (Model.IsEditing)
+            {
+              <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar - Preview and Calculations -->
+    <div class="col-md-4">
+      <div class="card sticky-top">
+        <div class="card-header">
+          <h5><i class="fas fa-calculator"></i> Calculations</h5>
+        </div>
+        <div class="card-body">
+          <!-- BOM Information -->
+          <div id="bomInfo" style="display: none;" class="mb-3">
+            <h6 class="text-muted">Linked BOM Information</h6>
+            <div id="bomDetails" class="small">
+              <!-- BOM details will be populated via JavaScript -->
+            </div>
+            <hr>
+          </div>
+
+          <!-- Profit Calculations -->
+          <div class="mb-3">
+            <h6 class="text-muted">Profit Analysis</h6>
+            <div class="d-flex justify-content-between">
+              <span>Unit Cost:</span>
+              <span id="displayUnitCost">$0.00</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span>Selling Price:</span>
+              <span id="displaySellingPrice">$0.00</span>
+            </div>
+            <hr>
+            <div class="d-flex justify-content-between">
+              <strong>Profit per Unit:</strong>
+              <strong id="displayProfitPerUnit" class="text-success">$0.00</strong>
+            </div>
+            <div class="d-flex justify-content-between">
+              <strong>Profit Margin:</strong>
+              <strong id="displayProfitMargin" class="text-info">0.0%</strong>
+            </div>
+          </div>
+
+          <!-- Inventory Status -->
+          <div class="mb-3">
+            <h6 class="text-muted">Inventory Status</h6>
+            <div class="d-flex justify-content-between">
+              <span>Current Stock:</span>
+              <span id="displayCurrentStock">0</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span>Minimum Stock:</span>
+              <span id="displayMinStock">0</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <strong>Stock Status:</strong>
+              <strong id="stockStatus" class="badge bg-secondary">Normal</strong>
+            </div>
+          </div>
+
+          <!-- Total Value -->
+          <div>
+            <h6 class="text-muted">Total Inventory Value</h6>
+            <div class="d-flex justify-content-between">
+              <strong>Total Value:</strong>
+              <strong id="displayTotalValue" class="text-primary">$0.00</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+@if (Model.IsEditing)
+{
+  <!-- Delete Confirmation Form -->
+  <form id="deleteForm" asp-action="DeleteFinishedGood" method="post" style="display: none;">
+    <input name="id" value="@Model.Id" type="hidden" />
+    @Html.AntiForgeryToken()
+  </form>
+}
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const bomSelect = document.getElementById('bomSelect');
+        const unitCostInput = document.getElementById('unitCostInput');
+        const sellingPriceInput = document.getElementById('sellingPriceInput');
+        const currentStockInput = document.querySelector('input[name="CurrentStock"]');
+        const minStockInput = document.querySelector('input[name="MinimumStock"]');
+
+        // Event listeners
+        bomSelect.addEventListener('change', handleBomChange);
+        unitCostInput.addEventListener('input', updateCalculations);
+        sellingPriceInput.addEventListener('input', updateCalculations);
+        currentStockInput.addEventListener('input', updateCalculations);
+        minStockInput.addEventListener('input', updateCalculations);
+
+        // Initial calculation
+        updateCalculations();
+
+        function handleBomChange() {
+            const bomId = bomSelect.value;
+            if (bomId) {
+                fetch(`/Production/GetBomDetails?bomId=${bomId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update BOM info display
+                            document.getElementById('bomDetails').innerHTML = `
+                                <strong>${data.bomNumber}</strong><br>
+                                <small>${data.description}</small><br>
+                                <span class="badge bg-info">Suggested Cost: $${data.suggestedUnitCost.toFixed(2)}</span>
+                            `;
+                            document.getElementById('bomInfo').style.display = 'block';
+
+                            // Suggest values if fields are empty
+                            if (!unitCostInput.value || unitCostInput.value == '0') {
+                                unitCostInput.value = data.suggestedUnitCost.toFixed(2);
+                            }
+                            if (!sellingPriceInput.value || sellingPriceInput.value == '0') {
+                                sellingPriceInput.value = data.suggestedSellingPrice.toFixed(2);
+                            }
+                            if (!document.querySelector('input[name="PartNumber"]').value) {
+                                document.querySelector('input[name="PartNumber"]').value = data.partNumber;
+                            }
+
+                            updateCalculations();
+                        }
+                    })
+                    .catch(error => console.error('Error fetching BOM details:', error));
+            } else {
+                document.getElementById('bomInfo').style.display = 'none';
+            }
+        }
+
+        function updateCalculations() {
+            const unitCost = parseFloat(unitCostInput.value) || 0;
+            const sellingPrice = parseFloat(sellingPriceInput.value) || 0;
+            const currentStock = parseInt(currentStockInput.value) || 0;
+            const minStock = parseInt(minStockInput.value) || 0;
+
+            // Calculate profit
+            const profitPerUnit = sellingPrice - unitCost;
+            const profitMargin = sellingPrice > 0 ? (profitPerUnit / sellingPrice) * 100 : 0;
+
+            // Calculate total value
+            const totalValue = currentStock * unitCost;
+
+            // Update displays
+            document.getElementById('displayUnitCost').textContent = `$${unitCost.toFixed(2)}`;
+            document.getElementById('displaySellingPrice').textContent = `$${sellingPrice.toFixed(2)}`;
+            document.getElementById('displayProfitPerUnit').textContent = `$${profitPerUnit.toFixed(2)}`;
+            document.getElementById('displayProfitMargin').textContent = `${profitMargin.toFixed(1)}%`;
+            document.getElementById('displayCurrentStock').textContent = currentStock;
+            document.getElementById('displayMinStock').textContent = minStock;
+            document.getElementById('displayTotalValue').textContent = `$${totalValue.toFixed(2)}`;
+
+            // Update profit color
+            const profitElement = document.getElementById('displayProfitPerUnit');
+            profitElement.className = profitPerUnit >= 0 ? 'text-success' : 'text-danger';
+
+            // Update stock status
+            const stockStatusElement = document.getElementById('stockStatus');
+            if (currentStock <= 0) {
+                stockStatusElement.textContent = 'Out of Stock';
+                stockStatusElement.className = 'badge bg-danger';
+            } else if (currentStock <= minStock) {
+                stockStatusElement.textContent = 'Low Stock';
+                stockStatusElement.className = 'badge bg-warning';
+            } else {
+                stockStatusElement.textContent = 'Normal';
+                stockStatusElement.className = 'badge bg-success';
+            }
+        }
+    });
+
+    function confirmDelete() {
+        if (confirm('Are you sure you want to delete this finished good? This action cannot be undone.')) {
+            document.getElementById('deleteForm').submit();
+        }
+    }
+  </script>
+}
+
+@section Styles {
+  <style>
+    .sticky-top {
+      top: 20px;
+    }
+
+    .card-header h5 {
+      margin-bottom: 0;
+    }
+
+    .form-text {
+      margin-top: 0.25rem;
+    }
+  </style>
+}

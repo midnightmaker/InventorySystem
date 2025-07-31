@@ -55,7 +55,7 @@ builder.Services.AddScoped<IEventHandler<ProductionStatusChangedEvent>, Producti
 builder.Services.AddScoped<IEventHandler<ProductionAssignedEvent>, ProductionAssignedEventHandler>();
 builder.Services.AddScoped<IEventHandler<QualityCheckFailedEvent>, QualityCheckFailedEventHandler>();
 builder.Services.AddScoped<IBackorderNotificationService, BackorderNotificationService>();
-
+builder.Services.AddScoped<IBackorderFulfillmentService, BackorderFulfillmentService>();
 
 
 // Make sure ISalesService is also registered:

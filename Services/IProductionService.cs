@@ -34,5 +34,7 @@ namespace InventorySystem.Services
     Task<MaterialShortageViewModel> GetMaterialShortageAnalysisAsync(int bomId, int quantity);
     Task<IEnumerable<MaterialShortageItem>> GetBomMaterialShortagesAsync(int bomId, int quantity);
     Task<IEnumerable<MaterialRequirement>> GetBomMaterialRequirementsAsync(int bomId, int quantity);
+
+   
   }
 }

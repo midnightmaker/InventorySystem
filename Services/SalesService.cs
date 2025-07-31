@@ -10,18 +10,25 @@ namespace InventorySystem.Services
   {
     private readonly InventoryContext _context;
     private readonly IInventoryService _inventoryService;
-    private readonly IProductionService _productionService;
+    
     private readonly IPurchaseService _purchaseService;
+    private readonly IBackorderFulfillmentService _backorderService;
+    private readonly ILogger<SalesService> _logger;
+
 
     public SalesService(
         InventoryContext context,
         IInventoryService inventoryService,
         IProductionService productionService,
-        IPurchaseService purchaseService)
+        IPurchaseService purchaseService,
+        IBackorderFulfillmentService backorderService,
+        ILogger<SalesService> logger
+        )
     {
       _context = context;
       _inventoryService = inventoryService;
-      _productionService = productionService;
+      _backorderService = backorderService; 
+      _logger = logger;
       _purchaseService = purchaseService;
     }
 
@@ -165,8 +172,9 @@ namespace InventorySystem.Services
           }
           else if (saleItem.FinishedGoodId.HasValue)
           {
-            // Selling finished good
-            var finishedGood = await _productionService.GetFinishedGoodByIdAsync(saleItem.FinishedGoodId.Value);
+            // CHANGE: Access finished goods directly from context
+            var finishedGood = await _context.FinishedGoods
+                .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
             if (finishedGood != null)
             {
               finishedGood.CurrentStock -= saleItem.QuantitySold;
@@ -188,7 +196,6 @@ namespace InventorySystem.Services
       }
     }
 
-    
     private async Task UpdateSaleTotalsAsync(int saleId)
     {
       var sale = await _context.Sales.FindAsync(saleId);
@@ -268,7 +275,7 @@ namespace InventorySystem.Services
     }
     public async Task<SaleItem> AddSaleItemAsync(SaleItem saleItem)
     {
-      // NEW - Enhanced logic to handle backorders
+      // Enhanced logic to handle backorders
       int availableQuantity = 0;
 
       if (saleItem.ItemId.HasValue)
@@ -282,7 +289,8 @@ namespace InventorySystem.Services
       }
       else if (saleItem.FinishedGoodId.HasValue)
       {
-        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(saleItem.FinishedGoodId.Value);
+        var finishedGood = await _context.FinishedGoods
+            .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
         if (finishedGood != null)
         {
           availableQuantity = finishedGood.CurrentStock;
@@ -305,38 +313,14 @@ namespace InventorySystem.Services
 
       // Update sale totals and status
       await UpdateSaleTotalsAsync(saleItem.SaleId);
-      await CheckAndUpdateBackorderStatusAsync(saleItem.SaleId);
+      await _backorderService.CheckAndUpdateSaleStatusAsync(saleItem.SaleId); // Use the new service
 
       return saleItem;
     }
 
     public async Task<bool> CheckAndUpdateBackorderStatusAsync(int saleId)
     {
-      var sale = await GetSaleByIdAsync(saleId);
-      if (sale == null) return false;
-
-      bool hasBackorders = sale.SaleItems.Any(si => si.QuantityBackordered > 0);
-      bool canFulfillAll = await CanProcessSaleAsync(saleId);
-
-      SaleStatus newStatus = sale.SaleStatus;
-
-      if (hasBackorders && sale.SaleStatus != SaleStatus.Backordered)
-      {
-        newStatus = SaleStatus.Backordered;
-      }
-      else if (!hasBackorders && sale.SaleStatus == SaleStatus.Backordered)
-      {
-        newStatus = SaleStatus.Processing; // Back to processing when backorders are resolved
-      }
-
-      if (newStatus != sale.SaleStatus)
-      {
-        sale.SaleStatus = newStatus;
-        await _context.SaveChangesAsync();
-        return true;
-      }
-
-      return false;
+      return await _backorderService.CheckAndUpdateSaleStatusAsync(saleId);
     }
 
     public async Task<IEnumerable<Sale>> GetBackorderedSalesAsync()
@@ -364,51 +348,7 @@ namespace InventorySystem.Services
 
     public async Task<bool> FulfillBackordersForProductAsync(int? itemId, int? finishedGoodId, int quantityAvailable)
     {
-      if (quantityAvailable <= 0) return false;
-
-      var backorderQuery = _context.SaleItems
-          .Include(si => si.Sale)
-          .Where(si => si.QuantityBackordered > 0);
-
-      if (itemId.HasValue)
-      {
-        backorderQuery = backorderQuery.Where(si => si.ItemId == itemId.Value);
-      }
-      else if (finishedGoodId.HasValue)
-      {
-        backorderQuery = backorderQuery.Where(si => si.FinishedGoodId == finishedGoodId.Value);
-      }
-      else
-      {
-        return false;
-      }
-
-      var backorderedItems = await backorderQuery
-          .OrderBy(si => si.Sale.SaleDate) // FIFO fulfillment
-          .ToListAsync();
-
-      int remainingQuantity = quantityAvailable;
-      bool anyUpdated = false;
-
-      foreach (var saleItem in backorderedItems)
-      {
-        if (remainingQuantity <= 0) break;
-
-        int fulfillQuantity = Math.Min(saleItem.QuantityBackordered, remainingQuantity);
-        saleItem.QuantityBackordered -= fulfillQuantity;
-        remainingQuantity -= fulfillQuantity;
-        anyUpdated = true;
-
-        // Update sale status if no more backorders
-        await CheckAndUpdateBackorderStatusAsync(saleItem.SaleId);
-      }
-
-      if (anyUpdated)
-      {
-        await _context.SaveChangesAsync();
-      }
-
-      return anyUpdated;
+      return await _backorderService.FulfillBackordersForProductAsync(itemId, finishedGoodId, quantityAvailable);
     }
 
     public async Task<bool> CanProcessSaleAsync(int saleId)
@@ -416,8 +356,27 @@ namespace InventorySystem.Services
       var sale = await GetSaleByIdAsync(saleId);
       if (sale == null) return false;
 
-      // NEW - Can process if no backorders exist
-      return !sale.SaleItems.Any(si => si.QuantityBackordered > 0);
+      foreach (var saleItem in sale.SaleItems)
+      {
+        if (saleItem.ItemId.HasValue)
+        {
+          var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+          if (item == null || item.CurrentStock < saleItem.QuantitySold)
+            return false;
+        }
+        else if (saleItem.FinishedGoodId.HasValue)
+        {
+          // CHANGE: Access finished goods directly from context
+          var finishedGood = await _context.FinishedGoods
+              .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
+          if (finishedGood == null || finishedGood.CurrentStock < saleItem.QuantitySold)
+            return false;
+        }
+      }
+
+      return true;
     }
+
+
   }
 }

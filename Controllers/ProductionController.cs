@@ -589,5 +589,207 @@ namespace InventorySystem.Controllers
         return View(model);
       }
     }
+    // File: Controllers/ProductionController.cs
+    // ADD these methods to your existing ProductionController class
+
+    // Create Finished Good - GET
+    public async Task<IActionResult> CreateFinishedGood()
+    {
+      try
+      {
+        // Get all BOMs to allow linking finished goods to BOMs
+        var boms = await _bomService.GetAllBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", null);
+
+        var viewModel = new CreateFinishedGoodViewModel
+        {
+          UnitCost = 0,
+          SellingPrice = 0,
+          CurrentStock = 0,
+          MinimumStock = 1
+        };
+
+        return View(viewModel);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading create finished good page: {ex.Message}";
+        return RedirectToAction("FinishedGoods");
+      }
+    }
+
+    // Create Finished Good - POST
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateFinishedGood(CreateFinishedGoodViewModel viewModel)
+    {
+      if (ModelState.IsValid)
+      {
+        try
+        {
+          var finishedGood = new FinishedGood
+          {
+            PartNumber = viewModel.PartNumber,
+            Description = viewModel.Description,
+            BomId = viewModel.BomId,
+            UnitCost = viewModel.UnitCost,
+            SellingPrice = viewModel.SellingPrice,
+            CurrentStock = viewModel.CurrentStock,
+            MinimumStock = viewModel.MinimumStock
+          };
+
+          await _productionService.CreateFinishedGoodAsync(finishedGood);
+          TempData["SuccessMessage"] = $"Finished good '{finishedGood.PartNumber}' created successfully!";
+          return RedirectToAction("FinishedGoods");
+        }
+        catch (Exception ex)
+        {
+          TempData["ErrorMessage"] = $"Error creating finished good: {ex.Message}";
+        }
+      }
+
+      // Reload dropdown data on validation error
+      try
+      {
+        var boms = await _bomService.GetAllBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error reloading BOM dropdown");
+        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
+      }
+
+      return View(viewModel);
+    }
+
+    // Edit Finished Good - GET
+    public async Task<IActionResult> EditFinishedGood(int id)
+    {
+      try
+      {
+        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
+        if (finishedGood == null) return NotFound();
+
+        var boms = await _bomService.GetAllBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", finishedGood.BomId);
+
+        var viewModel = new CreateFinishedGoodViewModel
+        {
+          Id = finishedGood.Id,
+          PartNumber = finishedGood.PartNumber,
+          Description = finishedGood.Description,
+          BomId = finishedGood.BomId,
+          UnitCost = finishedGood.UnitCost,
+          SellingPrice = finishedGood.SellingPrice,
+          CurrentStock = finishedGood.CurrentStock,
+          MinimumStock = finishedGood.MinimumStock
+        };
+
+        return View("CreateFinishedGood", viewModel);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading finished good for editing: {ex.Message}";
+        return RedirectToAction("FinishedGoods");
+      }
+    }
+
+    // Edit Finished Good - POST
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditFinishedGood(CreateFinishedGoodViewModel viewModel)
+    {
+      if (ModelState.IsValid)
+      {
+        try
+        {
+          var finishedGood = await _productionService.GetFinishedGoodByIdAsync(viewModel.Id);
+          if (finishedGood == null) return NotFound();
+
+          finishedGood.PartNumber = viewModel.PartNumber;
+          finishedGood.Description = viewModel.Description;
+          finishedGood.BomId = viewModel.BomId;
+          finishedGood.UnitCost = viewModel.UnitCost;
+          finishedGood.SellingPrice = viewModel.SellingPrice;
+          finishedGood.CurrentStock = viewModel.CurrentStock;
+          finishedGood.MinimumStock = viewModel.MinimumStock;
+
+          await _productionService.UpdateFinishedGoodAsync(finishedGood);
+          TempData["SuccessMessage"] = $"Finished good '{finishedGood.PartNumber}' updated successfully!";
+          return RedirectToAction("FinishedGoods");
+        }
+        catch (Exception ex)
+        {
+          TempData["ErrorMessage"] = $"Error updating finished good: {ex.Message}";
+        }
+      }
+
+      // Reload dropdown data on validation error
+      try
+      {
+        var boms = await _bomService.GetAllBomsAsync();
+        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error reloading BOM dropdown");
+        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
+      }
+
+      return View("CreateFinishedGood", viewModel);
+    }
+
+    // Delete Finished Good
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteFinishedGood(int id)
+    {
+      try
+      {
+        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
+        if (finishedGood == null) return NotFound();
+
+        await _productionService.DeleteFinishedGoodAsync(id);
+        TempData["SuccessMessage"] = $"Finished good '{finishedGood.PartNumber}' deleted successfully!";
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error deleting finished good: {ex.Message}";
+      }
+
+      return RedirectToAction("FinishedGoods");
+    }
+
+    // AJAX method to get BOM details when selected
+    [HttpGet]
+    public async Task<IActionResult> GetBomDetails(int bomId)
+    {
+      try
+      {
+        var bom = await _bomService.GetBomByIdAsync(bomId);
+        if (bom == null)
+        {
+          return Json(new { success = false, error = "BOM not found" });
+        }
+
+        var bomCost = await _productionService.CalculateBomMaterialCostAsync(bomId, 1);
+
+        return Json(new
+        {
+          success = true,
+          bomNumber = bom.BomNumber,
+          description = bom.Description,
+          suggestedUnitCost = bomCost,
+          suggestedSellingPrice = bomCost * 6m, // markup suggestion
+          partNumber = $"FG-{bom.BomNumber}" // Suggested part number
+        });
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting BOM details for {BomId}", bomId);
+        return Json(new { success = false, error = "Error loading BOM details" });
+      }
+    }
   }
 }

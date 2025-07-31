@@ -13,20 +13,20 @@ namespace InventorySystem.Services
     private readonly IInventoryService _inventoryService;
     private readonly IBomService _bomService;
     private readonly IPurchaseService _purchaseService;
-    private readonly ISalesService _salesService;
     private readonly ILogger<ProductionService> _logger;
+    IBackorderFulfillmentService _backorderService;
 
     public ProductionService(
         InventoryContext context,
         IInventoryService inventoryService,
         IBomService bomService,
-        ISalesService salesService, 
+        IBackorderFulfillmentService backorderService,
         IPurchaseService purchaseService,
         ILogger<ProductionService> logger)
     {
       _logger = logger;
       _context = context;
-      _salesService = salesService; 
+      _backorderService = backorderService; 
       _inventoryService = inventoryService;
       _bomService = bomService;
       _purchaseService = purchaseService;
@@ -154,6 +154,22 @@ namespace InventorySystem.Services
       // FIXED: Use pre-calculated unit cost to avoid accessing production.UnitCost before it's safe
       finishedGood.UnitCost = await CalculateWeightedAverageCostAsync(finishedGood.Id, quantity, unitCost);
       await _context.SaveChangesAsync();
+      // After creating the production and updating finished good inventory:
+      if (finishedGood != null)
+      {
+        // Check for and fulfill any existing backorders
+        var backordersFulfilled = await _backorderService.FulfillBackordersForProductAsync(
+            null,
+            finishedGood.Id,
+            quantity);
+
+        if (backordersFulfilled)
+        {
+          _logger.LogInformation(
+              "BuildBom completed for BOM {BomId}. Backorders fulfilled for {Quantity} units of FinishedGood {FinishedGoodId}",
+              bomId, quantity, finishedGood.Id);
+        }
+      }
 
       return production;
     }
@@ -216,7 +232,11 @@ namespace InventorySystem.Services
       try
       {
         var production = await GetProductionByIdAsync(productionId);
-        if (production == null) return false;
+        if (production == null)
+        {
+          _logger.LogWarning("Production {ProductionId} not found for completion processing", productionId);
+          return false;
+        }
 
         // Update finished good inventory (existing logic)
         var finishedGood = await GetFinishedGoodByIdAsync(production.FinishedGoodId);
@@ -225,10 +245,24 @@ namespace InventorySystem.Services
           finishedGood.CurrentStock += production.QuantityProduced;
           await _context.SaveChangesAsync();
 
-          await _salesService.FulfillBackordersForProductAsync(
+          // Auto-fulfill backorders using the backorder fulfillment service
+          var backordersFulfilled = await _backorderService.FulfillBackordersForProductAsync(
               null,
               finishedGood.Id,
               production.QuantityProduced);
+
+          if (backordersFulfilled)
+          {
+            _logger.LogInformation(
+                "Production {ProductionId} processed. Backorders automatically fulfilled for FinishedGood {FinishedGoodId}",
+                productionId, finishedGood.Id);
+          }
+        }
+        else
+        {
+          _logger.LogWarning(
+              "FinishedGood {FinishedGoodId} not found for Production {ProductionId} processing",
+              production.FinishedGoodId, productionId);
         }
 
         return true;
@@ -239,23 +273,34 @@ namespace InventorySystem.Services
         return false;
       }
     }
+
     public async Task<bool> CompleteProductionAsync(int productionId)
     {
       using var transaction = await _context.Database.BeginTransactionAsync();
       try
       {
         var production = await GetProductionByIdAsync(productionId);
-        if (production == null) return false;
+        if (production == null)
+        {
+          _logger.LogWarning("Production {ProductionId} not found", productionId);
+          return false;
+        }
 
         // Update finished good inventory
         var finishedGood = await GetFinishedGoodByIdAsync(production.FinishedGoodId);
         if (finishedGood != null)
         {
+          var previousStock = finishedGood.CurrentStock;
           finishedGood.CurrentStock += production.QuantityProduced;
 
-          // Auto-fulfill backorders when production completes
-          
-          var backordersFulfilled = await _salesService.FulfillBackordersForProductAsync(
+          _logger.LogInformation(
+              "Updated finished good {FinishedGoodId} stock from {PreviousStock} to {NewStock} (added {Quantity})",
+              finishedGood.Id, previousStock, finishedGood.CurrentStock, production.QuantityProduced);
+
+          await _context.SaveChangesAsync();
+
+          // Auto-fulfill backorders using the new service
+          var backordersFulfilled = await _backorderService.FulfillBackordersForProductAsync(
               null,
               finishedGood.Id,
               production.QuantityProduced);
@@ -266,6 +311,18 @@ namespace InventorySystem.Services
                 "Production {ProductionId} completed. Backorders automatically fulfilled for FinishedGood {FinishedGoodId}",
                 productionId, finishedGood.Id);
           }
+          else
+          {
+            _logger.LogInformation(
+                "Production {ProductionId} completed. No backorders to fulfill for FinishedGood {FinishedGoodId}",
+                productionId, finishedGood.Id);
+          }
+        }
+        else
+        {
+          _logger.LogWarning(
+              "FinishedGood {FinishedGoodId} not found for Production {ProductionId}",
+              production.FinishedGoodId, productionId);
         }
 
         await transaction.CommitAsync();
@@ -278,7 +335,27 @@ namespace InventorySystem.Services
         return false;
       }
     }
+    public async Task<List<BackorderInfo>> GetBackordersForFinishedGoodAsync(int finishedGoodId)
+    {
+      var backorders = await _context.SaleItems
+          .Include(si => si.Sale)
+          .Where(si => si.FinishedGoodId == finishedGoodId && si.QuantityBackordered > 0)
+          .Select(si => new BackorderInfo
+          {
+            SaleId = si.SaleId,
+            SaleNumber = si.Sale.SaleNumber,
+            CustomerName = si.Sale.CustomerName,
+            QuantityBackordered = si.QuantityBackordered,
+            SaleDate = si.Sale.SaleDate,
+            DaysWaiting = (DateTime.Now - si.Sale.SaleDate).Days
+          })
+          .OrderBy(b => b.SaleDate) // FIFO order
+          .ToListAsync();
 
+      return backorders;
+    }
+
+    
     public async Task<decimal> CalculateBomMaterialCostAsync(int bomId, int quantity)
     {
       var bom = await _bomService.GetBomByIdAsync(bomId);
@@ -368,25 +445,100 @@ namespace InventorySystem.Services
 
     public async Task<FinishedGood> CreateFinishedGoodAsync(FinishedGood finishedGood)
     {
-      _context.FinishedGoods.Add(finishedGood);
-      await _context.SaveChangesAsync();
-      return finishedGood;
+      try
+      {
+        // Validate that part number is unique
+        var existingFinishedGood = await _context.FinishedGoods
+            .FirstOrDefaultAsync(fg => fg.PartNumber == finishedGood.PartNumber);
+
+        if (existingFinishedGood != null)
+        {
+          throw new InvalidOperationException($"A finished good with part number '{finishedGood.PartNumber}' already exists.");
+        }
+
+        _context.FinishedGoods.Add(finishedGood);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Created finished good {PartNumber} with ID {FinishedGoodId}",
+            finishedGood.PartNumber, finishedGood.Id);
+
+        return finishedGood;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error creating finished good {PartNumber}", finishedGood.PartNumber);
+        throw;
+      }
     }
 
     public async Task<FinishedGood> UpdateFinishedGoodAsync(FinishedGood finishedGood)
     {
-      _context.FinishedGoods.Update(finishedGood);
-      await _context.SaveChangesAsync();
-      return finishedGood;
+      try
+      {
+        // Validate that part number is unique (excluding current record)
+        var existingFinishedGood = await _context.FinishedGoods
+            .FirstOrDefaultAsync(fg => fg.PartNumber == finishedGood.PartNumber && fg.Id != finishedGood.Id);
+
+        if (existingFinishedGood != null)
+        {
+          throw new InvalidOperationException($"A finished good with part number '{finishedGood.PartNumber}' already exists.");
+        }
+
+        _context.FinishedGoods.Update(finishedGood);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Updated finished good {PartNumber} with ID {FinishedGoodId}",
+            finishedGood.PartNumber, finishedGood.Id);
+
+        return finishedGood;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error updating finished good {FinishedGoodId}", finishedGood.Id);
+        throw;
+      }
     }
+
 
     public async Task DeleteFinishedGoodAsync(int id)
     {
-      var finishedGood = await _context.FinishedGoods.FindAsync(id);
-      if (finishedGood != null)
+      try
       {
+        var finishedGood = await _context.FinishedGoods
+            .Include(fg => fg.Productions)
+            .Include(fg => fg.SaleItems)
+            .FirstOrDefaultAsync(fg => fg.Id == id);
+
+        if (finishedGood == null)
+        {
+          throw new ArgumentException($"Finished good with ID {id} not found.");
+        }
+
+        // Check if finished good has been used in any productions
+        if (finishedGood.Productions.Any())
+        {
+          throw new InvalidOperationException($"Cannot delete finished good '{finishedGood.PartNumber}' because it has been used in productions.");
+        }
+
+        // Check if finished good has been sold
+        if (finishedGood.SaleItems.Any())
+        {
+          throw new InvalidOperationException($"Cannot delete finished good '{finishedGood.PartNumber}' because it has been sold.");
+        }
+
         _context.FinishedGoods.Remove(finishedGood);
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Deleted finished good {PartNumber} with ID {FinishedGoodId}",
+            finishedGood.PartNumber, id);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error deleting finished good {FinishedGoodId}", id);
+        throw;
       }
     }
 
@@ -578,5 +730,16 @@ namespace InventorySystem.Services
         await GetBomMaterialRequirementsRecursiveAsync(subAssembly.Id, quantity, requirements, $"Sub-Assembly: {subAssembly.BomNumber}");
       }
     }
+
+    public class BackorderInfo
+    {
+      public int SaleId { get; set; }
+      public string SaleNumber { get; set; } = string.Empty;
+      public string CustomerName { get; set; } = string.Empty;
+      public int QuantityBackordered { get; set; }
+      public DateTime SaleDate { get; set; }
+      public int DaysWaiting { get; set; }
+    }
+
   }
 }

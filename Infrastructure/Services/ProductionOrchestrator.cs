@@ -18,15 +18,15 @@ namespace InventorySystem.Infrastructure.Services
     private readonly IInventoryService _inventoryService;
     private readonly InventoryContext _context;
     private readonly ILogger<ProductionOrchestrator> _logger;
-    private readonly ISalesService _salesService;
-    private readonly IBackorderNotificationService _backorderNotificationService; 
+    private readonly IBackorderNotificationService _backorderNotificationService;
+    private readonly IBackorderFulfillmentService _backorderService;
 
     public ProductionOrchestrator(
         IWorkflowEngine workflowEngine,
         IProductionService productionService,
         IBomService bomService,
         IInventoryService inventoryService,
-        ISalesService salesService,
+        IBackorderFulfillmentService backorderService,
         InventoryContext context,
         ILogger<ProductionOrchestrator> logger,
         IBackorderNotificationService backorderNotificationService  )
@@ -34,7 +34,7 @@ namespace InventorySystem.Infrastructure.Services
       _workflowEngine = workflowEngine;
       _productionService = productionService;
       _bomService = bomService;
-      _salesService = salesService;
+      _backorderNotificationService = backorderNotificationService;
       _inventoryService = inventoryService;
       _context = context;
       _logger = logger;
@@ -98,8 +98,8 @@ namespace InventorySystem.Infrastructure.Services
           var production = await _productionService.GetProductionByIdAsync(command.ProductionId);
           if (production?.FinishedGoodId != null)
           {
-            // Use the injected service instead of service locator
-            await _salesService.FulfillBackordersForProductAsync(
+            // Use the backorder fulfillment service
+            await _backorderService.FulfillBackordersForProductAsync(
                 null,
                 production.FinishedGoodId,
                 production.QuantityProduced);
@@ -114,6 +114,7 @@ namespace InventorySystem.Infrastructure.Services
         return CommandResult.FailureResult($"Status update failed: {ex.Message}");
       }
     }
+
 
     // ========================================
     // PRODUCTION PRIORITY BASED ON BACKORDERS
