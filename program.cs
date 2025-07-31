@@ -54,6 +54,12 @@ builder.Services.AddScoped<IEventPublisher, EventPublisher>();
 builder.Services.AddScoped<IEventHandler<ProductionStatusChangedEvent>, ProductionStatusChangedEventHandler>();
 builder.Services.AddScoped<IEventHandler<ProductionAssignedEvent>, ProductionAssignedEventHandler>();
 builder.Services.AddScoped<IEventHandler<QualityCheckFailedEvent>, QualityCheckFailedEventHandler>();
+builder.Services.AddScoped<IBackorderNotificationService, BackorderNotificationService>();
+
+
+
+// Make sure ISalesService is also registered:
+builder.Services.AddScoped<ISalesService, SalesService>();
 
 // Configure file upload limits
 builder.Services.Configure<FormOptions>(options =>

@@ -1,3 +1,6 @@
+// File: Controllers/HomeController.cs
+// UPDATE your existing HomeController.cs
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Services;
@@ -12,17 +15,23 @@ namespace InventorySystem.Controllers
     private readonly IPurchaseService _purchaseService;
     private readonly IBomService _bomService;
     private readonly InventoryContext _context;
+    private readonly IBackorderNotificationService _backorderNotificationService; // ADD THIS
+    private readonly ISalesService _salesService; // ADD THIS
 
     public HomeController(
         IInventoryService inventoryService,
         IPurchaseService purchaseService,
         IBomService bomService,
-        InventoryContext context)
+        InventoryContext context,
+        IBackorderNotificationService backorderNotificationService, // ADD THIS
+        ISalesService salesService) // ADD THIS
     {
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
       _bomService = bomService;
       _context = context;
+      _backorderNotificationService = backorderNotificationService; // ADD THIS
+      _salesService = salesService; // ADD THIS
     }
 
     public async Task<IActionResult> Index()
@@ -41,6 +50,38 @@ namespace InventorySystem.Controllers
       }
     }
 
+    // ADD this new method for the backorder widget
+    public async Task<IActionResult> BackorderWidget()
+    {
+      try
+      {
+        var widgetData = await GetBackorderWidgetDataAsync();
+        return PartialView("_BackorderWidget", widgetData);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error loading backorder widget: {ex.Message}");
+        return PartialView("_BackorderWidget", new BackorderWidgetViewModel());
+      }
+    }
+
+    // ADD this new private method
+    private async Task<BackorderWidgetViewModel> GetBackorderWidgetDataAsync()
+    {
+      var backorderAlerts = await _backorderNotificationService.GetBackorderAlertsAsync();
+      var criticalBackorders = backorderAlerts.Where(a => a.IsCritical).ToList();
+
+      return new BackorderWidgetViewModel
+      {
+        TotalBackorderAlerts = backorderAlerts.Count(),
+        CriticalBackorders = criticalBackorders.Count(),
+        TotalBackorderValue = backorderAlerts.Sum(a => a.TotalBackorderValue),
+        OldestBackorderDays = backorderAlerts.Any() ? backorderAlerts.Max(a => a.DaysOld) : 0,
+        TopBackorders = backorderAlerts.OrderByDescending(a => a.TotalBackorderValue).Take(5).ToList()
+      };
+    }
+
+    // UPDATE your existing GetDashboardStatisticsAsync method
     private async Task<DashboardViewModel> GetDashboardStatisticsAsync()
     {
       // Get all data in parallel for better performance
@@ -104,7 +145,7 @@ namespace InventorySystem.Controllers
       var itemsInStock = allItems.Count(i => i.CurrentStock > i.MinimumStock);
       var itemsLowStock = allItems.Count(i => i.CurrentStock <= i.MinimumStock && i.CurrentStock > 0);
       var itemsNoStock = allItems.Count(i => i.CurrentStock == 0);
-      var itemsOverstocked = allItems.Count(i => i.CurrentStock > (i.MinimumStock * 3)); // Assuming 3x min is overstocked
+      var itemsOverstocked = allItems.Count(i => i.CurrentStock > (i.MinimumStock * 3));
 
       // Calculate monthly growth percentage
       var monthlyGrowth = lastMonthPurchases > 0
@@ -113,6 +154,9 @@ namespace InventorySystem.Controllers
 
       // Get recent activities
       var recentActivities = await GetRecentActivitiesAsync();
+
+      // NEW - Get backorder data
+      var backorderData = await GetBackorderWidgetDataAsync();
 
       return new DashboardViewModel
       {
@@ -132,8 +176,8 @@ namespace InventorySystem.Controllers
 
         // BOM Statistics
         TotalBomValue = totalBomValue,
-        CompleteBoms = allBoms.Count(b => b.BomItems.Any()), // BOMs with items
-        IncompleteBoms = allBoms.Count(b => !b.BomItems.Any()), // BOMs without items
+        CompleteBoms = allBoms.Count(b => b.BomItems.Any()),
+        IncompleteBoms = allBoms.Count(b => !b.BomItems.Any()),
         TotalBomItems = totalBomItems,
 
         // Purchase Insights
@@ -154,16 +198,20 @@ namespace InventorySystem.Controllers
         CriticalStockPercentage = allItems.Any() ? ((decimal)itemsNoStock / allItems.Count()) * 100 : 0,
 
         // Recent Activity & Alerts
-        LowStockItems = lowStockItems.Take(5), // Top 5 for dashboard
+        LowStockItems = lowStockItems.Take(5),
         RecentActivities = recentActivities,
 
         // Monthly Growth
         ItemsAddedThisMonth = itemsAddedThisMonth,
         BomsAddedThisMonth = bomsAddedThisMonth,
-        PurchasesThisMonth = purchasesThisMonth
+        PurchasesThisMonth = purchasesThisMonth,
+
+        // NEW - Backorder Widget
+        BackorderWidget = backorderData
       };
     }
 
+    // Your existing GetRecentActivitiesAsync method stays the same...
     private async Task<IEnumerable<RecentActivity>> GetRecentActivitiesAsync()
     {
       var activities = new List<RecentActivity>();
@@ -218,13 +266,13 @@ namespace InventorySystem.Controllers
 
         foreach (var bom in recentBoms)
         {
-          var action = bom.CreatedDate >= DateTime.Now.AddDays(-7) ? "created" : "updated";
+          var action = bom.CreatedDate >= DateTime.Now.AddDays(-7) ? "Created" : "Modified";
           activities.Add(new RecentActivity
           {
             Type = "bom",
-            Description = $"BOM {action}: {bom.BomNumber}",
+            Description = $"{action} BOM {bom.BomNumber}",
             Timestamp = bom.ModifiedDate,
-            Icon = "fas fa-list",
+            Icon = "fas fa-cogs",
             Color = "text-info"
           });
         }
@@ -236,11 +284,6 @@ namespace InventorySystem.Controllers
         Console.WriteLine($"Error getting recent activities: {ex.Message}");
         return new List<RecentActivity>();
       }
-    }
-
-    public IActionResult Error()
-    {
-      return View();
     }
   }
 }

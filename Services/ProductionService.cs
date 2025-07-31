@@ -1,8 +1,9 @@
 ﻿// Services/ProductionService.cs
-using Microsoft.EntityFrameworkCore;
 using InventorySystem.Data;
+using InventorySystem.Infrastructure.Services;
 using InventorySystem.Models;
 using InventorySystem.ViewModels;
+using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Services
 {
@@ -12,14 +13,20 @@ namespace InventorySystem.Services
     private readonly IInventoryService _inventoryService;
     private readonly IBomService _bomService;
     private readonly IPurchaseService _purchaseService;
+    private readonly ISalesService _salesService;
+    private readonly ILogger<ProductionService> _logger;
 
     public ProductionService(
         InventoryContext context,
         IInventoryService inventoryService,
         IBomService bomService,
-        IPurchaseService purchaseService)
+        ISalesService salesService, 
+        IPurchaseService purchaseService,
+        ILogger<ProductionService> logger)
     {
+      _logger = logger;
       _context = context;
+      _salesService = salesService; 
       _inventoryService = inventoryService;
       _bomService = bomService;
       _purchaseService = purchaseService;
@@ -201,6 +208,75 @@ namespace InventorySystem.Services
       }
 
       return true;
+    }
+
+
+    public async Task<bool> ProcessProductionCompletionAsync(int productionId)
+    {
+      try
+      {
+        var production = await GetProductionByIdAsync(productionId);
+        if (production == null) return false;
+
+        // Update finished good inventory (existing logic)
+        var finishedGood = await GetFinishedGoodByIdAsync(production.FinishedGoodId);
+        if (finishedGood != null)
+        {
+          finishedGood.CurrentStock += production.QuantityProduced;
+          await _context.SaveChangesAsync();
+
+          await _salesService.FulfillBackordersForProductAsync(
+              null,
+              finishedGood.Id,
+              production.QuantityProduced);
+        }
+
+        return true;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error processing production completion for Production {ProductionId}", productionId);
+        return false;
+      }
+    }
+    public async Task<bool> CompleteProductionAsync(int productionId)
+    {
+      using var transaction = await _context.Database.BeginTransactionAsync();
+      try
+      {
+        var production = await GetProductionByIdAsync(productionId);
+        if (production == null) return false;
+
+        // Update finished good inventory
+        var finishedGood = await GetFinishedGoodByIdAsync(production.FinishedGoodId);
+        if (finishedGood != null)
+        {
+          finishedGood.CurrentStock += production.QuantityProduced;
+
+          // Auto-fulfill backorders when production completes
+          
+          var backordersFulfilled = await _salesService.FulfillBackordersForProductAsync(
+              null,
+              finishedGood.Id,
+              production.QuantityProduced);
+
+          if (backordersFulfilled)
+          {
+            _logger.LogInformation(
+                "Production {ProductionId} completed. Backorders automatically fulfilled for FinishedGood {FinishedGoodId}",
+                productionId, finishedGood.Id);
+          }
+        }
+
+        await transaction.CommitAsync();
+        return true;
+      }
+      catch (Exception ex)
+      {
+        await transaction.RollbackAsync();
+        _logger.LogError(ex, "Error completing production {ProductionId}", productionId);
+        return false;
+      }
     }
 
     public async Task<decimal> CalculateBomMaterialCostAsync(int bomId, int quantity)

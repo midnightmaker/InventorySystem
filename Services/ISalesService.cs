@@ -1,5 +1,4 @@
-﻿// Services/ISalesService.cs
-using InventorySystem.Models;
+﻿using InventorySystem.Models;
 using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Services
@@ -22,6 +21,12 @@ namespace InventorySystem.Services
     // Process sales (reduce inventory)
     Task<bool> ProcessSaleAsync(int saleId);
     Task<bool> CanProcessSaleAsync(int saleId);
+
+    // NEW - Backorder management methods
+    Task<IEnumerable<Sale>> GetBackorderedSalesAsync();
+    Task<IEnumerable<SaleItem>> GetBackorderedItemsAsync();
+    Task<bool> CheckAndUpdateBackorderStatusAsync(int saleId);
+    Task<bool> FulfillBackordersForProductAsync(int? itemId, int? finishedGoodId, int quantityAvailable);
 
     // Statistics
     Task<decimal> GetTotalSalesValueAsync();

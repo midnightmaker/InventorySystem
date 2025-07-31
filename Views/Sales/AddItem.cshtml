@@ -158,55 +158,44 @@
 
 @section Scripts {
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
       const productTypeSelect = document.getElementById('productTypeSelect');
-      const itemSelection = document.getElementById('itemSelection');
-      const finishedGoodSelection = document.getElementById('finishedGoodSelection');
       const itemSelect = document.getElementById('itemSelect');
       const finishedGoodSelect = document.getElementById('finishedGoodSelect');
       const quantityInput = document.getElementById('quantityInput');
       const unitPriceInput = document.getElementById('unitPriceInput');
       const addItemButton = document.getElementById('addItemButton');
 
-      // Toggle product selection based on type
-      productTypeSelect.addEventListener('change', function () {
-        if (this.value === 'Item') {
+      // Event listeners
+      productTypeSelect.addEventListener('change', toggleProductSelection);
+      itemSelect.addEventListener('change', validateForm);
+      finishedGoodSelect.addEventListener('change', validateForm);
+      quantityInput.addEventListener('input', function() {
+        validateForm();
+        updateTotalPrice();
+      });
+      unitPriceInput.addEventListener('input', updateTotalPrice);
+
+      // Initialize
+      toggleProductSelection();
+
+      function toggleProductSelection() {
+        const productType = productTypeSelect.value;
+        const itemSelection = document.getElementById('itemSelection');
+        const finishedGoodSelection = document.getElementById('finishedGoodSelection');
+
+        if (productType === 'Item') {
           itemSelection.style.display = 'block';
           finishedGoodSelection.style.display = 'none';
           finishedGoodSelect.value = '';
-        } else if (this.value === 'FinishedGood') {
+        } else {
           itemSelection.style.display = 'none';
           finishedGoodSelection.style.display = 'block';
           itemSelect.value = '';
         }
+
         clearProductInfo();
-        updateTotalPrice();
         validateForm();
-      });
-
-      // Check product availability and pricing
-      function checkProductAvailability() {
-        const productType = productTypeSelect.value;
-        const productId = productType === 'Item' ? itemSelect.value : finishedGoodSelect.value;
-        const quantity = parseInt(quantityInput.value) || 0;
-
-        if (productId && quantity > 0) {
-          fetch(`/Sales/CheckProductAvailability?productType=${productType}&productId=${productId}&quantity=${quantity}`)
-            .then(response => response.json())
-            .then(data => {
-              if (data.success) {
-                updateProductInfo(data);
-                updateStockAlert(data);
-
-                // Auto-fill suggested price if unit price is empty
-                if (!unitPriceInput.value && data.suggestedPrice > 0) {
-                  unitPriceInput.value = data.suggestedPrice.toFixed(2);
-                  updateTotalPrice();
-                }
-              }
-            })
-            .catch(error => console.error('Error checking availability:', error));
-        }
       }
 
       function updateProductInfo(data) {
@@ -233,14 +222,14 @@
 
         if (data.available) {
           stockAlert.className = 'alert alert-success';
-          stockMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sufficient stock available';
-          addItemButton.disabled = false;
+          stockMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${data.availabilityMessage}`;
         } else {
-          stockAlert.className = 'alert alert-danger';
-          stockMessage.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Insufficient stock for this quantity';
-          addItemButton.disabled = true;
+          stockAlert.className = 'alert alert-warning'; // Changed from danger to warning
+          stockMessage.innerHTML = `<i class="fas fa-info-circle"></i> ${data.availabilityMessage}`;
         }
 
+        // NEW - Always enable the button (allow backorders)
+        addItemButton.disabled = false;
         availabilityAlert.style.display = 'block';
       }
 
@@ -264,53 +253,36 @@
         const productType = productTypeSelect.value;
         const productId = productType === 'Item' ? itemSelect.value : finishedGoodSelect.value;
         const quantity = parseInt(quantityInput.value) || 0;
-        const unitPrice = parseFloat(unitPriceInput.value) || 0;
 
-        if (productId && quantity > 0 && unitPrice > 0) {
-          // Only enable if stock check passed (button will be disabled by stock check if insufficient)
-          if (!addItemButton.disabled || document.getElementById('availabilityAlert').style.display === 'none') {
-            addItemButton.disabled = false;
-          }
-        } else {
-          addItemButton.disabled = true;
+        if (productId && quantity > 0) {
+          fetch(`/Sales/CheckProductAvailability?productType=${productType}&productId=${productId}&quantity=${quantity}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                updateProductInfo(data);
+                updateStockAlert(data);
+
+                // Auto-fill suggested price if unit price is empty
+                if (!unitPriceInput.value && data.suggestedPrice > 0) {
+                  unitPriceInput.value = data.suggestedPrice.toFixed(2);
+                  updateTotalPrice();
+                }
+              }
+            })
+            .catch(error => console.error('Error checking availability:', error));
         }
       }
 
-      // Event listeners
-      itemSelect.addEventListener('change', function () {
-        clearProductInfo();
-        checkProductAvailability();
-        validateForm();
-      });
-
-      finishedGoodSelect.addEventListener('change', function () {
-        clearProductInfo();
-        checkProductAvailability();
-        validateForm();
-      });
-
-      quantityInput.addEventListener('input', function () {
-        updateTotalPrice();
-        checkProductAvailability();
-        validateForm();
-      });
-
-      unitPriceInput.addEventListener('input', function () {
-        updateTotalPrice();
-        validateForm();
-      });
-
-      // Auto-format currency input
-      unitPriceInput.addEventListener('blur', function () {
-        if (this.value) {
-          this.value = parseFloat(this.value).toFixed(2);
-          updateTotalPrice();
+      // NEW - Add backorder warning on form submission
+      document.querySelector('form').addEventListener('submit', function(e) {
+        const stockAlert = document.getElementById('stockAlert');
+        if (stockAlert && stockAlert.classList.contains('alert-warning')) {
+          const confirmed = confirm('This item will be backordered. Do you want to continue?');
+          if (!confirmed) {
+            e.preventDefault();
+          }
         }
       });
-
-      // Initial setup
-      updateTotalPrice();
-      validateForm();
     });
   </script>
 }

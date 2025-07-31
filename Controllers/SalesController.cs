@@ -76,7 +76,7 @@ namespace InventorySystem.Controllers
       return View(sale);
     }
 
-    // Add Item to Sale - GET
+    // Replace the AddItem GET method:
     public async Task<IActionResult> AddItem(int saleId)
     {
       var sale = await _salesService.GetSaleByIdAsync(saleId);
@@ -88,20 +88,22 @@ namespace InventorySystem.Controllers
       ViewBag.SaleId = saleId;
       ViewBag.SaleNumber = sale.SaleNumber;
       ViewBag.CustomerName = sale.CustomerName;
-      ViewBag.Items = new SelectList(items.Where(i => i.CurrentStock > 0), "Id", "PartNumber");
-      ViewBag.FinishedGoods = new SelectList(finishedGoods.Where(fg => fg.CurrentStock > 0), "Id", "PartNumber");
+
+      // NEW - Remove stock filters to allow zero-stock items
+      ViewBag.Items = new SelectList(items, "Id", "PartNumber");
+      ViewBag.FinishedGoods = new SelectList(finishedGoods, "Id", "PartNumber");
 
       var viewModel = new AddSaleItemViewModel
       {
         SaleId = saleId,
         Quantity = 1,
-        ProductType = "Item" // Default to selling items
+        ProductType = "Item"
       };
 
       return View(viewModel);
     }
 
-    // Add Item to Sale - POST
+    // Replace the AddItem POST method:
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddItem(AddSaleItemViewModel viewModel)
@@ -122,25 +124,37 @@ namespace InventorySystem.Controllers
           {
             saleItem.ItemId = viewModel.ItemId;
             var item = await _inventoryService.GetItemByIdAsync(viewModel.ItemId.Value);
-            if (item == null || item.CurrentStock < viewModel.Quantity)
+            if (item == null)
             {
-              TempData["ErrorMessage"] = "Insufficient stock for this item.";
+              TempData["ErrorMessage"] = "Selected item not found.";
               return await ReloadAddItemView(viewModel);
             }
+            // NEW - Remove stock validation, allow backorders
           }
           else if (viewModel.ProductType == "FinishedGood" && viewModel.FinishedGoodId.HasValue)
           {
             saleItem.FinishedGoodId = viewModel.FinishedGoodId;
             var finishedGood = await _productionService.GetFinishedGoodByIdAsync(viewModel.FinishedGoodId.Value);
-            if (finishedGood == null || finishedGood.CurrentStock < viewModel.Quantity)
+            if (finishedGood == null)
             {
-              TempData["ErrorMessage"] = "Insufficient stock for this finished good.";
+              TempData["ErrorMessage"] = "Selected finished good not found.";
               return await ReloadAddItemView(viewModel);
             }
+            // NEW - Remove stock validation, allow backorders
           }
 
           await _salesService.AddSaleItemAsync(saleItem);
-          TempData["SuccessMessage"] = "Item added to sale successfully!";
+
+          // NEW - Check if item was backordered and show appropriate message
+          if (saleItem.QuantityBackordered > 0)
+          {
+            TempData["WarningMessage"] = $"Item added to sale! {saleItem.QuantityBackordered} units are backordered due to insufficient stock.";
+          }
+          else
+          {
+            TempData["SuccessMessage"] = "Item added to sale successfully!";
+          }
+
           return RedirectToAction("Details", new { id = viewModel.SaleId });
         }
         catch (Exception ex)
@@ -152,6 +166,7 @@ namespace InventorySystem.Controllers
       return await ReloadAddItemView(viewModel);
     }
 
+    // Update ReloadAddItemView method:
     private async Task<IActionResult> ReloadAddItemView(AddSaleItemViewModel viewModel)
     {
       var sale = await _salesService.GetSaleByIdAsync(viewModel.SaleId);
@@ -161,11 +176,30 @@ namespace InventorySystem.Controllers
       ViewBag.SaleId = viewModel.SaleId;
       ViewBag.SaleNumber = sale?.SaleNumber ?? "";
       ViewBag.CustomerName = sale?.CustomerName ?? "";
-      ViewBag.Items = new SelectList(items.Where(i => i.CurrentStock > 0), "Id", "PartNumber", viewModel.ItemId);
-      ViewBag.FinishedGoods = new SelectList(finishedGoods.Where(fg => fg.CurrentStock > 0), "Id", "PartNumber", viewModel.FinishedGoodId);
+
+      // NEW - Remove stock filters
+      ViewBag.Items = new SelectList(items, "Id", "PartNumber", viewModel.ItemId);
+      ViewBag.FinishedGoods = new SelectList(finishedGoods, "Id", "PartNumber", viewModel.FinishedGoodId);
 
       return View("AddItem", viewModel);
     }
+
+    // Add new method for backorder management:
+    public async Task<IActionResult> Backorders()
+    {
+      try
+      {
+        var backorderedSales = await _salesService.GetBackorderedSalesAsync();
+        return View(backorderedSales);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading backorders: {ex.Message}";
+        return View(new List<Sale>());
+      }
+    }
+
+   
 
     // Remove Item from Sale
     [HttpPost]
@@ -217,7 +251,6 @@ namespace InventorySystem.Controllers
       return RedirectToAction("Details", new { id });
     }
 
-    // Check Product Availability (AJAX)
     [HttpGet]
     public async Task<IActionResult> CheckProductAvailability(string productType, int productId, int quantity)
     {
@@ -227,16 +260,28 @@ namespace InventorySystem.Controllers
         decimal suggestedPrice = 0;
         string productName = "";
         int currentStock = 0;
+        int backorderQuantity = 0;
+        string availabilityMessage = "";
 
         if (productType == "Item")
         {
           var item = await _inventoryService.GetItemByIdAsync(productId);
           if (item != null)
           {
-            available = item.CurrentStock >= quantity;
-            suggestedPrice = await _inventoryService.GetAverageCostAsync(productId) * 1.3m; // 30% markup
-            productName = $"{item.PartNumber} - {item.Description}";
             currentStock = item.CurrentStock;
+            available = currentStock >= quantity;
+            backorderQuantity = Math.Max(0, quantity - currentStock);
+            suggestedPrice = await _inventoryService.GetAverageCostAsync(productId) * 1.3m;
+            productName = $"{item.PartNumber} - {item.Description}";
+
+            if (available)
+            {
+              availabilityMessage = "✅ Sufficient stock available";
+            }
+            else
+            {
+              availabilityMessage = $"⚠️ {backorderQuantity} units will be backordered";
+            }
           }
         }
         else if (productType == "FinishedGood")
@@ -244,10 +289,20 @@ namespace InventorySystem.Controllers
           var finishedGood = await _productionService.GetFinishedGoodByIdAsync(productId);
           if (finishedGood != null)
           {
-            available = finishedGood.CurrentStock >= quantity;
-            suggestedPrice = finishedGood.SellingPrice > 0 ? finishedGood.SellingPrice : finishedGood.UnitCost * 1.5m; // 50% markup if no selling price set
-            productName = $"{finishedGood.PartNumber} - {finishedGood.Description}";
             currentStock = finishedGood.CurrentStock;
+            available = currentStock >= quantity;
+            backorderQuantity = Math.Max(0, quantity - currentStock);
+            suggestedPrice = finishedGood.SellingPrice > 0 ? finishedGood.SellingPrice : finishedGood.UnitCost * 1.5m;
+            productName = $"{finishedGood.PartNumber} - {finishedGood.Description}";
+
+            if (available)
+            {
+              availabilityMessage = "✅ Sufficient stock available";
+            }
+            else
+            {
+              availabilityMessage = $"⚠️ {backorderQuantity} units will be backordered";
+            }
           }
         }
 
@@ -257,7 +312,9 @@ namespace InventorySystem.Controllers
           available = available,
           suggestedPrice = suggestedPrice,
           productName = productName,
-          currentStock = currentStock
+          currentStock = currentStock,
+          backorderQuantity = backorderQuantity,
+          availabilityMessage = availabilityMessage
         });
       }
       catch (Exception ex)

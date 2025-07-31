@@ -245,6 +245,59 @@
             </tr>
           </table>
         }
+        @if (Model.SaleItems.Any(si => si.QuantityBackordered > 0))
+        {
+          <div class="card mt-4">
+            <div class="card-header bg-warning text-dark">
+              <h5><i class="fas fa-hourglass-half"></i> Backorder Information</h5>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-warning">
+                <i class="fas fa-info-circle"></i>
+                <strong>This sale has backordered items.</strong> Production may be needed to fulfill the complete order.
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Total Ordered</th>
+                      <th>Available</th>
+                      <th>Backordered</th>
+                      <th>Backorder Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var item in Model.SaleItems.Where(si => si.QuantityBackordered > 0))
+                    {
+                      <tr>
+                        <td>
+                          <strong>@item.ProductPartNumber</strong>
+                          <br>
+                          <small class="text-muted">@item.ProductName</small>
+                        </td>
+                        <td>@item.QuantitySold</td>
+                        <td>@item.QuantityAvailable</td>
+                        <td>
+                          <span class="badge bg-danger">@item.QuantityBackordered</span>
+                        </td>
+                        <td>@((item.QuantityBackordered * item.UnitPrice).ToString("C"))</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="mt-3">
+                <strong>Total Backorder Value: </strong>
+                <span class="text-danger">
+                  @Model.SaleItems.Where(si => si.QuantityBackordered > 0).Sum(si => si.QuantityBackordered * si.UnitPrice).ToString("C")
+                </span>
+              </div>
+            </div>
+          </div>
+        }
 
         @if (Model.SaleStatus == SaleStatus.Processing && Model.SaleItems?.Any() == true)
         {

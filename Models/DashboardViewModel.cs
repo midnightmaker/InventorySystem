@@ -1,4 +1,5 @@
-﻿using InventorySystem.Models;
+﻿
+using InventorySystem.Models;
 
 namespace InventorySystem.ViewModels
 {
@@ -51,6 +52,9 @@ namespace InventorySystem.ViewModels
     public int ItemsAddedThisMonth { get; set; }
     public int BomsAddedThisMonth { get; set; }
     public int PurchasesThisMonth { get; set; }
+
+    // NEW - Backorder Widget
+    public BackorderWidgetViewModel BackorderWidget { get; set; } = new();
   }
 
   public class RecentActivity
@@ -60,5 +64,29 @@ namespace InventorySystem.ViewModels
     public DateTime Timestamp { get; set; }
     public string Icon { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
+  }
+
+  // NEW - Add these classes to support the backorder widget
+  public class BackorderWidgetViewModel
+  {
+    public int TotalBackorderAlerts { get; set; }
+    public int CriticalBackorders { get; set; }
+    public decimal TotalBackorderValue { get; set; }
+    public int OldestBackorderDays { get; set; }
+    public List<BackorderAlert> TopBackorders { get; set; } = new();
+  }
+
+  public class BackorderAlert
+  {
+    public int ProductId { get; set; }
+    public string ProductType { get; set; } = string.Empty;
+    public string ProductName { get; set; } = string.Empty;
+    public int TotalBackorderQuantity { get; set; }
+    public int CustomerCount { get; set; }
+    public DateTime OldestBackorderDate { get; set; }
+    public decimal TotalBackorderValue { get; set; }
+
+    public int DaysOld => (DateTime.Now - OldestBackorderDate).Days;
+    public bool IsCritical => DaysOld > 7; // Critical if over 1 week old
   }
 }

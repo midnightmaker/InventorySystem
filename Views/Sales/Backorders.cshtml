@@ -1,0 +1,208 @@
+﻿@model IEnumerable<InventorySystem.Models.Sale>
+@{
+  ViewData["Title"] = "Backorders";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-hourglass-half text-warning"></i> Backorders</h1>
+  <div class="btn-group">
+    <a href="/Sales" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Sales
+    </a>
+    <a href="/Production/BuildBom" class="btn btn-success">
+      <i class="fas fa-hammer"></i> Build BOM
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h3 class="text-warning">@Model.Count()</h3>
+        <p class="mb-0">Backordered Sales</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h3 class="text-info">@Model.SelectMany(s => s.SaleItems).Count(si => si.QuantityBackordered > 0)</h3>
+        <p class="mb-0">Backordered Items</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h3 class="text-danger">@Model.SelectMany(s => s.SaleItems).Sum(si => si.QuantityBackordered)</h3>
+        <p class="mb-0">Total Units Backordered</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h3 class="text-success">@Model.SelectMany(s => s.SaleItems).Where(si => si.QuantityBackordered > 0).Sum(si => si.QuantityBackordered * si.UnitPrice).ToString("C")</h3>
+        <p class="mb-0">Backorder Value</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (Model?.Any() == true)
+{
+  <div class="card">
+    <div class="card-header">
+      <h5><i class="fas fa-list"></i> Backordered Sales</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead class="table-dark">
+            <tr>
+              <th>Sale #</th>
+              <th>Customer</th>
+              <th>Sale Date</th>
+              <th>Total Amount</th>
+              <th>Backordered Items</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var sale in Model)
+            {
+              var backorderedItems = sale.SaleItems.Where(si => si.QuantityBackordered > 0);
+              <tr>
+                <td>
+                  <a href="/Sales/Details/@sale.Id" class="text-decoration-none">
+                    <strong>@sale.SaleNumber</strong>
+                  </a>
+                  <br>
+                  <span class="badge bg-warning">Backordered</span>
+                </td>
+                <td>
+                  <strong>@sale.CustomerName</strong>
+                  @if (!string.IsNullOrEmpty(sale.CustomerEmail))
+                  {
+                    <br>
+              
+                    <small class="text-muted">@sale.CustomerEmail</small>
+                  }
+                </td>
+                <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
+                <td>@sale.TotalAmount.ToString("C")</td>
+                <td>
+                  @foreach (var item in backorderedItems)
+                  {
+                    <div class="mb-1">
+                      <span class="badge bg-danger">@item.QuantityBackordered</span>
+                      <small>@item.ProductPartNumber</small>
+                    </div>
+                  }
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="/Sales/Details/@sale.Id" class="btn btn-outline-primary" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/Production/BuildBom" class="btn btn-outline-success" title="Build BOM">
+                      <i class="fas fa-hammer"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed Backorder Items -->
+  <div class="card mt-4">
+    <div class="card-header">
+      <h5><i class="fas fa-boxes"></i> Backorder Details by Product</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead class="table-dark">
+            <tr>
+              <th>Product</th>
+              <th>Customer</th>
+              <th>Sale Date</th>
+              <th>Qty Backordered</th>
+              <th>Unit Price</th>
+              <th>Backorder Value</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var sale in Model)
+            {
+              foreach (var item in sale.SaleItems.Where(si => si.QuantityBackordered > 0))
+              {
+                <tr>
+                  <td>
+                    <strong>@item.ProductPartNumber</strong>
+                    <br>
+                    <small class="text-muted">@item.ProductName</small>
+                  </td>
+                  <td>@sale.CustomerName</td>
+                  <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
+                  <td>
+                    <span class="badge bg-danger">@item.QuantityBackordered</span>
+                    <small class="text-muted">of @item.QuantitySold</small>
+                  </td>
+                  <td>@item.UnitPrice.ToString("C")</td>
+                  <td>@((item.QuantityBackordered * item.UnitPrice).ToString("C"))</td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <a href="/Sales/Details/@sale.Id" class="btn btn-outline-primary" title="View Sale">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      @if (item.FinishedGoodId.HasValue)
+                      {
+                        <a href="/Production/BuildBom?bomId=@(item.FinishedGood?.BomId)" class="btn btn-outline-success" title="Build BOM">
+                          <i class="fas fa-hammer"></i>
+                        </a>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}
+else
+{
+  <div class="text-center py-5">
+    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+    <h4 class="text-success">No Backorders!</h4>
+    <p class="text-muted">All sales are fully stocked and ready to ship.</p>
+    <a href="/Sales" class="btn btn-primary">
+      <i class="fas fa-arrow-left"></i> Back to Sales
+    </a>
+  </div>
+}

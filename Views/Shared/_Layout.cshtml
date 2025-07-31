@@ -172,26 +172,15 @@
 
             <!-- Sales Dropdown -->
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-chart-line"></i> Sales
+              <a class="nav-link dropdown-toggle" href="#" id="salesDropdown" role="button" data-bs-toggle="dropdown">
+                <i class="fas fa-cash-register"></i> Sales
               </a>
               <ul class="dropdown-menu">
-                <li>
-                  <a class="dropdown-item" asp-controller="Sales" asp-action="Index">
-                    <i class="fas fa-list"></i> All Sales
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Sales" asp-action="Create">
-                    <i class="fas fa-plus"></i> New Sale
-                  </a>
-                </li>
+                <li><a class="dropdown-item" href="/Sales"><i class="fas fa-list"></i> All Sales</a></li>
+                <li><a class="dropdown-item" href="/Sales/Create"><i class="fas fa-plus"></i> New Sale</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Sales" asp-action="Reports">
-                    <i class="fas fa-chart-bar"></i> Sales Reports
-                  </a>
-                </li>
+                <li><a class="dropdown-item" href="/Sales/Backorders"><i class="fas fa-hourglass-half text-warning"></i> Backorders</a></li>
+                <li><a class="dropdown-item" href="/Sales/Reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
               </ul>
             </li>
           </ul>

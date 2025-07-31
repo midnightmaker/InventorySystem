@@ -13,6 +13,7 @@ namespace InventorySystem.Models.Enums
   public enum SaleStatus
   {
     Processing,
+    Backordered,    // NEW - Added backorder status
     Shipped,
     Delivered,
     Cancelled,
@@ -28,4 +29,5 @@ namespace InventorySystem.Models.Enums
     Cancelled,      // Purchase order cancelled
     Returned        // Items returned to vendor
   }
+  
 }

@@ -18,21 +18,27 @@ namespace InventorySystem.Infrastructure.Services
     private readonly IInventoryService _inventoryService;
     private readonly InventoryContext _context;
     private readonly ILogger<ProductionOrchestrator> _logger;
+    private readonly ISalesService _salesService;
+    private readonly IBackorderNotificationService _backorderNotificationService; 
 
     public ProductionOrchestrator(
         IWorkflowEngine workflowEngine,
         IProductionService productionService,
         IBomService bomService,
         IInventoryService inventoryService,
+        ISalesService salesService,
         InventoryContext context,
-        ILogger<ProductionOrchestrator> logger)
+        ILogger<ProductionOrchestrator> logger,
+        IBackorderNotificationService backorderNotificationService  )
     {
       _workflowEngine = workflowEngine;
       _productionService = productionService;
       _bomService = bomService;
+      _salesService = salesService;
       _inventoryService = inventoryService;
       _context = context;
       _logger = logger;
+      _backorderNotificationService = backorderNotificationService;
     }
 
     public async Task<CommandResult> CreateProductionWithWorkflowAsync(
@@ -84,30 +90,104 @@ namespace InventorySystem.Infrastructure.Services
     {
       try
       {
-        // Additional business rule validation can go here
-        var workflow = await _workflowEngine.GetWorkflowAsync(command.ProductionId);
-        if (workflow == null)
-        {
-          return CommandResult.FailureResult("Production workflow not found");
-        }
+        var result = await _workflowEngine.TransitionStatusAsync(command);
 
-        // Check for business-specific rules
-        if (command.NewStatus == ProductionStatus.QualityCheck)
+        // If production is completed, check for backorder fulfillment
+        if (result.Success && command.NewStatus == ProductionStatus.Completed)
         {
-          // Ensure production is actually complete before QC
-          if (workflow.Status != ProductionStatus.InProgress)
+          var production = await _productionService.GetProductionByIdAsync(command.ProductionId);
+          if (production?.FinishedGoodId != null)
           {
-            return CommandResult.FailureResult("Production must be in progress before quality check");
+            // Use the injected service instead of service locator
+            await _salesService.FulfillBackordersForProductAsync(
+                null,
+                production.FinishedGoodId,
+                production.QuantityProduced);
           }
         }
 
-        return await _workflowEngine.TransitionStatusAsync(command);
+        return result;
       }
       catch (Exception ex)
       {
         _logger.LogError(ex, "Failed to update production status for Production {ProductionId}", command.ProductionId);
         return CommandResult.FailureResult($"Status update failed: {ex.Message}");
       }
+    }
+
+    // ========================================
+    // PRODUCTION PRIORITY BASED ON BACKORDERS
+    // ========================================
+    // Add this method to help prioritize production based on backorders
+
+    public async Task<List<ProductionPriorityItem>> GetProductionPriorityAsync()
+    {
+      var backorderAlerts = await _backorderNotificationService.GetBackorderAlertsAsync();
+
+      var priorities = new List<ProductionPriorityItem>();
+
+      foreach (var alert in backorderAlerts.Where(a => a.ProductType == "FinishedGood"))
+      {
+        var finishedGood = await _context.FinishedGoods
+            .Include(fg => fg.Bom)
+            .FirstOrDefaultAsync(fg => fg.Id == alert.ProductId);
+
+        if (finishedGood?.BomId != null)
+        {
+          priorities.Add(new ProductionPriorityItem
+          {
+            BomId = finishedGood.BomId.Value,
+            BomNumber = finishedGood.Bom?.BomNumber ?? "Unknown",
+            ProductName = finishedGood.PartNumber,
+            BackorderQuantity = alert.TotalBackorderQuantity,
+            CustomerCount = alert.CustomerCount,
+            DaysOld = alert.DaysOld,
+            BackorderValue = alert.TotalBackorderValue,
+            Priority = CalculatePriority(alert)
+          });
+        }
+      }
+
+      return priorities.OrderByDescending(p => p.Priority).ToList();
+    }
+
+    private int CalculatePriority(BackorderAlert alert)
+    {
+      int priority = 0;
+
+      // Higher priority for older backorders
+      priority += alert.DaysOld * 10;
+
+      // Higher priority for more customers affected
+      priority += alert.CustomerCount * 5;
+
+      // Higher priority for higher value
+      priority += (int)(alert.TotalBackorderValue / 100);
+
+      // Higher priority for larger quantities
+      priority += alert.TotalBackorderQuantity;
+
+      return priority;
+    }
+
+    public class ProductionPriorityItem
+    {
+      public int BomId { get; set; }
+      public string BomNumber { get; set; } = string.Empty;
+      public string ProductName { get; set; } = string.Empty;
+      public int BackorderQuantity { get; set; }
+      public int CustomerCount { get; set; }
+      public int DaysOld { get; set; }
+      public decimal BackorderValue { get; set; }
+      public int Priority { get; set; }
+
+      public string PriorityLevel => Priority switch
+      {
+        > 100 => "Critical",
+        > 50 => "High",
+        > 25 => "Medium",
+        _ => "Low"
+      };
     }
 
     public async Task<CommandResult> StartProductionAsync(StartProductionCommand command)
