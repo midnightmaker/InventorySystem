@@ -21,11 +21,19 @@ namespace InventorySystem.Services
     Task<decimal> GetPurchaseValueByMonthAsync(int year, int month);
     Task<int> GetPurchaseCountByMonthAsync(int year, int month);
 
-    // NEW: Version control methods
+    // Version control methods
     Task<IEnumerable<Purchase>> GetPurchasesByItemVersionAsync(int itemId, string? version = null);
     Task<Dictionary<string, IEnumerable<Purchase>>> GetPurchasesGroupedByVersionAsync(int itemId);
     Task<IEnumerable<Purchase>> GetPurchasesByBaseItemIdAsync(int baseItemId);
     Task SetPurchaseItemVersionAsync(int purchaseId, string itemVersion);
     Task<IEnumerable<Purchase>> GetPurchasesForItemVersionsAsync(IEnumerable<int> itemIds);
+
+    // Vendor-related methods
+    Task<int?> GetLastVendorIdForItemAsync(int itemId);
+    Task<IEnumerable<Vendor>> GetVendorsForItemAsync(int itemId);
+
+    // Helper methods for cost calculations
+    Task<decimal> GetAverageCostAsync(int itemId);
+    Task<decimal> GetFifoValueAsync(int itemId);
   }
 }

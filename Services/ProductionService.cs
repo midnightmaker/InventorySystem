@@ -616,8 +616,9 @@ namespace InventorySystem.Services
           var shortageQuantity = requiredQuantity - item.CurrentStock;
           var averageCost = await _inventoryService.GetAverageCostAsync(bomItem.ItemId);
 
-          // Get last purchase info
+          // Get last purchase info - FIXED to include Vendor navigation property
           var lastPurchase = await _context.Purchases
+              .Include(p => p.Vendor) // Include the Vendor navigation property
               .Where(p => p.ItemId == bomItem.ItemId)
               .OrderByDescending(p => p.PurchaseDate)
               .FirstOrDefaultAsync();
@@ -636,7 +637,7 @@ namespace InventorySystem.Services
             ShortageQuantity = shortageQuantity,
             EstimatedUnitCost = averageCost > 0 ? averageCost : (lastPurchase?.CostPerUnit ?? 0),
             ShortageValue = shortageQuantity * (averageCost > 0 ? averageCost : (lastPurchase?.CostPerUnit ?? 0)),
-            PreferredVendor = lastPurchase?.Vendor,
+            PreferredVendor = lastPurchase?.Vendor?.CompanyName, // FIXED: Use CompanyName instead of Vendor object
             LastPurchaseDate = lastPurchase?.PurchaseDate,
             LastPurchasePrice = lastPurchase?.CostPerUnit,
             MinimumStock = item.MinimumStock,

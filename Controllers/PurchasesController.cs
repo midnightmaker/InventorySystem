@@ -1,3 +1,4 @@
+// Controllers/PurchasesController.cs - Clean implementation with vendor selection
 using InventorySystem.Data;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
@@ -13,25 +14,19 @@ namespace InventorySystem.Controllers
   {
     private readonly IPurchaseService _purchaseService;
     private readonly IInventoryService _inventoryService;
+    private readonly IVendorService _vendorService;
     private readonly InventoryContext _context;
 
-    public PurchasesController(IPurchaseService purchaseService, IInventoryService inventoryService, InventoryContext context)
+    public PurchasesController(
+        IPurchaseService purchaseService,
+        IInventoryService inventoryService,
+        IVendorService vendorService,
+        InventoryContext context)
     {
       _purchaseService = purchaseService;
       _inventoryService = inventoryService;
+      _vendorService = vendorService;
       _context = context;
-    }
-
-    // TEST ACTION - Add this to verify controller is working
-    public IActionResult Test()
-    {
-      return Json(new
-      {
-        Success = true,
-        Message = "PurchasesController is working!",
-        Timestamp = DateTime.Now,
-        ControllerName = "Purchases"
-      });
     }
 
     public async Task<IActionResult> Index()
@@ -40,6 +35,7 @@ namespace InventorySystem.Controllers
       {
         var purchases = await _context.Purchases
             .Include(p => p.Item)
+            .Include(p => p.Vendor)
             .Include(p => p.PurchaseDocuments)
             .OrderByDescending(p => p.PurchaseDate)
             .ToListAsync();
@@ -59,33 +55,40 @@ namespace InventorySystem.Controllers
       try
       {
         var items = await _inventoryService.GetAllItemsAsync();
-        
-        // ? FORMAT DROPDOWN TO SHOW BOTH PART NUMBER AND DESCRIPTION (like BOMs)
+        var vendors = await _vendorService.GetActiveVendorsAsync();
+
+        var viewModel = new CreatePurchaseViewModel();
+
+        // If itemId is provided, set it and get the last vendor used for this item
+        if (itemId.HasValue)
+        {
+          viewModel.ItemId = itemId.Value;
+
+          // Get the last vendor used for this item
+          var lastVendorId = await _purchaseService.GetLastVendorIdForItemAsync(itemId.Value);
+          if (lastVendorId.HasValue)
+          {
+            viewModel.VendorId = lastVendorId.Value;
+          }
+        }
+
+        // Format items dropdown with part number and description
         var formattedItems = items.Select(item => new
         {
           Value = item.Id,
           Text = $"{item.PartNumber} - {item.Description}"
         }).ToList();
 
-        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", itemId);
-
-        var viewModel = new CreatePurchaseViewModel
-        {
-          PurchaseDate = DateTime.Today
-        };
-
-        if (itemId.HasValue)
-        {
-          viewModel.ItemId = itemId.Value;
-        }
+        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", viewModel.ItemId);
+        ViewBag.VendorId = new SelectList(vendors, "Id", "CompanyName", viewModel.VendorId);
 
         return View(viewModel);
       }
       catch (Exception ex)
       {
         Console.WriteLine($"Error in Create GET: {ex.Message}");
-        TempData["ErrorMessage"] = $"Error loading create form: {ex.Message}";
-        return RedirectToAction("Index");
+        ViewBag.ErrorMessage = ex.Message;
+        return View(new CreatePurchaseViewModel());
       }
     }
 
@@ -93,33 +96,10 @@ namespace InventorySystem.Controllers
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreatePurchaseViewModel viewModel)
     {
-      Console.WriteLine("=== CREATE POST WITH VIEWMODEL ===");
-      Console.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
-      Console.WriteLine($"ItemId: {viewModel.ItemId}");
-      Console.WriteLine($"Vendor: '{viewModel.Vendor}'");
-      Console.WriteLine($"Quantity: {viewModel.QuantityPurchased}");
-      Console.WriteLine($"Cost: {viewModel.CostPerUnit}");
-
       if (!ModelState.IsValid)
       {
-        Console.WriteLine("ModelState Errors:");
-        foreach (var error in ModelState)
-        {
-          if (error.Value.Errors.Any())
-          {
-            Console.WriteLine($"  {error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
-          }
-        }
-
-        // ? RELOAD DROPDOWN WITH FORMATTED ITEMS (like BOMs)
-        var items = await _inventoryService.GetAllItemsAsync();
-        var formattedItems = items.Select(item => new
-        {
-          Value = item.Id,
-          Text = $"{item.PartNumber} - {item.Description}"
-        }).ToList();
-        
-        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", viewModel.ItemId);
+        // Reload dropdowns
+        await ReloadDropdownsAsync(viewModel.ItemId, viewModel.VendorId);
         return View(viewModel);
       }
 
@@ -129,7 +109,7 @@ namespace InventorySystem.Controllers
         var purchase = new Purchase
         {
           ItemId = viewModel.ItemId,
-          Vendor = viewModel.Vendor,
+          VendorId = viewModel.VendorId,
           PurchaseDate = viewModel.PurchaseDate,
           QuantityPurchased = viewModel.QuantityPurchased,
           CostPerUnit = viewModel.CostPerUnit,
@@ -137,6 +117,9 @@ namespace InventorySystem.Controllers
           TaxAmount = viewModel.TaxAmount,
           PurchaseOrderNumber = viewModel.PurchaseOrderNumber,
           Notes = viewModel.Notes,
+          Status = viewModel.Status,
+          ExpectedDeliveryDate = viewModel.ExpectedDeliveryDate,
+          ActualDeliveryDate = viewModel.ActualDeliveryDate,
           RemainingQuantity = viewModel.QuantityPurchased,
           CreatedDate = DateTime.Now
         };
@@ -153,42 +136,9 @@ namespace InventorySystem.Controllers
         Console.WriteLine($"Error creating purchase: {ex.Message}");
         ModelState.AddModelError("", $"Error creating purchase: {ex.Message}");
 
-        // ? RELOAD DROPDOWN WITH FORMATTED ITEMS 
-        var items = await _inventoryService.GetAllItemsAsync();
-        var formattedItems = items.Select(item => new
-        {
-          Value = item.Id,
-          Text = $"{item.PartNumber} - {item.Description}"
-        }).ToList();
-        
-        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", viewModel.ItemId);
+        // Reload dropdowns
+        await ReloadDropdownsAsync(viewModel.ItemId, viewModel.VendorId);
         return View(viewModel);
-      }
-    }
-
-    // GET: Purchases/Details/5
-    public async Task<IActionResult> Details(int id)
-    {
-      try
-      {
-        var purchase = await _context.Purchases
-            .Include(p => p.Item)
-            .Include(p => p.PurchaseDocuments)
-            .FirstOrDefaultAsync(p => p.Id == id);
-
-        if (purchase == null)
-        {
-          TempData["ErrorMessage"] = "Purchase not found.";
-          return RedirectToAction("Index");
-        }
-
-        return View(purchase);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error in Details: {ex.Message}");
-        TempData["ErrorMessage"] = $"Error loading purchase details: {ex.Message}";
-        return RedirectToAction("Index");
       }
     }
 
@@ -197,24 +147,18 @@ namespace InventorySystem.Controllers
     {
       try
       {
-        var purchase = await _purchaseService.GetPurchaseByIdAsync(id);
+        var purchase = await _context.Purchases
+            .Include(p => p.Vendor)
+            .Include(p => p.Item)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
         if (purchase == null)
         {
           TempData["ErrorMessage"] = "Purchase not found.";
           return RedirectToAction("Index");
         }
 
-        var items = await _inventoryService.GetAllItemsAsync();
-        
-        // ? FORMAT DROPDOWN TO SHOW BOTH PART NUMBER AND DESCRIPTION (like BOMs)
-        var formattedItems = items.Select(item => new
-        {
-          Value = item.Id,
-          Text = $"{item.PartNumber} - {item.Description}"
-        }).ToList();
-
-        ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", purchase.ItemId);
-
+        await ReloadDropdownsAsync(purchase.ItemId, purchase.VendorId);
         return View(purchase);
       }
       catch (Exception ex)
@@ -249,16 +193,66 @@ namespace InventorySystem.Controllers
         }
       }
 
-      // ? RELOAD DROPDOWN WITH FORMATTED ITEMS 
+      // Reload dropdowns
+      await ReloadDropdownsAsync(purchase.ItemId, purchase.VendorId);
+      return View(purchase);
+    }
+
+    public async Task<IActionResult> Details(int id)
+    {
+      try
+      {
+        var purchase = await _context.Purchases
+            .Include(p => p.Item)
+            .Include(p => p.Vendor)
+            .Include(p => p.PurchaseDocuments)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (purchase == null)
+        {
+          TempData["ErrorMessage"] = "Purchase not found.";
+          return RedirectToAction("Index");
+        }
+
+        return View(purchase);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error in Details: {ex.Message}");
+        TempData["ErrorMessage"] = $"Error loading purchase details: {ex.Message}";
+        return RedirectToAction("Index");
+      }
+    }
+
+    // Helper method to reload dropdowns
+    private async Task ReloadDropdownsAsync(int selectedItemId = 0, int? selectedVendorId = null)
+    {
       var items = await _inventoryService.GetAllItemsAsync();
+      var vendors = await _vendorService.GetActiveVendorsAsync();
+
       var formattedItems = items.Select(item => new
       {
         Value = item.Id,
         Text = $"{item.PartNumber} - {item.Description}"
       }).ToList();
-      
-      ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", purchase.ItemId);
-      return View(purchase);
+
+      ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", selectedItemId);
+      ViewBag.VendorId = new SelectList(vendors, "Id", "CompanyName", selectedVendorId);
+    }
+
+    // AJAX endpoint to get last vendor for an item
+    [HttpGet]
+    public async Task<IActionResult> GetLastVendorForItem(int itemId)
+    {
+      try
+      {
+        var lastVendorId = await _purchaseService.GetLastVendorIdForItemAsync(itemId);
+        return Json(new { success = true, vendorId = lastVendorId });
+      }
+      catch (Exception ex)
+      {
+        return Json(new { success = false, error = ex.Message });
+      }
     }
 
     // GET: Purchases/Delete/5
@@ -297,330 +291,7 @@ namespace InventorySystem.Controllers
       {
         Console.WriteLine($"Error deleting purchase: {ex.Message}");
         TempData["ErrorMessage"] = $"Error deleting purchase: {ex.Message}";
-        return RedirectToAction("Details", new { id });
-      }
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> UploadDocument(int purchaseId)
-    {
-      try
-      {
-        var purchase = await _context.Purchases
-            .Include(p => p.Item)
-            .FirstOrDefaultAsync(p => p.Id == purchaseId);
-
-        if (purchase == null)
-        {
-          TempData["ErrorMessage"] = "Purchase not found.";
-          return RedirectToAction("Index");
-        }
-
-        var viewModel = new PurchaseDocumentUploadViewModel
-        {
-          PurchaseId = purchaseId,
-          PurchaseDetails = $"{purchase.Vendor} - {purchase.PurchaseDate:MM/dd/yyyy} - ${purchase.TotalPaid:F2}",
-          ItemPartNumber = purchase.Item.PartNumber
-        };
-
-        return View(viewModel);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error in UploadDocument GET: {ex.Message}");
-        TempData["ErrorMessage"] = $"Error loading document upload form: {ex.Message}";
         return RedirectToAction("Index");
-      }
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UploadDocument(PurchaseDocumentUploadViewModel viewModel)
-    {
-      if (ModelState.IsValid)
-      {
-        var purchase = await _context.Purchases
-            .Include(p => p.Item)
-            .FirstOrDefaultAsync(p => p.Id == viewModel.PurchaseId);
-
-        if (purchase == null)
-        {
-          TempData["ErrorMessage"] = "Purchase not found.";
-          return RedirectToAction("Index");
-        }
-
-        if (viewModel.DocumentFile != null && viewModel.DocumentFile.Length > 0)
-        {
-          // Validate file size (25MB limit for purchase documents)
-          if (viewModel.DocumentFile.Length > 25 * 1024 * 1024)
-          {
-            ModelState.AddModelError("DocumentFile", "Document file size must be less than 25MB.");
-            return View(viewModel);
-          }
-
-          // Validate file type
-          var allowedTypes = new[]
-          {
-                        "application/pdf",
-                        "application/msword",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "application/vnd.ms-excel",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "application/vnd.ms-powerpoint",
-                        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                        "text/plain",
-                        "image/jpeg",
-                        "image/png",
-                        "image/gif",
-                        "image/bmp",
-                        "image/tiff"
-                    };
-
-          if (!allowedTypes.Contains(viewModel.DocumentFile.ContentType.ToLower()))
-          {
-            ModelState.AddModelError("DocumentFile",
-                "Please upload a valid document file (PDF, Office documents, Images, or Text files).");
-            return View(viewModel);
-          }
-
-          try
-          {
-            using (var memoryStream = new MemoryStream())
-            {
-              await viewModel.DocumentFile.CopyToAsync(memoryStream);
-
-              var document = new PurchaseDocument
-              {
-                PurchaseId = viewModel.PurchaseId,
-                DocumentName = viewModel.DocumentName,
-                DocumentType = viewModel.DocumentType,
-                FileName = viewModel.DocumentFile.FileName,
-                ContentType = viewModel.DocumentFile.ContentType,
-                FileSize = viewModel.DocumentFile.Length,
-                DocumentData = memoryStream.ToArray(),
-                Description = viewModel.Description,
-                UploadedDate = DateTime.Now
-              };
-
-              _context.PurchaseDocuments.Add(document);
-              await _context.SaveChangesAsync();
-
-              TempData["SuccessMessage"] = "Document uploaded successfully!";
-              return RedirectToAction("Details", new { id = viewModel.PurchaseId });
-            }
-          }
-          catch (Exception ex)
-          {
-            Console.WriteLine($"Error uploading document: {ex.Message}");
-            ModelState.AddModelError("", $"Error uploading document: {ex.Message}");
-          }
-        }
-        else
-        {
-          ModelState.AddModelError("DocumentFile", "Please select a document file to upload.");
-        }
-      }
-
-      return View(viewModel);
-    }
-
-    // Document download action
-    public async Task<IActionResult> DownloadDocument(int id)
-    {
-      try
-      {
-        var document = await _context.PurchaseDocuments.FindAsync(id);
-        if (document == null)
-        {
-          TempData["ErrorMessage"] = "Document not found.";
-          return RedirectToAction("Index");
-        }
-
-        return File(document.DocumentData, document.ContentType, document.FileName);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error downloading document: {ex.Message}");
-        TempData["ErrorMessage"] = $"Error downloading document: {ex.Message}";
-        return RedirectToAction("Index");
-      }
-    }
-
-    // Document view action (for PDFs and images)
-    public async Task<IActionResult> ViewDocument(int id)
-    {
-      try
-      {
-        var document = await _context.PurchaseDocuments.FindAsync(id);
-        if (document == null)
-        {
-          TempData["ErrorMessage"] = "Document not found.";
-          return RedirectToAction("Index");
-        }
-
-        // For PDFs and images, display inline
-        if (document.ContentType == "application/pdf" || document.ContentType.StartsWith("image/"))
-        {
-          return File(document.DocumentData, document.ContentType);
-        }
-
-        // For other files, force download
-        return File(document.DocumentData, document.ContentType, document.FileName);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error viewing document: {ex.Message}");
-        TempData["ErrorMessage"] = $"Error viewing document: {ex.Message}";
-        return RedirectToAction("Index");
-      }
-    }
-
-    // Document delete action
-    public async Task<IActionResult> DeleteDocument(int id)
-    {
-      try
-      {
-        var document = await _context.PurchaseDocuments
-            .Include(d => d.Purchase)
-            .ThenInclude(p => p.Item)
-            .FirstOrDefaultAsync(d => d.Id == id);
-
-        if (document == null)
-        {
-          TempData["ErrorMessage"] = "Document not found.";
-          return RedirectToAction("Index");
-        }
-
-        return View(document);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error in DeleteDocument GET: {ex.Message}");
-        TempData["ErrorMessage"] = $"Error loading document for deletion: {ex.Message}";
-        return RedirectToAction("Index");
-      }
-    }
-
-    [HttpPost, ActionName("DeleteDocument")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteDocumentConfirmed(int id)
-    {
-      try
-      {
-        var document = await _context.PurchaseDocuments.FindAsync(id);
-        if (document != null)
-        {
-          var purchaseId = document.PurchaseId;
-          _context.PurchaseDocuments.Remove(document);
-          await _context.SaveChangesAsync();
-
-          TempData["SuccessMessage"] = "Document deleted successfully!";
-          return RedirectToAction("Details", new { id = purchaseId });
-        }
-
-        TempData["ErrorMessage"] = "Document not found.";
-        return RedirectToAction("Index");
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error deleting document: {ex.Message}");
-        TempData["ErrorMessage"] = $"Error deleting document: {ex.Message}";
-        return RedirectToAction("Index");
-      }
-    }
-
-    // Additional test method to verify routing
-    [HttpGet]
-    public IActionResult CreateTest()
-    {
-      return Json(new
-      {
-        Success = true,
-        Message = "Create GET route is working",
-        Timestamp = DateTime.Now
-      });
-    }
-
-    // Add to PurchasesController for status updates
-    [HttpPost]
-    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusRequest request)
-    {
-      try
-      {
-        var purchase = await _purchaseService.GetPurchaseByIdAsync(id);
-        if (purchase == null)
-        {
-          return Json(new { success = false, message = "Purchase not found" });
-        }
-
-        // Parse the status
-        if (!Enum.TryParse<PurchaseStatus>(request.Status, out var newStatus))
-        {
-          return Json(new { success = false, message = "Invalid status" });
-        }
-
-        purchase.Status = newStatus;
-
-        // If marking as received, set actual delivery date
-        if (newStatus == PurchaseStatus.Received && request.ActualDeliveryDate.HasValue)
-        {
-          purchase.ActualDeliveryDate = request.ActualDeliveryDate.Value;
-        }
-
-        await _purchaseService.UpdatePurchaseAsync(purchase);
-
-        return Json(new { success = true, message = "Status updated successfully" });
-      }
-      catch (Exception ex)
-      {
-        return Json(new { success = false, message = ex.Message });
-      }
-    }
-
-    public class UpdateStatusRequest
-    {
-      public string Status { get; set; } = string.Empty;
-      public DateTime? ActualDeliveryDate { get; set; }
-    }
-    // Add this method to your PurchasesController.cs
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateStatusForm(int id, string status, DateTime? actualDeliveryDate = null)
-    {
-      try
-      {
-        var purchase = await _purchaseService.GetPurchaseByIdAsync(id);
-        if (purchase == null)
-        {
-          TempData["ErrorMessage"] = "Purchase not found";
-          return RedirectToAction("Index");
-        }
-
-        // Parse the status
-        if (!Enum.TryParse<PurchaseStatus>(status, out var newStatus))
-        {
-          TempData["ErrorMessage"] = "Invalid status";
-          return RedirectToAction("Details", new { id });
-        }
-
-        purchase.Status = newStatus;
-
-        // If marking as received, set actual delivery date
-        if (newStatus == PurchaseStatus.Received)
-        {
-          purchase.ActualDeliveryDate = actualDeliveryDate ?? DateTime.Today;
-        }
-
-        await _purchaseService.UpdatePurchaseAsync(purchase);
-
-        TempData["SuccessMessage"] = $"Status updated to {newStatus}";
-        return RedirectToAction("Details", new { id });
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error updating status: {ex.Message}";
-        return RedirectToAction("Details", new { id });
       }
     }
   }

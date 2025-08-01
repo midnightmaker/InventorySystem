@@ -1,11 +1,11 @@
-// Services/PurchaseService.cs - Complete Implementation
+// Services/PurchaseService.cs - Clean implementation with vendor functionality
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Data;
 using InventorySystem.Models;
 
 namespace InventorySystem.Services
 {
-  public class PurchaseService : IPurchaseService
+  public partial class PurchaseService : IPurchaseService
   {
     private readonly InventoryContext _context;
     private readonly IInventoryService _inventoryService;
@@ -22,6 +22,7 @@ namespace InventorySystem.Services
     {
       return await _context.Purchases
           .Include(p => p.Item)
+          .Include(p => p.Vendor)
           .Include(p => p.PurchaseDocuments)
           .Where(p => p.ItemId == itemId)
           .OrderByDescending(p => p.PurchaseDate)
@@ -32,6 +33,7 @@ namespace InventorySystem.Services
     {
       return await _context.Purchases
           .Include(p => p.Item)
+          .Include(p => p.Vendor)
           .Include(p => p.PurchaseDocuments)
           .FirstOrDefaultAsync(p => p.Id == id);
     }
@@ -48,8 +50,6 @@ namespace InventorySystem.Services
           purchase.ItemVersionId = itemForVersion.Id;
         }
 
-        // TotalCost is calculated automatically by the model
-
         purchase.RemainingQuantity = purchase.QuantityPurchased;
         purchase.CreatedDate = DateTime.Now;
 
@@ -64,6 +64,13 @@ namespace InventorySystem.Services
           await _context.SaveChangesAsync();
         }
 
+        // Update VendorItem relationship with last purchase info
+        await UpdateVendorItemLastPurchaseInfoAsync(
+            purchase.VendorId,
+            purchase.ItemId,
+            purchase.CostPerUnit,
+            purchase.PurchaseDate);
+
         return purchase;
       }
       catch (Exception ex)
@@ -72,7 +79,6 @@ namespace InventorySystem.Services
       }
     }
 
-    // Update this method in PurchaseService.cs
     public async Task<Purchase> UpdatePurchaseAsync(Purchase purchase)
     {
       try
@@ -88,7 +94,7 @@ namespace InventorySystem.Services
         var remainingDifference = purchase.QuantityPurchased - existingPurchase.QuantityPurchased;
 
         // Update purchase properties
-        existingPurchase.Vendor = purchase.Vendor;
+        existingPurchase.VendorId = purchase.VendorId;
         existingPurchase.PurchaseDate = purchase.PurchaseDate;
         existingPurchase.QuantityPurchased = purchase.QuantityPurchased;
         existingPurchase.CostPerUnit = purchase.CostPerUnit;
@@ -97,11 +103,10 @@ namespace InventorySystem.Services
         existingPurchase.PurchaseOrderNumber = purchase.PurchaseOrderNumber;
         existingPurchase.Notes = purchase.Notes;
         existingPurchase.RemainingQuantity += remainingDifference;
-
-        // Update status and delivery dates
         existingPurchase.Status = purchase.Status;
         existingPurchase.ExpectedDeliveryDate = purchase.ExpectedDeliveryDate;
         existingPurchase.ActualDeliveryDate = purchase.ActualDeliveryDate;
+
         await _context.SaveChangesAsync();
 
         // Adjust inventory if quantity changed
@@ -115,6 +120,13 @@ namespace InventorySystem.Services
           }
         }
 
+        // Update VendorItem relationship with new purchase info
+        await UpdateVendorItemLastPurchaseInfoAsync(
+            purchase.VendorId,
+            purchase.ItemId,
+            purchase.CostPerUnit,
+            purchase.PurchaseDate);
+
         return existingPurchase;
       }
       catch (Exception ex)
@@ -125,76 +137,93 @@ namespace InventorySystem.Services
 
     public async Task DeletePurchaseAsync(int id)
     {
-      try
+      var purchase = await _context.Purchases.FindAsync(id);
+      if (purchase != null)
       {
-        var purchase = await _context.Purchases.FindAsync(id);
-        if (purchase == null)
+        // Adjust inventory back
+        var item = await _context.Items.FindAsync(purchase.ItemId);
+        if (item != null)
         {
-          throw new InvalidOperationException("Purchase not found");
-        }
-
-        // Remove remaining quantity from inventory
-        if (purchase.RemainingQuantity > 0)
-        {
-          var item = await _context.Items.FindAsync(purchase.ItemId);
-          if (item != null)
-          {
-            item.CurrentStock -= purchase.RemainingQuantity;
-            await _context.SaveChangesAsync();
-          }
+          item.CurrentStock -= purchase.QuantityPurchased;
+          await _context.SaveChangesAsync();
         }
 
         _context.Purchases.Remove(purchase);
         await _context.SaveChangesAsync();
       }
-      catch (Exception ex)
-      {
-        throw new InvalidOperationException($"Error deleting purchase: {ex.Message}", ex);
-      }
     }
 
-    public async Task ProcessInventoryConsumptionAsync(int itemId, int quantityUsed)
+    #endregion
+
+    #region Vendor-Related Methods
+
+    // Get last vendor used for an item
+    public async Task<int?> GetLastVendorIdForItemAsync(int itemId)
     {
-      try
+      var lastPurchase = await _context.Purchases
+          .Where(p => p.ItemId == itemId)
+          .OrderByDescending(p => p.PurchaseDate)
+          .ThenByDescending(p => p.CreatedDate)
+          .FirstOrDefaultAsync();
+
+      return lastPurchase?.VendorId;
+    }
+
+    // Get vendors that have supplied a specific item
+    public async Task<IEnumerable<Vendor>> GetVendorsForItemAsync(int itemId)
+    {
+      return await _context.Purchases
+          .Where(p => p.ItemId == itemId)
+          .Include(p => p.Vendor)
+          .Select(p => p.Vendor)
+          .Distinct()
+          .Where(v => v.IsActive)
+          .OrderBy(v => v.CompanyName)
+          .ToListAsync();
+    }
+
+    // Helper method to update VendorItem with last purchase info
+    private async Task UpdateVendorItemLastPurchaseInfoAsync(int vendorId, int itemId, decimal cost, DateTime purchaseDate)
+    {
+      var vendorItem = await _context.VendorItems
+          .FirstOrDefaultAsync(vi => vi.VendorId == vendorId && vi.ItemId == itemId);
+
+      if (vendorItem != null)
       {
-        // FIFO consumption - use oldest purchases first
-        var availablePurchases = await _context.Purchases
-            .Where(p => p.ItemId == itemId && p.RemainingQuantity > 0)
-            .OrderBy(p => p.PurchaseDate)
-            .ToListAsync();
-
-        var remainingToConsume = quantityUsed;
-
-        foreach (var purchase in availablePurchases)
-        {
-          if (remainingToConsume <= 0) break;
-
-          var consumeFromThis = Math.Min(purchase.RemainingQuantity, remainingToConsume);
-          purchase.RemainingQuantity -= consumeFromThis;
-          remainingToConsume -= consumeFromThis;
-        }
-
-        if (remainingToConsume > 0)
-        {
-          throw new InvalidOperationException($"Insufficient inventory. Missing {remainingToConsume} units.");
-        }
-
+        vendorItem.LastPurchaseDate = purchaseDate;
+        vendorItem.LastPurchaseCost = cost;
+        vendorItem.LastUpdated = DateTime.Now;
         await _context.SaveChangesAsync();
       }
-      catch (Exception ex)
+      else
       {
-        throw new InvalidOperationException($"Error processing inventory consumption: {ex.Message}", ex);
+        // Create new VendorItem relationship if it doesn't exist
+        var newVendorItem = new VendorItem
+        {
+          VendorId = vendorId,
+          ItemId = itemId,
+          UnitCost = cost,
+          LastPurchaseDate = purchaseDate,
+          LastPurchaseCost = cost,
+          IsActive = true,
+          IsPrimary = false,
+          LastUpdated = DateTime.Now
+        };
+
+        _context.VendorItems.Add(newVendorItem);
+        await _context.SaveChangesAsync();
       }
     }
 
     #endregion
 
-    #region Enhanced Dashboard Methods
+    #region Other Required Methods
 
     public async Task<IEnumerable<Purchase>> GetAllPurchasesAsync()
     {
       return await _context.Purchases
           .Include(p => p.Item)
+          .Include(p => p.Vendor)
           .Include(p => p.PurchaseDocuments)
           .OrderByDescending(p => p.PurchaseDate)
           .ToListAsync();
@@ -204,7 +233,8 @@ namespace InventorySystem.Services
     {
       return await _context.Purchases
           .Include(p => p.Item)
-          .Where(p => p.Vendor.ToLower().Contains(vendor.ToLower()))
+          .Include(p => p.Vendor)
+          .Where(p => p.Vendor.CompanyName.Contains(vendor))
           .OrderByDescending(p => p.PurchaseDate)
           .ToListAsync();
     }
@@ -213,6 +243,7 @@ namespace InventorySystem.Services
     {
       return await _context.Purchases
           .Include(p => p.Item)
+          .Include(p => p.Vendor)
           .Include(p => p.PurchaseDocuments)
           .Where(p => p.PurchaseDocuments.Any())
           .OrderByDescending(p => p.PurchaseDate)
@@ -221,9 +252,7 @@ namespace InventorySystem.Services
 
     public async Task<decimal> GetTotalPurchaseValueAsync()
     {
-      // Use TotalPaid instead of TotalCost for complete purchase value including shipping/tax
-      var total = await _context.Purchases.SumAsync(p => p.TotalPaid);
-      return total;
+      return await _context.Purchases.SumAsync(p => p.TotalPaid);
     }
 
     public async Task<decimal> GetTotalPurchaseValueByItemAsync(int itemId)
@@ -246,6 +275,28 @@ namespace InventorySystem.Services
           .CountAsync(p => p.PurchaseDate.Year == year && p.PurchaseDate.Month == month);
     }
 
+    public async Task ProcessInventoryConsumptionAsync(int itemId, int quantityUsed)
+    {
+      // Implementation for inventory consumption logic
+      var purchases = await _context.Purchases
+          .Where(p => p.ItemId == itemId && p.RemainingQuantity > 0)
+          .OrderBy(p => p.PurchaseDate) // FIFO
+          .ToListAsync();
+
+      var remainingToConsume = quantityUsed;
+
+      foreach (var purchase in purchases)
+      {
+        if (remainingToConsume <= 0) break;
+
+        var consumeFromThis = Math.Min(purchase.RemainingQuantity, remainingToConsume);
+        purchase.RemainingQuantity -= consumeFromThis;
+        remainingToConsume -= consumeFromThis;
+      }
+
+      await _context.SaveChangesAsync();
+    }
+
     #endregion
 
     #region Version Control Methods
@@ -254,7 +305,7 @@ namespace InventorySystem.Services
     {
       var query = _context.Purchases
           .Include(p => p.Item)
-          .Include(p => p.PurchaseDocuments)
+          .Include(p => p.Vendor)
           .Where(p => p.ItemId == itemId);
 
       if (!string.IsNullOrEmpty(version))
@@ -262,76 +313,29 @@ namespace InventorySystem.Services
         query = query.Where(p => p.ItemVersion == version);
       }
 
-      return await query
-          .OrderByDescending(p => p.PurchaseDate)
-          .ToListAsync();
+      return await query.OrderByDescending(p => p.PurchaseDate).ToListAsync();
     }
 
     public async Task<Dictionary<string, IEnumerable<Purchase>>> GetPurchasesGroupedByVersionAsync(int itemId)
     {
-      // Get the base item ID to include all versions
-      var item = await _context.Items.FindAsync(itemId);
-      var baseItemId = item?.BaseItemId ?? itemId;
-
-      // Get all versions of this item
-      var allVersions = await _context.Items
-          .Where(i => i.Id == baseItemId || i.BaseItemId == baseItemId)
-          .Select(i => new { i.Id, i.Version })
-          .ToListAsync();
-
-      var allItemIds = allVersions.Select(v => v.Id).ToList();
-
-      // Get all purchases for all versions
-      var allPurchases = await _context.Purchases
+      var purchases = await _context.Purchases
           .Include(p => p.Item)
-          .Include(p => p.PurchaseDocuments)
-          .Where(p => allItemIds.Contains(p.ItemId))
+          .Include(p => p.Vendor)
+          .Where(p => p.ItemId == itemId)
           .OrderByDescending(p => p.PurchaseDate)
           .ToListAsync();
 
-      // Group by version
-      var grouped = new Dictionary<string, IEnumerable<Purchase>>();
-
-      foreach (var version in allVersions.OrderBy(v => v.Version))
-      {
-        var versionPurchases = allPurchases
-            .Where(p => p.ItemVersion == version.Version ||
-                       (string.IsNullOrEmpty(p.ItemVersion) && p.ItemId == version.Id))
-            .ToList();
-
-        if (versionPurchases.Any())
-        {
-          grouped[version.Version] = versionPurchases;
-        }
-      }
-
-      // Handle purchases without version info (legacy data)
-      var unversionedPurchases = allPurchases
-          .Where(p => string.IsNullOrEmpty(p.ItemVersion))
-          .ToList();
-
-      if (unversionedPurchases.Any())
-      {
-        grouped["Unversioned"] = unversionedPurchases;
-      }
-
-      return grouped;
+      return purchases.GroupBy(p => p.ItemVersion ?? "N/A")
+          .ToDictionary(g => g.Key, g => g.AsEnumerable());
     }
 
     public async Task<IEnumerable<Purchase>> GetPurchasesByBaseItemIdAsync(int baseItemId)
     {
-      // Get all item versions for this base item
-      var allVersions = await _context.Items
-          .Where(i => i.Id == baseItemId || i.BaseItemId == baseItemId)
-          .Select(i => i.Id)
-          .ToListAsync();
-
       return await _context.Purchases
           .Include(p => p.Item)
-          .Include(p => p.PurchaseDocuments)
-          .Where(p => allVersions.Contains(p.ItemId))
+          .Include(p => p.Vendor)
+          .Where(p => p.Item.BaseItemId == baseItemId || p.ItemId == baseItemId)
           .OrderByDescending(p => p.PurchaseDate)
-          .ThenBy(p => p.ItemVersion)
           .ToListAsync();
     }
 
@@ -349,15 +353,15 @@ namespace InventorySystem.Services
     {
       return await _context.Purchases
           .Include(p => p.Item)
-          .Include(p => p.PurchaseDocuments)
+          .Include(p => p.Vendor)
           .Where(p => itemIds.Contains(p.ItemId))
           .OrderByDescending(p => p.PurchaseDate)
           .ToListAsync();
     }
 
     #endregion
-    
-    #region Helper Methods
+
+    #region Helper Methods for Cost Calculations
 
     public async Task<decimal> GetAverageCostAsync(int itemId)
     {
@@ -380,53 +384,21 @@ namespace InventorySystem.Services
           .OrderBy(p => p.PurchaseDate)
           .ToListAsync();
 
+      if (!availablePurchases.Any()) return 0;
+
       decimal fifoValue = 0;
-      var remainingStock = item.CurrentStock;
+      int remainingStock = item.CurrentStock;
 
       foreach (var purchase in availablePurchases)
       {
         if (remainingStock <= 0) break;
 
-        var quantityToValue = Math.Min(purchase.RemainingQuantity, remainingStock);
+        int quantityToValue = Math.Min(remainingStock, purchase.RemainingQuantity);
         fifoValue += quantityToValue * purchase.CostPerUnit;
         remainingStock -= quantityToValue;
       }
 
       return fifoValue;
-    }
-
-    public async Task<IEnumerable<Purchase>> GetLowStockPurchaseHistoryAsync()
-    {
-      // Get items that are low on stock and their recent purchase history
-      var lowStockItems = await _context.Items
-          .Where(i => i.CurrentStock <= i.MinimumStock)
-          .Select(i => i.Id)
-          .ToListAsync();
-
-      return await _context.Purchases
-          .Include(p => p.Item)
-          .Where(p => lowStockItems.Contains(p.ItemId))
-          .OrderByDescending(p => p.PurchaseDate)
-          .Take(50) // Limit for performance
-          .ToListAsync();
-    }
-
-    public async Task<Dictionary<string, decimal>> GetVendorSpendingAsync(DateTime fromDate, DateTime toDate)
-    {
-      return await _context.Purchases
-          .Where(p => p.PurchaseDate >= fromDate && p.PurchaseDate <= toDate)
-          .GroupBy(p => p.Vendor)
-          .Select(g => new { Vendor = g.Key, Total = g.Sum(p => p.TotalPaid) })
-          .ToDictionaryAsync(x => x.Vendor, x => x.Total);
-    }
-
-    public async Task<IEnumerable<Purchase>> GetRecentPurchasesAsync(int count = 10)
-    {
-      return await _context.Purchases
-          .Include(p => p.Item)
-          .OrderByDescending(p => p.PurchaseDate)
-          .Take(count)
-          .ToListAsync();
     }
 
     #endregion

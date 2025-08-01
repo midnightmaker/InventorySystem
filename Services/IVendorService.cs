@@ -23,8 +23,17 @@ namespace InventorySystem.Services
     Task<VendorItem> UpdateVendorItemAsync(VendorItem vendorItem);
     Task<bool> DeleteVendorItemAsync(int vendorId, int itemId);
 
-    // Business logic
+    // Enhanced search methods
     Task<IEnumerable<Vendor>> SearchVendorsAsync(string searchTerm);
+    Task<IEnumerable<Vendor>> AdvancedSearchVendorsAsync(
+        string? companyName = null,
+        string? vendorCode = null,
+        string? contactName = null,
+        string? contactEmail = null,
+        bool? isActive = null,
+        bool? isPreferred = null);
+
+    // Business logic
     Task<IEnumerable<VendorItem>> GetCheapestVendorsForItemAsync(int itemId);
     Task<IEnumerable<VendorItem>> GetFastestVendorsForItemAsync(int itemId);
     Task UpdateVendorItemLastPurchaseAsync(int vendorId, int itemId, decimal cost, DateTime purchaseDate);

@@ -17,7 +17,7 @@ namespace InventorySystem.Controllers
     private readonly InventoryContext _context;
     private readonly IVersionControlService _versionService;
 
-    public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, InventoryContext context, IVersionControlService versionService )
+    public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, InventoryContext context, IVersionControlService versionService)
     {
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
@@ -25,7 +25,7 @@ namespace InventorySystem.Controllers
       _context = context;
 
     }
-    
+
 
     public async Task<IActionResult> Index()
     {
@@ -44,7 +44,7 @@ namespace InventorySystem.Controllers
 
       // ? ADD: Get purchases filtered by version (similar to BOM implementation)
       var allPurchases = await _purchaseService.GetPurchasesByItemIdAsync(id);
-      
+
       // Group purchases by version for the filter dropdown
       var purchasesByVersion = allPurchases
           .GroupBy(p => p.ItemVersion ?? "N/A")
@@ -54,12 +54,12 @@ namespace InventorySystem.Controllers
       ViewBag.AverageCost = await _inventoryService.GetAverageCostAsync(id);
       ViewBag.FifoValue = await _inventoryService.GetFifoValueAsync(id);
       ViewBag.Purchases = allPurchases; // ? CHANGED: Use allPurchases instead of specific call
-      
+
       // Check for pending change orders
       var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("Item", item.BaseItemId ?? item.Id);
       ViewBag.PendingChangeOrders = pendingChangeOrders;
       ViewBag.EntityType = "Item";
-      
+
       return View(item);
     }
 
@@ -296,20 +296,45 @@ namespace InventorySystem.Controllers
               viewModel.InitialCostPerUnit > 0 &&
               !string.IsNullOrWhiteSpace(viewModel.InitialVendor))
           {
+            // Find the vendor by name to get the VendorId
+            var vendor = await _context.Vendors
+              .FirstOrDefaultAsync(v => v.CompanyName.ToLower() == viewModel.InitialVendor.ToLower());
+
+            if (vendor == null)
+            {
+              // Create a new vendor if it doesn't exist
+              vendor = new Vendor
+              {
+                CompanyName = viewModel.InitialVendor,
+                IsActive = true,
+                CreatedDate = DateTime.Now,
+                LastUpdated = DateTime.Now,
+                QualityRating = 3,
+                DeliveryRating = 3,
+                ServiceRating = 3
+              };
+
+              _context.Vendors.Add(vendor);
+              await _context.SaveChangesAsync();
+            }
+
             var initialPurchase = new Purchase
             {
               ItemId = createdItem.Id,
-              Vendor = viewModel.InitialVendor,
+              VendorId = vendor.Id, // Use VendorId instead of Vendor string
               PurchaseDate = viewModel.InitialPurchaseDate ?? DateTime.Today,
               QuantityPurchased = viewModel.InitialQuantity,
               CostPerUnit = viewModel.InitialCostPerUnit,
               PurchaseOrderNumber = viewModel.InitialPurchaseOrderNumber,
-              Notes = $"Initial inventory entry - {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}"
+              Notes = $"Initial inventory entry - {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}",
+              Status = PurchaseStatus.Received, // Mark as received since it's initial inventory
+              RemainingQuantity = viewModel.InitialQuantity,
+              CreatedDate = DateTime.Now
             };
 
             await _purchaseService.CreatePurchaseAsync(initialPurchase);
 
-            TempData["SuccessMessage"] = $"Item created successfully with initial purchase of {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}!";
+            TempData["SuccessMessage"] = $"Item created successfully with initial purchase of {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)} from {vendor.CompanyName}!";
           }
           else
           {
@@ -514,7 +539,7 @@ namespace InventorySystem.Controllers
       return View(new BulkItemUploadViewModel());
     }
 
-    
+
 
   }
 }

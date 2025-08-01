@@ -69,15 +69,13 @@ namespace InventorySystem.Services
     public async Task<decimal> GetAverageCostAsync(int itemId)
     {
       var purchases = await _context.Purchases
-          .Where(p => p.ItemId == itemId)
-          .ToListAsync();
+        .Where(p => p.ItemId == itemId)
+        .Select(p => p.CostPerUnit)
+        .ToListAsync();
 
       if (!purchases.Any()) return 0;
 
-      var totalQuantity = purchases.Sum(p => p.QuantityPurchased);
-      var totalCost = purchases.Sum(p => p.TotalCost);
-
-      return totalQuantity > 0 ? totalCost / totalQuantity : 0;
+      return purchases.Average();
     }
 
     public async Task<decimal> GetFifoValueAsync(int itemId)
@@ -85,19 +83,23 @@ namespace InventorySystem.Services
       var item = await _context.Items.FindAsync(itemId);
       if (item == null) return 0;
 
+      // FIXED: Use ToListAsync() first for SQLite compatibility
       var availablePurchases = await _context.Purchases
           .Where(p => p.ItemId == itemId && p.RemainingQuantity > 0)
           .OrderBy(p => p.PurchaseDate)
+          .Select(p => new { p.RemainingQuantity, p.CostPerUnit })
           .ToListAsync();
 
+      if (!availablePurchases.Any()) return 0;
+
       decimal fifoValue = 0;
-      var remainingStock = item.CurrentStock;
+      int remainingStock = item.CurrentStock;
 
       foreach (var purchase in availablePurchases)
       {
         if (remainingStock <= 0) break;
 
-        var quantityToValue = Math.Min(purchase.RemainingQuantity, remainingStock);
+        int quantityToValue = Math.Min(remainingStock, purchase.RemainingQuantity);
         fifoValue += quantityToValue * purchase.CostPerUnit;
         remainingStock -= quantityToValue;
       }
@@ -135,12 +137,17 @@ namespace InventorySystem.Services
 
     public async Task<decimal> GetTotalInventoryValueAsync()
     {
-      var items = await _context.Items.ToListAsync();
+      var items = await _context.Items
+        .Where(i => i.CurrentStock > 0)
+        .Select(i => new { i.Id, i.CurrentStock })
+        .ToListAsync();
+
       decimal totalValue = 0;
 
       foreach (var item in items)
       {
-        totalValue += await GetFifoValueAsync(item.Id);
+        var averageCost = await GetAverageCostAsync(item.Id);
+        totalValue += item.CurrentStock * averageCost;
       }
 
       return totalValue;

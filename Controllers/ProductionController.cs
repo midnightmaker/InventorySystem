@@ -20,6 +20,7 @@ namespace InventorySystem.Controllers
     private readonly IBomService _bomService;
     private readonly IInventoryService _inventoryService;
     private readonly IPurchaseService _purchaseService;
+    private readonly IVendorService _vendorService; // ADD THIS
     private readonly IProductionOrchestrator _orchestrator;
     private readonly IWorkflowEngine _workflowEngine;
     private readonly ILogger<ProductionController> _logger;
@@ -29,6 +30,7 @@ namespace InventorySystem.Controllers
         IBomService bomService,
         IInventoryService inventoryService,
         IPurchaseService purchaseService,
+        IVendorService vendorService, // ADD THIS PARAMETER
         IProductionOrchestrator orchestrator,
         IWorkflowEngine workflowEngine,
         ILogger<ProductionController> logger)
@@ -37,6 +39,7 @@ namespace InventorySystem.Controllers
       _bomService = bomService;
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
+      _vendorService = vendorService; // ADD THIS
       _orchestrator = orchestrator;
       _workflowEngine = workflowEngine;
       _logger = logger;
@@ -529,6 +532,7 @@ namespace InventorySystem.Controllers
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [HttpPost]
     public async Task<IActionResult> CreateBulkPurchaseRequest(BulkPurchaseRequest model)
     {
       try
@@ -554,12 +558,62 @@ namespace InventorySystem.Controllers
 
         foreach (var item in selectedItems)
         {
+          // Find or create vendor - FIXED to work with VendorId
+          Vendor vendor = null;
+
+          if (!string.IsNullOrWhiteSpace(item.PreferredVendor))
+          {
+            // Try to find existing vendor by name
+            vendor = await _vendorService.GetVendorByNameAsync(item.PreferredVendor);
+
+            if (vendor == null)
+            {
+              // Create new vendor if it doesn't exist
+              vendor = new Vendor
+              {
+                CompanyName = item.PreferredVendor,
+                IsActive = true,
+                CreatedDate = DateTime.Now,
+                LastUpdated = DateTime.Now,
+                QualityRating = 3,
+                DeliveryRating = 3,
+                ServiceRating = 3,
+                PaymentTerms = "Net 30"
+              };
+
+              vendor = await _vendorService.CreateVendorAsync(vendor);
+            }
+          }
+
+          // If still no vendor, create a "TBD" vendor
+          if (vendor == null)
+          {
+            vendor = await _vendorService.GetVendorByNameAsync("TBD");
+
+            if (vendor == null)
+            {
+              vendor = new Vendor
+              {
+                CompanyName = "TBD",
+                IsActive = true,
+                CreatedDate = DateTime.Now,
+                LastUpdated = DateTime.Now,
+                QualityRating = 3,
+                DeliveryRating = 3,
+                ServiceRating = 3,
+                PaymentTerms = "Net 30"
+              };
+
+              vendor = await _vendorService.CreateVendorAsync(vendor);
+            }
+          }
+
           var purchase = new Purchase
           {
             ItemId = item.ItemId,
             QuantityPurchased = item.QuantityToPurchase,
             CostPerUnit = item.EstimatedUnitCost,
-            Vendor = item.PreferredVendor ?? "TBD",
+            VendorId = vendor.Id, // Use VendorId instead of Vendor string
             PurchaseOrderNumber = model.PurchaseOrderNumber ?? $"PO-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString()[..8]}",
             Notes = $"{model.Notes} | {item.Notes}".Trim(' ', '|'),
             PurchaseDate = DateTime.Today,
@@ -567,11 +621,8 @@ namespace InventorySystem.Controllers
             CreatedDate = DateTime.Now,
             ShippingCost = 0,
             TaxAmount = 0,
-            // NEW FIELDS with proper values
             Status = PurchaseStatus.Pending,
             ExpectedDeliveryDate = model.ExpectedDeliveryDate
-            // TotalCost is calculated automatically by the Purchase model
-            // ActualDeliveryDate will be set when status is updated to Received
           };
 
           var createdPurchase = await _purchaseService.CreatePurchaseAsync(purchase);
@@ -589,9 +640,8 @@ namespace InventorySystem.Controllers
         return View(model);
       }
     }
-    // File: Controllers/ProductionController.cs
-    // ADD these methods to your existing ProductionController class
 
+    
     // Create Finished Good - GET
     public async Task<IActionResult> CreateFinishedGood()
     {

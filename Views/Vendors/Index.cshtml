@@ -1,226 +1,334 @@
-﻿@model IEnumerable<InventorySystem.Models.Vendor>
+﻿@* Views/Vendors/Index.cshtml - Enhanced with wildcard search examples *@
+@model IEnumerable<InventorySystem.Models.Vendor>
+
 @{
   ViewData["Title"] = "Vendors";
   var searchTerm = ViewBag.SearchTerm as string;
   var activeOnly = ViewBag.ActiveOnly as bool? ?? true;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-truck"></i> Vendor Management</h1>
-  <div class="btn-group">
-    <a href="/Vendors/Create" class="btn btn-success">
-      <i class="fas fa-plus"></i> Add Vendor
-    </a>
-    <a href="/Vendors/Reports" class="btn btn-outline-info">
-      <i class="fas fa-chart-bar"></i> Reports
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-building"></i> @ViewData["Title"]</h2>
+    <a href="@Url.Action("Create")" class="btn btn-success">
+      <i class="fas fa-plus"></i> New Vendor
     </a>
   </div>
-</div>
 
-@if (TempData["SuccessMessage"] != null)
-{
-  <div class="alert alert-success alert-dismissible fade show">
-    @TempData["SuccessMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  <!-- Enhanced Search Form -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h6><i class="fas fa-search"></i> Search Vendors</h6>
+    </div>
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-8">
+          <label for="search" class="form-label">Search Term</label>
+          <input type="text"
+                 class="form-control"
+                 id="search"
+                 name="search"
+                 value="@searchTerm"
+                 placeholder="Enter search term with wildcards (e.g., crystal*, *supply, ?BC Corp)">
+          <div class="form-text">
+            <strong>Wildcard Support:</strong>
+            Use <code>*</code> for multiple characters (crystal* finds "Crystal Supply", "Crystal Tech") |
+            Use <code>?</code> for single character (?BC finds "ABC", "XBC")
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">&nbsp;</label>
+          <div class="form-check">
+            <input class="form-check-input"
+                   type="checkbox"
+                   id="activeOnly"
+                   name="activeOnly"
+                   value="true"
+                   @(activeOnly ? "checked" : "")>
+            <label class="form-check-label" for="activeOnly">
+              Active Only
+            </label>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">&nbsp;</label>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-search"></i> Search
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
   </div>
-}
 
-@if (TempData["ErrorMessage"] != null)
-{
-  <div class="alert alert-danger alert-dismissible fade show">
-    @TempData["ErrorMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
-
-<!-- Search and Filter -->
-<div class="card mb-4">
-  <div class="card-body">
-    <form method="get" class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label">Search Vendors</label>
-        <input type="text" name="search" class="form-control" value="@searchTerm"
-               placeholder="Search by company name, contact, or vendor code..." />
+  <!-- Search Examples Card -->
+  @if (string.IsNullOrEmpty(searchTerm))
+  {
+    <div class="card mb-4 border-info">
+      <div class="card-header bg-info text-white">
+        <h6><i class="fas fa-lightbulb"></i> Search Examples</h6>
       </div>
-      <div class="col-md-3">
-        <label class="form-label">Filter</label>
-        <div class="form-check mt-2">
-          <input type="checkbox" name="activeOnly" value="true" class="form-check-input"
-                 @(activeOnly ? "checked" : "") id="activeOnlyCheck" />
-          <label class="form-check-label" for="activeOnlyCheck">
-            Active vendors only
-          </label>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6>Wildcard Examples:</h6>
+            <ul class="list-unstyled">
+              <li><code>crystal*</code> - Find vendors starting with "crystal"</li>
+              <li><code>*supply</code> - Find vendors ending with "supply"</li>
+              <li><code>*tech*</code> - Find vendors containing "tech"</li>
+              <li><code>?BC Corp</code> - Find "ABC Corp", "XBC Corp", etc.</li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <h6>Search Fields:</h6>
+            <ul class="list-unstyled">
+              <li><i class="fas fa-building"></i> Company Name</li>
+              <li><i class="fas fa-user"></i> Contact Name</li>
+              <li><i class="fas fa-barcode"></i> Vendor Code</li>
+              <li><i class="fas fa-envelope"></i> Contact Email</li>
+            </ul>
+          </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <label class="form-label">&nbsp;</label>
-        <div class="d-grid">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-search"></i> Search
-          </button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
+    </div>
+  }
 
-<!-- Vendors Table -->
-<div class="card">
-  <div class="card-header">
-    <h5><i class="fas fa-list"></i> Vendors (@Model.Count())</h5>
-  </div>
-  <div class="card-body">
-    @if (Model.Any())
-    {
-      <div class="table-responsive">
-        <table class="table table-hover">
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>Contact</th>
-              <th>Location</th>
-              <th>Rating</th>
-              <th>Items</th>
-              <th>Purchases</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var vendor in Model)
-            {
-              <tr class="@(!vendor.IsActive ? "table-secondary" : "")">
-                <td>
-                  <div>
-                    <strong>@vendor.CompanyName</strong>
-                    @if (!string.IsNullOrEmpty(vendor.VendorCode))
-                    {
-                      <small class="text-muted d-block">Code: @vendor.VendorCode</small>
-                    }
-                  </div>
-                </td>
-                <td>
-                  @if (!string.IsNullOrEmpty(vendor.ContactName))
-                  {
-                    <div>@vendor.ContactName</div>
-                  }
-                  @if (!string.IsNullOrEmpty(vendor.ContactEmail))
-                  {
-                    <small><a href="mailto:@vendor.ContactEmail">@vendor.ContactEmail</a></small>
-                  }
-                  @if (!string.IsNullOrEmpty(vendor.ContactPhone))
-                  {
-                    <small class="d-block">@vendor.ContactPhone</small>
-                  }
-                </td>
-                <td>
-                  @if (!string.IsNullOrEmpty(vendor.City) && !string.IsNullOrEmpty(vendor.State))
-                  {
-                    <span>@vendor.City, @vendor.State</span>
-                  }
-                  @if (!string.IsNullOrEmpty(vendor.Country))
-                  {
-                    <small class="text-muted d-block">@vendor.Country</small>
-                  }
-                </td>
-                <td>
-                  <div class="text-center">
-                    <div class="h6 mb-0">@vendor.OverallRating.ToString("F1")</div>
-                    <div class="rating-stars">
-                      @for (int i = 1; i <= 5; i++)
+  <!-- Search Results Summary -->
+  @if (!string.IsNullOrEmpty(searchTerm))
+  {
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      Found <strong>@Model.Count()</strong> vendor(s) matching "<strong>@searchTerm</strong>"
+      @if (activeOnly)
+      {
+        <span>(Active vendors only)</span>
+      }
+      <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
+        <i class="fas fa-times"></i> Clear Search
+      </a>
+    </div>
+  }
+
+  <!-- Vendors Table -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">
+        <i class="fas fa-list"></i> Vendor List
+        <span class="badge bg-primary ms-2">@Model.Count() vendors</span>
+      </h5>
+    </div>
+    <div class="card-body">
+      @if (Model.Any())
+      {
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead class="table-dark">
+              <tr>
+                <th>Company Name</th>
+                <th>Vendor Code</th>
+                <th>Contact</th>
+                <th>Status</th>
+                <th>Rating</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var vendor in Model)
+              {
+                <tr class="@(!vendor.IsActive ? "table-secondary" : "") vendor-row"
+                    data-vendor-id="@vendor.Id"
+                    style="cursor: pointer;"
+                    title="Click to view vendor details">
+                  <td>
+                    <div>
+                      <strong>@vendor.CompanyName</strong>
+                      @if (vendor.IsPreferred)
                       {
-                        <i class="fas fa-star @(i <= vendor.OverallRating ? "text-warning" : "text-muted")"></i>
+                        <span class="badge bg-warning text-dark ms-1">Preferred</span>
                       }
                     </div>
-                  </div>
-                </td>
-                <td class="text-center">
-                  <span class="badge bg-info">@vendor.ItemsSuppliedCount</span>
-                </td>
-                <td class="text-center">
-                  <div>@vendor.TotalPurchases.ToString("C")</div>
-                  <small class="text-muted">(@vendor.PurchaseCount orders)</small>
-                </td>
-                <td>
-                  @if (vendor.IsActive)
-                  {
-                    <span class="badge bg-success">Active</span>
-                  }
-                  else
-                  {
-                    <span class="badge bg-secondary">Inactive</span>
-                  }
-                  @if (vendor.IsPreferred)
-                  {
-                    <span class="badge bg-warning">Preferred</span>
-                  }
-                </td>
-                <td>
-                  <div class="btn-group btn-group-sm">
-                    <a href="/Vendors/Details/@vendor.Id" class="btn btn-outline-primary">
-                      <i class="fas fa-eye"></i>
-                    </a>
-                    <a href="/Vendors/Edit/@vendor.Id" class="btn btn-outline-secondary">
-                      <i class="fas fa-edit"></i>
-                    </a>
-                    @if (vendor.IsActive)
+                    @if (!string.IsNullOrEmpty(vendor.Website))
                     {
-                      <form asp-action="Deactivate" method="post" class="d-inline">
-                        <input type="hidden" name="id" value="@vendor.Id" />
-                        <button type="submit" class="btn btn-outline-danger"
-                                onclick="return confirm('Deactivate this vendor?')">
-                          <i class="fas fa-ban"></i>
-                        </button>
-                      </form>
+                      <small class="text-muted">
+                        <a href="@vendor.Website" target="_blank" class="text-decoration-none" onclick="event.stopPropagation();">
+                          <i class="fas fa-external-link-alt"></i> Website
+                        </a>
+                      </small>
+                    }
+                  </td>
+                  <td>
+                    @if (!string.IsNullOrEmpty(vendor.VendorCode))
+                    {
+                      <span class="badge bg-secondary">@vendor.VendorCode</span>
                     }
                     else
                     {
-                      <form asp-action="Activate" method="post" class="d-inline">
-                        <input type="hidden" name="id" value="@vendor.Id" />
-                        <button type="submit" class="btn btn-outline-success">
-                          <i class="fas fa-check"></i>
-                        </button>
-                      </form>
+                      <span class="text-muted">-</span>
                     }
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                  <td>
+                    @if (!string.IsNullOrEmpty(vendor.ContactName))
+                    {
+                      <div>@vendor.ContactName</div>
+                    }
+                    @if (!string.IsNullOrEmpty(vendor.ContactEmail))
+                    {
+                      <small class="text-muted">
+                        <a href="mailto:@vendor.ContactEmail" onclick="event.stopPropagation();">@vendor.ContactEmail</a>
+                      </small>
+                    }
+                    @if (!string.IsNullOrEmpty(vendor.ContactPhone))
+                    {
+                      <br>
+                
+                      <small class="text-muted">
+                        <a href="tel:@vendor.ContactPhone" onclick="event.stopPropagation();">@vendor.ContactPhone</a>
+                      </small>
+                    }
+                  </td>
+                  <td>
+                    @if (vendor.IsActive)
+                    {
+                      <span class="badge bg-success">Active</span>
+                    }
+                    else
+                    {
+                      <span class="badge bg-danger">Inactive</span>
+                    }
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <span class="me-2">@vendor.OverallRating.ToString("F1")</span>
+                      @for (int i = 1; i <= 5; i++)
+                      {
+                        if (i <= vendor.OverallRating)
+                        {
+                          <i class="fas fa-star text-warning"></i>
+                        }
+                        else
+                        {
+                          <i class="far fa-star text-muted"></i>
+                        }
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm" role="group" onclick="event.stopPropagation();">
+                      <a href="@Url.Action("Details", new { id = vendor.Id })"
+                         class="btn btn-outline-primary" title="View Details">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <a href="@Url.Action("Edit", new { id = vendor.Id })"
+                         class="btn btn-outline-secondary" title="Edit">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                      <a href="@Url.Action("ManageItems", new { id = vendor.Id })"
+                         class="btn btn-outline-info" title="Manage Items">
+                        <i class="fas fa-boxes"></i>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      else
+      {
+        <div class="text-center py-5">
+          <i class="fas fa-building fa-3x text-muted mb-3"></i>
+          <h4 class="text-muted">
+            @if (!string.IsNullOrEmpty(searchTerm))
+            {
+              <span>No vendors found matching "@searchTerm"</span>
             }
-          </tbody>
-        </table>
-      </div>
-    }
-    else
-    {
-      <div class="text-center py-4">
-        <i class="fas fa-truck fa-3x text-muted mb-3"></i>
-        <h5>No vendors found</h5>
-        <p class="text-muted">
-          @if (!string.IsNullOrEmpty(searchTerm))
-          {
-            <span>No vendors match your search criteria.</span>
-          }
-          else
-          {
-            <span>Get started by adding your first vendor.</span>
-          }
-        </p>
-        <a href="/Vendors/Create" class="btn btn-success">
-          <i class="fas fa-plus"></i> Add First Vendor
-        </a>
-      </div>
-    }
+            else
+            {
+              <span>No vendors found</span>
+            }
+          </h4>
+          <p class="text-muted">
+            @if (!string.IsNullOrEmpty(searchTerm))
+            {
+              <span>Try adjusting your search terms or using wildcards like "*supply" or "crystal*"</span>
+            }
+            else
+            {
+              <span>Start by creating your first vendor.</span>
+            }
+          </p>
+          <a href="@Url.Action("Create")" class="btn btn-success">
+            <i class="fas fa-plus"></i> Create First Vendor
+          </a>
+        </div>
+      }
+    </div>
   </div>
 </div>
 
-@section Scripts {
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Enable tooltips for rating stars
-      const stars = document.querySelectorAll('.rating-stars i');
-      stars.forEach(star => {
-        star.setAttribute('title', 'Overall rating based on Quality, Delivery, and Service');
+<style>
+  .vendor-row:hover {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+    transition: background-color 0.2s ease;
+  }
+
+  .vendor-row {
+    transition: background-color 0.2s ease;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      // Add click functionality to vendor rows
+      const vendorRows = document.querySelectorAll('.vendor-row');
+
+      vendorRows.forEach(row => {
+          row.addEventListener('click', function(e) {
+              // Don't navigate if clicking on links or buttons
+              if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' ||
+                  e.target.closest('a') || e.target.closest('button')) {
+                  return;
+              }
+
+              const vendorId = this.getAttribute('data-vendor-id');
+              if (vendorId) {
+                  window.location.href = '@Url.Action("Details", "Vendors")'.replace('Details', 'Details') + '/' + vendorId;
+              }
+          });
+
+          // Add visual feedback for clickable rows
+          row.addEventListener('mouseenter', function() {
+              this.style.transform = 'scale(1.001)';
+          });
+
+          row.addEventListener('mouseleave', function() {
+              this.style.transform = 'scale(1)';
+          });
       });
-    });
-  </script>
-}
+
+      // Add keyboard navigation support
+      vendorRows.forEach((row, index) => {
+          row.setAttribute('tabindex', '0');
+
+          row.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  const vendorId = this.getAttribute('data-vendor-id');
+                  if (vendorId) {
+                      window.location.href = '@Url.Action("Details", "Vendors")'.replace('Details', 'Details') + '/' + vendorId;
+                  }
+              } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  const nextRow = vendorRows[index + 1];
+                  if (nextRow) nextRow.focus();
+              } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const prevRow = vendorRows[index - 1];
+                  if (prevRow) prevRow.focus();
+              }
+          });
+      });
+  });
+</script>

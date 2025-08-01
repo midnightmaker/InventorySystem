@@ -1,8 +1,9 @@
 // Data/InventoryContext.cs - Enhanced with Workflow Entities
-using Microsoft.EntityFrameworkCore;
-using InventorySystem.Models;
 using InventorySystem.Domain.Entities.Production;
 using InventorySystem.Domain.Enums;
+using InventorySystem.Models;
+using InventorySystem.Models.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Data
 {
@@ -40,13 +41,11 @@ namespace InventorySystem.Data
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-      base.OnModelCreating(modelBuilder);
-
-      // Configure existing entities with proper relationships
-      ConfigureExistingEntities(modelBuilder);
-
       // Configure new workflow entities
       ConfigureWorkflowEntities(modelBuilder);
+      ConfigureExistingEntities(modelBuilder);
+      base.OnModelCreating(modelBuilder);
+
     }
 
     private void ConfigureExistingEntities(ModelBuilder modelBuilder)
@@ -71,25 +70,7 @@ namespace InventorySystem.Data
               .OnDelete(DeleteBehavior.Cascade);
       });
 
-      // Purchase configuration
-      modelBuilder.Entity<Purchase>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.CostPerUnit).HasColumnType("decimal(18,2)");
-
-        // Explicit relationship configuration
-        entity.HasOne(p => p.Item)
-              .WithMany(i => i.Purchases)
-              .HasForeignKey(p => p.ItemId)
-              .OnDelete(DeleteBehavior.Restrict);
-
-        // If ItemVersionReference exists, configure it separately
-        entity.HasOne(p => p.ItemVersionReference)
-              .WithMany()
-              .HasForeignKey(p => p.ItemVersionId)
-              .OnDelete(DeleteBehavior.Restrict);
-      });
-
+    
       // BOM configuration with explicit self-referencing relationships
       modelBuilder.Entity<Bom>(entity =>
       {
@@ -291,14 +272,86 @@ namespace InventorySystem.Data
           .HasForeignKey(vi => vi.ItemId)
           .OnDelete(DeleteBehavior.Cascade);
 
-      // Update Purchase entity to optionally reference Vendor
-      // This maintains backward compatibility while allowing future integration
-      modelBuilder.Entity<Purchase>()
-          .Property(p => p.Vendor)
-          .HasMaxLength(200)
-          .IsRequired();
+      // Purchase entity configuration
+      modelBuilder.Entity<Purchase>(entity =>
+      {
+        entity.HasKey(e => e.Id);
 
-      base.OnModelCreating(modelBuilder);
+        // Item relationship
+        entity.HasOne(p => p.Item)
+              .WithMany()
+              .HasForeignKey(p => p.ItemId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+        // Vendor relationship - REQUIRED (not nullable)
+        entity.HasOne(p => p.Vendor)
+              .WithMany(v => v.Purchases)
+              .HasForeignKey(p => p.VendorId)
+              .OnDelete(DeleteBehavior.Restrict); // Don't delete purchases if vendor is deleted
+
+        // Configure decimal properties
+        entity.Property(p => p.CostPerUnit)
+              .HasColumnType("decimal(18,2)")
+              .IsRequired();
+
+        entity.Property(p => p.ShippingCost)
+              .HasColumnType("decimal(18,2)")
+              .HasDefaultValue(0);
+
+        entity.Property(p => p.TaxAmount)
+              .HasColumnType("decimal(18,2)")
+              .HasDefaultValue(0);
+
+        // Configure string properties
+        entity.Property(p => p.PurchaseOrderNumber)
+              .HasMaxLength(100);
+
+        entity.Property(p => p.Notes)
+              .HasMaxLength(1000);
+
+        entity.Property(p => p.ItemVersion)
+              .HasMaxLength(10);
+
+        // Configure enum
+        entity.Property(p => p.Status)
+              .HasConversion<int>()
+              .HasDefaultValue(PurchaseStatus.Pending);
+
+        // Configure required fields
+        entity.Property(p => p.PurchaseDate)
+              .IsRequired();
+
+        entity.Property(p => p.QuantityPurchased)
+              .IsRequired();
+
+        entity.Property(p => p.RemainingQuantity)
+              .IsRequired();
+
+        entity.Property(p => p.CreatedDate)
+              .IsRequired()
+              .HasDefaultValueSql("datetime('now')");
+
+        // ItemVersion relationship (optional)
+        entity.HasOne(p => p.ItemVersionReference)
+              .WithMany()
+              .HasForeignKey(p => p.ItemVersionId)
+              .OnDelete(DeleteBehavior.SetNull);
+
+        // Indexes for performance
+        entity.HasIndex(p => p.ItemId)
+              .HasDatabaseName("IX_Purchases_ItemId");
+
+        entity.HasIndex(p => p.VendorId)
+              .HasDatabaseName("IX_Purchases_VendorId");
+
+        entity.HasIndex(p => p.PurchaseDate)
+              .HasDatabaseName("IX_Purchases_PurchaseDate");
+
+        entity.HasIndex(p => new { p.ItemId, p.PurchaseDate })
+              .HasDatabaseName("IX_Purchases_ItemId_PurchaseDate");
+      });
+
+
     }
 
     private void ConfigureWorkflowEntities(ModelBuilder modelBuilder)

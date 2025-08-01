@@ -14,13 +14,20 @@ namespace InventorySystem.Services
     private readonly InventoryContext _context;
     private readonly IInventoryService _inventoryService;
     private readonly IPurchaseService _purchaseService;
+    private readonly IVendorService _vendorService; // ADD THIS
 
-    public BulkUploadService(InventoryContext context, IInventoryService inventoryService, IPurchaseService purchaseService)
+    public BulkUploadService(
+        InventoryContext context,
+        IInventoryService inventoryService,
+        IPurchaseService purchaseService,
+        IVendorService vendorService) // ADD THIS PARAMETER
     {
       _context = context;
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
+      _vendorService = vendorService; // ADD THIS
     }
+
 
     public async Task<List<BulkItemPreview>> ParseCsvFileAsync(IFormFile file, bool skipHeaderRow = true)
     {
@@ -181,17 +188,41 @@ namespace InventorySystem.Services
             // Create initial purchase if data is provided AND item is inventoried
             if (HasValidInitialPurchaseData(itemData) && itemData.TrackInventory)
             {
+              // Find or create vendor - FIXED to work with VendorId
+              var vendor = await _vendorService.GetVendorByNameAsync(itemData.InitialVendor!);
+
+              if (vendor == null)
+              {
+                // Create new vendor if it doesn't exist
+                vendor = new Vendor
+                {
+                  CompanyName = itemData.InitialVendor!,
+                  IsActive = true,
+                  CreatedDate = DateTime.Now,
+                  LastUpdated = DateTime.Now,
+                  QualityRating = 3,
+                  DeliveryRating = 3,
+                  ServiceRating = 3,
+                  PaymentTerms = "Net 30"
+                };
+
+                vendor = await _vendorService.CreateVendorAsync(vendor);
+              }
+
               var purchase = new Purchase
               {
                 ItemId = createdItem.Id,
-                Vendor = itemData.InitialVendor!,
+                VendorId = vendor.Id, // Use VendorId instead of Vendor string
                 PurchaseDate = itemData.InitialPurchaseDate ?? DateTime.Today,
                 QuantityPurchased = (int)itemData.InitialQuantity!.Value,
                 CostPerUnit = itemData.InitialCostPerUnit!.Value,
                 PurchaseOrderNumber = itemData.InitialPurchaseOrderNumber,
                 Notes = "Initial inventory entry from bulk upload",
                 RemainingQuantity = (int)itemData.InitialQuantity!.Value,
-                CreatedDate = DateTime.Now
+                CreatedDate = DateTime.Now,
+                Status = PurchaseStatus.Received, // Mark as received for initial inventory
+                ShippingCost = 0,
+                TaxAmount = 0
               };
 
               await _purchaseService.CreatePurchaseAsync(purchase);
@@ -218,6 +249,7 @@ namespace InventorySystem.Services
 
       return result;
     }
+
 
     private void ValidateInitialPurchaseData(BulkItemPreview item, ItemValidationResult validationResult)
     {

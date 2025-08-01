@@ -1,4 +1,5 @@
-﻿using System;
+﻿// ViewModels/CreatePurchaseViewModel.cs - Updated with VendorId
+using System;
 using System.ComponentModel.DataAnnotations;
 using InventorySystem.Models.Enums;
 
@@ -10,10 +11,9 @@ namespace InventorySystem.ViewModels
     [Display(Name = "Item")]
     public int ItemId { get; set; }
 
-    [Required(ErrorMessage = "Vendor name is required")]
-    [StringLength(200, ErrorMessage = "Vendor name cannot exceed 200 characters")]
+    [Required(ErrorMessage = "Please select a vendor")]
     [Display(Name = "Vendor")]
-    public string Vendor { get; set; } = string.Empty;
+    public int VendorId { get; set; }
 
     [Required(ErrorMessage = "Purchase date is required")]
     [Display(Name = "Purchase Date")]
@@ -45,9 +45,8 @@ namespace InventorySystem.ViewModels
     [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
     public string? Notes { get; set; }
 
-    // NEW FIELDS
     [Display(Name = "Purchase Status")]
-    public InventorySystem.Models.Enums.PurchaseStatus Status { get; set; } = InventorySystem.Models.Enums.PurchaseStatus.Pending;
+    public PurchaseStatus Status { get; set; } = PurchaseStatus.Pending;
 
     [Display(Name = "Expected Delivery Date")]
     [DataType(DataType.Date)]

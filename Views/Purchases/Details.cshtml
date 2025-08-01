@@ -1,461 +1,391 @@
-﻿@model InventorySystem.Models.Purchase
+﻿@* Views/Purchases/Details.cshtml - Updated to show vendor information *@
+@model InventorySystem.Models.Purchase
+
 @{
-  ViewData["Title"] = "Purchase Details";
+  ViewData["Title"] = $"Purchase Details - {Model.Id}";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-receipt"></i> Purchase Details</h1>
-  <div class="btn-group">
-    <a href="/Purchases/Edit/@Model.Id" class="btn btn-outline-primary">
-      <i class="fas fa-edit"></i> Edit
-    </a>
-    <a href="/Purchases/UploadDocument?purchaseId=@Model.Id" class="btn btn-success">
-      <i class="fas fa-upload"></i> Upload Document
-    </a>
-    <div class="btn-group" role="group">
-      <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-        <i class="fas fa-ellipsis-h"></i> More
-      </button>
-      <ul class="dropdown-menu">
-        <li>
-          <a class="dropdown-item" href="/Purchases/Delete/@Model.Id">
-            <i class="fas fa-trash text-danger"></i> Delete Purchase
-          </a>
-        </li>
-        <li>
-          <a class="dropdown-item" href="/Inventory/Adjust?itemId=@Model.ItemId">
-            <i class="fas fa-balance-scale"></i> Adjust Inventory
-          </a>
-        </li>
-      </ul>
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-shopping-cart"></i> Purchase Details</h2>
+    <div>
+      <a href="@Url.Action("Edit", new { id = Model.Id })" class="btn btn-warning">
+        <i class="fas fa-edit"></i> Edit
+      </a>
+      <a href="@Url.Action("Index")" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to List
+      </a>
     </div>
   </div>
-</div>
 
-<!-- Status Alert -->
-@if (Model.IsOverdue)
-{
-  <div class="alert alert-warning">
-    <i class="fas fa-exclamation-triangle"></i>
-    <strong>Overdue:</strong> This purchase was expected @Model.ExpectedDeliveryDate?.ToString("MM/dd/yyyy")
-    (@Math.Abs(Model.DaysUntilExpected) days ago)
-  </div>
-}
-else if (Model.Status == InventorySystem.Models.Enums.PurchaseStatus.Received)
-{
-  <div class="alert alert-success">
-    <i class="fas fa-check-circle"></i>
-    <strong>Complete:</strong> All items have been received.
-  </div>
-}
+  @if (TempData["SuccessMessage"] != null)
+  {
+    <div class="alert alert-success alert-dismissible fade show">
+      <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
 
-<div class="row">
-  <div class="col-md-8">
-    <div class="card">
-      <div class="card-header">
-        <h5><i class="fas fa-info-circle"></i> Purchase Information</h5>
-      </div>
-      <div class="card-body">
-        <dl class="row">
-          <dt class="col-sm-3">Item:</dt>
-          <dd class="col-sm-9">
-            <a href="/Items/Details/@Model.Item.Id" class="fw-bold">@Model.Item.PartNumber</a>
-            <br><small class="text-muted">@Model.Item.Description</small>
-          </dd>
+  @if (TempData["ErrorMessage"] != null)
+  {
+    <div class="alert alert-danger alert-dismissible fade show">
+      <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
 
-          <dt class="col-sm-3">Vendor:</dt>
-          <dd class="col-sm-9">@Model.Vendor</dd>
+  <div class="row">
+    <!-- Main Purchase Information -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> Purchase Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Purchase ID:</dt>
+                <dd class="col-sm-7">
+                  <span class="badge bg-primary">#@Model.Id</span>
+                </dd>
 
-          <dt class="col-sm-3">Purchase Date:</dt>
-          <dd class="col-sm-9">@Model.PurchaseDate.ToString("MM/dd/yyyy")</dd>
+                <dt class="col-sm-5">Purchase Date:</dt>
+                <dd class="col-sm-7">
+                  <i class="fas fa-calendar text-muted"></i>
+                  @Model.PurchaseDate.ToString("MM/dd/yyyy")
+                </dd>
 
-          <dt class="col-sm-3">PO Number:</dt>
-          <dd class="col-sm-9">@(string.IsNullOrEmpty(Model.PurchaseOrderNumber) ? "N/A" : Model.PurchaseOrderNumber)</dd>
+                <dt class="col-sm-5">Status:</dt>
+                <dd class="col-sm-7">
+                  @{
+                    var statusClass = Model.Status switch
+                    {
+                      InventorySystem.Models.Enums.PurchaseStatus.Pending => "bg-warning",
+                      InventorySystem.Models.Enums.PurchaseStatus.Confirmed => "bg-info",
+                      InventorySystem.Models.Enums.PurchaseStatus.Shipped => "bg-primary",
+                      InventorySystem.Models.Enums.PurchaseStatus.PartiallyReceived => "bg-warning",
+                      InventorySystem.Models.Enums.PurchaseStatus.Received => "bg-success",
+                      InventorySystem.Models.Enums.PurchaseStatus.Cancelled => "bg-danger",
+                      InventorySystem.Models.Enums.PurchaseStatus.Returned => "bg-secondary",
+                      _ => "bg-secondary"
+                    };
+                  }
+                  <span class="badge @statusClass">@Model.Status</span>
+                </dd>
 
-          <!-- NEW: Purchase Status -->
-          <dt class="col-sm-3">Status:</dt>
-          <dd class="col-sm-9">
-            <span class="badge bg-@GetStatusColor(Model.Status) fs-6">
-              @Model.Status.ToString().Replace("PartiallyReceived", "Partially Received")
-            </span>
-          </dd>
-
-          <dt class="col-sm-3">Quantity:</dt>
-          <dd class="col-sm-9">
-            <span class="fs-5 fw-bold">@Model.QuantityPurchased</span> units
-          </dd>
-
-          <dt class="col-sm-3">Cost per Unit:</dt>
-          <dd class="col-sm-9">$@Model.CostPerUnit.ToString("F2")</dd>
-
-          <dt class="col-sm-3">Subtotal:</dt>
-          <dd class="col-sm-9">$@Model.TotalCost.ToString("F2")</dd>
-
-          @if (Model.ShippingCost > 0)
-          {
-            <dt class="col-sm-3">Shipping:</dt>
-            <dd class="col-sm-9">$@Model.ShippingCost.ToString("F2")</dd>
-          }
-
-          @if (Model.TaxAmount > 0)
-          {
-            <dt class="col-sm-3">Tax:</dt>
-            <dd class="col-sm-9">$@Model.TaxAmount.ToString("F2")</dd>
-          }
-
-          <dt class="col-sm-3">Total Paid:</dt>
-          <dd class="col-sm-9">
-            <span class="fs-4 fw-bold text-success">$@Model.TotalPaid.ToString("F2")</span>
-          </dd>
-
-          <dt class="col-sm-3">Remaining Qty:</dt>
-          <dd class="col-sm-9">
-            @if (Model.RemainingQuantity > 0)
-            {
-              <span class="badge bg-success fs-6">@Model.RemainingQuantity units</span>
-            }
-            else
-            {
-              <span class="badge bg-secondary fs-6">Fully consumed</span>
-            }
-          </dd>
-
-          <!-- NEW: Delivery Information -->
-          @if (Model.ExpectedDeliveryDate.HasValue)
-          {
-            <dt class="col-sm-3">Expected Delivery:</dt>
-            <dd class="col-sm-9">
-              @Model.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
-              @if (Model.DaysUntilExpected > 0)
-              {
-                <small class="text-muted">(@Model.DaysUntilExpected days from now)</small>
-              }
-              else if (Model.DaysUntilExpected < 0)
-              {
-                <small class="text-danger">(@Math.Abs(Model.DaysUntilExpected) days overdue)</small>
-              }
-              else
-              {
-                <small class="text-info">(Expected today)</small>
-              }
-            </dd>
-          }
-
-          @if (Model.ActualDeliveryDate.HasValue)
-          {
-            <dt class="col-sm-3">Actual Delivery:</dt>
-            <dd class="col-sm-9">
-              @Model.ActualDeliveryDate.Value.ToString("MM/dd/yyyy")
-              @if (Model.ExpectedDeliveryDate.HasValue)
-              {
-                var deliveryDifference = (Model.ActualDeliveryDate.Value - Model.ExpectedDeliveryDate.Value).Days;
-                if (deliveryDifference > 0)
+                @if (!string.IsNullOrEmpty(Model.PurchaseOrderNumber))
                 {
-                  <small class="text-warning">(@deliveryDifference days late)</small>
+                  <dt class="col-sm-5">PO Number:</dt>
+                  <dd class="col-sm-7">
+                    <i class="fas fa-file-invoice text-muted"></i>
+                    @Model.PurchaseOrderNumber
+                  </dd>
                 }
-                else if (deliveryDifference < 0)
+
+                <dt class="col-sm-5">Created:</dt>
+                <dd class="col-sm-7">
+                  <i class="fas fa-clock text-muted"></i>
+                  @Model.CreatedDate.ToString("MM/dd/yyyy hh:mm tt")
+                </dd>
+              </dl>
+            </div>
+            <div class="col-md-6">
+              <dl class="row">
+                @if (Model.ExpectedDeliveryDate.HasValue)
                 {
-                  <small class="text-success">(@Math.Abs(deliveryDifference) days early)</small>
+                  <dt class="col-sm-6">Expected Delivery:</dt>
+                  <dd class="col-sm-6">
+                    <i class="fas fa-truck text-info"></i>
+                    @Model.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
+                  </dd>
                 }
-                else
+
+                @if (Model.ActualDeliveryDate.HasValue)
                 {
-                  <small class="text-success">(On time)</small>
+                  <dt class="col-sm-6">Actual Delivery:</dt>
+                  <dd class="col-sm-6">
+                    <i class="fas fa-check-circle text-success"></i>
+                    @Model.ActualDeliveryDate.Value.ToString("MM/dd/yyyy")
+                  </dd>
                 }
-              }
-            </dd>
-          }
+
+                @if (!string.IsNullOrEmpty(Model.ItemVersion))
+                {
+                  <dt class="col-sm-6">Item Version:</dt>
+                  <dd class="col-sm-6">
+                    <span class="badge bg-secondary">@Model.ItemVersion</span>
+                  </dd>
+                }
+              </dl>
+            </div>
+          </div>
 
           @if (!string.IsNullOrEmpty(Model.Notes))
           {
-            <dt class="col-sm-3">Notes:</dt>
-            <dd class="col-sm-9">@Model.Notes</dd>
+            <div class="mt-3">
+              <h6><i class="fas fa-sticky-note"></i> Notes</h6>
+              <div class="card bg-light">
+                <div class="card-body">
+                  @Model.Notes
+                </div>
+              </div>
+            </div>
           }
-
-          <dt class="col-sm-3">Created:</dt>
-          <dd class="col-sm-9">@Model.CreatedDate.ToString("MM/dd/yyyy HH:mm")</dd>
-        </dl>
+        </div>
       </div>
-    </div>
 
-    <!-- Purchase Documents Section -->
-    @if (Model.PurchaseDocuments != null && Model.PurchaseDocuments.Any())
-    {
-      <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5><i class="fas fa-file"></i> Documents (@Model.DocumentCount)</h5>
-          <a href="/Purchases/UploadDocument?purchaseId=@Model.Id" class="btn btn-sm btn-success">
-            <i class="fas fa-plus"></i> Add Document
-          </a>
+      <!-- Item Information -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-cube"></i> Item Information</h5>
         </div>
         <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Document</th>
-                  <th>Type</th>
-                  <th>Size</th>
-                  <th>Upload Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                @foreach (var doc in Model.PurchaseDocuments)
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Part Number:</dt>
+                <dd class="col-sm-7">
+                  <strong>@Model.Item.PartNumber</strong>
+                </dd>
+
+                <dt class="col-sm-5">Description:</dt>
+                <dd class="col-sm-7">@Model.Item.Description</dd>
+
+                <dt class="col-sm-5">Current Stock:</dt>
+                <dd class="col-sm-7">
+                  <span class="badge bg-info">@Model.Item.CurrentStock</span>
+                </dd>
+              </dl>
+            </div>
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-6">Unit of Measure:</dt>
+                <dd class="col-sm-6">@Model.Item.UnitOfMeasure</dd>
+
+                <dt class="col-sm-6">Item Type:</dt>
+                <dd class="col-sm-6">
+                  <span class="badge bg-secondary">@Model.Item.ItemType</span>
+                </dd>
+
+                @if (Model.Item.MinimumStock > 0)
                 {
-                  <tr>
-                    <td>
-                      <strong>@doc.DocumentName</strong>
-                      @if (!string.IsNullOrEmpty(doc.Description))
-                      {
-                        <br>
-                  
-                        <small class="text-muted">@doc.Description</small>
-                      }
-                    </td>
-                    <td>
-                      <span class="badge bg-secondary">@doc.DocumentType</span>
-                    </td>
-                    <td>@doc.FileSizeFormatted</td>
-                    <td>@doc.UploadedDate.ToString("MM/dd/yyyy")</td>
-                    <td>
-                      <div class="btn-group btn-group-sm">
-                        <a href="/Purchases/DownloadDocument/@doc.Id" class="btn btn-outline-primary" title="Download">
-                          <i class="fas fa-download"></i>
-                        </a>
-                        <a href="/Purchases/DeleteDocument/@doc.Id" class="btn btn-outline-danger" title="Delete">
-                          <i class="fas fa-trash"></i>
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
+                  <dt class="col-sm-6">Minimum Stock:</dt>
+                  <dd class="col-sm-6">
+                    <span class="badge bg-warning">@Model.Item.MinimumStock</span>
+                  </dd>
                 }
-              </tbody>
-            </table>
+              </dl>
+            </div>
           </div>
         </div>
       </div>
-    }
-    else
-    {
-      <div class="card mt-4">
+
+      <!-- Vendor Information -->
+      <div class="card mt-3">
         <div class="card-header">
-          <h5><i class="fas fa-file"></i> Documents</h5>
+          <h5><i class="fas fa-building"></i> Vendor Information</h5>
         </div>
-        <div class="card-body text-center">
-          <i class="fas fa-file fa-3x text-muted mb-3"></i>
-          <h6 class="text-muted">No Documents</h6>
-          <p class="text-muted">No documents have been uploaded for this purchase.</p>
-          <a href="/Purchases/UploadDocument?purchaseId=@Model.Id" class="btn btn-success">
-            <i class="fas fa-plus"></i> Upload First Document
-          </a>
-        </div>
-      </div>
-    }
-  </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Vendor Name:</dt>
+                <dd class="col-sm-7">
+                  <strong>@Model.Vendor.CompanyName</strong>
+                  @if (!Model.Vendor.IsActive)
+                  {
+                    <span class="badge bg-danger ms-1">Inactive</span>
+                  }
+                </dd>
 
-  <div class="col-md-4">
-    <!-- Quick Actions -->
-    <div class="card">
-      <div class="card-header">
-        <h5><i class="fas fa-tools"></i> Quick Actions</h5>
-      </div>
-      <div class="card-body">
-        <div class="d-grid gap-2">
-          <!-- Status Update Actions -->
-          @if (Model.Status == InventorySystem.Models.Enums.PurchaseStatus.Pending)
-          {
-            <button type="button" class="btn btn-success" onclick="updateStatus('Confirmed')">
-              <i class="fas fa-check"></i> Mark as Confirmed
-            </button>
-          }
-          @if (Model.Status == InventorySystem.Models.Enums.PurchaseStatus.Confirmed)
-          {
-            <button type="button" class="btn btn-info" onclick="updateStatus('Shipped')">
-              <i class="fas fa-shipping-fast"></i> Mark as Shipped
-            </button>
-          }
-          @if (Model.Status == InventorySystem.Models.Enums.PurchaseStatus.Shipped || Model.Status == InventorySystem.Models.Enums.PurchaseStatus.PartiallyReceived)
-          {
-            <button type="button" class="btn btn-success" onclick="updateStatus('Received')">
-              <i class="fas fa-check-circle"></i> Mark as Received
-            </button>
-          }
+                @if (!string.IsNullOrEmpty(Model.Vendor.VendorCode))
+                {
+                  <dt class="col-sm-5">Vendor Code:</dt>
+                  <dd class="col-sm-7">@Model.Vendor.VendorCode</dd>
+                }
 
-          <a href="/Purchases/Create?itemId=@Model.ItemId" class="btn btn-outline-primary">
-            <i class="fas fa-plus"></i> Reorder This Item
-          </a>
-          <a href="/Items/Details/@Model.ItemId" class="btn btn-outline-info">
-            <i class="fas fa-eye"></i> View Item Details
-          </a>
-          <a href="/Purchases" class="btn btn-outline-secondary">
-            <i class="fas fa-list"></i> All Purchases
-          </a>
+                @if (!string.IsNullOrEmpty(Model.Vendor.ContactName))
+                {
+                  <dt class="col-sm-5">Contact:</dt>
+                  <dd class="col-sm-7">@Model.Vendor.ContactName</dd>
+                }
+              </dl>
+            </div>
+            <div class="col-md-6">
+              <dl class="row">
+                @if (!string.IsNullOrEmpty(Model.Vendor.ContactEmail))
+                {
+                  <dt class="col-sm-5">Email:</dt>
+                  <dd class="col-sm-7">
+                    <a href="mailto:@Model.Vendor.ContactEmail">@Model.Vendor.ContactEmail</a>
+                  </dd>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Vendor.ContactPhone))
+                {
+                  <dt class="col-sm-5">Phone:</dt>
+                  <dd class="col-sm-7">
+                    <a href="tel:@Model.Vendor.ContactPhone">@Model.Vendor.ContactPhone</a>
+                  </dd>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Vendor.PaymentTerms))
+                {
+                  <dt class="col-sm-5">Payment Terms:</dt>
+                  <dd class="col-sm-7">@Model.Vendor.PaymentTerms</dd>
+                }
+              </dl>
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <a href="@Url.Action("Details", "Vendors", new { id = Model.VendorId })" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-external-link-alt"></i> View Vendor Details
+            </a>
+          </div>
         </div>
       </div>
+
+      <!-- Documents -->
+      @if (Model.PurchaseDocuments.Any())
+      {
+        <div class="card mt-3">
+          <div class="card-header">
+            <h5><i class="fas fa-paperclip"></i> Documents</h5>
+          </div>
+          <div class="card-body">
+            <div class="list-group">
+              @foreach (var doc in Model.PurchaseDocuments)
+              {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <i class="fas fa-file text-muted"></i>
+                    <strong>@doc.DocumentName</strong>
+                    @if (!string.IsNullOrEmpty(doc.Description))
+                    {
+                      <br>
+                
+                      <small class="text-muted">@doc.Description</small>
+                    }
+                    <br><small class="text-muted">
+                      Uploaded: @doc.UploadedDate.ToString("MM/dd/yyyy") |
+                      Size: @(doc.FileSize / 1024)KB
+                    </small>
+                  </div>
+                  <div>
+                    <span class="badge bg-secondary">@doc.DocumentType</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
     </div>
 
     <!-- Purchase Summary -->
-    <div class="card mt-3">
-      <div class="card-header">
-        <h5><i class="fas fa-chart-line"></i> Summary</h5>
-      </div>
-      <div class="card-body">
-        <div class="row text-center">
-          <div class="col-6">
-            <h4 class="text-primary">@Model.QuantityPurchased</h4>
-            <small class="text-muted">Purchased</small>
-          </div>
-          <div class="col-6">
-            <h4 class="text-success">@Model.RemainingQuantity</h4>
-            <small class="text-muted">Remaining</small>
-          </div>
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-calculator"></i> Purchase Summary</h5>
         </div>
-        <hr>
-        <div class="text-center">
-          <h4 class="text-info">@Model.TotalPaid.ToString("C")</h4>
-          <small class="text-muted">Total Cost</small>
-        </div>
-      </div>
-    </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-6">Quantity:</dt>
+            <dd class="col-sm-6">
+              <span class="badge bg-info">@Model.QuantityPurchased</span>
+            </dd>
 
-    <!-- Status Timeline -->
-    <div class="card mt-3">
-      <div class="card-header">
-        <h5><i class="fas fa-history"></i> Status Timeline</h5>
+            <dt class="col-sm-6">Cost Per Unit:</dt>
+            <dd class="col-sm-6">
+              <span class="text-success">$@Model.CostPerUnit.ToString("N2")</span>
+            </dd>
+
+            <dt class="col-sm-6">Subtotal:</dt>
+            <dd class="col-sm-6">
+              <span class="text-success">$@Model.TotalCost.ToString("N2")</span>
+            </dd>
+
+            @if (Model.ShippingCost > 0)
+            {
+              <dt class="col-sm-6">Shipping:</dt>
+              <dd class="col-sm-6">
+                <span class="text-info">$@Model.ShippingCost.ToString("N2")</span>
+              </dd>
+            }
+
+            @if (Model.TaxAmount > 0)
+            {
+              <dt class="col-sm-6">Tax:</dt>
+              <dd class="col-sm-6">
+                <span class="text-warning">$@Model.TaxAmount.ToString("N2")</span>
+              </dd>
+            }
+
+            <dt class="col-sm-6 border-top pt-2"><strong>Total Paid:</strong></dt>
+            <dd class="col-sm-6 border-top pt-2">
+              <strong class="text-success fs-5">$@Model.TotalPaid.ToString("N2")</strong>
+            </dd>
+
+            @if (Model.RemainingQuantity != Model.QuantityPurchased)
+            {
+              <dt class="col-sm-6 mt-2">Remaining:</dt>
+              <dd class="col-sm-6 mt-2">
+                <span class="badge bg-warning">@Model.RemainingQuantity</span>
+              </dd>
+
+              <dt class="col-sm-6">Used:</dt>
+              <dd class="col-sm-6">
+                <span class="badge bg-secondary">@(Model.QuantityPurchased - Model.RemainingQuantity)</span>
+              </dd>
+            }
+          </dl>
+        </div>
       </div>
-      <div class="card-body">
-        <div class="timeline">
-          <div class="timeline-item @(GetTimelineItemClass(InventorySystem.Models.Enums.PurchaseStatus.Pending, Model.Status))">
-            <i class="fas fa-plus-circle"></i>
-            <span>Order Created</span>
+
+      <!-- Quick Actions -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h6><i class="fas fa-lightning-bolt"></i> Quick Actions</h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <a href="@Url.Action("Create", new { itemId = Model.ItemId })" class="btn btn-outline-success btn-sm">
+              <i class="fas fa-plus"></i> Purchase Same Item
+            </a>
+            <a href="@Url.Action("Index", "Items", new { id = Model.ItemId })" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-cube"></i> View Item Details
+            </a>
+            <a href="@Url.Action("Details", "Vendors", new { id = Model.VendorId })" class="btn btn-outline-info btn-sm">
+              <i class="fas fa-building"></i> View Vendor Details
+            </a>
+            @if (Model.Status != InventorySystem.Models.Enums.PurchaseStatus.Cancelled)
+            {
+              <button type="button" class="btn btn-outline-warning btn-sm">
+                <i class="fas fa-edit"></i> Update Status
+              </button>
+            }
           </div>
-          <div class="timeline-item @(GetTimelineItemClass(InventorySystem.Models.Enums.PurchaseStatus.Confirmed, Model.Status))">
-            <i class="fas fa-check-circle"></i>
-            <span>Confirmed</span>
-          </div>
-          <div class="timeline-item @(GetTimelineItemClass(InventorySystem.Models.Enums.PurchaseStatus.Shipped, Model.Status))">
-            <i class="fas fa-shipping-fast"></i>
-            <span>Shipped</span>
-          </div>
-          <div class="timeline-item @(GetTimelineItemClass(InventorySystem.Models.Enums.PurchaseStatus.Received, Model.Status))">
-            <i class="fas fa-check-double"></i>
-            <span>Received</span>
-          </div>
+        </div>
+      </div>
+
+      <!-- Purchase History for Item -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h6><i class="fas fa-history"></i> Recent Purchases for this Item</h6>
+        </div>
+        <div class="card-body">
+          <small class="text-muted">
+            <i class="fas fa-info-circle"></i>
+            This shows recent purchases for @Model.Item.PartNumber from all vendors.
+            <br><br>
+            <a href="@Url.Action("Details", "Items", new { id = Model.ItemId })" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-list"></i> View Full Purchase History
+            </a>
+          </small>
         </div>
       </div>
     </div>
   </div>
 </div>
-
-@functions {
-  string GetStatusColor(InventorySystem.Models.Enums.PurchaseStatus status)
-  {
-    return status switch
-    {
-      InventorySystem.Models.Enums.PurchaseStatus.Pending => "warning",
-      InventorySystem.Models.Enums.PurchaseStatus.Confirmed => "info",
-      InventorySystem.Models.Enums.PurchaseStatus.Shipped => "primary",
-      InventorySystem.Models.Enums.PurchaseStatus.PartiallyReceived => "warning",
-      InventorySystem.Models.Enums.PurchaseStatus.Received => "success",
-      InventorySystem.Models.Enums.PurchaseStatus.Cancelled => "danger",
-      InventorySystem.Models.Enums.PurchaseStatus.Returned => "secondary",
-      _ => "secondary"
-    };
-  }
-
-  string GetTimelineItemClass(InventorySystem.Models.Enums.PurchaseStatus timelineStatus, InventorySystem.Models.Enums.PurchaseStatus currentStatus)
-  {
-    if ((int)currentStatus >= (int)timelineStatus)
-      return "completed";
-    else
-      return "pending";
-  }
-}
-
-<style>
-  .timeline {
-    position: relative;
-    padding-left: 30px;
-  }
-
-    .timeline::before {
-      content: '';
-      position: absolute;
-      left: 15px;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: #dee2e6;
-    }
-
-  .timeline-item {
-    position: relative;
-    margin-bottom: 20px;
-    padding-left: 25px;
-  }
-
-    .timeline-item i {
-      position: absolute;
-      left: -23px;
-      top: 2px;
-      width: 16px;
-      height: 16px;
-      background: white;
-      border: 2px solid #dee2e6;
-      border-radius: 50%;
-      color: #6c757d;
-    }
-
-    .timeline-item.completed i {
-      color: #198754;
-      border-color: #198754;
-    }
-
-    .timeline-item.pending i {
-      color: #6c757d;
-      border-color: #dee2e6;
-    }
-</style>
-
-<!-- Add CSRF token for form submissions -->
-<form style="display: none;">
-  @Html.AntiForgeryToken()
-</form>
-
-<script>
-  function updateStatus(newStatus) {
-    if (confirm(`Are you sure you want to mark this purchase as ${newStatus}?`)) {
-      // Use form submission approach for better compatibility
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/Purchases/UpdateStatusForm/@Model.Id';
-
-      // Add CSRF token
-      const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-      const tokenInput = document.createElement('input');
-      tokenInput.type = 'hidden';
-      tokenInput.name = '__RequestVerificationToken';
-      tokenInput.value = token;
-      form.appendChild(tokenInput);
-
-      // Add status
-      const statusInput = document.createElement('input');
-      statusInput.type = 'hidden';
-      statusInput.name = 'status';
-      statusInput.value = newStatus;
-      form.appendChild(statusInput);
-
-      // Add actual delivery date if marking as received
-      if (newStatus === 'Received') {
-        const dateInput = document.createElement('input');
-        dateInput.type = 'hidden';
-        dateInput.name = 'actualDeliveryDate';
-        dateInput.value = new Date().toISOString().split('T')[0];
-        form.appendChild(dateInput);
-      }
-
-      document.body.appendChild(form);
-      form.submit();
-    }
-  }
-</script>

@@ -1,3 +1,4 @@
+// Models/Purchase.cs - Clean implementation with VendorId only
 using InventorySystem.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -12,9 +13,9 @@ namespace InventorySystem.Models
     public int ItemId { get; set; }
     public virtual Item Item { get; set; } = null!;
 
-    [Required(ErrorMessage = "Vendor name is required")]
-    [StringLength(200, ErrorMessage = "Vendor name cannot exceed 200 characters")]
-    public string Vendor { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Please select a vendor")]
+    public int VendorId { get; set; }
+    public virtual Vendor Vendor { get; set; } = null!;
 
     [Required(ErrorMessage = "Purchase date is required")]
     [Display(Name = "Purchase Date")]
@@ -78,28 +79,6 @@ namespace InventorySystem.Models
     [DataType(DataType.Date)]
     public DateTime? ActualDeliveryDate { get; set; }
 
-    // Navigation properties
     public virtual ICollection<PurchaseDocument> PurchaseDocuments { get; set; } = new List<PurchaseDocument>();
-
-    // Computed properties
-    [NotMapped]
-    public bool HasDocuments => PurchaseDocuments?.Any() == true;
-
-    [NotMapped]
-    public int DocumentCount => PurchaseDocuments?.Count ?? 0;
-
-    [NotMapped]
-    public bool IsOverdue => ExpectedDeliveryDate.HasValue &&
-                            ExpectedDeliveryDate.Value < DateTime.Today &&
-                            Status != PurchaseStatus.Received &&
-                            Status != PurchaseStatus.Cancelled;
-
-    [NotMapped]
-    public bool IsDelivered => Status == PurchaseStatus.Received ||
-                              Status == PurchaseStatus.PartiallyReceived;
-
-    [NotMapped]
-    public int DaysUntilExpected => ExpectedDeliveryDate.HasValue ?
-                                   (ExpectedDeliveryDate.Value - DateTime.Today).Days : 0;
   }
 }

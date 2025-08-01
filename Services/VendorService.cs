@@ -88,8 +88,8 @@ namespace InventorySystem.Services
       var vendor = await _context.Vendors.FindAsync(id);
       if (vendor == null) return false;
 
-      // Check if vendor has any purchases
-      var hasPurchases = await _context.Purchases.AnyAsync(p => p.Vendor == vendor.CompanyName);
+      // Check if vendor has any purchases - FIXED to use VendorId instead of Vendor string
+      var hasPurchases = await _context.Purchases.AnyAsync(p => p.VendorId == id);
       if (hasPurchases)
       {
         throw new InvalidOperationException("Cannot delete vendor with existing purchases. Consider deactivating instead.");
@@ -101,6 +101,7 @@ namespace InventorySystem.Services
       _logger.LogInformation("Deleted vendor: {VendorName} (ID: {VendorId})", vendor.CompanyName, id);
       return true;
     }
+
 
     public async Task<bool> DeactivateVendorAsync(int id)
     {
@@ -189,12 +190,96 @@ namespace InventorySystem.Services
     // Business logic methods
     public async Task<IEnumerable<Vendor>> SearchVendorsAsync(string searchTerm)
     {
+      if (string.IsNullOrWhiteSpace(searchTerm))
+      {
+        return await GetActiveVendorsAsync();
+      }
+
+      // Convert wildcard pattern to SQL LIKE pattern
+      var likePattern = ConvertWildcardToLikePattern(searchTerm.Trim());
+
+      // Use EF.Functions.Like for proper wildcard support
       return await _context.Vendors
-        .Where(v => v.CompanyName.Contains(searchTerm) ||
-                   v.ContactName.Contains(searchTerm) ||
-                   v.VendorCode.Contains(searchTerm))
-        .OrderBy(v => v.CompanyName)
-        .ToListAsync();
+          .Where(v => EF.Functions.Like(v.CompanyName, likePattern) ||
+                     EF.Functions.Like(v.ContactName ?? "", likePattern) ||
+                     EF.Functions.Like(v.VendorCode ?? "", likePattern) ||
+                     EF.Functions.Like(v.ContactEmail ?? "", likePattern))
+          .OrderBy(v => v.CompanyName)
+          .ToListAsync();
+    }
+
+    // Add this helper method:
+    private string ConvertWildcardToLikePattern(string searchTerm)
+    {
+      if (string.IsNullOrEmpty(searchTerm))
+        return "%";
+
+      // Replace user wildcards with SQL LIKE wildcards
+      // * = zero or more characters (becomes %)
+      // ? = single character (becomes _)
+      var pattern = searchTerm
+          .Replace("%", "\\%")      // Escape existing % 
+          .Replace("_", "\\_")      // Escape existing _
+          .Replace("*", "%")        // Convert * to %
+          .Replace("?", "_");       // Convert ? to _
+
+      // If no wildcards were provided, add % at the end for "starts with" behavior
+      if (!pattern.Contains("%") && !pattern.Contains("_"))
+      {
+        pattern += "%";
+      }
+
+      return pattern;
+    }
+
+    // Add advanced search method for more complex scenarios:
+    public async Task<IEnumerable<Vendor>> AdvancedSearchVendorsAsync(
+        string? companyName = null,
+        string? vendorCode = null,
+        string? contactName = null,
+        string? contactEmail = null,
+        bool? isActive = null,
+        bool? isPreferred = null)
+    {
+      var query = _context.Vendors.AsQueryable();
+
+      if (!string.IsNullOrWhiteSpace(companyName))
+      {
+        var pattern = ConvertWildcardToLikePattern(companyName);
+        query = query.Where(v => EF.Functions.Like(v.CompanyName, pattern));
+      }
+
+      if (!string.IsNullOrWhiteSpace(vendorCode))
+      {
+        var pattern = ConvertWildcardToLikePattern(vendorCode);
+        query = query.Where(v => EF.Functions.Like(v.VendorCode ?? "", pattern));
+      }
+
+      if (!string.IsNullOrWhiteSpace(contactName))
+      {
+        var pattern = ConvertWildcardToLikePattern(contactName);
+        query = query.Where(v => EF.Functions.Like(v.ContactName ?? "", pattern));
+      }
+
+      if (!string.IsNullOrWhiteSpace(contactEmail))
+      {
+        var pattern = ConvertWildcardToLikePattern(contactEmail);
+        query = query.Where(v => EF.Functions.Like(v.ContactEmail ?? "", pattern));
+      }
+
+      if (isActive.HasValue)
+      {
+        query = query.Where(v => v.IsActive == isActive.Value);
+      }
+
+      if (isPreferred.HasValue)
+      {
+        query = query.Where(v => v.IsPreferred == isPreferred.Value);
+      }
+
+      return await query
+          .OrderBy(v => v.CompanyName)
+          .ToListAsync();
     }
 
     public async Task<IEnumerable<VendorItem>> GetCheapestVendorsForItemAsync(int itemId)
@@ -230,18 +315,22 @@ namespace InventorySystem.Services
 
     public async Task<decimal> GetVendorTotalPurchasesAsync(int vendorId)
     {
-      var vendor = await GetVendorByIdAsync(vendorId);
-      return vendor?.TotalPurchases ?? 0;
+
+      var purchases = await _context.Purchases
+      .Where(p => p.VendorId == vendorId)
+      .Select(p => new { p.QuantityPurchased, p.CostPerUnit, p.ShippingCost, p.TaxAmount })
+      .ToListAsync();
+
+      return purchases.Sum(p => (p.QuantityPurchased * p.CostPerUnit) + p.ShippingCost + p.TaxAmount);
     }
 
     public async Task<IEnumerable<Purchase>> GetVendorPurchaseHistoryAsync(int vendorId)
     {
-      var vendor = await GetVendorByIdAsync(vendorId);
-      if (vendor == null) return new List<Purchase>();
-
+      // FIXED to use VendorId instead of vendor name comparison  
       return await _context.Purchases
         .Include(p => p.Item)
-        .Where(p => p.Vendor == vendor.CompanyName)
+        .Include(p => p.Vendor)
+        .Where(p => p.VendorId == vendorId)
         .OrderByDescending(p => p.PurchaseDate)
         .ToListAsync();
     }
