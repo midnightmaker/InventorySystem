@@ -4,105 +4,169 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-hammer"></i> Build BOM</h1>
-  <a href="/Production" class="btn btn-outline-secondary">
-    <i class="fas fa-arrow-left"></i> Back to Productions
-  </a>
+  <h1><i class="fas fa-hammer text-primary"></i> Build BOM</h1>
+  <div class="btn-group">
+    <a href="/Production" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Productions
+    </a>
+    <a href="/Boms" class="btn btn-outline-info">
+      <i class="fas fa-list"></i> View BOMs
+    </a>
+  </div>
 </div>
 
-@* FIXED: Safe TempData access - check for key existence instead of TempData null *@
+@* Alert Messages *@
 @if (TempData.ContainsKey("SuccessMessage") && TempData["SuccessMessage"] != null)
 {
   <div class="alert alert-success alert-dismissible fade show">
-    @TempData["SuccessMessage"]
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 }
 
-@* FIXED: Safe TempData access - check for key existence instead of TempData null *@
 @if (TempData.ContainsKey("ErrorMessage") && TempData["ErrorMessage"] != null)
 {
   <div class="alert alert-danger alert-dismissible fade show">
-    @TempData["ErrorMessage"]
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 }
 
-<form asp-action="BuildBom" method="post">
+@if (TempData.ContainsKey("WarningMessage") && TempData["WarningMessage"] != null)
+{
+  <div class="alert alert-warning alert-dismissible fade show">
+    <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<form asp-action="BuildBom" method="post" id="buildBomForm">
   <div class="row">
-    <div class="col-md-8">
-      <div class="card">
-        <div class="card-header">
-          <h5><i class="fas fa-cogs"></i> Production Parameters</h5>
+    <!-- Main Production Parameters -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-cogs"></i> Production Parameters</h5>
         </div>
         <div class="card-body">
           <div class="row">
+            <!-- BOM Selection -->
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="BomId" class="form-label">Select BOM *</label>
-                <select asp-for="BomId" class="form-select" asp-items="ViewBag.BomId" id="bomSelect">
-                  <option value="">-- Select a BOM --</option>
+                <label asp-for="BomId" class="form-label">
+                  <i class="fas fa-sitemap text-primary"></i> Select BOM <span class="text-danger">*</span>
+                </label>
+                <select asp-for="BomId" class="form-select" asp-items="ViewBag.BomId" id="bomId">
+                  <option value="">-- Select a BOM to build --</option>
                 </select>
                 <span asp-validation-for="BomId" class="text-danger"></span>
+                <div class="form-text">Choose the BOM you want to produce</div>
               </div>
             </div>
+
+            <!-- Quantity -->
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="Quantity" class="form-label">Quantity to Build *</label>
-                <input asp-for="Quantity" class="form-control" id="quantityInput" />
+                <label asp-for="Quantity" class="form-label">
+                  <i class="fas fa-boxes text-success"></i> Quantity to Build <span class="text-danger">*</span>
+                </label>
+                <input asp-for="Quantity" type="number" class="form-control" id="quantity" min="1" max="9999" />
                 <span asp-validation-for="Quantity" class="text-danger"></span>
+                <div class="form-text">Number of units to produce</div>
               </div>
             </div>
           </div>
 
+          <!-- Production Date and Workflow Option -->
           <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="ProductionDate" class="form-label">Production Date *</label>
+                <label asp-for="ProductionDate" class="form-label">
+                  <i class="fas fa-calendar text-info"></i> Production Date
+                </label>
                 <input asp-for="ProductionDate" type="date" class="form-control" />
                 <span asp-validation-for="ProductionDate" class="text-danger"></span>
               </div>
             </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <div class="form-check mt-4">
+                  <input asp-for="CreateWithWorkflow" class="form-check-input" type="checkbox" />
+                  <label asp-for="CreateWithWorkflow" class="form-check-label">
+                    <i class="fas fa-route text-primary"></i> Create with Workflow
+                  </label>
+                  <div class="form-text">Enable production workflow tracking</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cost Inputs -->
+          <div class="row">
             <div class="col-md-4">
               <div class="mb-3">
-                <label asp-for="LaborCost" class="form-label">Labor Cost</label>
+                <label asp-for="LaborCost" class="form-label">
+                  <i class="fas fa-user-clock text-warning"></i> Labor Cost
+                </label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
-                  <input asp-for="LaborCost" class="form-control" step="0.01" />
+                  <input asp-for="LaborCost" type="number" class="form-control" step="0.01" min="0" />
                 </div>
                 <span asp-validation-for="LaborCost" class="text-danger"></span>
               </div>
             </div>
             <div class="col-md-4">
               <div class="mb-3">
-                <label asp-for="OverheadCost" class="form-label">Overhead Cost</label>
+                <label asp-for="OverheadCost" class="form-label">
+                  <i class="fas fa-building text-secondary"></i> Overhead Cost
+                </label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
-                  <input asp-for="OverheadCost" class="form-control" step="0.01" />
+                  <input asp-for="OverheadCost" type="number" class="form-control" step="0.01" min="0" />
                 </div>
                 <span asp-validation-for="OverheadCost" class="text-danger"></span>
               </div>
             </div>
-          </div>
-
-          <div class="mb-3">
-            <label asp-for="Notes" class="form-label">Notes</label>
-            <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
-          </div>
-
-          <div id="bomInfo" style="display: none;">
-            <div class="alert alert-info">
-              <h6><i class="fas fa-info-circle"></i> BOM Information</h6>
-              <div id="bomDetails"></div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">
+                  <i class="fas fa-calculator text-info"></i> Material Cost
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="text" class="form-control" id="materialCost" value="@Model.MaterialCost.ToString("N2")" readonly />
+                </div>
+                <div class="form-text">Calculated automatically</div>
+              </div>
             </div>
           </div>
 
+          <!-- Notes -->
+          <div class="mb-3">
+            <label asp-for="Notes" class="form-label">
+              <i class="fas fa-sticky-note text-info"></i> Production Notes
+            </label>
+            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Enter any special instructions or notes for this production run..."></textarea>
+            <span asp-validation-for="Notes" class="text-danger"></span>
+          </div>
+
+          <!-- Hidden Fields -->
+          <input type="hidden" asp-for="BomName" />
+          <input type="hidden" asp-for="BomDescription" />
+          <input type="hidden" asp-for="CanBuild" />
+
+          <!-- Material Availability Info -->
           <div id="availabilityInfo" style="display: none;">
             <div class="alert" id="availabilityAlert">
-              <div id="availabilityDetails"></div>
-              <div id="shortageActions" style="display: none; margin-top: 10px;">
-                <a href="#" id="viewShortageReport" class="btn btn-warning btn-sm">
+              <div id="availabilityDetails">
+                <!-- Availability details will be populated by JavaScript -->
+              </div>
+              <div id="shortageActions" style="display: none; margin-top: 15px;">
+                <button type="button" class="btn btn-warning btn-sm" id="viewShortageReport">
                   <i class="fas fa-exclamation-triangle"></i> View Material Shortage Report
+                </button>
+                <a href="#" class="btn btn-outline-primary btn-sm ms-2" id="createPurchaseRequest">
+                  <i class="fas fa-shopping-cart"></i> Create Purchase Request
                 </a>
               </div>
             </div>
@@ -111,40 +175,73 @@
       </div>
     </div>
 
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">
-          <h5><i class="fas fa-calculator"></i> Cost Estimation</h5>
+    <!-- Cost Summary & Build Action -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-calculator"></i> Cost Estimation</h5>
         </div>
         <div class="card-body">
-          <table class="table table-sm">
+          <table class="table table-sm mb-3">
             <tr>
-              <td>Material Cost:</td>
-              <td class="text-end" id="materialCost">@Model.MaterialCost.ToString("C")</td>
+              <td><i class="fas fa-cogs text-primary"></i> Material Cost:</td>
+              <td class="text-end fw-bold" id="materialCostDisplay">@Model.MaterialCost.ToString("C")</td>
             </tr>
             <tr>
-              <td>Labor Cost:</td>
-              <td class="text-end" id="laborCost">@Model.LaborCost.ToString("C")</td>
+              <td><i class="fas fa-user-clock text-warning"></i> Labor Cost:</td>
+              <td class="text-end fw-bold" id="laborCostDisplay">@Model.LaborCost.ToString("C")</td>
             </tr>
             <tr>
-              <td>Overhead Cost:</td>
-              <td class="text-end" id="overheadCost">@Model.OverheadCost.ToString("C")</td>
+              <td><i class="fas fa-building text-secondary"></i> Overhead Cost:</td>
+              <td class="text-end fw-bold" id="overheadCostDisplay">@Model.OverheadCost.ToString("C")</td>
             </tr>
             <tr class="table-dark">
-              <td><strong>Total Cost:</strong></td>
-              <td class="text-end"><strong id="totalCost">@Model.TotalCost.ToString("C")</strong></td>
+              <td><strong><i class="fas fa-calculator"></i> Total Cost:</strong></td>
+              <td class="text-end"><strong id="totalCostDisplay">@Model.TotalCost.ToString("C")</strong></td>
             </tr>
             <tr class="table-info">
-              <td><strong>Unit Cost:</strong></td>
-              <td class="text-end"><strong id="unitCost">@Model.UnitCost.ToString("C")</strong></td>
+              <td><strong><i class="fas fa-cube"></i> Unit Cost:</strong></td>
+              <td class="text-end"><strong id="unitCostDisplay">@Model.UnitCost.ToString("C")</strong></td>
             </tr>
           </table>
 
-          <div class="d-grid mt-3">
-            <button type="submit" class="btn btn-success" id="buildButton" disabled>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success btn-lg" id="buildButton" disabled>
               <i class="fas fa-hammer"></i> Build BOM
             </button>
+            <button type="button" class="btn btn-outline-info" id="previewButton" disabled>
+              <i class="fas fa-eye"></i> Preview Requirements
+            </button>
           </div>
+
+          <hr class="my-3">
+
+          <!-- Quick Actions -->
+          <div class="d-grid gap-2">
+            <a href="#" class="btn btn-outline-primary btn-sm" id="viewBomDetailsBtn" style="display: none;">
+              <i class="fas fa-list"></i> View BOM Details
+            </a>
+            <a href="#" class="btn btn-outline-warning btn-sm" id="checkInventoryBtn" style="display: none;">
+              <i class="fas fa-search"></i> Check All Inventory
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOM Information Card -->
+      <div class="card shadow-sm mt-3" id="bomInfoCard" style="display: none;">
+        <div class="card-header">
+          <h6 class="mb-0"><i class="fas fa-info-circle"></i> BOM Information</h6>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-5">BOM Name:</dt>
+            <dd class="col-7" id="bomNameDisplay">-</dd>
+            <dt class="col-5">Description:</dt>
+            <dd class="col-7" id="bomDescriptionDisplay">-</dd>
+            <dt class="col-5">Components:</dt>
+            <dd class="col-7" id="bomComponentsDisplay">-</dd>
+          </dl>
         </div>
       </div>
     </div>
@@ -154,106 +251,586 @@
 @section Scripts {
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const bomSelect = document.getElementById('bomSelect');
-        const quantityInput = document.getElementById('quantityInput');
-        const laborCostInput = document.querySelector('input[name="LaborCost"]');
-        const overheadCostInput = document.querySelector('input[name="OverheadCost"]');
-        const buildButton = document.getElementById('buildButton');
+        // Debug: Check if all required elements exist
+        console.log('BuildBom page loaded, checking DOM elements...');
+        const requiredElements = [
+            'bomId', 'quantity', 'buildButton', 'previewButton',
+            'availabilityInfo', 'availabilityAlert', 'bomInfoCard'
+        ];
 
-        function updateCostEstimate() {
-            const bomId = bomSelect.value;
-            const quantity = parseInt(quantityInput.value) || 0;
-
-            if (bomId && quantity > 0) {
-                fetch(`/Production/CheckBomAvailability?bomId=${bomId}&quantity=${quantity}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            updateBomInfo(data);
-                            updateAvailabilityInfo(data);
-                            updateCostDisplay();
-                        }
-                    })
-                    .catch(error => console.error('Error checking availability:', error));
-            } else {
-                document.getElementById('bomInfo').style.display = 'none';
-                document.getElementById('availabilityInfo').style.display = 'none';
-                buildButton.disabled = true;
+        const missingElements = [];
+        requiredElements.forEach(id => {
+            const element = document.getElementById(id);
+            if (!element) {
+                missingElements.push(id);
             }
+        });
+
+        if (missingElements.length > 0) {
+            console.warn('Missing DOM elements:', missingElements);
+        } else {
+            console.log('All required DOM elements found');
         }
 
-        function updateBomInfo(data) {
-            const bomInfo = document.getElementById('bomInfo');
-            const bomDetails = document.getElementById('bomDetails');
-            bomDetails.innerHTML = `<strong>${data.bomName}</strong><br><small>${data.bomDescription}</small>`;
-            bomInfo.style.display = 'block';
-        }
+        // Initialize form functionality
+        initializeBuildBomForm();
 
-        function updateAvailabilityInfo(data) {
-            const availabilityInfo = document.getElementById('availabilityInfo');
-            const availabilityAlert = document.getElementById('availabilityAlert');
-            const availabilityDetails = document.getElementById('availabilityDetails');
+        // Auto-check availability on page load if values are present
+        const bomId = document.getElementById('bomId');
+        const quantity = document.getElementById('quantity');
 
-            if (data.canBuild) {
-                availabilityAlert.className = 'alert alert-success';
-                availabilityDetails.innerHTML = '<i class="fas fa-check-circle"></i> All materials available for production';
-                buildButton.disabled = false;
-                document.getElementById('shortageActions').style.display = 'none';
-            } else {
-                availabilityAlert.className = 'alert alert-warning';
-                availabilityDetails.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Insufficient materials for this quantity';
-                buildButton.disabled = true;
-
-                const bomId = bomSelect.value;
-                const quantity = parseInt(quantityInput.value) || 0;
-                const shortageActions = document.getElementById('shortageActions');
-                const reportLink = document.getElementById('viewShortageReport');
-                reportLink.href = `/Production/MaterialShortageReport?bomId=${bomId}&quantity=${quantity}`;
-                shortageActions.style.display = 'block';
-            }
-            availabilityInfo.style.display = 'block';
-        }
-
-        function updateCostDisplay() {
-            const bomId = bomSelect.value;
-            const quantity = parseInt(quantityInput.value) || 0;
-            const laborCost = parseFloat(laborCostInput.value) || 0;
-            const overheadCost = parseFloat(overheadCostInput.value) || 0;
-
-            if (bomId && quantity > 0) {
-                fetch(`/Production/CheckBomAvailability?bomId=${bomId}&quantity=${quantity}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            const materialCost = data.materialCost || 0;
-                            const totalCost = materialCost + laborCost + overheadCost;
-                            const unitCost = quantity > 0 ? totalCost / quantity : 0;
-
-                            document.getElementById('materialCost').textContent = '$' + materialCost.toFixed(2);
-                            document.getElementById('laborCost').textContent = '$' + laborCost.toFixed(2);
-                            document.getElementById('overheadCost').textContent = '$' + overheadCost.toFixed(2);
-                            document.getElementById('totalCost').textContent = '$' + totalCost.toFixed(2);
-                            document.getElementById('unitCost').textContent = '$' + unitCost.toFixed(2);
-                        }
-                    });
-            }
-        }
-
-        bomSelect.addEventListener('change', updateCostEstimate);
-        quantityInput.addEventListener('input', updateCostEstimate);
-        laborCostInput.addEventListener('input', updateCostDisplay);
-        overheadCostInput.addEventListener('input', updateCostDisplay);
-
-        // Set default date to today if not set
-        const dateInput = document.querySelector('input[type="date"]');
-        if (dateInput && !dateInput.value) {
-            dateInput.value = new Date().toISOString().split('T')[0];
-        }
-
-        // Initial load if BOM is pre-selected
-        if (bomSelect.value) {
-            updateCostEstimate();
+        if (bomId && bomId.value && quantity && quantity.value > 0) {
+            setTimeout(() => {
+                checkMaterialAvailabilityWithProgress();
+            }, 500);
         }
     });
+
+    function ensureRequiredElements() {
+        // Ensure availabilityDetails exists
+        const availabilityAlert = document.getElementById('availabilityAlert');
+        if (availabilityAlert && !document.getElementById('availabilityDetails')) {
+            console.log('Creating missing availabilityDetails element');
+            const detailsDiv = document.createElement('div');
+            detailsDiv.id = 'availabilityDetails';
+            availabilityAlert.appendChild(detailsDiv);
+        }
+
+        // Ensure shortageActions exists
+        if (availabilityAlert && !document.getElementById('shortageActions')) {
+            console.log('Creating missing shortageActions element');
+            const actionsDiv = document.createElement('div');
+            actionsDiv.id = 'shortageActions';
+            actionsDiv.style.display = 'none';
+            actionsDiv.style.marginTop = '15px';
+            actionsDiv.innerHTML = `
+                <button type="button" class="btn btn-warning btn-sm" id="viewShortageReport">
+                    <i class="fas fa-exclamation-triangle"></i> View Material Shortage Report
+                </button>
+                <a href="#" class="btn btn-outline-primary btn-sm ms-2" id="createPurchaseRequest">
+                    <i class="fas fa-shopping-cart"></i> Create Purchase Request
+                </a>
+            `;
+            availabilityAlert.appendChild(actionsDiv);
+
+            // Re-attach event handler for the new button
+            enhanceShortageReportButton();
+        }
+    }
+
+    function initializeBuildBomForm() {
+        // Ensure required elements exist
+        ensureRequiredElements();
+
+        // BOM selection change handler
+        const bomIdElement = document.getElementById('bomId');
+        if (bomIdElement) {
+            bomIdElement.addEventListener('change', function() {
+                const bomId = this.value;
+                if (bomId) {
+                    loadBomDetails(bomId);
+                    checkMaterialAvailabilityWithProgress();
+                    updateQuickActionLinks(bomId);
+                } else {
+                    resetForm();
+                }
+            });
+        }
+
+        // Quantity change handler with debouncing
+        const quantityElement = document.getElementById('quantity');
+        if (quantityElement) {
+            let quantityTimeout;
+            quantityElement.addEventListener('input', function() {
+                clearTimeout(quantityTimeout);
+                quantityTimeout = setTimeout(() => {
+                    if (this.value > 0 && document.getElementById('bomId')?.value) {
+                        checkMaterialAvailabilityWithProgress();
+                        updateCostCalculations();
+                    }
+                }, 500);
+            });
+        }
+
+        // Cost input handlers
+        ['LaborCost', 'OverheadCost'].forEach(fieldName => {
+            const field = document.querySelector(`input[name="${fieldName}"]`);
+            if (field) {
+                field.addEventListener('input', updateCostCalculations);
+            }
+        });
+
+        // Form submission handler
+        const buildBomForm = document.getElementById('buildBomForm');
+        if (buildBomForm) {
+            buildBomForm.addEventListener('submit', function(e) {
+                const buildButton = document.getElementById('buildButton');
+                if (buildButton && !buildButton.disabled) {
+                    buildButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Building...';
+                    buildButton.disabled = true;
+                }
+            });
+        }
+
+        // Shortage report button handler
+        enhanceShortageReportButton();
+
+        // Preview button handler
+        const previewButton = document.getElementById('previewButton');
+        if (previewButton) {
+            previewButton.addEventListener('click', function() {
+                const bomId = document.getElementById('bomId')?.value;
+                const quantity = document.getElementById('quantity')?.value;
+                if (bomId && quantity) {
+                    window.open(`/Boms/QuickMaterialCheck/${bomId}?quantity=${quantity}`, '_blank');
+                }
+            });
+        }
+    }
+
+    function enhanceShortageReportButton() {
+        const shortageReportBtn = document.getElementById('viewShortageReport');
+        if (shortageReportBtn) {
+            shortageReportBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                const bomIdElement = document.getElementById('bomId');
+                const quantityElement = document.getElementById('quantity');
+
+                if (!bomIdElement || !quantityElement) {
+                    console.error('BOM ID or quantity elements not found');
+                    return;
+                }
+
+                const bomId = bomIdElement.value;
+                const quantity = quantityElement.value;
+
+                if (!bomId || !quantity) {
+                    alert('Please select a BOM and enter quantity first.');
+                    return;
+                }
+
+                // Update button to show loading state
+                const originalHTML = this.innerHTML;
+
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Report...';
+                this.className = 'btn btn-primary btn-sm';
+                this.disabled = true;
+
+                // Show loading toast
+                showLoadingToast('Generating material shortage report...');
+
+                // Navigate to the loading page
+                window.location.href = `/Production/MaterialShortageReport?bomId=${bomId}&quantity=${quantity}`;
+            });
+        }
+    }
+
+    async function loadBomDetails(bomId) {
+        try {
+            const response = await fetch(`/Boms/GetBomDetails/${bomId}`);
+            if (response.ok) {
+                const bom = await response.json();
+                updateBomInfoDisplay(bom);
+            } else if (response.status === 404) {
+                console.log('GetBomDetails endpoint not found, skipping BOM info display');
+                // Hide BOM info card since we can't load details
+                const bomInfoCard = document.getElementById('bomInfoCard');
+                if (bomInfoCard) {
+                    bomInfoCard.style.display = 'none';
+                }
+            } else {
+                console.error('Error loading BOM details:', response.status);
+            }
+        } catch (error) {
+            console.log('BOM details endpoint not available, continuing without detailed info');
+            // This is not a critical error, so we continue silently
+        }
+    }
+
+    function updateBomInfoDisplay(bom) {
+        const bomNameDisplay = document.getElementById('bomNameDisplay');
+        const bomDescriptionDisplay = document.getElementById('bomDescriptionDisplay');
+        const bomComponentsDisplay = document.getElementById('bomComponentsDisplay');
+        const bomInfoCard = document.getElementById('bomInfoCard');
+
+        if (bomNameDisplay && bomDescriptionDisplay && bomComponentsDisplay && bomInfoCard) {
+            bomNameDisplay.textContent = bom.bomNumber || '-';
+            bomDescriptionDisplay.textContent = bom.description || '-';
+            bomComponentsDisplay.textContent = `${bom.itemCount || 0} items, ${bom.subAssemblyCount || 0} sub-assemblies`;
+            bomInfoCard.style.display = 'block';
+        }
+    }
+
+    function updateQuickActionLinks(bomId) {
+        const viewBomBtn = document.getElementById('viewBomDetailsBtn');
+        const checkInventoryBtn = document.getElementById('checkInventoryBtn');
+
+        if (viewBomBtn) {
+            viewBomBtn.href = `/Boms/Details/${bomId}`;
+            viewBomBtn.style.display = 'block';
+        }
+
+        if (checkInventoryBtn) {
+            checkInventoryBtn.href = `/Boms/QuickMaterialCheck/${bomId}`;
+            checkInventoryBtn.style.display = 'block';
+        }
+    }
+
+    async function checkMaterialAvailabilityWithProgress() {
+        const bomIdElement = document.getElementById('bomId');
+        const quantityElement = document.getElementById('quantity');
+
+        if (!bomIdElement || !quantityElement) {
+            console.error('Required form elements (bomId or quantity) not found');
+            return;
+        }
+
+        const bomId = bomIdElement.value;
+        const quantity = quantityElement.value;
+
+        if (!bomId || !quantity || quantity <= 0) {
+            resetAvailabilityDisplay();
+            return;
+        }
+
+        showEnhancedLoadingState('Checking material availability...');
+
+        try {
+            const response = await fetch(`/Boms/GetQuickMaterialStatus?bomId=${bomId}&quantity=${quantity}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                updateAvailabilityDisplay(data);
+                updateMaterialCost(data.materialCost || 0);
+            } else {
+                showError('Error checking availability: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Network error: Unable to check material availability. Please try again.');
+        }
+    }
+
+    function showEnhancedLoadingState(message) {
+        const availabilityInfo = document.getElementById('availabilityInfo');
+        const availabilityAlert = document.getElementById('availabilityAlert');
+        const buildButton = document.getElementById('buildButton');
+        const previewButton = document.getElementById('previewButton');
+
+        if (!availabilityInfo || !availabilityAlert) {
+            console.error('Availability display elements not found');
+            return;
+        }
+
+        availabilityAlert.className = 'alert alert-info border-0 shadow-sm';
+        availabilityAlert.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="spinner-border text-primary me-3" style="width: 2rem; height: 2rem;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">${message}</h6>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <small class="text-muted mt-1 d-block">Analyzing BOM structure and inventory levels...</small>
+                </div>
+            </div>
+        `;
+
+        availabilityInfo.style.display = 'block';
+
+        if (buildButton) {
+            buildButton.disabled = true;
+        }
+        if (previewButton) {
+            previewButton.disabled = true;
+        }
+    }
+
+    function updateAvailabilityDisplay(data) {
+        const availabilityInfo = document.getElementById('availabilityInfo');
+        const availabilityAlert = document.getElementById('availabilityAlert');
+        const availabilityDetails = document.getElementById('availabilityDetails');
+        const shortageActions = document.getElementById('shortageActions');
+        const buildButton = document.getElementById('buildButton');
+        const previewButton = document.getElementById('previewButton');
+
+        // Check if required elements exist
+        if (!availabilityInfo || !availabilityAlert || !availabilityDetails || !buildButton) {
+            console.error('Required DOM elements not found for availability display');
+            return;
+        }
+
+        if (data.canBuild) {
+            availabilityAlert.className = 'alert alert-success border-0 shadow-sm';
+            availabilityDetails.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-check-circle text-success me-3 fa-2x"></i>
+                    <div>
+                        <h5 class="mb-1">✅ All Materials Available!</h5>
+                        <p class="mb-0">You can build <strong>${document.getElementById('quantity')?.value || 'N/A'}</strong> units with current inventory.</p>
+                        <small class="text-muted">Material cost: ${data.materialCost ? data.materialCost.toFixed(2) : '0.00'}</small>
+                    </div>
+                </div>
+            `;
+
+            if (shortageActions) {
+                shortageActions.style.display = 'none';
+            }
+
+            buildButton.disabled = false;
+            buildButton.className = 'btn btn-success btn-lg';
+            buildButton.innerHTML = '<i class="fas fa-hammer"></i> Build BOM';
+        } else {
+            availabilityAlert.className = 'alert alert-warning border-0 shadow-sm';
+            availabilityDetails.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle text-warning me-3 fa-2x"></i>
+                    <div>
+                        <h5 class="mb-1">⚠️ Material Shortages Detected</h5>
+                        <p class="mb-1"><strong>${data.shortageCount || 0}</strong> item(s) short • <strong>${data.criticalShortages || 0}</strong> critical</p>
+                        <small class="text-muted">Shortage value: ${data.shortageValue ? data.shortageValue.toFixed(2) : '0.00'}</small>
+                        ${data.shortages && data.shortages.length > 0 ? `
+                        <div class="mt-2">
+                            <strong>Top shortages:</strong>
+                            <ul class="small mb-0 mt-1">
+                                ${data.shortages.map(s => `
+                                    <li>${s.partNumber || 'Unknown'}: Need ${s.requiredQuantity || 0}, have ${s.availableQuantity || 0}
+                                        ${s.isCritical ? '<span class="badge bg-danger ms-1">CRITICAL</span>' : ''}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+
+            if (shortageActions) {
+                shortageActions.style.display = 'block';
+            }
+
+            buildButton.disabled = true;
+            buildButton.className = 'btn btn-outline-secondary btn-lg';
+            buildButton.innerHTML = '<i class="fas fa-ban"></i> Cannot Build - Missing Materials';
+
+            // Update purchase request link if it exists
+            const createPurchaseRequest = document.getElementById('createPurchaseRequest');
+            if (createPurchaseRequest) {
+                const bomId = document.getElementById('bomId')?.value;
+                const quantity = document.getElementById('quantity')?.value;
+                createPurchaseRequest.href = `/Production/CreateBulkPurchaseRequest?bomId=${bomId}&quantity=${quantity}`;
+            }
+        }
+
+        availabilityInfo.style.display = 'block';
+
+        if (previewButton) {
+            previewButton.disabled = false;
+        }
+    }
+
+    function updateMaterialCost(materialCost) {
+        document.getElementById('materialCost').value = materialCost.toFixed(2);
+        document.getElementById('materialCostDisplay').textContent = '$' + materialCost.toFixed(2);
+        updateCostCalculations();
+    }
+
+    function updateCostCalculations() {
+        const materialCost = parseFloat(document.getElementById('materialCost').value) || 0;
+        const laborCost = parseFloat(document.querySelector('input[name="LaborCost"]').value) || 0;
+        const overheadCost = parseFloat(document.querySelector('input[name="OverheadCost"]').value) || 0;
+        const quantity = parseInt(document.getElementById('quantity').value) || 1;
+
+        const totalCost = materialCost + laborCost + overheadCost;
+        const unitCost = quantity > 0 ? totalCost / quantity : 0;
+
+        document.getElementById('laborCostDisplay').textContent = '$' + laborCost.toFixed(2);
+        document.getElementById('overheadCostDisplay').textContent = '$' + overheadCost.toFixed(2);
+        document.getElementById('totalCostDisplay').textContent = '$' + totalCost.toFixed(2);
+        document.getElementById('unitCostDisplay').textContent = '$' + unitCost.toFixed(2);
+    }
+
+    function showError(message) {
+        const availabilityInfo = document.getElementById('availabilityInfo');
+        const availabilityAlert = document.getElementById('availabilityAlert');
+
+        availabilityAlert.className = 'alert alert-danger border-0 shadow-sm';
+        availabilityAlert.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-circle text-danger me-3 fa-2x"></i>
+                <div>
+                    <h6 class="mb-1">Error</h6>
+                    <p class="mb-0">${message}</p>
+                </div>
+            </div>
+        `;
+
+        availabilityInfo.style.display = 'block';
+    }
+
+    function resetForm() {
+        const availabilityInfo = document.getElementById('availabilityInfo');
+        const bomInfoCard = document.getElementById('bomInfoCard');
+        const buildButton = document.getElementById('buildButton');
+        const previewButton = document.getElementById('previewButton');
+        const viewBomDetailsBtn = document.getElementById('viewBomDetailsBtn');
+        const checkInventoryBtn = document.getElementById('checkInventoryBtn');
+
+        if (availabilityInfo) {
+            availabilityInfo.style.display = 'none';
+        }
+        if (bomInfoCard) {
+            bomInfoCard.style.display = 'none';
+        }
+        if (buildButton) {
+            buildButton.disabled = true;
+        }
+        if (previewButton) {
+            previewButton.disabled = true;
+        }
+        if (viewBomDetailsBtn) {
+            viewBomDetailsBtn.style.display = 'none';
+        }
+        if (checkInventoryBtn) {
+            checkInventoryBtn.style.display = 'none';
+        }
+    }
+
+    function resetAvailabilityDisplay() {
+        const availabilityInfo = document.getElementById('availabilityInfo');
+        const buildButton = document.getElementById('buildButton');
+        const previewButton = document.getElementById('previewButton');
+
+        if (availabilityInfo) {
+            availabilityInfo.style.display = 'none';
+        }
+        if (buildButton) {
+            buildButton.disabled = true;
+        }
+        if (previewButton) {
+            previewButton.disabled = true;
+        }
+    }
+
+    function showLoadingToast(message) {
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '1055';
+            document.body.appendChild(toastContainer);
+        }
+
+        const toastId = 'toast-' + Date.now();
+        const toastHTML = `
+            <div id="${toastId}" class="toast show" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
+                <div class="toast-header bg-primary text-white">
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <strong class="me-auto">Processing</strong>
+                    <small>just now</small>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+        setTimeout(() => {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.remove();
+            }
+        }, 5000);
+    }
   </script>
+
+  <style>
+    .toast {
+      min-width: 300px;
+    }
+
+    .progress-bar-animated {
+      background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+      background-size: 1rem 1rem;
+    }
+
+    .alert {
+      border-radius: 0.5rem;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .spinner-border-sm {
+      width: 1rem;
+      height: 1rem;
+      border-width: 0.125em;
+    }
+
+    .alert, .btn, .progress, .card {
+      transition: all 0.3s ease;
+    }
+
+    @@keyframes pulse {
+      0%
+
+    {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.7;
+    }
+
+    100% {
+      opacity: 1;
+    }
+
+    }
+
+    .loading-pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .card {
+      border: none;
+    }
+
+    .form-label {
+      font-weight: 500;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .btn-group .btn {
+      border-radius: 0.375rem;
+    }
+
+      .btn-group .btn:not(:last-child) {
+        margin-right: 0.5rem;
+      }
+  </style>
 }

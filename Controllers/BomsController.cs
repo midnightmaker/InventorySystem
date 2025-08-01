@@ -312,6 +312,41 @@ namespace InventorySystem.Controllers
       return RedirectToAction(nameof(Index));
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetBomDetails(int id)
+    {
+      try
+      {
+        var bom = await _bomService.GetBomByIdAsync(id);
+        if (bom == null)
+        {
+          return NotFound(new { error = "BOM not found" });
+        }
+
+        var response = new
+        {
+          id = bom.Id,
+          bomNumber = bom.BomNumber,
+          description = bom.Description,
+          assemblyPartNumber = bom.AssemblyPartNumber,
+          version = bom.Version,
+          itemCount = bom.BomItems?.Count ?? 0,
+          subAssemblyCount = bom.SubAssemblies?.Count ?? 0,
+          createdDate = bom.CreatedDate.ToString("MM/dd/yyyy"),
+          modifiedDate = bom.ModifiedDate.ToString("MM/dd/yyyy"),
+          isCurrentVersion = bom.IsCurrentVersion,
+          hasDocuments = bom.HasDocuments,
+          documentCount = bom.DocumentCount
+        };
+
+        return Json(response);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting BOM details for ID: {BomId}", id);
+        return StatusCode(500, new { error = "Error loading BOM details" });
+      }
+    }
     // Quick Material Check - GET
     public async Task<IActionResult> QuickMaterialCheck(int id, int quantity = 1)
     {

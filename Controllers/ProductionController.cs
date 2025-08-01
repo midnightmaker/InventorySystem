@@ -443,14 +443,102 @@ namespace InventorySystem.Controllers
         return RedirectToAction("FinishedGoods");
       }
     }
-    
-    // Add this method to your ProductionController
+
+    [HttpGet]
     public async Task<IActionResult> MaterialShortageReport(int bomId, int quantity = 1)
     {
       try
       {
+        // Return loading view immediately
+        ViewBag.BomId = bomId;
+        ViewBag.Quantity = quantity;
+        ViewBag.IsLoading = true;
+
+        // Get basic BOM info for loading screen
+        var bom = await _bomService.GetBomByIdAsync(bomId);
+        ViewBag.BomName = bom?.BomNumber ?? "Unknown BOM";
+
+        return View("MaterialShortageReportLoading");
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading material shortage report: {ex.Message}";
+        return RedirectToAction("BuildBom");
+      }
+    }
+    [HttpGet]
+    public async Task<IActionResult> GetMaterialShortageReportData(int bomId, int quantity = 1)
+    {
+      try
+      {
+        // This is the actual heavy computation
         var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
-        return View(shortageAnalysis);
+
+        return Json(new
+        {
+          success = true,
+          data = new
+          {
+            bomId = shortageAnalysis.BomId,
+            bomName = shortageAnalysis.BomName,
+            bomDescription = shortageAnalysis.BomDescription,
+            requestedQuantity = shortageAnalysis.RequestedQuantity,
+            canBuild = shortageAnalysis.CanBuild,
+            hasShortages = shortageAnalysis.HasShortages,
+            totalRequiredItems = shortageAnalysis.TotalRequiredItems,
+            totalShortageItems = shortageAnalysis.TotalShortageItems,
+            totalShortageValue = shortageAnalysis.TotalShortageValue,
+            materialShortages = shortageAnalysis.MaterialShortages.Select(s => new
+            {
+              itemId = s.ItemId,
+              partNumber = s.PartNumber,
+              description = s.Description,
+              requiredQuantity = s.RequiredQuantity,
+              availableQuantity = s.AvailableQuantity,
+              shortageQuantity = s.ShortageQuantity,
+              shortageValue = s.ShortageValue,
+              suggestedPurchaseQuantity = s.SuggestedPurchaseQuantity,
+              estimatedUnitCost = s.EstimatedUnitCost,
+              isCriticalShortage = s.IsCriticalShortage,
+              preferredVendor = s.PreferredVendor,
+              bomContext = s.BomContext,
+              lastPurchaseDate = s.LastPurchaseDate?.ToString("MM/dd/yyyy"),
+              lastPurchaseCost = s.LastPurchaseCost
+            }).ToList(),
+            materialRequirements = shortageAnalysis.MaterialRequirements.Select(r => new
+            {
+              itemId = r.ItemId,
+              partNumber = r.PartNumber,
+              description = r.Description,
+              requiredQuantity = r.RequiredQuantity,
+              availableQuantity = r.AvailableQuantity,
+              hasSufficientStock = r.HasSufficientStock,
+              estimatedUnitCost = r.EstimatedUnitCost,
+              totalCost = r.TotalCost,
+              bomContext = r.BomContext
+            }).ToList()
+          }
+        });
+      }
+      catch (Exception ex)
+      {
+        return Json(new
+        {
+          success = false,
+          error = ex.Message,
+          details = "Failed to generate material shortage analysis. Please try again or contact support if the problem persists."
+        });
+      }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> MaterialShortageReportComplete(int bomId, int quantity = 1)
+    {
+      try
+      {
+        // This action returns the complete report view after data is loaded
+        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
+        return View("MaterialShortageReport", shortageAnalysis);
       }
       catch (Exception ex)
       {
@@ -458,6 +546,41 @@ namespace InventorySystem.Controllers
         return RedirectToAction("BuildBom");
       }
     }
+
+    // Enhanced method for real-time progress updates (optional)
+    [HttpGet]
+    public async Task<IActionResult> GetMaterialShortageProgress(int bomId, int quantity = 1)
+    {
+      try
+      {
+        // You can implement this to return progress updates during long operations
+        // For now, we'll return a simple status
+        var bom = await _bomService.GetBomByIdAsync(bomId);
+        if (bom == null)
+        {
+          return Json(new { success = false, error = "BOM not found" });
+        }
+
+        var itemCount = bom.BomItems?.Count ?? 0;
+        var subAssemblyCount = bom.SubAssemblies?.Count ?? 0;
+
+        return Json(new
+        {
+          success = true,
+          progress = new
+          {
+            totalItems = itemCount + subAssemblyCount,
+            currentStep = "Analyzing BOM structure...",
+            estimatedTimeRemaining = itemCount > 50 ? "30-60 seconds" : "10-30 seconds"
+          }
+        });
+      }
+      catch (Exception ex)
+      {
+        return Json(new { success = false, error = ex.Message });
+      }
+    }
+
     // Export shortage report to CSV
     public async Task<IActionResult> ExportShortageReport(int bomId, int quantity = 1)
     {

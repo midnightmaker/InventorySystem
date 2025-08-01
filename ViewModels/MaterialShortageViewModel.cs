@@ -1,4 +1,4 @@
-﻿// ViewModels/MaterialShortageViewModel.cs
+﻿// ViewModels/MaterialShortageViewModel.cs - FIXED with TotalShortageValue
 using InventorySystem.Models;
 using System.ComponentModel.DataAnnotations;
 
@@ -22,6 +22,9 @@ namespace InventorySystem.ViewModels
     public int TotalRequiredItems => MaterialRequirements.Count();
     public decimal TotalShortageQuantity => MaterialShortages.Sum(ms => ms.ShortageQuantity);
     public bool HasShortages => MaterialShortages.Any();
+
+    
+    public decimal TotalShortageValue => MaterialShortages.Sum(ms => ms.ShortageValue);
   }
 
   public class MaterialShortageItem
@@ -37,6 +40,7 @@ namespace InventorySystem.ViewModels
     public string? PreferredVendor { get; set; }
     public DateTime? LastPurchaseDate { get; set; }
     public decimal? LastPurchasePrice { get; set; }
+    public decimal? LastPurchaseCost { get; set; } // ADDED: Alternative property name used in some views
     public int MinimumStock { get; set; }
     public bool IsCriticalShortage => AvailableQuantity == 0;
     public int SuggestedPurchaseQuantity { get; set; }
@@ -59,6 +63,4 @@ namespace InventorySystem.ViewModels
     public string BomContext { get; set; } = string.Empty;
     public int QuantityPerAssembly { get; set; }
   }
-
-  
 }
