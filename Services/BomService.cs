@@ -25,6 +25,18 @@ namespace InventorySystem.Services
           .Include(b => b.BomItems)
               .ThenInclude(bi => bi.Item)
           .Include(b => b.SubAssemblies)
+          // REMOVED: .Where(b => b.ParentBomId == null) - This was filtering out sub-assemblies
+          .OrderBy(b => b.BomNumber)
+          .ToListAsync();
+    }
+
+    // If you want top level BOMs only
+    public async Task<IEnumerable<Bom>> GetTopLevelBomsAsync()
+    {
+      return await _context.Boms
+          .Include(b => b.BomItems)
+              .ThenInclude(bi => bi.Item)
+          .Include(b => b.SubAssemblies)
           .Where(b => b.ParentBomId == null) // Only top-level BOMs
           .OrderBy(b => b.BomNumber)
           .ToListAsync();

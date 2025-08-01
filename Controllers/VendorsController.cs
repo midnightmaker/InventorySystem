@@ -274,6 +274,10 @@ namespace InventorySystem.Controllers
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddItem(VendorItem vendorItem)
     {
+      // Remove validation for navigation properties that aren't populated by form binding
+      ModelState.Remove("Vendor");
+      ModelState.Remove("Item");
+
       if (ModelState.IsValid)
       {
         try
@@ -308,6 +312,10 @@ namespace InventorySystem.Controllers
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateItem(VendorItem vendorItem)
     {
+      // Remove validation for navigation properties that aren't populated by form binding
+      ModelState.Remove("Vendor");
+      ModelState.Remove("Item");
+
       if (ModelState.IsValid)
       {
         try

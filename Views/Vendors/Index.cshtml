@@ -1,4 +1,4 @@
-﻿@* Views/Vendors/Index.cshtml - Enhanced with wildcard search examples *@
+﻿@* Views/Vendors/Index.cshtml - Enhanced with proper search examples and collapsible search *@
 @model IEnumerable<InventorySystem.Models.Vendor>
 
 @{
@@ -15,65 +15,31 @@
     </a>
   </div>
 
-  <!-- Enhanced Search Form -->
+  <!-- Collapsible Search Form with Examples -->
   <div class="card mb-4">
     <div class="card-header">
-      <h6><i class="fas fa-search"></i> Search Vendors</h6>
+      <h6 class="mb-0">
+        <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#searchCollapse"
+                aria-expanded="false"
+                aria-controls="searchCollapse">
+          <i class="fas fa-search"></i> Search Vendors
+          <i class="fas fa-chevron-down float-end"></i>
+        </button>
+      </h6>
     </div>
-    <div class="card-body">
-      <form method="get" class="row g-3">
-        <div class="col-md-8">
-          <label for="search" class="form-label">Search Term</label>
-          <input type="text"
-                 class="form-control"
-                 id="search"
-                 name="search"
-                 value="@searchTerm"
-                 placeholder="Enter search term with wildcards (e.g., crystal*, *supply, ?BC Corp)">
-          <div class="form-text">
-            <strong>Wildcard Support:</strong>
-            Use <code>*</code> for multiple characters (crystal* finds "Crystal Supply", "Crystal Tech") |
-            Use <code>?</code> for single character (?BC finds "ABC", "XBC")
-          </div>
-        </div>
-        <div class="col-md-2">
-          <label class="form-label">&nbsp;</label>
-          <div class="form-check">
-            <input class="form-check-input"
-                   type="checkbox"
-                   id="activeOnly"
-                   name="activeOnly"
-                   value="true"
-                   @(activeOnly ? "checked" : "")>
-            <label class="form-check-label" for="activeOnly">
-              Active Only
-            </label>
-          </div>
-        </div>
-        <div class="col-md-2">
-          <label class="form-label">&nbsp;</label>
-          <div class="d-grid">
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-search"></i> Search
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Search Examples Card -->
-  @if (string.IsNullOrEmpty(searchTerm))
-  {
-    <div class="card mb-4 border-info">
-      <div class="card-header bg-info text-white">
-        <h6><i class="fas fa-lightbulb"></i> Search Examples</h6>
-      </div>
+    <div class="collapse" id="searchCollapse">
       <div class="card-body">
-        <div class="row">
+        <!-- Search Examples Section -->
+        <div class="row mb-4 p-3 bg-light border rounded">
+          <div class="col-12">
+            <h6><i class="fas fa-lightbulb text-info"></i> Search Examples</h6>
+          </div>
           <div class="col-md-6">
-            <h6>Wildcard Examples:</h6>
-            <ul class="list-unstyled">
+            <h6 class="small">Wildcard Examples:</h6>
+            <ul class="list-unstyled small">
               <li><code>crystal*</code> - Find vendors starting with "crystal"</li>
               <li><code>*supply</code> - Find vendors ending with "supply"</li>
               <li><code>*tech*</code> - Find vendors containing "tech"</li>
@@ -81,8 +47,8 @@
             </ul>
           </div>
           <div class="col-md-6">
-            <h6>Search Fields:</h6>
-            <ul class="list-unstyled">
+            <h6 class="small">Search Fields:</h6>
+            <ul class="list-unstyled small">
               <li><i class="fas fa-building"></i> Company Name</li>
               <li><i class="fas fa-user"></i> Contact Name</li>
               <li><i class="fas fa-barcode"></i> Vendor Code</li>
@@ -90,9 +56,49 @@
             </ul>
           </div>
         </div>
+
+        <!-- Search Form -->
+        <form method="get" class="row g-3">
+          <div class="col-md-8">
+            <label for="search" class="form-label">Search Term</label>
+            <input type="text"
+                   class="form-control"
+                   id="search"
+                   name="search"
+                   value="@searchTerm"
+                   placeholder="Enter search term with wildcards (e.g., crystal*, *supply, ?BC Corp)">
+            <div class="form-text">
+              <strong>Wildcard Support:</strong>
+              Use <code>*</code> for multiple characters (crystal* finds "Crystal Supply", "Crystal Tech") |
+              Use <code>?</code> for single character (?BC finds "ABC", "XBC")
+            </div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <div class="form-check">
+              <input class="form-check-input"
+                     type="checkbox"
+                     id="activeOnly"
+                     name="activeOnly"
+                     value="true"
+                     @(activeOnly ? "checked" : "")>
+              <label class="form-check-label" for="activeOnly">
+                Active Only
+              </label>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <div class="d-grid">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Search
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
-  }
+  </div>
 
   <!-- Search Results Summary -->
   @if (!string.IsNullOrEmpty(searchTerm))
@@ -138,29 +144,24 @@
               {
                 <tr class="@(!vendor.IsActive ? "table-secondary" : "") vendor-row"
                     data-vendor-id="@vendor.Id"
-                    style="cursor: pointer;"
-                    title="Click to view vendor details">
+                    style="cursor: pointer;">
                   <td>
                     <div>
                       <strong>@vendor.CompanyName</strong>
                       @if (vendor.IsPreferred)
                       {
-                        <span class="badge bg-warning text-dark ms-1">Preferred</span>
+                        <span class="badge bg-warning text-dark ms-2">Preferred</span>
                       }
                     </div>
-                    @if (!string.IsNullOrEmpty(vendor.Website))
+                    @if (!string.IsNullOrEmpty(vendor.VendorCode))
                     {
-                      <small class="text-muted">
-                        <a href="@vendor.Website" target="_blank" class="text-decoration-none" onclick="event.stopPropagation();">
-                          <i class="fas fa-external-link-alt"></i> Website
-                        </a>
-                      </small>
+                      <small class="text-muted">Code: @vendor.VendorCode</small>
                     }
                   </td>
                   <td>
                     @if (!string.IsNullOrEmpty(vendor.VendorCode))
                     {
-                      <span class="badge bg-secondary">@vendor.VendorCode</span>
+                      <code>@vendor.VendorCode</code>
                     }
                     else
                     {
@@ -174,17 +175,11 @@
                     }
                     @if (!string.IsNullOrEmpty(vendor.ContactEmail))
                     {
-                      <small class="text-muted">
-                        <a href="mailto:@vendor.ContactEmail" onclick="event.stopPropagation();">@vendor.ContactEmail</a>
-                      </small>
+                      <small class="text-muted">@vendor.ContactEmail</small>
                     }
-                    @if (!string.IsNullOrEmpty(vendor.ContactPhone))
+                    @if (string.IsNullOrEmpty(vendor.ContactName) && string.IsNullOrEmpty(vendor.ContactEmail))
                     {
-                      <br>
-                
-                      <small class="text-muted">
-                        <a href="tel:@vendor.ContactPhone" onclick="event.stopPropagation();">@vendor.ContactPhone</a>
-                      </small>
+                      <span class="text-muted">No contact info</span>
                     }
                   </td>
                   <td>
@@ -194,7 +189,7 @@
                     }
                     else
                     {
-                      <span class="badge bg-danger">Inactive</span>
+                      <span class="badge bg-secondary">Inactive</span>
                     }
                   </td>
                   <td>
@@ -202,19 +197,12 @@
                       <span class="me-2">@vendor.OverallRating.ToString("F1")</span>
                       @for (int i = 1; i <= 5; i++)
                       {
-                        if (i <= vendor.OverallRating)
-                        {
-                          <i class="fas fa-star text-warning"></i>
-                        }
-                        else
-                        {
-                          <i class="far fa-star text-muted"></i>
-                        }
+                        <i class="fas fa-star @(i <= vendor.OverallRating ? "text-warning" : "text-muted")"></i>
                       }
                     </div>
                   </td>
                   <td>
-                    <div class="btn-group btn-group-sm" role="group" onclick="event.stopPropagation();">
+                    <div class="btn-group btn-group-sm" role="group">
                       <a href="@Url.Action("Details", new { id = vendor.Id })"
                          class="btn btn-outline-primary" title="View Details">
                         <i class="fas fa-eye"></i>
@@ -277,6 +265,18 @@
   .vendor-row {
     transition: background-color 0.2s ease;
   }
+
+  .collapse .card-body {
+    border-top: 1px solid #dee2e6;
+  }
+
+  .btn-link {
+    color: inherit !important;
+  }
+
+    .btn-link:hover {
+      color: inherit !important;
+    }
 </style>
 
 <script>
@@ -329,6 +329,30 @@
                   if (prevRow) prevRow.focus();
               }
           });
+      });
+
+      // Auto-expand search if there's a search term
+      @if (!string.IsNullOrEmpty(searchTerm))
+      {
+          <text>
+          var searchCollapse = new bootstrap.Collapse(document.getElementById('searchCollapse'), {
+              show: true
+          });
+          </text>
+      }
+
+      // Update chevron icon when collapse state changes
+      const collapseElement = document.getElementById('searchCollapse');
+      const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down');
+
+      collapseElement.addEventListener('show.bs.collapse', function () {
+          chevronIcon.classList.remove('fa-chevron-down');
+          chevronIcon.classList.add('fa-chevron-up');
+      });
+
+      collapseElement.addEventListener('hide.bs.collapse', function () {
+          chevronIcon.classList.remove('fa-chevron-up');
+          chevronIcon.classList.add('fa-chevron-down');
       });
   });
 </script>
