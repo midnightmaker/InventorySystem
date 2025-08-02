@@ -520,11 +520,11 @@
     document.querySelector('.card-gradient-warning')?.addEventListener('click', () => window.location.href = '/Items?filter=lowstock');
     document.querySelector('.card-gradient-info')?.addEventListener('click', () => window.location.href = '/Boms');
     document.querySelector('.card-gradient-secondary')?.addEventListener('click', () => window.location.href = '/Purchases');
+    document.querySelector('.card-gradient-dark')?.addEventListener('click', () => window.location.href = '/Vendors'); // FIX: Add this line
   });
 
   // Refresh data every 60 seconds
   setInterval(() => {
-    // In a real application, you might want to refresh the data via AJAX
     console.log('Dashboard refresh interval triggered');
   }, 60000);
 </script>

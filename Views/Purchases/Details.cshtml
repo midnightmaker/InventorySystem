@@ -1,5 +1,6 @@
 ﻿@* Views/Purchases/Details.cshtml - Updated to show vendor information *@
 @model InventorySystem.Models.Purchase
+@using System.IO
 
 @{
   ViewData["Title"] = $"Purchase Details - {Model.Id}";
@@ -248,39 +249,229 @@
       </div>
 
       <!-- Documents -->
-      @if (Model.PurchaseDocuments.Any())
+      @if (Model.PurchaseDocuments?.Any() == true)
       {
         <div class="card mt-3">
-          <div class="card-header">
-            <h5><i class="fas fa-paperclip"></i> Documents</h5>
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-paperclip"></i> Purchase Documents</h5>
+            <a href="/PurchaseDocuments/Upload?purchaseId=@Model.Id" class="btn btn-success btn-sm">
+              <i class="fas fa-upload"></i> Upload Document
+            </a>
           </div>
           <div class="card-body">
-            <div class="list-group">
-              @foreach (var doc in Model.PurchaseDocuments)
-              {
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                  <div>
-                    <i class="fas fa-file text-muted"></i>
-                    <strong>@doc.DocumentName</strong>
-                    @if (!string.IsNullOrEmpty(doc.Description))
-                    {
-                      <br>
-                
-                      <small class="text-muted">@doc.Description</small>
-                    }
-                    <br><small class="text-muted">
-                      Uploaded: @doc.UploadedDate.ToString("MM/dd/yyyy") |
-                      Size: @(doc.FileSize / 1024)KB
-                    </small>
-                  </div>
-                  <div>
-                    <span class="badge bg-secondary">@doc.DocumentType</span>
-                  </div>
-                </div>
-              }
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Document Name</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Uploaded</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var doc in Model.PurchaseDocuments.OrderByDescending(d => d.UploadedDate))
+                  {
+                    <tr>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <i class="@doc.FileTypeIcon me-2"></i>
+                          <div>
+                            <strong>@doc.DocumentName</strong>
+                            @if (!string.IsNullOrEmpty(doc.Description))
+                            {
+                              <br><small class="text-muted">@doc.Description</small>
+                            }
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge bg-secondary">@doc.DocumentType</span>
+                      </td>
+                      <td>@doc.FileSizeFormatted</td>
+                      <td>
+                        <small>@doc.UploadedDate.ToString("MM/dd/yyyy")</small>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          @{
+                            var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
+                                .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
+                          }
+                          
+                          @if (canPreview)
+                          {
+                            <button class="btn btn-outline-info" onclick="previewDocument(@doc.Id, '@doc.DocumentName')" title="Preview">
+                              <i class="fas fa-eye"></i>
+                            </button>
+                          }
+                          
+                          <a href="/PurchaseDocuments/Download/@doc.Id" class="btn btn-outline-primary" title="Download">
+                            <i class="fas fa-download"></i>
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
+      }
+      else
+      {
+        <div class="card mt-3">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-paperclip"></i> Purchase Documents</h5>
+            <a href="/PurchaseDocuments/Upload?purchaseId=@Model.Id" class="btn btn-success btn-sm">
+              <i class="fas fa-upload"></i> Upload Document
+            </a>
+          </div>
+          <div class="card-body text-center py-4">
+            <i class="fas fa-file-upload fa-3x text-muted mb-3"></i>
+            <h6 class="text-muted">No Documents Uploaded</h6>
+            <p class="text-muted">Upload invoices, receipts, purchase orders, and other purchase-related documents.</p>
+            <a href="/PurchaseDocuments/Upload?purchaseId=@Model.Id" class="btn btn-outline-success">
+              <i class="fas fa-upload"></i> Upload First Document
+            </a>
+          </div>
+        </div>
+      }
+
+      <!-- Document Preview Modal -->
+      <div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-xl">
+              <div class="modal-content">
+                  <div class="modal-header">
+                      <h5 class="modal-title" id="previewModalTitle">Document Preview</h5>
+                      <div class="btn-group btn-group-sm">
+                          <button type="button" class="btn btn-outline-secondary" onclick="zoomOut()">
+                              <i class="fas fa-search-minus"></i>
+                          </button>
+                          <button type="button" class="btn btn-outline-secondary" onclick="resetZoom()">
+                              <i class="fas fa-compress-arrows-alt"></i>
+                          </button>
+                          <button type="button" class="btn btn-outline-secondary" onclick="zoomIn()">
+                              <i class="fas fa-search-plus"></i>
+                          </button>
+                      </div>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body p-0">
+                      <div id="previewLoading" class="text-center p-4">
+                          <div class="spinner-border text-primary" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                          </div>
+                          <p class="mt-2">Loading document...</p>
+                      </div>
+                      <iframe id="previewIframe" style="width: 100%; height: 70vh; border: none; display: none;"></iframe>
+                  </div>
+                  <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                      <a id="downloadLink" href="#" class="btn btn-primary">
+                          <i class="fas fa-download"></i> Download
+                      </a>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      @section Scripts {
+          <script>
+              let currentZoom = 1;
+              let currentDocumentId = null;
+
+              function previewDocument(documentId, documentName) {
+                  currentDocumentId = documentId;
+                  const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
+                  const iframe = document.getElementById('previewIframe');
+                  const modalTitle = document.getElementById('previewModalTitle');
+                  const downloadLink = document.getElementById('downloadLink');
+                  const loading = document.getElementById('previewLoading');
+                  
+                  modalTitle.textContent = `Preview: ${documentName}`;
+                  downloadLink.href = `/PurchaseDocuments/Download/${documentId}`;
+                  
+                  // Show loading, hide iframe
+                  loading.style.display = 'block';
+                  iframe.style.display = 'none';
+                  
+                  // Set iframe source
+                  iframe.src = `/PurchaseDocuments/GetPreviewData/${documentId}`;
+                  
+                  // Show modal
+                  modal.show();
+                  
+                  // Handle iframe load
+                  iframe.onload = function() {
+                      loading.style.display = 'none';
+                      iframe.style.display = 'block';
+                  };
+                  
+                  // Handle iframe error
+                  iframe.onerror = function() {
+                      loading.innerHTML = `
+                          <div class="text-center p-4">
+                              <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                              <h5>Preview Not Available</h5>
+                              <p class="text-muted">This document cannot be previewed in your browser.</p>
+                              <a href="/PurchaseDocuments/Download/${documentId}" class="btn btn-primary">
+                                  <i class="fas fa-download"></i> Download Document
+                              </a>
+                          </div>
+                      `;
+                  };
+              }
+
+              function zoomIn() {
+                  currentZoom += 0.25;
+                  applyZoom();
+              }
+
+              function zoomOut() {
+                  if (currentZoom > 0.5) {
+                      currentZoom -= 0.25;
+                      applyZoom();
+                  }
+              }
+
+              function resetZoom() {
+                  currentZoom = 1;
+                  applyZoom();
+              }
+
+              function applyZoom() {
+                  const iframe = document.getElementById('previewIframe');
+                  iframe.style.transform = `scale(${currentZoom})`;
+                  iframe.style.transformOrigin = 'top left';
+              }
+
+              // Reset zoom when modal is closed
+              document.getElementById('documentPreviewModal').addEventListener('hidden.bs.modal', function () {
+                  currentZoom = 1;
+                  applyZoom();
+                  document.getElementById('previewIframe').src = '';
+              });
+          </script>
+
+          <style>
+              .btn-group-sm .btn {
+                  padding: 0.25rem 0.5rem;
+                  font-size: 0.875rem;
+              }
+              
+              .table th {
+                  border-top: none;
+                  font-weight: 600;
+                  font-size: 0.875rem;
+              }
+
+              .badge {
+                  font-size: 0.75rem;
+              }
+          </style>
       }
     </div>
 

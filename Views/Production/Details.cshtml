@@ -6,6 +6,11 @@
   ViewData["Title"] = $"Production Details - {Model.Production.Id}";
 }
 
+@* Add this hidden form to provide the anti-forgery token *@
+<form style="display: none;">
+  @Html.AntiForgeryToken()
+</form>
+
 <div class="container-fluid">
   <div class="row">
     <div class="col-md-8">
@@ -52,15 +57,25 @@
               <div class="col-md-6">
                 <p>
                   <strong>Current Status:</strong>
-                  <span class="badge bg-@GetStatusColor(Model.Workflow.Status) fs-6">
-                    @Model.Workflow.Status.ToString().Replace("InProgress", "In Progress")
-                  </span>
+                  @if (Model.Workflow != null)
+                  {
+                    <span class="badge bg-@GetStatusColor(Model.Workflow.Status) fs-6">
+                      @Model.Workflow.Status.ToString().Replace("InProgress", "In Progress")
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-secondary fs-6">No Workflow</span>
+                  }
                 </p>
                 <p>
                   <strong>Priority:</strong>
-                  <span class="badge bg-@GetPriorityColor(Model.Workflow.Priority)">@Model.Workflow.Priority</span>
+                  @if (Model.Workflow != null)
+                  {
+                    <span class="badge bg-@GetPriorityColor(Model.Workflow.Priority)">@Model.Workflow.Priority</span>
+                  }
                 </p>
-                @if (!string.IsNullOrEmpty(Model.Workflow.AssignedTo))
+                @if (!string.IsNullOrEmpty(Model.Workflow?.AssignedTo))
                 {
                   <p><strong>Assigned To:</strong> @Model.Workflow.AssignedTo</p>
                 }
@@ -339,6 +354,36 @@
 }
 
 <style>
+  /* Add pulsing animation for error alerts */
+  @@keyframes alertPulse {
+    0%, 100%
+
+  {
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 8px 16px rgba(220, 53, 69, 0.4);
+  }
+
+  }
+
+  /* Enhanced styling for sticky alerts */
+  .alert.position-fixed {
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+    .alert.position-fixed .btn-close {
+      filter: none;
+    }
+
+    .alert.position-fixed .btn {
+      font-size: 0.75rem;
+    }
+
+  /* Timeline styles */
   .timeline {
     position: relative;
     padding-left: 30px;
@@ -383,23 +428,95 @@
   let currentProductionId = @Model.Production.Id;
   let pendingStatusUpdate = null;
 
-  function startProduction(productionId) {
-      const assignedTo = document.getElementById('assignTo')?.value;
+  // Get anti-forgery token
+  function getAntiForgeryToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
+           document.querySelector('[name="__RequestVerificationToken"]')?.value;
+  }
 
-      fetch(`/Production/StartProduction`, {
+  function startProduction(productionId) {
+    const assignedTo = document.getElementById('assignTo')?.value;
+    const token = getAntiForgeryToken();
+
+    if (!token) {
+      console.error('Anti-forgery token not found');
+      showErrorMessage('Security token not found. Please refresh the page and try again.');
+      return;
+    }
+
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+    button.disabled = true;
+
+    // First check if production can be started
+    fetch(`/Production/CheckProductionReadiness?productionId=${productionId}`)
+      .then(response => response.json())
+      .then(readinessResult => {
+        if (!readinessResult.success) {
+          throw new Error(readinessResult.error || 'Failed to check production readiness');
+        }
+
+        if (!readinessResult.canStart) {
+          showErrorMessage(readinessResult.reason);
+          button.innerHTML = originalText;
+          button.disabled = false;
+          return;
+        }
+
+        // If readiness check passes, proceed with starting production
+        const formData = new FormData();
+        formData.append('productionId', productionId.toString());
+        if (assignedTo) {
+          formData.append('assignedTo', assignedTo);
+        }
+        formData.append('__RequestVerificationToken', token);
+
+        return fetch('/Production/StartProduction', {
           method: 'POST',
-          headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-              productionId: productionId,
-              assignedTo: assignedTo || ''
-          })
-      }).then(() => location.reload());
+          body: formData
+        });
+      })
+      .then(response => {
+        if (!response) return; // Readiness check failed, already handled above
+
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+          return response.text().then(text => {
+            console.error('Error response body:', text);
+            throw new Error(`HTTP ${response.status}: Server error occurred`);
+          });
+        }
+        return response.text();
+      })
+      .then(data => {
+        if (!data) return; // No data means readiness check failed
+
+        console.log('Production started successfully, reloading page...');
+        showSuccessMessage('Production started successfully - Status updated to In Progress');
+
+        // Reload page to show updated status
+        setTimeout(() => {
+          location.reload();
+        }, 1500);
+      })
+      .catch(error => {
+        console.error('Error starting production:', error);
+        showErrorMessage('Failed to start production: ' + error.message);
+
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+      });
   }
 
   function moveToQualityCheck(productionId) {
       updateStatus(productionId, 2, 'Moved to quality check');
+  }
+
+  function completeProduction(productionId) {
+      updateStatus(productionId, 3, 'Production completed');
   }
 
   function putOnHold(productionId) {
@@ -419,49 +536,223 @@
   function assignProduction(productionId) {
       const assignedTo = document.getElementById('assignTo').value;
       if (!assignedTo) {
-          alert('Please enter an employee name');
+          showErrorMessage('Please enter an employee name');
           return;
+      }
+
+      const token = getAntiForgeryToken();
+      const formData = new FormData();
+      formData.append('productionId', productionId);
+      formData.append('assignedTo', assignedTo);
+      if (token) {
+        formData.append('__RequestVerificationToken', token);
       }
 
       fetch(`/Production/AssignProduction`, {
           method: 'POST',
-          headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-              productionId: productionId,
-              assignedTo: assignedTo
-          })
-      }).then(() => location.reload());
+          body: formData
+      })
+      .then(response => {
+        if (response.ok) {
+          showSuccessMessage('Production assigned successfully');
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          showErrorMessage('Failed to assign production. Please try again.');
+        }
+      })
+      .catch(error => {
+        showErrorMessage('Error assigning production: ' + error.message);
+      });
   }
 
   function completeQualityCheck(productionId, passed) {
       const notes = document.getElementById('qcNotes').value;
+      const token = getAntiForgeryToken();
+
+      const formData = new FormData();
+      formData.append('productionId', productionId);
+      formData.append('passed', passed);
+      formData.append('notes', notes);
+      if (token) {
+        formData.append('__RequestVerificationToken', token);
+      }
 
       fetch(`/Production/CompleteQualityCheck`, {
           method: 'POST',
-          headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-              productionId: productionId,
-              passed: passed,
-              notes: notes
-          })
-      }).then(() => location.reload());
+          body: formData
+      })
+      .then(response => {
+        if (response.ok) {
+          showSuccessMessage(`Quality check ${passed ? 'passed' : 'failed'} successfully`);
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          showErrorMessage('Failed to complete quality check. Please try again.');
+        }
+      })
+      .catch(error => {
+        showErrorMessage('Error completing quality check: ' + error.message);
+      });
   }
 
   function updateStatus(productionId, newStatus, reason) {
+      const token = getAntiForgeryToken();
+      const formData = new FormData();
+      formData.append('productionId', productionId);
+      formData.append('newStatus', newStatus);
+      formData.append('reason', reason || '');
+      if (token) {
+        formData.append('__RequestVerificationToken', token);
+      }
+
       fetch(`/Production/UpdateStatus`, {
           method: 'POST',
-          headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-              productionId: productionId,
-              newStatus: newStatus,
-              reason: reason || ''
-          })
-      }).then(() => location.reload());
+          body: formData
+      })
+      .then(response => {
+        if (response.ok) {
+          showSuccessMessage('Status updated successfully');
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          showErrorMessage('Failed to update status. Please try again.');
+        }
+      })
+      .catch(error => {
+        showErrorMessage('Error updating status: ' + error.message);
+      });
+  }
+
+  // Enhanced success message - still auto-dismisses but with longer duration
+  function showSuccessMessage(message) {
+    // Remove any existing alerts of the same type first
+    removeExistingAlerts('alert-success');
+
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show position-fixed shadow-lg';
+    alert.style.cssText = `
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      min-width: 350px;
+      max-width: 500px;
+      border-left: 4px solid #28a745;
+    `;
+    alert.innerHTML = `
+      <div class="d-flex align-items-center">
+        <i class="fas fa-check-circle me-2"></i>
+        <div class="flex-grow-1">
+          <strong>Success!</strong><br>
+          <span class="small">${message}</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    document.body.appendChild(alert);
+
+    // Auto-dismiss success messages after 4 seconds
+    setTimeout(() => {
+      if (alert.parentNode) {
+        alert.remove();
+      }
+    }, 4000);
+  }
+
+  // Enhanced error message - STICKY (no auto-dismiss)
+  function showErrorMessage(message) {
+    // Remove any existing alerts of the same type first
+    removeExistingAlerts('alert-danger');
+
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show position-fixed shadow-lg';
+    alert.style.cssText = `
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      min-width: 350px;
+      max-width: 600px;
+      border-left: 4px solid #dc3545;
+      word-wrap: break-word;
+    `;
+
+    // Enhanced error message with more detailed layout
+    alert.innerHTML = `
+      <div class="d-flex align-items-start">
+        <i class="fas fa-exclamation-triangle me-2 mt-1 text-danger"></i>
+        <div class="flex-grow-1">
+          <strong>Error!</strong><br>
+          <span class="small">${message}</span>
+          <hr class="my-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">This message will remain until dismissed</small>
+            <div>
+              <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="location.reload()">
+                <i class="fas fa-sync"></i> Refresh Page
+              </button>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(alert);
+
+    // Add a subtle pulsing animation to draw attention
+    alert.style.animation = 'alertPulse 2s ease-in-out 3';
+
+    // NO setTimeout - error messages are sticky until manually dismissed
+
+    // Add click handler to the refresh button
+    const refreshBtn = alert.querySelector('.btn-outline-secondary');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        location.reload();
+      });
+    }
+
+    // Log error to console for debugging
+    console.error('Production Error:', message);
+  }
+
+  // Utility function to remove existing alerts of the same type
+  function removeExistingAlerts(alertClass) {
+    const existingAlerts = document.querySelectorAll(`.${alertClass}.position-fixed`);
+    existingAlerts.forEach(alert => {
+      alert.remove();
+    });
+  }
+
+  // Enhanced warning message (for less critical issues)
+  function showWarningMessage(message) {
+    removeExistingAlerts('alert-warning');
+
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-warning alert-dismissible fade show position-fixed shadow-lg';
+    alert.style.cssText = `
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      min-width: 350px;
+      max-width: 500px;
+      border-left: 4px solid #ffc107;
+    `;
+    alert.innerHTML = `
+      <div class="d-flex align-items-center">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <div class="flex-grow-1">
+          <strong>Warning!</strong><br>
+          <span class="small">${message}</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    document.body.appendChild(alert);
+
+    // Auto-dismiss warnings after 8 seconds (longer than success, shorter than manual)
+    setTimeout(() => {
+      if (alert.parentNode) {
+        alert.remove();
+      }
+    }, 8000);
   }
 </script>

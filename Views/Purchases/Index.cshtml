@@ -190,39 +190,78 @@
         <span class="badge bg-primary ms-2">@Model.Count() records</span>
       </h5>
 
-      <!-- Sort Options -->
-      <div class="dropdown">
-        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-          <i class="fas fa-sort"></i> Sort
-        </button>
-        <ul class="dropdown-menu">
-          <li>
-            <a class="dropdown-item @(sortOrder == "date_desc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "date_desc" })">
-              <i class="fas fa-calendar"></i> Date (Newest First)
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item @(sortOrder == "date_asc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "date_asc" })">
-              <i class="fas fa-calendar"></i> Date (Oldest First)
-            </a>
-          </li>
-          <li><hr class="dropdown-divider"></li>
-          <li>
-            <a class="dropdown-item @(sortOrder == "vendor_asc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "vendor_asc" })">
-              <i class="fas fa-building"></i> Vendor (A-Z)
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item @(sortOrder == "amount_desc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "amount_desc" })">
-              <i class="fas fa-dollar-sign"></i> Amount (High-Low)
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item @(sortOrder == "status_asc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "status_asc" })">
-              <i class="fas fa-flag"></i> Status
-            </a>
-          </li>
-        </ul>
+      <!-- Sort Options, Page Size, and Pagination Controls -->
+      <div class="d-flex align-items-center gap-3">
+        <!-- Page Size Controls -->
+        <div class="btn-group">
+          <label class="btn btn-outline-secondary btn-sm">
+            Page Size:
+            <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
+                    onchange="changePageSize(this.value)">
+              @foreach (var size in ViewBag.AllowedPageSizes)
+              {
+                <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <!-- Sort Options -->
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="fas fa-sort"></i> Sort
+          </button>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item @(sortOrder == "date_desc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, vendorFilter, statusFilter, startDate, endDate, sortOrder = "date_desc" })">
+                <i class="fas fa-calendar"></i> Date (Newest First)
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item @(sortOrder == "date_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, vendorFilter, statusFilter, startDate, endDate, sortOrder = "date_asc" })">
+                <i class="fas fa-calendar"></i> Date (Oldest First)
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item @(sortOrder == "vendor_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, vendorFilter, statusFilter, startDate, endDate, sortOrder = "vendor_asc" })">
+                <i class="fas fa-building"></i> Vendor (A-Z)
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item @(sortOrder == "amount_desc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, vendorFilter, statusFilter, startDate, endDate, sortOrder = "amount_desc" })">
+                <i class="fas fa-dollar-sign"></i> Amount (High-Low)
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item @(sortOrder == "status_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, vendorFilter, statusFilter, startDate, endDate, sortOrder = "status_asc" })">
+                <i class="fas fa-flag"></i> Status
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Pagination Navigation -->
+        <nav aria-label="Purchase pagination">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item @(ViewBag.HasPreviousPage ? "" : "disabled")">
+              <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage - 1)">Previous</a>
+            </li>
+            
+            @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); 
+                  i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); 
+                  i++)
+            {
+              <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                <a class="page-link" href="@GetPageUrl(i)">@i</a>
+              </li>
+            }
+            
+            <li class="page-item @(ViewBag.HasNextPage ? "" : "disabled")">
+              <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage + 1)">Next</a>
+            </li>
+          </ul>
+        </nav>
       </div>
     </div>
     <div class="card-body">
@@ -481,6 +520,54 @@
       }
     </div>
   </div>
+
+  <!-- Pagination Controls - Moved to Card Header -->
+  <!--
+  <div class="row">
+    <div class="col-md-6">
+      <p class="text-muted">
+        Showing @ViewBag.ShowingFrom to @ViewBag.ShowingTo of @ViewBag.TotalCount purchases
+      </p>
+    </div>
+    <div class="col-md-6">
+      <div class="float-end">
+        <div class="btn-group me-2">
+          <label class="btn btn-outline-secondary btn-sm">
+            Page Size:
+            <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
+                    onchange="changePageSize(this.value)">
+              @foreach (var size in ViewBag.AllowedPageSizes)
+              {
+                <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
+              }
+            </select>
+          </label>
+        </div>
+        
+        <nav aria-label="Purchase pagination">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item @(ViewBag.HasPreviousPage ? "" : "disabled")">
+              <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage - 1)">Previous</a>
+            </li>
+            
+            @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); 
+                  i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); 
+                  i++)
+            {
+              <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                <a class="page-link" href="@GetPageUrl(i)">@i</a>
+              </li>
+            }
+            
+            <li class="page-item @(ViewBag.HasNextPage ? "" : "disabled")">
+              <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage + 1)">Next</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+  -->
 </div>
 
 <!-- Enhanced JavaScript for Search Functionality -->
@@ -606,6 +693,32 @@
           updateURL();
       }
   });
+
+  function changePageSize(size) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('pageSize', size);
+      params.set('page', 1); // Reset to first page on page size change
+
+      window.location.search = params.toString();
+  }
+
+  @functions {
+            public string GetPageUrl(int page)
+        {
+              var query = new System.Collections.Specialized.NameValueCollection();
+              var request = Context.Request;
+              foreach (var key in request.Query.Keys)
+              {
+                    var k = key.ToString();
+                    if (!string.IsNullOrEmpty(k) && k != "page")
+                          query[k] = request.Query[k];
+              }
+              query["page"] = page.ToString();
+
+              var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
+              return $"{request.Path}?{queryString}";
+        }
+}
 </script>
 
 <style>

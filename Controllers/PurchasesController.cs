@@ -1,4 +1,4 @@
-// Controllers/PurchasesController.cs - Clean implementation with vendor selection
+// Controllers/PurchasesController.cs - Enhanced with pagination and performance optimizations
 using InventorySystem.Data;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
@@ -17,6 +17,11 @@ namespace InventorySystem.Controllers
     private readonly IVendorService _vendorService;
     private readonly InventoryContext _context;
 
+    // Pagination constants
+    private const int DefaultPageSize = 25;
+    private const int MaxPageSize = 100;
+    private readonly int[] AllowedPageSizes = { 10, 25, 50, 100 };
+
     public PurchasesController(
         IPurchaseService purchaseService,
         IInventoryService inventoryService,
@@ -29,8 +34,6 @@ namespace InventorySystem.Controllers
       _context = context;
     }
 
-    // Controllers/PurchasesController.cs - Enhanced Index method with search functionality
-
     public async Task<IActionResult> Index(
         string search,
         string vendorFilter,
@@ -38,50 +41,135 @@ namespace InventorySystem.Controllers
         DateTime? startDate,
         DateTime? endDate,
         string sortOrder = "date_desc",
-        int page = 1)
+        int page = 1,
+        int pageSize = DefaultPageSize)
     {
       try
       {
+        // Validate and constrain pagination parameters
+        page = Math.Max(1, page);
+        pageSize = AllowedPageSizes.Contains(pageSize) ? pageSize : DefaultPageSize;
+
         Console.WriteLine($"=== PURCHASES INDEX DEBUG ===");
         Console.WriteLine($"Search: {search}");
         Console.WriteLine($"Vendor Filter: {vendorFilter}");
         Console.WriteLine($"Status Filter: {statusFilter}");
         Console.WriteLine($"Date Range: {startDate} to {endDate}");
         Console.WriteLine($"Sort Order: {sortOrder}");
+        Console.WriteLine($"Page: {page}, PageSize: {pageSize}");
 
-        // Start with base query
+        // Start with base query - only select necessary fields for listing
         var query = _context.Purchases
             .Include(p => p.Item)
             .Include(p => p.Vendor)
-            .Include(p => p.PurchaseDocuments)
+            .Select(p => new
+            {
+              p.Id,
+              p.PurchaseDate,
+              p.QuantityPurchased,
+              p.CostPerUnit,
+              p.ShippingCost,
+              p.TaxAmount,
+              p.PurchaseOrderNumber,
+              p.Status,
+              p.RemainingQuantity,
+              p.CreatedDate,
+              ItemPartNumber = p.Item.PartNumber,
+              ItemDescription = p.Item.Description,
+              VendorCompanyName = p.Vendor.CompanyName,
+              p.Notes
+            })
             .AsQueryable();
 
         // Apply search filter
         if (!string.IsNullOrWhiteSpace(search))
         {
-          var searchTerm = search.Trim().ToLower();
+          var searchTerm = search.Trim();
           Console.WriteLine($"Applying search filter: {searchTerm}");
 
-          query = query.Where(p =>
-            // Search in Item Part Number and Description
-            p.Item.PartNumber.ToLower().Contains(searchTerm) ||
-            p.Item.Description.ToLower().Contains(searchTerm) ||
-            // Search in Vendor Company Name
-            p.Vendor.CompanyName.ToLower().Contains(searchTerm) ||
-            // Search in Purchase Order Number
-            (!string.IsNullOrEmpty(p.PurchaseOrderNumber) && p.PurchaseOrderNumber.ToLower().Contains(searchTerm)) ||
-            // Search in Notes
-            (!string.IsNullOrEmpty(p.Notes) && p.Notes.ToLower().Contains(searchTerm)) ||
-            // Search in Purchase ID (convert to string)
-            p.Id.ToString().Contains(searchTerm)
-          );
+          if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+          {
+            var likePattern = ConvertWildcardToLike(searchTerm);
+            Console.WriteLine($"Using LIKE pattern: {likePattern}");
+
+            query = query.Where(p =>
+              EF.Functions.Like(p.ItemPartNumber, likePattern) ||
+              EF.Functions.Like(p.ItemDescription, likePattern) ||
+              EF.Functions.Like(p.VendorCompanyName, likePattern) ||
+              (p.PurchaseOrderNumber != null && EF.Functions.Like(p.PurchaseOrderNumber, likePattern)) ||
+              (p.Notes != null && EF.Functions.Like(p.Notes, likePattern)) ||
+              EF.Functions.Like(p.Id.ToString(), likePattern)
+            );
+          }
+          else
+          {
+            query = query.Where(p =>
+              p.ItemPartNumber.Contains(searchTerm) ||
+              p.ItemDescription.Contains(searchTerm) ||
+              p.VendorCompanyName.Contains(searchTerm) ||
+              (p.PurchaseOrderNumber != null && p.PurchaseOrderNumber.Contains(searchTerm)) ||
+              (p.Notes != null && p.Notes.Contains(searchTerm)) ||
+              p.Id.ToString().Contains(searchTerm)
+            );
+          }
         }
 
         // Apply vendor filter
         if (!string.IsNullOrWhiteSpace(vendorFilter) && int.TryParse(vendorFilter, out int vendorId))
         {
           Console.WriteLine($"Applying vendor filter: {vendorId}");
-          query = query.Where(p => p.VendorId == vendorId);
+          // Need to go back to original query for this filter since we're using projection
+          var baseQuery = _context.Purchases
+              .Include(p => p.Item)
+              .Include(p => p.Vendor)
+              .Where(p => p.VendorId == vendorId);
+
+          // Reapply search if it exists
+          if (!string.IsNullOrWhiteSpace(search))
+          {
+            var searchTerm = search.Trim();
+            if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+            {
+              var likePattern = ConvertWildcardToLike(searchTerm);
+              baseQuery = baseQuery.Where(p =>
+                EF.Functions.Like(p.Item.PartNumber, likePattern) ||
+                EF.Functions.Like(p.Item.Description, likePattern) ||
+                EF.Functions.Like(p.Vendor.CompanyName, likePattern) ||
+                (p.PurchaseOrderNumber != null && EF.Functions.Like(p.PurchaseOrderNumber, likePattern)) ||
+                (p.Notes != null && EF.Functions.Like(p.Notes, likePattern)) ||
+                EF.Functions.Like(p.Id.ToString(), likePattern)
+              );
+            }
+            else
+            {
+              baseQuery = baseQuery.Where(p =>
+                p.Item.PartNumber.Contains(searchTerm) ||
+                p.Item.Description.Contains(searchTerm) ||
+                p.Vendor.CompanyName.Contains(searchTerm) ||
+                (p.PurchaseOrderNumber != null && p.PurchaseOrderNumber.Contains(searchTerm)) ||
+                (p.Notes != null && p.Notes.Contains(searchTerm)) ||
+                p.Id.ToString().Contains(searchTerm)
+              );
+            }
+          }
+
+          query = baseQuery.Select(p => new
+          {
+            p.Id,
+            p.PurchaseDate,
+            p.QuantityPurchased,
+            p.CostPerUnit,
+            p.ShippingCost,
+            p.TaxAmount,
+            p.PurchaseOrderNumber,
+            p.Status,
+            p.RemainingQuantity,
+            p.CreatedDate,
+            ItemPartNumber = p.Item.PartNumber,
+            ItemDescription = p.Item.Description,
+            VendorCompanyName = p.Vendor.CompanyName,
+            p.Notes
+          });
         }
 
         // Apply status filter
@@ -110,10 +198,10 @@ namespace InventorySystem.Controllers
         {
           "date_asc" => query.OrderBy(p => p.PurchaseDate),
           "date_desc" => query.OrderByDescending(p => p.PurchaseDate),
-          "vendor_asc" => query.OrderBy(p => p.Vendor.CompanyName),
-          "vendor_desc" => query.OrderByDescending(p => p.Vendor.CompanyName),
-          "item_asc" => query.OrderBy(p => p.Item.PartNumber),
-          "item_desc" => query.OrderByDescending(p => p.Item.PartNumber),
+          "vendor_asc" => query.OrderBy(p => p.VendorCompanyName),
+          "vendor_desc" => query.OrderByDescending(p => p.VendorCompanyName),
+          "item_asc" => query.OrderBy(p => p.ItemPartNumber),
+          "item_desc" => query.OrderByDescending(p => p.ItemPartNumber),
           "amount_asc" => query.OrderBy(p => p.QuantityPurchased * p.CostPerUnit),
           "amount_desc" => query.OrderByDescending(p => p.QuantityPurchased * p.CostPerUnit),
           "status_asc" => query.OrderBy(p => p.Status),
@@ -121,11 +209,48 @@ namespace InventorySystem.Controllers
           _ => query.OrderByDescending(p => p.PurchaseDate)
         };
 
-        // Get results
-        var purchases = await query.ToListAsync();
-        Console.WriteLine($"Found {purchases.Count} purchases after filtering");
+        // Get total count for pagination (before Skip/Take)
+        var totalCount = await query.CountAsync();
+        Console.WriteLine($"Total filtered records: {totalCount}");
 
-        // Get filter options for dropdowns
+        // Calculate pagination values
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+        var skip = (page - 1) * pageSize;
+
+        // Get paginated results
+        var paginatedResults = await query
+            .Skip(skip)
+            .Take(pageSize)
+            .ToListAsync();
+
+        Console.WriteLine($"Retrieved {paginatedResults.Count} purchases for page {page}");
+
+        // Convert to Purchase objects for the view
+        var purchases = paginatedResults.Select(p => new Purchase
+        {
+          Id = p.Id,
+          PurchaseDate = p.PurchaseDate,
+          QuantityPurchased = p.QuantityPurchased,
+          CostPerUnit = p.CostPerUnit,
+          ShippingCost = p.ShippingCost,
+          TaxAmount = p.TaxAmount,
+          PurchaseOrderNumber = p.PurchaseOrderNumber,
+          Status = p.Status,
+          RemainingQuantity = p.RemainingQuantity,
+          CreatedDate = p.CreatedDate,
+          Notes = p.Notes,
+          Item = new Item
+          {
+            PartNumber = p.ItemPartNumber,
+            Description = p.ItemDescription
+          },
+          Vendor = new Vendor
+          {
+            CompanyName = p.VendorCompanyName
+          }
+        }).ToList();
+
+        // Get filter options for dropdowns (cached or optimized)
         var allVendors = await _vendorService.GetActiveVendorsAsync();
         var purchaseStatuses = Enum.GetValues<PurchaseStatus>().ToList();
 
@@ -136,7 +261,17 @@ namespace InventorySystem.Controllers
         ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
         ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
         ViewBag.SortOrder = sortOrder;
+
+        // Pagination data
         ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.HasPreviousPage = page > 1;
+        ViewBag.HasNextPage = page < totalPages;
+        ViewBag.ShowingFrom = totalCount > 0 ? skip + 1 : 0;
+        ViewBag.ShowingTo = Math.Min(skip + pageSize, totalCount);
+        ViewBag.AllowedPageSizes = AllowedPageSizes;
 
         // Dropdown data
         ViewBag.VendorOptions = new SelectList(allVendors, "Id", "CompanyName", vendorFilter);
@@ -146,17 +281,17 @@ namespace InventorySystem.Controllers
         }), "Value", "Text", statusFilter);
 
         // Search statistics
-        if (!string.IsNullOrWhiteSpace(search) || !string.IsNullOrWhiteSpace(vendorFilter) ||
-            !string.IsNullOrWhiteSpace(statusFilter) || startDate.HasValue || endDate.HasValue)
+        ViewBag.IsFiltered = !string.IsNullOrWhiteSpace(search) ||
+                           !string.IsNullOrWhiteSpace(vendorFilter) ||
+                           !string.IsNullOrWhiteSpace(statusFilter) ||
+                           startDate.HasValue ||
+                           endDate.HasValue;
+
+        if (ViewBag.IsFiltered)
         {
           var totalPurchases = await _context.Purchases.CountAsync();
-          ViewBag.SearchResultsCount = purchases.Count;
+          ViewBag.SearchResultsCount = totalCount;
           ViewBag.TotalPurchasesCount = totalPurchases;
-          ViewBag.IsFiltered = true;
-        }
-        else
-        {
-          ViewBag.IsFiltered = false;
         }
 
         return View(purchases);
@@ -271,6 +406,7 @@ namespace InventorySystem.Controllers
         var purchase = await _context.Purchases
             .Include(p => p.Vendor)
             .Include(p => p.Item)
+            .Include(p => p.PurchaseDocuments) // This was missing!
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (purchase == null)
@@ -442,6 +578,21 @@ namespace InventorySystem.Controllers
       }
     }
 
+    // AJAX endpoint to generate purchase order number
+    [HttpGet]
+    public async Task<IActionResult> GeneratePurchaseOrderNumber()
+    {
+        try
+        {
+            var purchaseOrderNumber = await _purchaseService.GeneratePurchaseOrderNumberAsync();
+            return Json(new { success = true, purchaseOrderNumber = purchaseOrderNumber });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
     // GET: Purchases/Delete/5
     public async Task<IActionResult> Delete(int id)
     {
@@ -480,6 +631,49 @@ namespace InventorySystem.Controllers
         TempData["ErrorMessage"] = $"Error deleting purchase: {ex.Message}";
         return RedirectToAction("Index");
       }
+    }
+
+    /// <summary>
+    /// Converts wildcard patterns (* and ?) to SQL LIKE patterns
+    /// * matches any sequence of characters -> %
+    /// ? matches any single character -> _
+    /// </summary>
+    /// <param name="wildcardPattern">The wildcard pattern to convert</param>
+    /// <returns>A SQL LIKE pattern string</returns>
+    private string ConvertWildcardToLike(string wildcardPattern)
+    {
+      // Escape existing SQL LIKE special characters first
+      var escaped = wildcardPattern
+          .Replace("%", "[%]")    // Escape existing % characters
+          .Replace("_", "[_]")    // Escape existing _ characters
+          .Replace("[", "[[]");   // Escape existing [ characters
+
+      // Convert wildcards to SQL LIKE patterns
+      escaped = escaped
+          .Replace("*", "%")      // * becomes %
+          .Replace("?", "_");     // ? becomes _
+
+      return escaped;
+    }
+
+    /// <summary>
+    /// Converts wildcard patterns (* and ?) to regex patterns
+    /// * matches any sequence of characters
+    /// ? matches any single character
+    /// </summary>
+    /// <param name="wildcardPattern">The wildcard pattern to convert</param>
+    /// <returns>A regex pattern string</returns>
+    private string ConvertWildcardToRegex(string wildcardPattern)
+    {
+      // Escape special regex characters except * and ?
+      var escaped = System.Text.RegularExpressions.Regex.Escape(wildcardPattern);
+
+      // Replace escaped wildcards with regex equivalents
+      escaped = escaped.Replace(@"\*", ".*");  // * becomes .*
+      escaped = escaped.Replace(@"\?", ".");   // ? becomes .
+
+      // Anchor the pattern to match the entire string
+      return $"^{escaped}$";
     }
   }
 }

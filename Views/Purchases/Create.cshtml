@@ -69,8 +69,17 @@
                     <i class="fas fa-file-invoice text-secondary"></i>
                     Purchase Order Number
                   </label>
-                  <input asp-for="PurchaseOrderNumber" class="form-control" />
+                  <div class="input-group">
+                    <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="Auto-generated if empty" />
+                    <button type="button" class="btn btn-outline-info" id="generatePOBtn" title="Generate Purchase Order Number">
+                      <i class="fas fa-magic"></i>
+                    </button>
+                  </div>
                   <span asp-validation-for="PurchaseOrderNumber" class="text-danger"></span>
+                  <div class="form-text">
+                    <i class="fas fa-info-circle"></i>
+                    Leave empty to auto-generate (Format: PO-YYYYMMDD-###)
+                  </div>
                 </div>
               </div>
             </div>
@@ -223,6 +232,10 @@
               Select an item first to auto-populate the last vendor used
             </li>
             <li class="mb-2">
+              <i class="fas fa-magic text-primary"></i>
+              Purchase Order Numbers are auto-generated if left empty
+            </li>
+            <li class="mb-2">
               <i class="fas fa-history text-info"></i>
               Click the history button to use the last vendor for the selected item
             </li>
@@ -306,6 +319,25 @@
                 },
                 error: function () {
                     alert('Error retrieving last vendor');
+                }
+            });
+        });
+
+        // Generate Purchase Order Number
+        $('#generatePOBtn').click(function () {
+            $.ajax({
+                url: '@Url.Action("GeneratePurchaseOrderNumber")',
+                type: 'GET',
+                success: function (response) {
+                    if (response.success) {
+                        $('#PurchaseOrderNumber').val(response.purchaseOrderNumber);
+                        showTempMessage('Purchase Order Number generated: ' + response.purchaseOrderNumber);
+                    } else {
+                        alert('Error generating Purchase Order Number: ' + response.error);
+                    }
+                },
+                error: function () {
+                    alert('Error generating Purchase Order Number');
                 }
             });
         });

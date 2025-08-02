@@ -23,8 +23,17 @@
   </div>
 }
 
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
 <div class="row">
   <div class="col-md-8">
+    <!-- Purchase Details Form -->
     <form asp-action="Edit" method="post">
       @Html.HiddenFor(model => model.Id)
       @Html.HiddenFor(model => model.RemainingQuantity)
@@ -228,10 +237,104 @@
         </div>
       </div>
     </form>
+
+    <!-- Purchase Documents Section -->
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-paperclip"></i> Purchase Documents</h5>
+        <a href="/PurchaseDocuments/Upload?purchaseId=@Model.Id" class="btn btn-success btn-sm">
+          <i class="fas fa-upload"></i> Upload Document
+        </a>
+      </div>
+      <div class="card-body">
+        @if (Model.PurchaseDocuments?.Any() == true)
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Document Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Uploaded</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var doc in Model.PurchaseDocuments.OrderByDescending(d => d.UploadedDate))
+                {
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <i class="@doc.FileTypeIcon me-2"></i>
+                        <div>
+                          <strong>@doc.DocumentName</strong>
+                          @if (!string.IsNullOrEmpty(doc.Description))
+                          {
+                            <br><small class="text-muted">@doc.Description</small>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge bg-secondary">@doc.DocumentType</span>
+                    </td>
+                    <td>@doc.FileSizeFormatted</td>
+                    <td>
+                      <small>@doc.UploadedDate.ToString("MM/dd/yyyy")</small>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        @{
+                          var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
+                              .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
+                        }
+                        
+                        @if (canPreview)
+                        {
+                          <a href="/PurchaseDocuments/Preview/@doc.Id" class="btn btn-outline-info" title="Preview" target="_blank">
+                            <i class="fas fa-eye"></i>
+                          </a>
+                        }
+                        
+                        <a href="/PurchaseDocuments/Download/@doc.Id" class="btn btn-outline-primary" title="Download">
+                          <i class="fas fa-download"></i>
+                        </a>
+                        
+                        <form asp-controller="PurchaseDocuments" asp-action="Delete" method="post" style="display:inline;">
+                          <input type="hidden" name="id" value="@doc.Id" />
+                          <button type="submit" class="btn btn-outline-danger" 
+                                  onclick="return confirm('Delete this document? This action cannot be undone.')" 
+                                  title="Delete Document">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="fas fa-file-upload fa-3x text-muted mb-3"></i>
+            <h6 class="text-muted">No Documents Uploaded</h6>
+            <p class="text-muted">Upload invoices, receipts, purchase orders, and other purchase-related documents.</p>
+            <a href="/PurchaseDocuments/Upload?purchaseId=@Model.Id" class="btn btn-outline-success">
+              <i class="fas fa-upload"></i> Upload First Document
+            </a>
+          </div>
+        }
+      </div>
+    </div>
   </div>
 
-  <!-- Right Sidebar with Purchase Summary -->
+  <!-- Right Sidebar - Same as before -->
   <div class="col-md-4">
+    <!-- Purchase Summary Card -->
     <div class="card">
       <div class="card-header">
         <h5><i class="fas fa-chart-line"></i> Purchase Summary</h5>
@@ -441,6 +544,16 @@
 
     .form-text {
       font-size: 0.875em;
+    }
+
+    .table th {
+      border-top: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .badge {
+      font-size: 0.75rem;
     }
   </style>
 }

@@ -195,11 +195,16 @@ namespace InventorySystem.Infrastructure.Services
     {
       try
       {
-        // Pre-flight checks
-        var canStart = await CanStartProductionAsync(command.ProductionId);
-        if (!canStart)
+        _logger.LogInformation("Starting production {ProductionId} requested by {User}", 
+            command.ProductionId, command.RequestedBy);
+
+        // Enhanced pre-flight checks with detailed error messages
+        var canStartResult = await CanStartProductionWithDetailsAsync(command.ProductionId);
+        if (!canStartResult.CanStart)
         {
-          return CommandResult.FailureResult("Production cannot be started - prerequisite checks failed");
+          _logger.LogWarning("Cannot start production {ProductionId}: {Reason}", 
+              command.ProductionId, canStartResult.Reason);
+          return CommandResult.FailureResult(canStartResult.Reason);
         }
 
         // Estimate completion time if not provided
@@ -215,13 +220,128 @@ namespace InventorySystem.Infrastructure.Services
             estimatedCompletion,
             command.RequestedBy);
 
-        return await _workflowEngine.StartProductionAsync(updatedCommand);
+        var result = await _workflowEngine.StartProductionAsync(updatedCommand);
+        
+        if (result.Success)
+        {
+          _logger.LogInformation("Production {ProductionId} started successfully by {User}", 
+              command.ProductionId, command.RequestedBy);
+        }
+        else
+        {
+          _logger.LogError("Failed to start production {ProductionId}: {Error}", 
+              command.ProductionId, result.ErrorMessage);
+        }
+
+        return result;
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Failed to start Production {ProductionId}", command.ProductionId);
+        _logger.LogError(ex, "Exception while starting Production {ProductionId}", command.ProductionId);
         return CommandResult.FailureResult($"Failed to start production: {ex.Message}");
       }
+    }
+
+    // New method with detailed error reporting
+    public async Task<(bool CanStart, string Reason)> CanStartProductionWithDetailsAsync(int productionId)
+    {
+      try
+      {
+        _logger.LogDebug("Checking if production {ProductionId} can be started", productionId);
+
+        // 1. Check if workflow exists and is in correct status
+        var workflow = await _workflowEngine.GetWorkflowAsync(productionId);
+        if (workflow == null)
+        {
+          return (false, "Production workflow not found. Please ensure the production was created properly.");
+        }
+
+        if (workflow.Status != ProductionStatus.Planned)
+        {
+          return (false, $"Production is currently in '{workflow.Status}' status and cannot be started. Only productions in 'Planned' status can be started.");
+        }
+
+        // 2. Check if production record exists
+        var production = workflow.Production;
+        if (production == null)
+        {
+          return (false, "Production record not found. The production may have been deleted.");
+        }
+
+        // 3. Check if BOM exists
+        if (production.BomId == null)
+        {
+          return (false, "No BOM associated with this production. A valid BOM is required to start production.");
+        }
+
+        // 4. Check material availability with detailed shortage information
+        var canBuildBom = await _productionService.CanBuildBomAsync(production.BomId, production.QuantityProduced);
+        if (!canBuildBom)
+        {
+          // Get detailed shortage analysis
+          try
+          {
+            var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(
+                production.BomId, production.QuantityProduced);
+
+            if (shortageAnalysis.HasShortages)
+            {
+              var shortageCount = shortageAnalysis.MaterialShortages.Count();
+              var criticalShortages = shortageAnalysis.MaterialShortages.Count(s => s.IsCriticalShortage);
+              var totalShortageValue = shortageAnalysis.TotalShortageValue;
+
+              var shortageMessage = $"Cannot start production due to material shortages: " +
+                  $"{shortageCount} item(s) are out of stock";
+
+              if (criticalShortages > 0)
+              {
+                shortageMessage += $" ({criticalShortages} critical)";
+              }
+
+              shortageMessage += $", total shortage value: ${totalShortageValue:N2}. ";
+
+              // Add specific shortage details for first few items
+              var topShortages = shortageAnalysis.MaterialShortages.Take(3).ToList();
+              if (topShortages.Any())
+              {
+                shortageMessage += "Items needed: ";
+                shortageMessage += string.Join(", ", topShortages.Select(s => 
+                    $"{s.PartNumber} (need {s.ShortageQuantity} more)"));
+                
+                if (shortageCount > 3)
+                {
+                  shortageMessage += $" and {shortageCount - 3} more item(s)";
+                }
+              }
+
+              return (false, shortageMessage);
+            }
+          }
+          catch (Exception ex)
+          {
+            _logger.LogWarning(ex, "Could not get detailed shortage analysis for production {ProductionId}", productionId);
+            return (false, "Insufficient materials available to start production. Please check material availability and reorder as needed.");
+          }
+        }
+
+        // 5. Additional business rule checks could go here
+        // For example: check if assigned employee is available, equipment is available, etc.
+
+        _logger.LogDebug("Production {ProductionId} passed all prerequisite checks", productionId);
+        return (true, "All prerequisite checks passed");
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error checking if Production {ProductionId} can start", productionId);
+        return (false, $"Error validating production prerequisites: {ex.Message}");
+      }
+    }
+
+    // Update the existing method to use the new detailed version
+    public async Task<bool> CanStartProductionAsync(int productionId)
+    {
+      var result = await CanStartProductionWithDetailsAsync(productionId);
+      return result.CanStart;
     }
 
     public async Task<CommandResult> CompleteProductionAsync(int productionId, string? completedBy = null)
@@ -671,31 +791,7 @@ namespace InventorySystem.Infrastructure.Services
       }
     }
 
-    public async Task<bool> CanStartProductionAsync(int productionId)
-    {
-      try
-      {
-        var workflow = await _workflowEngine.GetWorkflowAsync(productionId);
-        if (workflow == null || workflow.Status != ProductionStatus.Planned)
-        {
-          return false;
-        }
-
-        // Check if materials are still available
-        var production = workflow.Production;
-        if (production?.BomId != null)
-        {
-          return await _productionService.CanBuildBomAsync(production.BomId, production.QuantityProduced);
-        }
-
-        return true;
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, "Failed to check if Production {ProductionId} can start", productionId);
-        return false;
-      }
-    }
+   
 
     public async Task<DateTime?> EstimateCompletionTimeAsync(int productionId)
     {

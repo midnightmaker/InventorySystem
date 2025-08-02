@@ -1,4 +1,5 @@
 @model InventorySystem.Models.Bom
+@using System.IO
 @{
   ViewData["Title"] = "BOM Details";
   var totalCost = ViewBag.TotalCost as decimal? ?? 0;
@@ -24,19 +25,10 @@
       <a href="/Boms/Edit/@Model.Id" class="btn btn-outline-primary">
         <i class="fas fa-edit"></i> Edit
       </a>
-      <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-success">
-        <i class="fas fa-plus"></i> Add Component
-      </a>
     }
     <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-info">
       <i class="fas fa-dollar-sign"></i> Cost Report
     </a>
-    @if (Model.IsCurrentVersion)
-    {
-      <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-outline-secondary">
-        <i class="fas fa-layer-group"></i> Add Sub-Assembly
-      </a>
-    }
     <!-- Create New Version Button -->
     <button type="button" class="btn btn-outline-warning" onclick="showCreateVersionModal('BOM', @(Model.BaseBomId ?? Model.Id))">
       <i class="fas fa-code-branch"></i> New Version
@@ -48,6 +40,22 @@
 @if (ViewBag.PendingChangeOrders != null)
 {
   @await Html.PartialAsync("_PendingChangeOrdersAlert", (IEnumerable<InventorySystem.Models.ChangeOrder>)ViewBag.PendingChangeOrders)
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
 }
 
 <div class="row">
@@ -131,164 +139,70 @@
     </div>
 
     <!-- BOM Documents Section -->
-    <div class="card mt-4">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5>
-          <button class="btn btn-link text-decoration-none p-0 border-0 text-start" 
-                  type="button" 
-                  data-bs-toggle="collapse" 
-                  data-bs-target="#bomDocumentsCollapse" 
-                  aria-expanded="true" 
-                  aria-controls="bomDocumentsCollapse">
-            <i class="fas fa-file-alt"></i> BOM Documents (@(Model.DocumentCount))
-            <i class="fas fa-chevron-down ms-2 collapse-icon"></i>
-          </button>
-        </h5>
-        @if (Model.IsCurrentVersion)
-        {
-          <a href="/Documents/UploadBom?bomId=@Model.Id" class="btn btn-sm btn-outline-success">
-            <i class="fas fa-plus"></i> Add Document
-          </a>
-        }
-      </div>
-      <div class="collapse show" id="bomDocumentsCollapse">
-        <div class="card-body">
-          @if (Model.HasDocuments)
-          {
-            <div class="list-group list-group-flush">
-              @foreach (var doc in Model.Documents.OrderBy(d => d.DocumentType).ThenBy(d => d.DocumentName))
-              {
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                  <div class="d-flex align-items-center">
-                    <i class="@doc.FileTypeIcon fa-2x me-3"></i>
-                    <div>
-                      <h6 class="mb-1">@doc.DocumentName</h6>
-                      <small class="text-muted">
-                        <strong>Type:</strong> @doc.DocumentType<br>
-                        <strong>File:</strong> @doc.FileName (@doc.FileSizeFormatted)<br>
-                        <strong>Uploaded:</strong> @doc.UploadedDate.ToString("MM/dd/yyyy HH:mm")
-                      </small>
-                      @if (!string.IsNullOrEmpty(doc.Description))
-                      {
-                        <br>
-                        <small class="text-muted"><strong>Description:</strong> @doc.Description</small>
-                      }
-                    </div>
-                  </div>
-                  <div class="btn-group btn-group-sm">
-                    <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" target="_blank" title="Download">
-                      <i class="fas fa-download"></i>
-                    </a>
-                    @if (Model.IsCurrentVersion)
-                    {
-                      <form asp-controller="Documents" asp-action="DeleteBom" method="post" style="display:inline;">
-                        <input type="hidden" name="id" value="@doc.Id" />
-                        <button type="submit" class="btn btn-outline-danger"
-                                onclick="return confirm('Delete this document? This action cannot be undone.')"
-                                title="Delete Document">
-                          <i class="fas fa-trash"></i>
-                        </button>
-                      </form>
-                    }
-                  </div>
-                </div>
-              }
-            </div>
-          }
-          else
-          {
-            <div class="text-center py-4">
-              <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
-              <h6 class="text-muted">No Documents Uploaded</h6>
-              <p class="text-muted">
-                @if (Model.IsCurrentVersion)
-                {
-                  <span>Upload assembly drawings, schematics, instructions, or other documents related to this BOM.</span>
-                }
-                else
-                {
-                  <span>No documents were uploaded for this BOM version.</span>
-                }
-              </p>
-              @if (Model.IsCurrentVersion)
-              {
-                <a href="/Documents/UploadBom?bomId=@Model.Id" class="btn btn-outline-success">
-                  <i class="fas fa-upload"></i> Upload First Document
-                </a>
-              }
-            </div>
-          }
-        </div>
-      </div>
-    </div>
-
-    <!-- Components Section with Version Context -->
-    @if (Model.BomItems?.Any() == true)
+    @if (Model.HasDocuments && Model.Documents?.Any() == true)
     {
       <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5><i class="fas fa-cogs"></i> Components (@Model.BomItems.Count)</h5>
-          <div>
-            <small class="text-muted me-2">For Version @Model.Version</small>
-            @if (Model.IsCurrentVersion)
-            {
-              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-success">
-                <i class="fas fa-plus"></i> Add Component
-              </a>
-            }
-            else
-            {
-              <span class="text-muted small">Historical - Read Only</span>
-            }
-          </div>
+        <div class="card-header">
+          <h5><i class="fas fa-file-alt"></i> BOM Documents (@Model.Documents.Count)</h5>
         </div>
         <div class="card-body">
           <div class="table-responsive">
             <table class="table table-sm">
               <thead>
                 <tr>
-                  <th>Part Number</th>
-                  <th>Description</th>
-                  <th>Quantity</th>
-                  <th>Unit Cost</th>
-                  <th>Extended Cost</th>
-                  <th>Reference</th>
-                  @if (Model.IsCurrentVersion)
-                  {
-                    <th>Actions</th>
-                  }
+                  <th>Document Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Uploaded</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                @foreach (var bomItem in Model.BomItems)
+                @foreach (var doc in Model.Documents.OrderBy(d => d.DocumentType).ThenBy(d => d.DocumentName))
                 {
                   <tr>
                     <td>
-                      <a href="/Items/Details/@bomItem.Item.Id" class="text-decoration-none">
-                        @bomItem.Item.PartNumber
-                      </a>
-                    </td>
-                    <td>@bomItem.Item.Description</td>
-                    <td>@bomItem.Quantity</td>
-                    <td>@bomItem.UnitCost.ToString("C")</td>
-                    <td>@bomItem.ExtendedCost.ToString("C")</td>
-                    <td>@bomItem.ReferenceDesignator</td>
-                    @if (Model.IsCurrentVersion)
-                    {
-                      <td>
-                        <div class="btn-group btn-group-sm">
-                          <form asp-action="RemoveItem" method="post" style="display:inline;">
-                            <input type="hidden" name="bomItemId" value="@bomItem.Id" />
-                            <input type="hidden" name="bomId" value="@Model.Id" />
-                            <button type="submit" class="btn btn-outline-danger"
-                                    onclick="return confirm('Remove this item from the BOM?')"
-                                    title="Remove Item">
-                              <i class="fas fa-trash"></i>
-                            </button>
-                          </form>
+                      <div class="d-flex align-items-center">
+                        <i class="@doc.FileTypeIcon me-2"></i>
+                        <div>
+                          <strong>@doc.DocumentName</strong>
+                          @if (!string.IsNullOrEmpty(doc.Description))
+                          {
+                            <br>
+                      
+                            <small class="text-muted">@doc.Description</small>
+                          }
                         </div>
-                      </td>
-                    }
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge bg-secondary">@doc.DocumentType</span>
+                    </td>
+                    <td>@doc.FileSizeFormatted</td>
+                    <td>
+                      <small>@doc.UploadedDate.ToString("MM/dd/yyyy")</small>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        @{
+                          var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
+                          .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
+                        }
+
+                        @if (canPreview)
+                        {
+                          <button class="btn btn-outline-info" onclick="previewDocument(@doc.Id, '@doc.DocumentName')" title="Preview">
+                            <i class="fas fa-eye"></i>
+                          </button>
+                        }
+
+                        <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" title="Download">
+                          <i class="fas fa-download"></i>
+                        </a>
+
+                        @* Note: Delete button is removed from Details view - only available in Edit view *@
+                      </div>
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -301,63 +215,150 @@
     {
       <div class="card mt-4">
         <div class="card-header">
-          <h6><i class="fas fa-cogs"></i> Components</h6>
+          <h6><i class="fas fa-file-alt"></i> BOM Documents</h6>
         </div>
         <div class="card-body text-center">
-          <p class="text-muted mb-3">
+          <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+          <h6 class="text-muted">No Documents Uploaded</h6>
+          <p class="text-muted">
             @if (Model.IsCurrentVersion)
             {
-              <span>No components have been added to this BOM. Add items to build your bill of materials.</span>
+              <span>No documents have been uploaded for this BOM.</span>
             }
             else
             {
-              <span>No components were added to Version @Model.Version</span>
+              <span>No documents were uploaded for Version @Model.Version</span>
             }
           </p>
-          @if (Model.IsCurrentVersion)
-          {
-            <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-outline-success">
-              <i class="fas fa-plus"></i> Add First Component
-            </a>
-          }
         </div>
       </div>
     }
 
-    <!-- Sub-Assemblies Section -->
+    <!-- Components Section with Version Context - Made Collapsible -->
+    @if (Model.BomItems?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-cogs"></i> Components (@Model.BomItems.Count)</h5>
+          <div>
+            <small class="text-muted me-2">For Version @Model.Version</small>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#componentsTable" aria-expanded="true" aria-controls="componentsTable">
+              <i class="fas fa-chevron-down"></i> Toggle
+            </button>
+          </div>
+        </div>
+        <div class="collapse show" id="componentsTable">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Part Number</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit Cost</th>
+                    <th>Extended Cost</th>
+                    <th>Reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var bomItem in Model.BomItems)
+                  {
+                    <tr>
+                      <td>
+                        <a href="/Items/Details/@bomItem.Item.Id" class="text-decoration-none">
+                          @bomItem.Item.PartNumber
+                        </a>
+                      </td>
+                      <td>@bomItem.Item.Description</td>
+                      <td>@bomItem.Quantity</td>
+                      <td>@bomItem.UnitCost.ToString("C")</td>
+                      <td>@bomItem.ExtendedCost.ToString("C")</td>
+                      <td>@bomItem.ReferenceDesignator</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+    else
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6><i class="fas fa-cogs"></i> Components</h6>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#componentsEmpty" aria-expanded="true" aria-controls="componentsEmpty">
+            <i class="fas fa-chevron-down"></i> Toggle
+          </button>
+        </div>
+        <div class="collapse show" id="componentsEmpty">
+          <div class="card-body text-center">
+            <p class="text-muted mb-3">
+              @if (Model.IsCurrentVersion)
+              {
+                <span>No components have been added to this BOM.</span>
+              }
+              else
+              {
+                <span>No components were added to Version @Model.Version</span>
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Sub-Assemblies Section - Made Collapsible -->
     @if (Model.SubAssemblies?.Any() == true)
     {
       <div class="card mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h5><i class="fas fa-layer-group"></i> Sub-Assemblies (@Model.SubAssemblies.Count)</h5>
-          @if (Model.IsCurrentVersion)
-          {
-            <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-sm btn-success">
-              <i class="fas fa-plus"></i> Add Sub-Assembly
-            </a>
-          }
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#subAssembliesTable" aria-expanded="true" aria-controls="subAssembliesTable">
+            <i class="fas fa-chevron-down"></i> Toggle
+          </button>
         </div>
-        <div class="card-body">
-          <div class="list-group list-group-flush">
-            @foreach (var subAssembly in Model.SubAssemblies)
-            {
-              <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="mb-1">
-                    <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
-                      @subAssembly.BomNumber
+        <div class="collapse show" id="subAssembliesTable">
+          <div class="card-body">
+            <div class="list-group list-group-flush">
+              @foreach (var subAssembly in Model.SubAssemblies)
+              {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 class="mb-1">
+                      <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
+                        @subAssembly.BomNumber
+                      </a>
+                    </h6>
+                    <p class="mb-1">@subAssembly.Description</p>
+                    <small class="text-muted">Version @subAssembly.Version | @subAssembly.BomItems.Count components</small>
+                  </div>
+                  <div class="btn-group btn-group-sm">
+                    <a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary">
+                      <i class="fas fa-eye"></i> View
                     </a>
-                  </h6>
-                  <p class="mb-1">@subAssembly.Description</p>
-                  <small class="text-muted">Version @subAssembly.Version | @subAssembly.BomItems.Count components</small>
+                  </div>
                 </div>
-                <div class="btn-group btn-group-sm">
-                  <a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary">
-                    <i class="fas fa-eye"></i> View
-                  </a>
-                </div>
-              </div>
-            }
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+    else
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6><i class="fas fa-layer-group"></i> Sub-Assemblies</h6>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#subAssembliesEmpty" aria-expanded="true" aria-controls="subAssembliesEmpty">
+            <i class="fas fa-chevron-down"></i> Toggle
+          </button>
+        </div>
+        <div class="collapse show" id="subAssembliesEmpty">
+          <div class="card-body text-center">
+            <p class="text-muted mb-3">No sub-assemblies have been added to this BOM.</p>
           </div>
         </div>
       </div>
@@ -485,6 +486,44 @@
   <a href="/Boms" class="btn btn-secondary">Back to BOMs</a>
 </div>
 
+@* Document Preview Modal *@
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="previewModalTitle">Document Preview</h5>
+        <div class="btn-group btn-group-sm">
+          <button type="button" class="btn btn-outline-secondary" onclick="zoomOut()">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="resetZoom()">
+            <i class="fas fa-compress-arrows-alt"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="zoomIn()">
+            <i class="fas fa-search-plus"></i>
+          </button>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="previewLoading" class="text-center p-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2">Loading document...</p>
+        </div>
+        <iframe id="previewIframe" style="width: 100%; height: 70vh; border: none; display: none;"></iframe>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <a id="downloadLink" href="#" class="btn btn-primary">
+          <i class="fas fa-download"></i> Download
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Pending Change Orders Modal -->
 <div class="modal fade" id="pendingChangeOrdersModal" tabindex="-1" aria-labelledby="pendingChangeOrdersModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
@@ -520,6 +559,81 @@
 </div>
 
 <script>
+  let currentZoom = 1;
+  let currentDocumentId = null;
+
+  function previewDocument(documentId, documentName) {
+      currentDocumentId = documentId;
+      const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
+      const iframe = document.getElementById('previewIframe');
+      const modalTitle = document.getElementById('previewModalTitle');
+      const downloadLink = document.getElementById('downloadLink');
+      const loading = document.getElementById('previewLoading');
+
+      modalTitle.textContent = `Preview: ${documentName}`;
+      downloadLink.href = `/Documents/Download/${documentId}`;
+
+      // Show loading, hide iframe
+      loading.style.display = 'block';
+      iframe.style.display = 'none';
+
+      // Set iframe source to view the document
+      iframe.src = `/Documents/View/${documentId}`;
+
+      // Show modal
+      modal.show();
+
+      // Handle iframe load
+      iframe.onload = function() {
+          loading.style.display = 'none';
+          iframe.style.display = 'block';
+      };
+
+      // Handle iframe error
+      iframe.onerror = function() {
+          loading.innerHTML = `
+              <div class="text-center p-4">
+                  <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                  <h5>Preview Not Available</h5>
+                  <p class="text-muted">This document cannot be previewed in your browser.</p>
+                  <a href="/Documents/Download/${documentId}" class="btn btn-primary">
+                      <i class="fas fa-download"></i> Download Document
+                  </a>
+              </div>
+          `;
+      };
+  }
+
+  function zoomIn() {
+      currentZoom += 0.25;
+      applyZoom();
+  }
+
+  function zoomOut() {
+      if (currentZoom > 0.5) {
+          currentZoom -= 0.25;
+          applyZoom();
+      }
+  }
+
+  function resetZoom() {
+      currentZoom = 1;
+      applyZoom();
+  }
+
+  function applyZoom() {
+      const iframe = document.getElementById('previewIframe');
+      iframe.style.transform = `scale(${currentZoom})`;
+      iframe.style.transformOrigin = 'top left';
+  }
+
+  // Reset zoom when modal is closed
+  document.getElementById('documentPreviewModal').addEventListener('hidden.bs.modal', function () {
+      currentZoom = 1;
+      applyZoom();
+      document.getElementById('previewIframe').src = '';
+  });
+
   // Define the showCreateVersionModal function for this page
   function showCreateVersionModal(entityType, entityId) {
     console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
@@ -650,7 +764,7 @@
   // Page-specific initialization
   document.addEventListener('DOMContentLoaded', function() {
     console.log('BOM Details page loaded');
-    
+
     // Check if the New Version button exists
     const newVersionBtn = document.querySelector('button[onclick*="showCreateVersionModal"]');
     if (newVersionBtn) {
@@ -664,6 +778,29 @@
     if (!pendingModal) {
       console.warn('pendingChangeOrdersModal not found - make sure it exists in the page');
     }
+
+    // Update chevron icons for collapsible sections
+    const collapseElements = document.querySelectorAll('.collapse');
+    collapseElements.forEach(element => {
+      const toggleButton = document.querySelector(`[data-bs-target="#${element.id}"]`);
+      if (toggleButton) {
+        const chevronIcon = toggleButton.querySelector('.fas');
+        
+        element.addEventListener('shown.bs.collapse', function () {
+          if (chevronIcon) {
+            chevronIcon.classList.remove('fa-chevron-down');
+            chevronIcon.classList.add('fa-chevron-up');
+          }
+        });
+        
+        element.addEventListener('hidden.bs.collapse', function () {
+          if (chevronIcon) {
+            chevronIcon.classList.remove('fa-chevron-up');
+            chevronIcon.classList.add('fa-chevron-down');
+          }
+        });
+      }
+    });
   });
 
   // Clean up modal when closed
@@ -673,3 +810,33 @@
     }
   });
 </script>
+
+@section Scripts {
+  <style>
+    .btn-group-sm .btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .table th {
+      border-top: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+    }
+
+    /* Smooth transitions for collapsible sections */
+    .collapse {
+      transition: height 0.35s ease;
+    }
+
+    /* Style for chevron animation */
+    .fas.fa-chevron-down,
+    .fas.fa-chevron-up {
+      transition: transform 0.3s ease;
+    }
+  </style>
+}

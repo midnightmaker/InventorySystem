@@ -1,0 +1,168 @@
+@model InventorySystem.Models.PurchaseDocument
+@{
+    ViewData["Title"] = $"Preview - {Model.DocumentName}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-eye"></i> Document Preview</h1>
+    <div class="btn-group">
+        <a href="/Purchases/Details/@Model.PurchaseId" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Purchase
+        </a>
+        <a href="/PurchaseDocuments/Download/@Model.Id" class="btn btn-success">
+            <i class="fas fa-download"></i> Download
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5><i class="@Model.FileTypeIcon me-2"></i>@Model.DocumentName</h5>
+                <small class="text-muted">
+                    Type: <span class="badge bg-secondary">@Model.DocumentType</span> | 
+                    Size: @Model.FileSizeFormatted | 
+                    Uploaded: @Model.UploadedDate.ToString("MM/dd/yyyy HH:mm")
+                </small>
+            </div>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" onclick="zoomIn()" title="Zoom In">
+                    <i class="fas fa-search-plus"></i>
+                </button>
+                <button class="btn btn-outline-primary" onclick="zoomOut()" title="Zoom Out">
+                    <i class="fas fa-search-minus"></i>
+                </button>
+                <button class="btn btn-outline-primary" onclick="resetZoom()" title="Reset Zoom">
+                    <i class="fas fa-compress-arrows-alt"></i>
+                </button>
+                <button class="btn btn-outline-primary" onclick="toggleFullscreen()" title="Fullscreen">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (!string.IsNullOrEmpty(Model.Description))
+        {
+            <div class="alert alert-info m-3">
+                <strong>Description:</strong> @Model.Description
+            </div>
+        }
+        
+        <!-- PDF Preview Container -->
+        <div id="previewContainer" class="position-relative" style="min-height: 600px; background-color: #f8f9fa;">
+            <div id="loadingIndicator" class="text-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading document...</p>
+            </div>
+            
+            <!-- PDF Embed (will be populated by JavaScript) -->
+            <iframe id="pdfViewer" 
+                    src="/PurchaseDocuments/GetPreviewData/@Model.Id"
+                    style="width: 100%; height: 600px; border: none; display: none;"
+                    onload="hideLoading()">
+            </iframe>
+            
+            <!-- Fallback for browsers that don't support PDF viewing -->
+            <div id="pdfFallback" style="display: none;" class="text-center p-4">
+                <i class="fas fa-file-pdf fa-4x text-danger mb-3"></i>
+                <h5>PDF Preview Not Available</h5>
+                <p class="text-muted">Your browser doesn't support PDF preview. Please download the file to view it.</p>
+                <a href="/PurchaseDocuments/Download/@Model.Id" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download PDF
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentZoom = 1;
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('pdfViewer').style.display = 'block';
+        }
+
+        function zoomIn() {
+            currentZoom += 0.25;
+            applyZoom();
+        }
+
+        function zoomOut() {
+            if (currentZoom > 0.5) {
+                currentZoom -= 0.25;
+                applyZoom();
+            }
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const iframe = document.getElementById('pdfViewer');
+            iframe.style.transform = `scale(${currentZoom})`;
+            iframe.style.transformOrigin = 'top left';
+            
+            // Adjust container height based on zoom
+            const container = document.getElementById('previewContainer');
+            container.style.height = `${600 * currentZoom}px`;
+        }
+
+        function toggleFullscreen() {
+            const container = document.getElementById('previewContainer');
+            
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Handle fullscreen changes
+        document.addEventListener('fullscreenchange', function() {
+            const button = document.querySelector('[onclick="toggleFullscreen()"]');
+            const icon = button.querySelector('i');
+            
+            if (document.fullscreenElement) {
+                icon.className = 'fas fa-compress';
+                button.title = 'Exit Fullscreen';
+            } else {
+                icon.className = 'fas fa-expand';
+                button.title = 'Fullscreen';
+            }
+        });
+
+        // Error handling for iframe
+        document.getElementById('pdfViewer').addEventListener('error', function() {
+            document.getElementById('pdfViewer').style.display = 'none';
+            document.getElementById('pdfFallback').style.display = 'block';
+            hideLoading();
+        });
+    </script>
+
+    <style>
+        .btn-group-sm .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        @@media (max-width: 768px) {
+            #pdfViewer {
+                height: 400px;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+}

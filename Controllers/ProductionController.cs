@@ -228,26 +228,43 @@ namespace InventorySystem.Controllers
 
     // Workflow Action Methods
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> StartProduction(int productionId, string? assignedTo = null, DateTime? estimatedCompletion = null)
     {
       try
       {
+        _logger.LogInformation("User {User} attempting to start production {ProductionId}", 
+            User.Identity?.Name, productionId);
+
+        // Validate input
+        if (productionId <= 0)
+        {
+          TempData["ErrorMessage"] = "Invalid production ID provided.";
+          return RedirectToAction("Details", new { id = productionId });
+        }
+
         var command = new StartProductionCommand(productionId, assignedTo, estimatedCompletion, User.Identity?.Name);
         var result = await _orchestrator.StartProductionAsync(command);
 
         if (result.Success)
         {
-          TempData["SuccessMessage"] = "Production started successfully";
+          TempData["SuccessMessage"] = "Production started successfully and status updated to 'In Progress'.";
+          _logger.LogInformation("Production {ProductionId} started successfully by {User}", 
+              productionId, User.Identity?.Name);
         }
         else
         {
+          // Display the specific error message from the orchestrator
           TempData["ErrorMessage"] = result.ErrorMessage;
+          _logger.LogWarning("Failed to start production {ProductionId} for user {User}: {Error}", 
+              productionId, User.Identity?.Name, result.ErrorMessage);
         }
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Error starting production {ProductionId}", productionId);
-        TempData["ErrorMessage"] = "Failed to start production";
+        _logger.LogError(ex, "Exception while starting production {ProductionId} for user {User}", 
+            productionId, User.Identity?.Name);
+        TempData["ErrorMessage"] = "An unexpected error occurred while starting production. Please try again or contact support if the problem persists.";
       }
 
       return RedirectToAction("Details", new { id = productionId });
@@ -966,6 +983,32 @@ namespace InventorySystem.Controllers
       {
         _logger.LogError(ex, "Error getting BOM details for {BomId}", bomId);
         return Json(new { success = false, error = "Error loading BOM details" });
+      }
+    }
+
+    // AJAX endpoint to check if production can be started (for UI feedback)
+    [HttpGet]
+    public async Task<IActionResult> CheckProductionReadiness(int productionId)
+    {
+      try
+      {
+        var readinessCheck = await _orchestrator.CanStartProductionWithDetailsAsync(productionId);
+        
+        return Json(new { 
+          success = true, 
+          canStart = readinessCheck.CanStart,
+          reason = readinessCheck.Reason,
+          message = readinessCheck.CanStart ? "Production is ready to start" : readinessCheck.Reason
+        });
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error checking production readiness for {ProductionId}", productionId);
+        return Json(new { 
+          success = false, 
+          error = "Unable to check production readiness", 
+          details = ex.Message 
+        });
       }
     }
   }

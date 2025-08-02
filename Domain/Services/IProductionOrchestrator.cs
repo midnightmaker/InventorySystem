@@ -94,5 +94,7 @@ namespace InventorySystem.Domain.Services
     /// Gets employee workload for assignment optimization
     /// </summary>
     Task<Dictionary<string, int>> GetEmployeeWorkloadAsync();
+
+    Task<(bool CanStart, string Reason)> CanStartProductionWithDetailsAsync(int productionId);
   }
 }

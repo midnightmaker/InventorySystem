@@ -36,6 +36,10 @@ namespace InventorySystem.Services
     Task<decimal> GetAverageCostAsync(int itemId);
     Task<decimal> GetFifoValueAsync(int itemId);
 
-    
+    /// <summary>
+    /// Generates a unique Purchase Order Number
+    /// </summary>
+    /// <returns>Generated purchase order number</returns>
+    Task<string> GeneratePurchaseOrderNumberAsync();
   }
 }

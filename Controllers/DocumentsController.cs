@@ -172,19 +172,88 @@ namespace InventorySystem.Controllers
       return File(document.DocumentData, document.ContentType, document.FileName);
     }
 
+
     public async Task<IActionResult> View(int id)
     {
-      var document = await _context.ItemDocuments.FindAsync(id);
-      if (document == null) return NotFound();
-
-      // For PDFs and images, display inline
-      if (document.ContentType == "application/pdf" || document.ContentType.StartsWith("image/"))
+      try
       {
-        return File(document.DocumentData, document.ContentType);
-      }
+        _logger.LogInformation("View action called for document ID: {DocumentId}", id);
 
-      // For other files, force download
-      return File(document.DocumentData, document.ContentType, document.FileName);
+        var document = await _context.ItemDocuments.FindAsync(id);
+        if (document == null)
+        {
+          _logger.LogWarning("Document not found for ID: {DocumentId}", id);
+          return NotFound($"Document with ID {id} not found");
+        }
+
+        _logger.LogInformation("Found document: {DocumentName}, ContentType: {ContentType}, Size: {FileSize}, ItemId: {ItemId}, BomId: {BomId}",
+            document.DocumentName, document.ContentType, document.FileSize, document.ItemId, document.BomId);
+
+        // Validate that document data exists
+        if (document.DocumentData == null || document.DocumentData.Length == 0)
+        {
+          _logger.LogError("Document data is null or empty for ID: {DocumentId}", id);
+          return BadRequest("Document data is corrupted or missing");
+        }
+
+        // Additional validation for content type
+        if (string.IsNullOrWhiteSpace(document.ContentType))
+        {
+          _logger.LogWarning("Content type is null or empty for document ID: {DocumentId}, using application/octet-stream", id);
+          document.ContentType = "application/octet-stream";
+        }
+
+        // Ensure we have a valid filename
+        var fileName = !string.IsNullOrWhiteSpace(document.FileName) ? document.FileName : $"document_{id}.pdf";
+
+        try
+        {
+          // For PDFs and images, display inline
+          if (document.ContentType == "application/pdf" || document.ContentType.StartsWith("image/"))
+          {
+            _logger.LogInformation("Serving document inline: {ContentType}, FileName: {FileName}", document.ContentType, fileName);
+
+            // Create the FileContentResult with proper parameters for inline display
+            var result = new FileContentResult(document.DocumentData, document.ContentType)
+            {
+              FileDownloadName = null // Don't set download name for inline display
+            };
+
+            // Set headers manually for inline display
+            Response.Headers["Content-Disposition"] = "inline";
+            Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
+
+            return result;
+          }
+
+          // For other files, force download
+          _logger.LogInformation("Serving document as download: {ContentType}, FileName: {FileName}", document.ContentType, fileName);
+          return File(document.DocumentData, document.ContentType, fileName);
+        }
+        catch (Exception fileException)
+        {
+          _logger.LogError(fileException, "Error creating File result for document ID: {DocumentId}", id);
+
+          // Try to serve as a generic file with proper filename
+          try
+          {
+            _logger.LogInformation("Attempting to serve as generic file with filename: {FileName}", fileName);
+            return File(document.DocumentData, "application/octet-stream", fileName);
+          }
+          catch (Exception genericFileException)
+          {
+            _logger.LogError(genericFileException, "Error serving as generic file for document ID: {DocumentId}", id);
+            return StatusCode(500, "Unable to serve document file");
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error in View action for document ID: {DocumentId}", id);
+        return StatusCode(500, "Internal server error while retrieving document");
+      }
     }
 
     public async Task<IActionResult> Delete(int id)

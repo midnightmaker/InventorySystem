@@ -1,4 +1,5 @@
 @model InventorySystem.Models.Item
+@using System.IO
 @{
   ViewData["Title"] = "Item Details";
 
@@ -187,44 +188,67 @@
           }
         </div>
         <div class="card-body">
-          <div class="list-group list-group-flush">
-            @foreach (var doc in Model.DesignDocuments.OrderBy(d => d.DocumentType).ThenBy(d => d.DocumentName))
-            {
-              <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                  <i class="@doc.FileTypeIcon fa-2x me-3"></i>
-                  <div>
-                    <h6 class="mb-1">@doc.DocumentName</h6>
-                    <small class="text-muted">
-                      <strong>Type:</strong> @doc.DocumentType<br>
-                      <strong>File:</strong> @doc.FileName (@doc.FileSizeFormatted)<br>
-                      <strong>Uploaded:</strong> @doc.UploadedDate.ToString("MM/dd/yyyy HH:mm")
-                    </small>
-                    @if (!string.IsNullOrEmpty(doc.Description))
-                    {
-                      <br>
-                      <small class="text-muted"><strong>Description:</strong> @doc.Description</small>
-                    }
-                  </div>
-                </div>
-                <div class="btn-group btn-group-sm">
-                  <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" target="_blank" title="Download">
-                    <i class="fas fa-download"></i>
-                  </a>
-                  @if (Model.IsCurrentVersion)
-                  {
-                    <form asp-controller="Documents" asp-action="Delete" method="post" style="display:inline;">
-                      <input type="hidden" name="id" value="@doc.Id" />
-                      <button type="submit" class="btn btn-outline-danger"
-                              onclick="return confirm('Delete this document? This action cannot be undone.')"
-                              title="Delete Document">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </form>
-                  }
-                </div>
-              </div>
-            }
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Document Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Uploaded</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var doc in Model.DesignDocuments.OrderBy(d => d.DocumentType).ThenBy(d => d.DocumentName))
+                {
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <i class="@doc.FileTypeIcon me-2"></i>
+                        <div>
+                          <strong>@doc.DocumentName</strong>
+                          @if (!string.IsNullOrEmpty(doc.Description))
+                          {
+                            <br>
+                      
+                            <small class="text-muted">@doc.Description</small>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge bg-secondary">@doc.DocumentType</span>
+                    </td>
+                    <td>@doc.FileSizeFormatted</td>
+                    <td>
+                      <small>@doc.UploadedDate.ToString("MM/dd/yyyy")</small>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        @{
+                          var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
+                          .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
+                        }
+
+                        @if (canPreview)
+                        {
+                          <button class="btn btn-outline-info" onclick="previewDocument(@doc.Id, '@doc.DocumentName')" title="Preview">
+                            <i class="fas fa-eye"></i>
+                          </button>
+                        }
+
+                        <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" title="Download">
+                          <i class="fas fa-download"></i>
+                        </a>
+
+                        <!-- Note: Delete button is removed from Details view - only available in Edit view -->
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -479,6 +503,44 @@
   </div>
 </div>
 
+<!-- Document Preview Modal -->
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="previewModalTitle">Document Preview</h5>
+        <div class="btn-group btn-group-sm">
+          <button type="button" class="btn btn-outline-secondary" onclick="zoomOut()">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="resetZoom()">
+            <i class="fas fa-compress-arrows-alt"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="zoomIn()">
+            <i class="fas fa-search-plus"></i>
+          </button>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="previewLoading" class="text-center p-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2">Loading document...</p>
+        </div>
+        <iframe id="previewIframe" style="width: 100%; height: 70vh; border: none; display: none;"></iframe>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <a id="downloadLink" href="#" class="btn btn-primary">
+          <i class="fas fa-download"></i> Download
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Pending Change Orders Modal -->
 <div class="modal fade" id="pendingChangeOrdersModal" tabindex="-1" aria-labelledby="pendingChangeOrdersModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
@@ -514,6 +576,81 @@
 </div>
 
 <script>
+  let currentZoom = 1;
+  let currentDocumentId = null;
+
+  function previewDocument(documentId, documentName) {
+      currentDocumentId = documentId;
+      const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
+      const iframe = document.getElementById('previewIframe');
+      const modalTitle = document.getElementById('previewModalTitle');
+      const downloadLink = document.getElementById('downloadLink');
+      const loading = document.getElementById('previewLoading');
+
+      modalTitle.textContent = `Preview: ${documentName}`;
+      downloadLink.href = `/Documents/Download/${documentId}`;
+
+      // Show loading, hide iframe
+      loading.style.display = 'block';
+      iframe.style.display = 'none';
+
+      // Set iframe source to view the document
+      iframe.src = `/Documents/View/${documentId}`;
+
+      // Show modal
+      modal.show();
+
+      // Handle iframe load
+      iframe.onload = function() {
+          loading.style.display = 'none';
+          iframe.style.display = 'block';
+      };
+
+      // Handle iframe error
+      iframe.onerror = function() {
+          loading.innerHTML = `
+              <div class="text-center p-4">
+                  <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                  <h5>Preview Not Available</h5>
+                  <p class="text-muted">This document cannot be previewed in your browser.</p>
+                  <a href="/Documents/Download/${documentId}" class="btn btn-primary">
+                      <i class="fas fa-download"></i> Download Document
+                  </a>
+              </div>
+          `;
+      };
+  }
+
+  function zoomIn() {
+      currentZoom += 0.25;
+      applyZoom();
+  }
+
+  function zoomOut() {
+      if (currentZoom > 0.5) {
+          currentZoom -= 0.25;
+          applyZoom();
+      }
+  }
+
+  function resetZoom() {
+      currentZoom = 1;
+      applyZoom();
+  }
+
+  function applyZoom() {
+      const iframe = document.getElementById('previewIframe');
+      iframe.style.transform = `scale(${currentZoom})`;
+      iframe.style.transformOrigin = 'top left';
+  }
+
+  // Reset zoom when modal is closed
+  document.getElementById('documentPreviewModal').addEventListener('hidden.bs.modal', function () {
+      currentZoom = 1;
+      applyZoom();
+      document.getElementById('previewIframe').src = '';
+  });
+
   function showImageModal(partNumber, imageUrl) {
       document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
       document.getElementById('modalImage').src = imageUrl;
@@ -698,3 +835,22 @@
       }
   });
 </script>
+
+@section Scripts {
+  <style>
+    .btn-group-sm .btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .table th {
+      border-top: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+    }
+  </style>
+}

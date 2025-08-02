@@ -42,6 +42,12 @@ namespace InventorySystem.Services
     {
       try
       {
+        // Auto-generate Purchase Order Number if not provided
+        if (string.IsNullOrWhiteSpace(purchase.PurchaseOrderNumber))
+        {
+            purchase.PurchaseOrderNumber = await GeneratePurchaseOrderNumberAsync();
+        }
+
         // Set ItemVersion to current item version when creating purchase
         var itemForVersion = await _context.Items.FindAsync(purchase.ItemId);
         if (itemForVersion != null)
@@ -77,6 +83,26 @@ namespace InventorySystem.Services
       {
         throw new InvalidOperationException($"Error creating purchase: {ex.Message}", ex);
       }
+    }
+
+    /// <summary>
+    /// Generates a unique Purchase Order Number in the format: PO-YYYYMMDD-###
+    /// </summary>
+    /// <returns>Generated purchase order number</returns>
+    public async Task<string> GeneratePurchaseOrderNumberAsync()
+    {
+        var today = DateTime.Now;
+        var dateStr = today.ToString("yyyyMMdd");
+        
+        // Find the next sequential number for today
+        var existingCount = await _context.Purchases
+            .CountAsync(p => p.CreatedDate.Date == today.Date && 
+                            !string.IsNullOrEmpty(p.PurchaseOrderNumber) &&
+                            p.PurchaseOrderNumber.StartsWith($"PO-{dateStr}"));
+        
+        var sequence = (existingCount + 1).ToString("D3");
+        
+        return $"PO-{dateStr}-{sequence}";
     }
 
     public async Task<Purchase> UpdatePurchaseAsync(Purchase purchase)
