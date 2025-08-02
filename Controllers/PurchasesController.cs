@@ -29,22 +29,143 @@ namespace InventorySystem.Controllers
       _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    // Controllers/PurchasesController.cs - Enhanced Index method with search functionality
+
+    public async Task<IActionResult> Index(
+        string search,
+        string vendorFilter,
+        string statusFilter,
+        DateTime? startDate,
+        DateTime? endDate,
+        string sortOrder = "date_desc",
+        int page = 1)
     {
       try
       {
-        var purchases = await _context.Purchases
+        Console.WriteLine($"=== PURCHASES INDEX DEBUG ===");
+        Console.WriteLine($"Search: {search}");
+        Console.WriteLine($"Vendor Filter: {vendorFilter}");
+        Console.WriteLine($"Status Filter: {statusFilter}");
+        Console.WriteLine($"Date Range: {startDate} to {endDate}");
+        Console.WriteLine($"Sort Order: {sortOrder}");
+
+        // Start with base query
+        var query = _context.Purchases
             .Include(p => p.Item)
             .Include(p => p.Vendor)
             .Include(p => p.PurchaseDocuments)
-            .OrderByDescending(p => p.PurchaseDate)
-            .ToListAsync();
+            .AsQueryable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+          var searchTerm = search.Trim().ToLower();
+          Console.WriteLine($"Applying search filter: {searchTerm}");
+
+          query = query.Where(p =>
+            // Search in Item Part Number and Description
+            p.Item.PartNumber.ToLower().Contains(searchTerm) ||
+            p.Item.Description.ToLower().Contains(searchTerm) ||
+            // Search in Vendor Company Name
+            p.Vendor.CompanyName.ToLower().Contains(searchTerm) ||
+            // Search in Purchase Order Number
+            (!string.IsNullOrEmpty(p.PurchaseOrderNumber) && p.PurchaseOrderNumber.ToLower().Contains(searchTerm)) ||
+            // Search in Notes
+            (!string.IsNullOrEmpty(p.Notes) && p.Notes.ToLower().Contains(searchTerm)) ||
+            // Search in Purchase ID (convert to string)
+            p.Id.ToString().Contains(searchTerm)
+          );
+        }
+
+        // Apply vendor filter
+        if (!string.IsNullOrWhiteSpace(vendorFilter) && int.TryParse(vendorFilter, out int vendorId))
+        {
+          Console.WriteLine($"Applying vendor filter: {vendorId}");
+          query = query.Where(p => p.VendorId == vendorId);
+        }
+
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(statusFilter) && Enum.TryParse<PurchaseStatus>(statusFilter, out var status))
+        {
+          Console.WriteLine($"Applying status filter: {status}");
+          query = query.Where(p => p.Status == status);
+        }
+
+        // Apply date range filter
+        if (startDate.HasValue)
+        {
+          Console.WriteLine($"Applying start date filter: {startDate.Value}");
+          query = query.Where(p => p.PurchaseDate >= startDate.Value);
+        }
+
+        if (endDate.HasValue)
+        {
+          Console.WriteLine($"Applying end date filter: {endDate.Value}");
+          var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
+          query = query.Where(p => p.PurchaseDate <= endOfDay);
+        }
+
+        // Apply sorting
+        query = sortOrder switch
+        {
+          "date_asc" => query.OrderBy(p => p.PurchaseDate),
+          "date_desc" => query.OrderByDescending(p => p.PurchaseDate),
+          "vendor_asc" => query.OrderBy(p => p.Vendor.CompanyName),
+          "vendor_desc" => query.OrderByDescending(p => p.Vendor.CompanyName),
+          "item_asc" => query.OrderBy(p => p.Item.PartNumber),
+          "item_desc" => query.OrderByDescending(p => p.Item.PartNumber),
+          "amount_asc" => query.OrderBy(p => p.QuantityPurchased * p.CostPerUnit),
+          "amount_desc" => query.OrderByDescending(p => p.QuantityPurchased * p.CostPerUnit),
+          "status_asc" => query.OrderBy(p => p.Status),
+          "status_desc" => query.OrderByDescending(p => p.Status),
+          _ => query.OrderByDescending(p => p.PurchaseDate)
+        };
+
+        // Get results
+        var purchases = await query.ToListAsync();
+        Console.WriteLine($"Found {purchases.Count} purchases after filtering");
+
+        // Get filter options for dropdowns
+        var allVendors = await _vendorService.GetActiveVendorsAsync();
+        var purchaseStatuses = Enum.GetValues<PurchaseStatus>().ToList();
+
+        // Prepare ViewBag data
+        ViewBag.SearchTerm = search;
+        ViewBag.VendorFilter = vendorFilter;
+        ViewBag.StatusFilter = statusFilter;
+        ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
+        ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
+        ViewBag.SortOrder = sortOrder;
+        ViewBag.CurrentPage = page;
+
+        // Dropdown data
+        ViewBag.VendorOptions = new SelectList(allVendors, "Id", "CompanyName", vendorFilter);
+        ViewBag.StatusOptions = new SelectList(purchaseStatuses.Select(s => new {
+          Value = s.ToString(),
+          Text = s.ToString().Replace("_", " ")
+        }), "Value", "Text", statusFilter);
+
+        // Search statistics
+        if (!string.IsNullOrWhiteSpace(search) || !string.IsNullOrWhiteSpace(vendorFilter) ||
+            !string.IsNullOrWhiteSpace(statusFilter) || startDate.HasValue || endDate.HasValue)
+        {
+          var totalPurchases = await _context.Purchases.CountAsync();
+          ViewBag.SearchResultsCount = purchases.Count;
+          ViewBag.TotalPurchasesCount = totalPurchases;
+          ViewBag.IsFiltered = true;
+        }
+        else
+        {
+          ViewBag.IsFiltered = false;
+        }
+
         return View(purchases);
       }
       catch (Exception ex)
       {
-        Console.WriteLine($"Error in Index: {ex.Message}");
-        ViewBag.ErrorMessage = ex.Message;
+        Console.WriteLine($"Error in Purchases Index: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        ViewBag.ErrorMessage = $"Error loading purchases: {ex.Message}";
         return View(new List<Purchase>());
       }
     }

@@ -199,24 +199,75 @@
         </div>
         <div class="card-body">
           <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-8">
               <div class="mb-3">
-                <label asp-for="PreferredVendor" class="form-label">
+                <label for="preferredVendorId" class="form-label">
                   <i class="fas fa-star text-warning"></i>
                   Preferred Vendor
                 </label>
-                <input asp-for="PreferredVendor" class="form-control" placeholder="Primary supplier for this item" />
-                <span asp-validation-for="PreferredVendor" class="text-danger"></span>
+                <div class="input-group">
+                  <select name="preferredVendorId" id="preferredVendorId" class="form-select" asp-items="ViewBag.PreferredVendorId">
+                    <!-- Options populated from ViewBag -->
+                  </select>
+                  <button type="button" class="btn btn-outline-info" id="addNewVendorBtn" title="Add New Vendor">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i>
+                  Select the primary supplier for this item. This vendor will be automatically selected in bulk purchase requests.
+                </div>
+
+                <!-- Current Preferred Vendor Display -->
+                @if (!string.IsNullOrEmpty(Model.PreferredVendor))
+                {
+                  <div class="mt-2">
+                    <small class="text-muted">
+                      <strong>Current:</strong> @Model.PreferredVendor
+                      @if (ViewBag.CurrentPreferredVendorId == null)
+                      {
+                        <span class="badge bg-warning text-dark">Vendor not found in active vendors</span>
+                      }
+                    </small>
+                  </div>
+                }
               </div>
             </div>
+            <div class="col-md-4">
+              <!-- Vendor Quick Actions -->
+              <div class="vendor-actions">
+                <h6 class="text-muted">Quick Actions</h6>
+                <div class="d-grid gap-2">
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="viewVendorDetailsBtn" disabled>
+                    <i class="fas fa-eye"></i> View Vendor Details
+                  </button>
+                  <button type="button" class="btn btn-outline-success btn-sm" id="addPurchaseBtn">
+                    <i class="fas fa-shopping-cart"></i> Add Purchase
+                  </button>
+                  <button type="button" class="btn btn-outline-info btn-sm" id="viewPurchaseHistoryBtn">
+                    <i class="fas fa-history"></i> Purchase History
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
                 <label asp-for="VendorPartNumber" class="form-label">
                   <i class="fas fa-barcode text-info"></i>
                   Vendor Part Number
                 </label>
-                <input asp-for="VendorPartNumber" class="form-control" placeholder="Vendor's part number for this item" />
+                <input asp-for="VendorPartNumber" class="form-control" placeholder="Supplier's part number for this item" />
                 <span asp-validation-for="VendorPartNumber" class="text-danger"></span>
+                <div class="form-text">The part number used by the preferred vendor.</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <!-- Vendor relationship info will be displayed here -->
+              <div id="vendorRelationshipInfo" class="mt-4">
+                <!-- Populated via JavaScript when vendor is selected -->
               </div>
             </div>
           </div>
@@ -543,5 +594,120 @@
         });
       }
     });
+  
+    $(document).ready(function() {
+        var currentItemId = @Model.Id;
+
+        // Handle vendor dropdown change
+        $('#preferredVendorId').change(function() {
+            var selectedVendorId = $(this).val();
+            var selectedVendorName = $(this).find('option:selected').text();
+
+            updateVendorActions(selectedVendorId, selectedVendorName);
+
+            if (selectedVendorId) {
+                loadVendorRelationshipInfo(selectedVendorId);
+            } else {
+                clearVendorRelationshipInfo();
+            }
+        });
+
+        // Add new vendor button
+        $('#addNewVendorBtn').click(function() {
+            // Open vendor creation in new tab/window
+            window.open('/Vendors/Create', '_blank');
+        });
+
+        // View vendor details button
+        $('#viewVendorDetailsBtn').click(function() {
+            var vendorId = $('#preferredVendorId').val();
+            if (vendorId) {
+                window.open(`/Vendors/Details/${vendorId}`, '_blank');
+            }
+        });
+
+        // Add purchase button
+        $('#addPurchaseBtn').click(function() {
+            window.open(`/Purchases/Create?itemId=${currentItemId}`, '_blank');
+        });
+
+        // View purchase history button
+        $('#viewPurchaseHistoryBtn').click(function() {
+            window.open(`/Items/Details/${currentItemId}#purchases`, '_blank');
+        });
+
+        function updateVendorActions(vendorId, vendorName) {
+            var viewDetailsBtn = $('#viewVendorDetailsBtn');
+
+            if (vendorId && vendorId !== '') {
+                viewDetailsBtn.prop('disabled', false);
+                viewDetailsBtn.attr('title', `View details for ${vendorName}`);
+            } else {
+                viewDetailsBtn.prop('disabled', true);
+                viewDetailsBtn.attr('title', 'Select a vendor first');
+            }
+        }
+
+        function loadVendorRelationshipInfo(vendorId) {
+            // Load vendor-item relationship info via AJAX
+            $.get(`/Vendors/GetVendorItemInfo?vendorId=${vendorId}&itemId=${currentItemId}`)
+                .done(function(data) {
+                    if (data.success && data.vendorItem) {
+                        var info = `
+                            <div class="card border-success">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title text-success mb-1">
+                                        <i class="fas fa-link"></i> Vendor Relationship
+                                    </h6>
+                                    <small class="text-muted">
+                                        <strong>Unit Cost:</strong> $${data.vendorItem.unitCost}<br>
+                                        <strong>Lead Time:</strong> ${data.vendorItem.leadTimeDays} days<br>
+                                        <strong>Min Order:</strong> ${data.vendorItem.minimumOrderQuantity}
+                                        ${data.vendorItem.isPrimary ? '<br><span class="badge bg-primary">Primary Vendor</span>' : ''}
+                                    </small>
+                                </div>
+                            </div>`;
+                        $('#vendorRelationshipInfo').html(info);
+                    } else {
+                        var noRelationshipInfo = `
+                            <div class="card border-warning">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title text-warning mb-1">
+                                        <i class="fas fa-exclamation-triangle"></i> No Relationship
+                                    </h6>
+                                    <small class="text-muted">
+                                        No vendor-item relationship found. Consider adding this item to the vendor's catalog.
+                                    </small>
+                                    <br>
+                                    <a href="/Vendors/Details/${vendorId}#manage-items" class="btn btn-outline-warning btn-sm mt-1" target="_blank">
+                                        <i class="fas fa-plus"></i> Add to Vendor
+                                    </a>
+                                </div>
+                            </div>`;
+                        $('#vendorRelationshipInfo').html(noRelationshipInfo);
+                    }
+                })
+                .fail(function() {
+                    $('#vendorRelationshipInfo').html(`
+                        <div class="alert alert-warning p-2">
+                            <small>Could not load vendor relationship information.</small>
+                        </div>`);
+                });
+        }
+
+        function clearVendorRelationshipInfo() {
+            $('#vendorRelationshipInfo').empty();
+        }
+
+        // Initialize vendor actions on page load
+        var initialVendorId = $('#preferredVendorId').val();
+        var initialVendorName = $('#preferredVendorId').find('option:selected').text();
+        updateVendorActions(initialVendorId, initialVendorName);
+
+        if (initialVendorId) {
+            loadVendorRelationshipInfo(initialVendorId);
+        }
+    });
+  
   </script>
 }

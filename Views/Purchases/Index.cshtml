@@ -1,16 +1,27 @@
-@* Views/Purchases/Index.cshtml - Updated to show vendor names *@
 @model IEnumerable<InventorySystem.Models.Purchase>
 
 @{
   ViewData["Title"] = "Purchases";
+  var searchTerm = ViewBag.SearchTerm as string;
+  var vendorFilter = ViewBag.VendorFilter as string;
+  var statusFilter = ViewBag.StatusFilter as string;
+  var startDate = ViewBag.StartDate as string;
+  var endDate = ViewBag.EndDate as string;
+  var sortOrder = ViewBag.SortOrder as string ?? "date_desc";
+  var isFiltered = ViewBag.IsFiltered as bool? ?? false;
 }
 
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-shopping-cart"></i> @ViewData["Title"]</h2>
-    <a href="@Url.Action("Create")" class="btn btn-success">
-      <i class="fas fa-plus"></i> New Purchase
-    </a>
+    <div class="btn-group">
+      <a href="@Url.Action("Create")" class="btn btn-success">
+        <i class="fas fa-plus"></i> New Purchase
+      </a>
+      <button class="btn btn-outline-secondary" onclick="exportPurchases()">
+        <i class="fas fa-download"></i> Export
+      </button>
+    </div>
   </div>
 
   @if (ViewBag.ErrorMessage != null)
@@ -36,92 +47,283 @@
     </div>
   }
 
-  <div class="card">
+  <!-- Enhanced Search Form -->
+  <div class="card mb-4">
     <div class="card-header">
+      <h6 class="mb-0">
+        <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#searchCollapse"
+                aria-expanded="@(isFiltered ? "true" : "false")"
+                aria-controls="searchCollapse">
+          <i class="fas fa-search"></i> Search & Filter Purchases
+          <i class="fas fa-chevron-@(isFiltered ? "up" : "down") float-end"></i>
+        </button>
+      </h6>
+    </div>
+    <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
+      <div class="card-body">
+        <!-- Search Examples -->
+        <div class="row mb-4 p-3 bg-light border rounded">
+          <div class="col-12">
+            <h6><i class="fas fa-lightbulb text-info"></i> Search Examples</h6>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Search by:</h6>
+            <ul class="list-unstyled small">
+              <li><code>ABC-123</code> - Part number</li>
+              <li><code>Crystal Supply</code> - Vendor name</li>
+              <li><code>PO-2024-001</code> - Purchase order</li>
+              <li><code>resistor</code> - Item description</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Search Fields:</h6>
+            <ul class="list-unstyled small">
+              <li><i class="fas fa-cube"></i> Item part number</li>
+              <li><i class="fas fa-building"></i> Vendor name</li>
+              <li><i class="fas fa-receipt"></i> Purchase order #</li>
+              <li><i class="fas fa-sticky-note"></i> Notes</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Quick Filters:</h6>
+            <ul class="list-unstyled small">
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('pending')">Pending orders</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('thismonth')">This month</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('over1000')">Over $1000</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="clearAllFilters()">Clear all filters</button></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Search Form -->
+        <form method="get" class="row g-3">
+          <div class="col-md-4">
+            <label for="search" class="form-label">
+              <i class="fas fa-search"></i> Search Term
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="search"
+                   name="search"
+                   value="@searchTerm"
+                   placeholder="Part number, vendor, PO#, notes...">
+          </div>
+
+          <div class="col-md-3">
+            <label for="vendorFilter" class="form-label">
+              <i class="fas fa-building"></i> Vendor
+            </label>
+            <select class="form-select" id="vendorFilter" name="vendorFilter" asp-items="ViewBag.VendorOptions">
+              <option value="">All Vendors</option>
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label for="statusFilter" class="form-label">
+              <i class="fas fa-flag"></i> Status
+            </label>
+            <select class="form-select" id="statusFilter" name="statusFilter" asp-items="ViewBag.StatusOptions">
+              <option value="">All Statuses</option>
+            </select>
+          </div>
+
+          <div class="col-md-1.5">
+            <label for="startDate" class="form-label">
+              <i class="fas fa-calendar"></i> From
+            </label>
+            <input type="date" class="form-control" id="startDate" name="startDate" value="@startDate">
+          </div>
+
+          <div class="col-md-1.5">
+            <label for="endDate" class="form-label">To</label>
+            <input type="date" class="form-control" id="endDate" name="endDate" value="@endDate">
+          </div>
+
+          <div class="col-md-12">
+            <div class="btn-group">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Search
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                <i class="fas fa-times"></i> Clear
+              </button>
+              <button type="button" class="btn btn-outline-info" onclick="saveSearch()">
+                <i class="fas fa-bookmark"></i> Save Search
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search Results Summary -->
+  @if (isFiltered)
+  {
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      Found <strong>@Model.Count()</strong> purchase(s)
+      @if (ViewBag.SearchResultsCount != null && ViewBag.TotalPurchasesCount != null)
+      {
+        <span>out of @ViewBag.TotalPurchasesCount total purchases</span>
+      }
+
+      @if (!string.IsNullOrEmpty(searchTerm))
+      {
+        <span>matching "<strong>@searchTerm</strong>"</span>
+      }
+
+      <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
+        <i class="fas fa-times"></i> Clear All Filters
+      </a>
+    </div>
+  }
+
+  <!-- Purchases Table -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
       <h5 class="mb-0">
-        <i class="fas fa-list"></i> Purchase History
+        <i class="fas fa-list"></i> Purchase Records
         <span class="badge bg-primary ms-2">@Model.Count() records</span>
       </h5>
+
+      <!-- Sort Options -->
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+          <i class="fas fa-sort"></i> Sort
+        </button>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item @(sortOrder == "date_desc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "date_desc" })">
+              <i class="fas fa-calendar"></i> Date (Newest First)
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item @(sortOrder == "date_asc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "date_asc" })">
+              <i class="fas fa-calendar"></i> Date (Oldest First)
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item @(sortOrder == "vendor_asc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "vendor_asc" })">
+              <i class="fas fa-building"></i> Vendor (A-Z)
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item @(sortOrder == "amount_desc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "amount_desc" })">
+              <i class="fas fa-dollar-sign"></i> Amount (High-Low)
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item @(sortOrder == "status_asc" ? "active" : "")" href="@Url.Action("Index", new { search, vendorFilter, statusFilter, startDate, endDate, sortOrder = "status_asc" })">
+              <i class="fas fa-flag"></i> Status
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
     <div class="card-body">
       @if (Model.Any())
       {
         <div class="table-responsive">
-          <table class="table table-striped table-hover">
+          <table class="table table-striped table-hover" id="purchasesTable">
             <thead class="table-dark">
               <tr>
-                <th>Purchase Date</th>
-                <th>Item</th>
-                <th>Vendor</th>
-                <th>Quantity</th>
-                <th>Cost Per Unit</th>
-                <th>Total Cost</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>
+                  <i class="fas fa-hashtag"></i> ID
+                </th>
+                <th>
+                  <i class="fas fa-calendar"></i> Date
+                </th>
+                <th>
+                  <i class="fas fa-cube"></i> Item
+                </th>
+                <th>
+                  <i class="fas fa-building"></i> Vendor
+                </th>
+                <th>
+                  <i class="fas fa-boxes"></i> Qty
+                </th>
+                <th>
+                  <i class="fas fa-dollar-sign"></i> Unit Cost
+                </th>
+                <th>
+                  <i class="fas fa-calculator"></i> Total
+                </th>
+                <th>
+                  <i class="fas fa-flag"></i> Status
+                </th>
+                <th>
+                  <i class="fas fa-receipt"></i> PO#
+                </th>
+                <th>
+                  <i class="fas fa-cogs"></i> Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               @foreach (var purchase in Model)
               {
-                <tr>
+                <tr data-purchase-id="@purchase.Id">
                   <td>
-                    <i class="fas fa-calendar text-muted"></i>
+                    <strong>#@purchase.Id</strong>
+                  </td>
+                  <td>
                     @purchase.PurchaseDate.ToString("MM/dd/yyyy")
+                    <br>
+                    <small class="text-muted">@purchase.PurchaseDate.ToString("hh:mm tt")</small>
                   </td>
                   <td>
                     <div>
-                      <strong>@purchase.Item.PartNumber</strong>
+                      <strong>@purchase.Item?.PartNumber</strong>
                       <br>
-                      <small class="text-muted">@purchase.Item.Description</small>
+                      <small class="text-muted">@purchase.Item?.Description</small>
                     </div>
                   </td>
                   <td>
-                    <i class="fas fa-building text-success"></i>
-                    @purchase.Vendor.CompanyName
-                    @if (!string.IsNullOrEmpty(purchase.Vendor.VendorCode))
-                    {
-                      <br>
-                
-                      <small class="text-muted">(@purchase.Vendor.VendorCode)</small>
-                    }
+                    <div>
+                      <strong>@purchase.Vendor?.CompanyName</strong>
+                      @if (!string.IsNullOrEmpty(purchase.Vendor?.VendorCode))
+                      {
+                        <br>
+                        <small class="text-muted">(@purchase.Vendor.VendorCode)</small>
+                      }
+                    </div>
                   </td>
                   <td>
                     <span class="badge bg-info">@purchase.QuantityPurchased</span>
-                    @if (purchase.RemainingQuantity != purchase.QuantityPurchased)
+                    @if (purchase.RemainingQuantity > 0)
                     {
                       <br>
-                      <small class="text-muted">
-                        Remaining: @purchase.RemainingQuantity
-                      </small>
+                      <small class="text-success">@purchase.RemainingQuantity left</small>
+                    }
+                    else
+                    {
+                      <br>
+                      <small class="text-muted">consumed</small>
                     }
                   </td>
                   <td>
-                    <span class="text-success">
-                      $@purchase.CostPerUnit.ToString("N2")
-                    </span>
+                    <strong>$@purchase.CostPerUnit.ToString("N2")</strong>
                   </td>
                   <td>
-                    <strong class="text-success">
-                      $@purchase.TotalPaid.ToString("N2")
-                    </strong>
+                    <strong class="text-success">$@purchase.TotalPaid.ToString("N2")</strong>
                     @if (purchase.ShippingCost > 0 || purchase.TaxAmount > 0)
                     {
                       <br>
                       <small class="text-muted">
-                        Subtotal: $@(purchase.TotalCost.ToString("N2"))
+                        @if (purchase.ShippingCost > 0)
+                        {
+                          <span>+$@purchase.ShippingCost.ToString("N2") ship</span>
+                        }
+                        @if (purchase.TaxAmount > 0)
+                        {
+                          <span>+$@purchase.TaxAmount.ToString("N2") tax</span>
+                        }
                       </small>
-                      @if (purchase.ShippingCost > 0)
-                      {
-                        <small class="text-muted">
-                          <br />Shipping: $@(purchase.ShippingCost.ToString("N2"))
-                        </small>
-                      }
-                      @if (purchase.TaxAmount > 0)
-                      {
-                        <small class="text-muted">
-                          <br />Tax: $@(purchase.TaxAmount.ToString("N2"))
-                        </small>
-                      }
                     }
                   </td>
                   <td>
@@ -129,46 +331,51 @@
                       var statusClass = purchase.Status switch
                       {
                         InventorySystem.Models.Enums.PurchaseStatus.Pending => "bg-warning",
-                        InventorySystem.Models.Enums.PurchaseStatus.Confirmed => "bg-info",
+                        InventorySystem.Models.Enums.PurchaseStatus.Ordered => "bg-info",
                         InventorySystem.Models.Enums.PurchaseStatus.Shipped => "bg-primary",
-                        InventorySystem.Models.Enums.PurchaseStatus.PartiallyReceived => "bg-warning",
                         InventorySystem.Models.Enums.PurchaseStatus.Received => "bg-success",
+                        InventorySystem.Models.Enums.PurchaseStatus.PartiallyReceived => "bg-warning",
                         InventorySystem.Models.Enums.PurchaseStatus.Cancelled => "bg-danger",
-                        InventorySystem.Models.Enums.PurchaseStatus.Returned => "bg-secondary",
                         _ => "bg-secondary"
                       };
                     }
                     <span class="badge @statusClass">@purchase.Status</span>
-                    @if (purchase.ExpectedDeliveryDate.HasValue)
+                  </td>
+                  <td>
+                    @if (!string.IsNullOrEmpty(purchase.PurchaseOrderNumber))
                     {
-                      <br>
-                      <small class="text-muted">
-                        Expected: @purchase.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
-                      </small>
+                      <code>@purchase.PurchaseOrderNumber</code>
+                    }
+                    else
+                    {
+                      <span class="text-muted">-</span>
                     }
                   </td>
                   <td>
-                    <div class="btn-group btn-group-sm" role="group">
+                    <div class="btn-group btn-group-sm">
                       <a href="@Url.Action("Details", new { id = purchase.Id })"
-                         class="btn btn-outline-primary" title="View Details">
+                         class="btn btn-outline-primary"
+                         title="View Details">
                         <i class="fas fa-eye"></i>
                       </a>
                       <a href="@Url.Action("Edit", new { id = purchase.Id })"
-                         class="btn btn-outline-secondary" title="Edit">
+                         class="btn btn-outline-warning"
+                         title="Edit">
                         <i class="fas fa-edit"></i>
                       </a>
                       <a href="@Url.Action("Delete", new { id = purchase.Id })"
-                         class="btn btn-outline-danger" title="Delete"
+                         class="btn btn-outline-danger"
+                         title="Delete"
                          onclick="return confirm('Are you sure you want to delete this purchase?')">
                         <i class="fas fa-trash"></i>
                       </a>
                     </div>
-                    @if (purchase.PurchaseDocuments.Any())
+                    @if (purchase.PurchaseDocuments?.Any() == true)
                     {
                       <br>
                       <small class="text-info">
                         <i class="fas fa-paperclip"></i>
-                        @purchase.PurchaseDocuments.Count document(s)
+                        @purchase.PurchaseDocuments.Count doc(s)
                       </small>
                     }
                   </td>
@@ -178,50 +385,72 @@
           </table>
         </div>
 
-        <!-- Summary Statistics -->
+        <!-- Enhanced Summary Statistics -->
         <div class="mt-4">
           <div class="row">
-            <div class="col-md-3">
+            <div class="col-md-2">
               <div class="card bg-light">
-                <div class="card-body text-center">
-                  <h5 class="card-title text-primary">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-primary mb-1">
                     <i class="fas fa-shopping-cart"></i>
                     Total Purchases
-                  </h5>
-                  <h3 class="text-primary">@Model.Count()</h3>
+                  </h6>
+                  <h4 class="text-primary mb-0">@Model.Count()</h4>
                 </div>
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <div class="card bg-light">
-                <div class="card-body text-center">
-                  <h5 class="card-title text-success">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-success mb-1">
                     <i class="fas fa-dollar-sign"></i>
                     Total Value
-                  </h5>
-                  <h3 class="text-success">$@Model.Sum(p => p.TotalPaid).ToString("N2")</h3>
+                  </h6>
+                  <h4 class="text-success mb-0">$@Model.Sum(p => p.TotalPaid).ToString("N0")</h4>
                 </div>
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <div class="card bg-light">
-                <div class="card-body text-center">
-                  <h5 class="card-title text-info">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-info mb-1">
                     <i class="fas fa-boxes"></i>
                     Total Quantity
-                  </h5>
-                  <h3 class="text-info">@Model.Sum(p => p.QuantityPurchased)</h3>
+                  </h6>
+                  <h4 class="text-info mb-0">@Model.Sum(p => p.QuantityPurchased)</h4>
                 </div>
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <div class="card bg-light">
-                <div class="card-body text-center">
-                  <h5 class="card-title text-warning">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-warning mb-1">
                     <i class="fas fa-building"></i>
-                    Unique Vendors
-                  </h5>
-                  <h3 class="text-warning">@Model.Select(p => p.VendorId).Distinct().Count()</h3>
+                    Vendors
+                  </h6>
+                  <h4 class="text-warning mb-0">@Model.Select(p => p.VendorId).Distinct().Count()</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-secondary mb-1">
+                    <i class="fas fa-cube"></i>
+                    Items
+                  </h6>
+                  <h4 class="text-secondary mb-0">@Model.Select(p => p.ItemId).Distinct().Count()</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-muted mb-1">
+                    <i class="fas fa-chart-line"></i>
+                    Avg. Value
+                  </h6>
+                  <h4 class="text-muted mb-0">$@(Model.Any() ? Model.Average(p => p.TotalPaid).ToString("N0") : "0")</h4>
                 </div>
               </div>
             </div>
@@ -231,14 +460,174 @@
       else
       {
         <div class="text-center py-5">
-          <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
-          <h4 class="text-muted">No purchases found</h4>
-          <p class="text-muted">Start by creating your first purchase.</p>
-          <a href="@Url.Action("Create")" class="btn btn-success">
-            <i class="fas fa-plus"></i> Create First Purchase
-          </a>
+          <i class="fas fa-search fa-3x text-muted mb-3"></i>
+          @if (isFiltered)
+          {
+            <h4 class="text-muted">No purchases found</h4>
+            <p class="text-muted">Try adjusting your search criteria or clearing filters.</p>
+            <button class="btn btn-outline-secondary" onclick="clearAllFilters()">
+              <i class="fas fa-times"></i> Clear All Filters
+            </button>
+          }
+          else
+          {
+            <h4 class="text-muted">No purchases found</h4>
+            <p class="text-muted">Start by creating your first purchase.</p>
+            <a href="@Url.Action("Create")" class="btn btn-success">
+              <i class="fas fa-plus"></i> Create First Purchase
+            </a>
+          }
         </div>
       }
     </div>
   </div>
 </div>
+
+<!-- Enhanced JavaScript for Search Functionality -->
+<script>
+  $(document).ready(function() {
+      // Auto-expand search if filtered
+      @if (isFiltered)
+      {
+            <text>
+            const searchCollapse = document.getElementById('searchCollapse');
+            if (searchCollapse && !searchCollapse.classList.contains('show')) {
+                new bootstrap.Collapse(searchCollapse, { show: true });
+            }
+            </text>
+      }
+
+      // Update chevron icon
+      const collapseElement = document.getElementById('searchCollapse');
+      const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down, [data-bs-target="#searchCollapse"] .fa-chevron-up');
+
+      if (collapseElement && chevronIcon) {
+          collapseElement.addEventListener('show.bs.collapse', function () {
+              chevronIcon.classList.remove('fa-chevron-down');
+              chevronIcon.classList.add('fa-chevron-up');
+          });
+
+          collapseElement.addEventListener('hide.bs.collapse', function () {
+              chevronIcon.classList.remove('fa-chevron-up');
+              chevronIcon.classList.add('fa-chevron-down');
+          });
+      }
+
+      // Add row click handlers for easy navigation
+      document.querySelectorAll('#purchasesTable tbody tr').forEach(row => {
+          row.style.cursor = 'pointer';
+          row.addEventListener('click', function(e) {
+              // Don't navigate if clicking on action buttons
+              if (e.target.closest('.btn-group')) return;
+
+              const purchaseId = this.dataset.purchaseId;
+              if (purchaseId) {
+                  window.location.href = `/Purchases/Details/${purchaseId}`;
+              }
+          });
+      });
+  });
+
+  // Quick filter functions
+  function quickFilter(type) {
+      const now = new Date();
+
+      switch(type) {
+          case 'pending':
+              document.getElementById('statusFilter').value = 'Pending';
+              break;
+          case 'thismonth':
+              const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+              document.getElementById('startDate').value = firstDay.toISOString().split('T')[0];
+              document.getElementById('endDate').value = now.toISOString().split('T')[0];
+              break;
+          case 'over1000':
+              // This would need to be handled server-side
+              document.getElementById('search').value = 'over1000';
+              break;
+      }
+
+      // Submit the form
+      document.querySelector('form').submit();
+  }
+
+  function clearAllFilters() {
+      // Clear all form fields
+      document.getElementById('search').value = '';
+      document.getElementById('vendorFilter').value = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('startDate').value = '';
+      document.getElementById('endDate').value = '';
+
+      // Navigate to clean URL
+      window.location.href = '@Url.Action("Index")';
+  }
+
+  function saveSearch() {
+      // In a real application, you might save this to user preferences
+      const searchData = {
+          search: document.getElementById('search').value,
+          vendorFilter: document.getElementById('vendorFilter').value,
+          statusFilter: document.getElementById('statusFilter').value,
+          startDate: document.getElementById('startDate').value,
+          endDate: document.getElementById('endDate').value
+      };
+
+      localStorage.setItem('savedPurchaseSearch', JSON.stringify(searchData));
+      alert('Search criteria saved! Use the browser bookmark to return to this search.');
+  }
+
+  function exportPurchases() {
+      // Build export URL with current filters
+      const params = new URLSearchParams(window.location.search);
+      params.set('export', 'true');
+
+      // In a real application, this would trigger a CSV/Excel download
+      alert('Export functionality would download filtered results as CSV/Excel file.');
+  }
+
+  // Auto-save search in URL for bookmarking
+  function updateURL() {
+      const form = document.querySelector('form');
+      const formData = new FormData(form);
+      const params = new URLSearchParams();
+
+      for (const [key, value] of formData.entries()) {
+          if (value) params.set(key, value);
+      }
+
+      const newURL = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState({}, '', newURL);
+  }
+
+  // Update URL when form changes (for bookmarking)
+  document.addEventListener('change', function(e) {
+      if (e.target.form) {
+          updateURL();
+      }
+  });
+</script>
+
+<style>
+  .table-responsive {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  #purchasesTable tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+  }
+
+  .badge {
+    font-size: 0.75em;
+  }
+
+  .card-body.p-2 {
+    padding: 0.5rem !important;
+  }
+
+  .btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+  }
+</style>

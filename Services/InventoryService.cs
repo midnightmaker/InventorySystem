@@ -51,9 +51,48 @@ namespace InventorySystem.Services
 
     public async Task<Item> UpdateItemAsync(Item item)
     {
-      _context.Items.Update(item);
-      await _context.SaveChangesAsync();
-      return item;
+      try
+      {
+        // Find the existing tracked entity
+        var existingItem = await _context.Items.FindAsync(item.Id);
+        if (existingItem == null)
+        {
+          throw new InvalidOperationException($"Item with ID {item.Id} not found");
+        }
+
+        // Update only the properties that should be modified
+        existingItem.PartNumber = item.PartNumber;
+        existingItem.Description = item.Description;
+        existingItem.Comments = item.Comments;
+        existingItem.MinimumStock = item.MinimumStock;
+        existingItem.UnitOfMeasure = item.UnitOfMeasure;
+        existingItem.VendorPartNumber = item.VendorPartNumber;
+        existingItem.PreferredVendor = item.PreferredVendor;
+        existingItem.IsSellable = item.IsSellable;
+        existingItem.ItemType = item.ItemType;
+        existingItem.Version = item.Version;
+
+        // Update image data if provided
+        if (item.ImageData != null && item.ImageData.Length > 0)
+        {
+          existingItem.ImageData = item.ImageData;
+          existingItem.ImageContentType = item.ImageContentType;
+          existingItem.ImageFileName = item.ImageFileName;
+        }
+
+        // Don't modify these fields
+        // existingItem.CreatedDate - preserve original
+        // existingItem.CurrentStock - only modified through purchases/adjustments
+        // existingItem.BaseItemId - preserve original
+        // existingItem.CreatedFromChangeOrderId - preserve original
+
+        await _context.SaveChangesAsync();
+        return existingItem;
+      }
+      catch (Exception ex)
+      {
+        throw new InvalidOperationException($"Error updating item: {ex.Message}", ex);
+      }
     }
 
     public async Task DeleteItemAsync(int id)

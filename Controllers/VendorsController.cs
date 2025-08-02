@@ -55,6 +55,43 @@ namespace InventorySystem.Controllers
       }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetVendorItemInfo(int vendorId, int itemId)
+    {
+      try
+      {
+        var vendorItem = await _vendorService.GetVendorItemAsync(vendorId, itemId);
+
+        if (vendorItem != null)
+        {
+          return Json(new
+          {
+            success = true,
+            vendorItem = new
+            {
+              unitCost = vendorItem.UnitCost.ToString("F2"),
+              leadTimeDays = vendorItem.LeadTimeDays,
+              minimumOrderQuantity = vendorItem.MinimumOrderQuantity,
+              isPrimary = vendorItem.IsPrimary,
+              vendorPartNumber = vendorItem.VendorPartNumber,
+              lastPurchaseDate = vendorItem.LastPurchaseDate?.ToString("MM/dd/yyyy"),
+              lastPurchaseCost = vendorItem.LastPurchaseCost?.ToString("F2"),
+              notes = vendorItem.Notes
+            }
+          });
+        }
+        else
+        {
+          return Json(new { success = false, message = "No vendor-item relationship found" });
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting vendor item info for VendorId: {VendorId}, ItemId: {ItemId}", vendorId, itemId);
+        return Json(new { success = false, error = ex.Message });
+      }
+    }
+
     // GET: Vendors/Details/5
     public async Task<IActionResult> Details(int id)
     {

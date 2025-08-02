@@ -1,10 +1,11 @@
 using InventorySystem.Data;
+using InventorySystem.Helpers;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
-using InventorySystem.Helpers;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -16,12 +17,15 @@ namespace InventorySystem.Controllers
     private readonly IPurchaseService _purchaseService;
     private readonly InventoryContext _context;
     private readonly IVersionControlService _versionService;
+    private readonly IVendorService _vendorService;
 
-    public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, InventoryContext context, IVersionControlService versionService)
+    public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, 
+      IVendorService vendorService, InventoryContext context, IVersionControlService versionService)
     {
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
       _versionService = versionService;
+      _vendorService = vendorService;
       _context = context;
 
     }
@@ -356,69 +360,223 @@ namespace InventorySystem.Controllers
       return View(viewModel);
     }
 
-
+    [HttpGet]
     public async Task<IActionResult> Edit(int id)
     {
-      var item = await _inventoryService.GetItemByIdAsync(id);
-      if (item == null) return NotFound();
+      try
+      {
+        Console.WriteLine($"=== ITEM EDIT GET DEBUG ===");
+        Console.WriteLine($"Loading item with ID: {id}");
 
-      // Pass UOM options to the view with current selection
-      ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
+        var item = await _inventoryService.GetItemByIdAsync(id);
+        if (item == null)
+        {
+          Console.WriteLine("Item not found");
+          TempData["ErrorMessage"] = "Item not found.";
+          return RedirectToAction("Index");
+        }
 
-      return View(item);
+        Console.WriteLine($"Item loaded: {item.PartNumber}");
+        Console.WriteLine($"Current preferred vendor: {item.PreferredVendor}");
+
+        // Load vendors for the preferred vendor dropdown
+        var vendors = await _vendorService.GetActiveVendorsAsync();
+        Console.WriteLine($"Loaded {vendors.Count()} active vendors");
+
+        // Find the current preferred vendor ID if a preferred vendor name exists
+        int? currentPreferredVendorId = null;
+        if (!string.IsNullOrEmpty(item.PreferredVendor))
+        {
+          var currentVendor = vendors.FirstOrDefault(v =>
+            v.CompanyName.Equals(item.PreferredVendor, StringComparison.OrdinalIgnoreCase));
+          currentPreferredVendorId = currentVendor?.Id;
+          Console.WriteLine($"Current preferred vendor ID: {currentPreferredVendorId}");
+        }
+
+        // Prepare dropdown data
+        var vendorSelectList = new List<SelectListItem>
+    {
+      new SelectListItem { Value = "", Text = "-- No Preferred Vendor --", Selected = !currentPreferredVendorId.HasValue }
+    };
+
+        vendorSelectList.AddRange(vendors.Select(v => new SelectListItem
+        {
+          Value = v.Id.ToString(),
+          Text = v.CompanyName,
+          Selected = v.Id == currentPreferredVendorId
+        }));
+
+        ViewBag.PreferredVendorId = vendorSelectList;
+        ViewBag.CurrentPreferredVendorId = currentPreferredVendorId;
+
+        // Pass UOM options to the view with current selection
+        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
+
+        Console.WriteLine("View data prepared successfully");
+        return View(item);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error in Edit GET: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        TempData["ErrorMessage"] = $"Error loading item for editing: {ex.Message}";
+        return RedirectToAction("Index");
+      }
     }
 
-    // UPDATE your existing Edit POST action to handle UnitOfMeasure
+    // Controllers/ItemsController.cs - Service layer approach (RECOMMENDED)
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, Item item, IFormFile? newImageFile)
+    public async Task<IActionResult> Edit(int id, Item item, IFormFile? newImageFile, int? preferredVendorId)
     {
-      if (id != item.Id) return NotFound();
+      Console.WriteLine($"=== ITEM EDIT POST DEBUG ===");
+      Console.WriteLine($"Item ID: {id}");
+      Console.WriteLine($"Received Item ID: {item.Id}");
+      Console.WriteLine($"Preferred Vendor ID: {preferredVendorId}");
+      Console.WriteLine($"Part Number: {item.PartNumber}");
+
+      if (id != item.Id)
+      {
+        Console.WriteLine("ID mismatch - returning NotFound");
+        return NotFound();
+      }
+
+      // Handle preferred vendor selection
+      try
+      {
+        if (preferredVendorId.HasValue && preferredVendorId.Value > 0)
+        {
+          var selectedVendor = await _vendorService.GetVendorByIdAsync(preferredVendorId.Value);
+          if (selectedVendor != null)
+          {
+            item.PreferredVendor = selectedVendor.CompanyName;
+            Console.WriteLine($"Set preferred vendor to: {item.PreferredVendor}");
+          }
+          else
+          {
+            Console.WriteLine($"Vendor with ID {preferredVendorId.Value} not found");
+            item.PreferredVendor = null;
+          }
+        }
+        else
+        {
+          Console.WriteLine("No preferred vendor selected - clearing field");
+          item.PreferredVendor = null;
+        }
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error handling preferred vendor: {ex.Message}");
+      }
+
+      // Remove validation for fields we don't want to validate
+      ModelState.Remove("ImageFile");
+      ModelState.Remove("newImageFile");
+      ModelState.Remove("preferredVendorId");
+      ModelState.Remove("UnitOfMeasureDisplayName");
+      ModelState.Remove("TotalValue");
+      ModelState.Remove("IsLowStock");
 
       if (ModelState.IsValid)
       {
         try
         {
-          // Handle new image upload
+          // Handle image upload if provided
           if (newImageFile != null && newImageFile.Length > 0)
           {
-            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp" };
+            Console.WriteLine($"Processing image upload: {newImageFile.FileName}");
+
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
             if (!allowedTypes.Contains(newImageFile.ContentType.ToLower()))
             {
-              ModelState.AddModelError("newImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
-              ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
-              return View(item);
+              Console.WriteLine($"Invalid file type: {newImageFile.ContentType}");
+              ModelState.AddModelError("newImageFile", "Please upload a valid image file (JPEG, PNG, GIF, WebP).");
             }
-
-            if (newImageFile.Length > 5 * 1024 * 1024) // 5MB limit
+            else if (newImageFile.Length > 5 * 1024 * 1024) // 5MB limit
             {
-              ModelState.AddModelError("newImageFile", "Image file size must be less than 5MB.");
-              ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
-              return View(item);
+              Console.WriteLine($"File too large: {newImageFile.Length} bytes");
+              ModelState.AddModelError("newImageFile", "Image file size cannot exceed 5MB.");
             }
-
-            using (var memoryStream = new MemoryStream())
+            else
             {
+              using var memoryStream = new MemoryStream();
               await newImageFile.CopyToAsync(memoryStream);
               item.ImageData = memoryStream.ToArray();
               item.ImageContentType = newImageFile.ContentType;
               item.ImageFileName = newImageFile.FileName;
+              Console.WriteLine("Image uploaded successfully");
             }
           }
 
-          await _inventoryService.UpdateItemAsync(item);
-          TempData["SuccessMessage"] = $"Item updated successfully! Unit: {UnitOfMeasureHelper.GetAbbreviation(item.UnitOfMeasure)}";
-          return RedirectToAction("Details", new { id = item.Id });
+          // Only proceed if no image validation errors
+          if (ModelState.IsValid)
+          {
+            Console.WriteLine("Calling UpdateItemAsync service method...");
+
+            // **USE SERVICE LAYER TO HANDLE EF TRACKING**
+            // The service layer should handle the tracking properly
+            await _inventoryService.UpdateItemAsync(item);
+
+            Console.WriteLine("Item updated successfully!");
+            TempData["SuccessMessage"] = $"Item '{item.PartNumber}' updated successfully!";
+            return RedirectToAction("Details", new { id = item.Id });
+          }
         }
         catch (Exception ex)
         {
+          Console.WriteLine($"Error updating item: {ex.Message}");
+          Console.WriteLine($"Stack trace: {ex.StackTrace}");
           ModelState.AddModelError("", $"Error updating item: {ex.Message}");
         }
       }
 
-      // Reload UOM options if validation fails
-      ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
+      // Log validation errors
+      if (!ModelState.IsValid)
+      {
+        Console.WriteLine("=== VALIDATION ERRORS ===");
+        foreach (var error in ModelState)
+        {
+          if (error.Value.Errors.Any())
+          {
+            Console.WriteLine($"{error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
+          }
+        }
+      }
+
+      // Reload dropdown data for return to view
+      await ReloadEditViewData(preferredVendorId, item.UnitOfMeasure);
       return View(item);
+    }
+
+    // Helper method to reload view data
+    private async Task ReloadEditViewData(int? preferredVendorId, UnitOfMeasure unitOfMeasure)
+    {
+      try
+      {
+        var vendors = await _vendorService.GetActiveVendorsAsync();
+        var vendorSelectList = new List<SelectListItem>
+    {
+      new SelectListItem { Value = "", Text = "-- No Preferred Vendor --", Selected = !preferredVendorId.HasValue }
+    };
+
+        vendorSelectList.AddRange(vendors.Select(v => new SelectListItem
+        {
+          Value = v.Id.ToString(),
+          Text = v.CompanyName,
+          Selected = v.Id == preferredVendorId
+        }));
+
+        ViewBag.PreferredVendorId = vendorSelectList;
+        ViewBag.CurrentPreferredVendorId = preferredVendorId;
+        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(unitOfMeasure);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error reloading view data: {ex.Message}");
+        ViewBag.PreferredVendorId = new List<SelectListItem>();
+        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(unitOfMeasure);
+      }
     }
 
     public async Task<IActionResult> Delete(int id)
