@@ -15,21 +15,24 @@ namespace InventorySystem.Services
     private readonly IPurchaseService _purchaseService;
     private readonly ILogger<ProductionService> _logger;
     IBackorderFulfillmentService _backorderService;
+    private readonly IVendorService _vendorService;
 
     public ProductionService(
-        InventoryContext context,
-        IInventoryService inventoryService,
-        IBomService bomService,
-        IBackorderFulfillmentService backorderService,
-        IPurchaseService purchaseService,
-        ILogger<ProductionService> logger)
+    InventoryContext context,
+    IInventoryService inventoryService,
+    IBomService bomService,
+    IBackorderFulfillmentService backorderService,
+    IPurchaseService purchaseService,
+    IVendorService vendorService, 
+    ILogger<ProductionService> logger)
     {
       _logger = logger;
       _context = context;
-      _backorderService = backorderService; 
+      _backorderService = backorderService;
       _inventoryService = inventoryService;
       _bomService = bomService;
       _purchaseService = purchaseService;
+      _vendorService = vendorService;
     }
 
     public async Task<IEnumerable<Production>> GetAllProductionsAsync()
@@ -616,12 +619,53 @@ namespace InventorySystem.Services
           var shortageQuantity = requiredQuantity - item.CurrentStock;
           var averageCost = await _inventoryService.GetAverageCostAsync(bomItem.ItemId);
 
-          // Get last purchase info - FIXED to include Vendor navigation property
-          var lastPurchase = await _context.Purchases
-              .Include(p => p.Vendor) // Include the Vendor navigation property
-              .Where(p => p.ItemId == bomItem.ItemId)
-              .OrderByDescending(p => p.PurchaseDate)
-              .FirstOrDefaultAsync();
+          // Get enhanced vendor selection info using the new priority logic
+          var vendorInfo = await _vendorService.GetVendorSelectionInfoForItemAsync(bomItem.ItemId);
+
+          // Determine preferred vendor and cost using priority system
+          string? preferredVendorName = null;
+          decimal estimatedCost = averageCost;
+          DateTime? lastPurchaseDate = null;
+          decimal? lastPurchasePrice = null;
+
+          if (vendorInfo.RecommendedVendor != null)
+          {
+            preferredVendorName = vendorInfo.RecommendedVendor.CompanyName;
+
+            // Use the recommended cost if available, otherwise fall back to average cost
+            if (vendorInfo.RecommendedCost.HasValue && vendorInfo.RecommendedCost.Value > 0)
+            {
+              estimatedCost = vendorInfo.RecommendedCost.Value;
+            }
+
+            // Set last purchase info if this is from last purchase vendor
+            if (vendorInfo.LastPurchaseVendor?.Id == vendorInfo.RecommendedVendor.Id)
+            {
+              lastPurchaseDate = vendorInfo.LastPurchaseDate;
+              lastPurchasePrice = vendorInfo.LastPurchaseCost;
+            }
+          }
+          else
+          {
+            // Fallback to original logic if no vendor found through new system
+            var lastPurchase = await _context.Purchases
+                .Include(p => p.Vendor)
+                .Where(p => p.ItemId == bomItem.ItemId)
+                .OrderByDescending(p => p.PurchaseDate)
+                .FirstOrDefaultAsync();
+
+            if (lastPurchase?.Vendor != null)
+            {
+              preferredVendorName = lastPurchase.Vendor.CompanyName;
+              lastPurchaseDate = lastPurchase.PurchaseDate;
+              lastPurchasePrice = lastPurchase.CostPerUnit;
+
+              if (averageCost <= 0)
+              {
+                estimatedCost = lastPurchase.CostPerUnit;
+              }
+            }
+          }
 
           // Calculate suggested purchase quantity (shortage + safety stock)
           var suggestedQuantity = Math.Max(shortageQuantity, item.MinimumStock - item.CurrentStock);
@@ -635,11 +679,11 @@ namespace InventorySystem.Services
             RequiredQuantity = requiredQuantity,
             AvailableQuantity = item.CurrentStock,
             ShortageQuantity = shortageQuantity,
-            EstimatedUnitCost = averageCost > 0 ? averageCost : (lastPurchase?.CostPerUnit ?? 0),
-            ShortageValue = shortageQuantity * (averageCost > 0 ? averageCost : (lastPurchase?.CostPerUnit ?? 0)),
-            PreferredVendor = lastPurchase?.Vendor?.CompanyName, // FIXED: Use CompanyName instead of Vendor object
-            LastPurchaseDate = lastPurchase?.PurchaseDate,
-            LastPurchasePrice = lastPurchase?.CostPerUnit,
+            EstimatedUnitCost = estimatedCost,
+            ShortageValue = shortageQuantity * estimatedCost,
+            PreferredVendor = preferredVendorName,
+            LastPurchaseDate = lastPurchaseDate,
+            LastPurchasePrice = lastPurchasePrice,
             MinimumStock = item.MinimumStock,
             SuggestedPurchaseQuantity = suggestedQuantity,
             BomContext = context,
@@ -650,7 +694,7 @@ namespace InventorySystem.Services
           var existingShortage = shortages.FirstOrDefault(s => s.ItemId == bomItem.ItemId);
           if (existingShortage != null)
           {
-            // Aggregate the shortage
+            // Aggregate the shortage but preserve the vendor info from the first occurrence
             existingShortage.RequiredQuantity += requiredQuantity;
             existingShortage.ShortageQuantity = Math.Max(0, existingShortage.RequiredQuantity - existingShortage.AvailableQuantity);
             existingShortage.ShortageValue = existingShortage.ShortageQuantity * existingShortage.EstimatedUnitCost;

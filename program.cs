@@ -63,6 +63,8 @@ builder.Services.AddScoped<BomImportService>();
 builder.Services.AddScoped<ISalesService, SalesService>();
 // Register the new Vendor service
 builder.Services.AddScoped<IVendorService, VendorService>();
+builder.Services.AddScoped<IProductionService, ProductionService>();
+
 
 // Configure file upload limits
 builder.Services.Configure<FormOptions>(options =>

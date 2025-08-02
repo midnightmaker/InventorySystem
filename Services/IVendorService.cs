@@ -39,5 +39,23 @@ namespace InventorySystem.Services
     Task UpdateVendorItemLastPurchaseAsync(int vendorId, int itemId, decimal cost, DateTime purchaseDate);
     Task<decimal> GetVendorTotalPurchasesAsync(int vendorId);
     Task<IEnumerable<Purchase>> GetVendorPurchaseHistoryAsync(int vendorId);
+
+    /// <summary>
+    /// Gets the preferred vendor for an item based on priority:
+    /// 1. Primary vendor from VendorItem relationship
+    /// 2. Item's PreferredVendor property
+    /// 3. Last purchase vendor
+    /// </summary>
+    Task<Vendor?> GetPreferredVendorForItemAsync(int itemId);
+
+    /// <summary>
+    /// Gets the primary vendor from VendorItem relationships
+    /// </summary>
+    Task<Vendor?> GetPrimaryVendorForItemAsync(int itemId);
+
+    /// <summary>
+    /// Gets vendor selection info for bulk purchase with priority logic
+    /// </summary>
+    Task<VendorSelectionInfo> GetVendorSelectionInfoForItemAsync(int itemId);
   }
 }

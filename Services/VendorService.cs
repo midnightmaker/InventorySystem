@@ -334,5 +334,122 @@ namespace InventorySystem.Services
         .OrderByDescending(p => p.PurchaseDate)
         .ToListAsync();
     }
+    public async Task<Vendor?> GetPrimaryVendorForItemAsync(int itemId)
+    {
+      var primaryVendorItem = await _context.VendorItems
+        .Include(vi => vi.Vendor)
+        .Where(vi => vi.ItemId == itemId && vi.IsPrimary && vi.IsActive && vi.Vendor.IsActive)
+        .FirstOrDefaultAsync();
+
+      return primaryVendorItem?.Vendor;
+    }
+
+    public async Task<Vendor?> GetPreferredVendorForItemAsync(int itemId)
+    {
+      // 1. First priority: Primary vendor from VendorItem relationship
+      var primaryVendor = await GetPrimaryVendorForItemAsync(itemId);
+      if (primaryVendor != null)
+      {
+        return primaryVendor;
+      }
+
+      // 2. Second priority: Item's PreferredVendor property
+      var item = await _context.Items.FindAsync(itemId);
+      if (!string.IsNullOrWhiteSpace(item?.PreferredVendor))
+      {
+        var preferredVendor = await GetVendorByNameAsync(item.PreferredVendor);
+        if (preferredVendor?.IsActive == true)
+        {
+          return preferredVendor;
+        }
+      }
+
+      // 3. Third priority: Last purchase vendor
+      var lastPurchase = await _context.Purchases
+        .Include(p => p.Vendor)
+        .Where(p => p.ItemId == itemId)
+        .OrderByDescending(p => p.PurchaseDate)
+        .ThenByDescending(p => p.CreatedDate)
+        .FirstOrDefaultAsync();
+
+      if (lastPurchase?.Vendor?.IsActive == true)
+      {
+        return lastPurchase.Vendor;
+      }
+
+      return null;
+    }
+
+    public async Task<VendorSelectionInfo> GetVendorSelectionInfoForItemAsync(int itemId)
+    {
+      var info = new VendorSelectionInfo
+      {
+        ItemId = itemId
+      };
+
+      // Get primary vendor from VendorItem relationship
+      var primaryVendorItem = await _context.VendorItems
+        .Include(vi => vi.Vendor)
+        .Where(vi => vi.ItemId == itemId && vi.IsPrimary && vi.IsActive && vi.Vendor.IsActive)
+        .FirstOrDefaultAsync();
+
+      if (primaryVendorItem != null)
+      {
+        info.PrimaryVendor = primaryVendorItem.Vendor;
+        info.PrimaryVendorCost = primaryVendorItem.UnitCost;
+      }
+
+      // Get item's preferred vendor property
+      var item = await _context.Items.FindAsync(itemId);
+      if (!string.IsNullOrWhiteSpace(item?.PreferredVendor))
+      {
+        var preferredVendor = await GetVendorByNameAsync(item.PreferredVendor);
+        if (preferredVendor?.IsActive == true)
+        {
+          info.ItemPreferredVendor = preferredVendor;
+          info.ItemPreferredVendorName = item.PreferredVendor;
+        }
+      }
+
+      // Get last purchase vendor
+      var lastPurchase = await _context.Purchases
+        .Include(p => p.Vendor)
+        .Where(p => p.ItemId == itemId)
+        .OrderByDescending(p => p.PurchaseDate)
+        .ThenByDescending(p => p.CreatedDate)
+        .FirstOrDefaultAsync();
+
+      if (lastPurchase != null)
+      {
+        info.LastPurchaseVendor = lastPurchase.Vendor;
+        info.LastPurchaseDate = lastPurchase.PurchaseDate;
+        info.LastPurchaseCost = lastPurchase.CostPerUnit;
+      }
+
+      // Determine the recommended vendor based on priority
+      info.RecommendedVendor = info.PrimaryVendor ?? info.ItemPreferredVendor ?? info.LastPurchaseVendor;
+      info.RecommendedCost = info.PrimaryVendorCost ?? info.LastPurchaseCost ?? 0;
+
+      // Set selection reason
+      if (info.PrimaryVendor != null)
+      {
+        info.SelectionReason = "Primary vendor (VendorItem relationship)";
+      }
+      else if (info.ItemPreferredVendor != null)
+      {
+        info.SelectionReason = "Item's preferred vendor";
+      }
+      else if (info.LastPurchaseVendor != null)
+      {
+        info.SelectionReason = "Last purchase vendor";
+      }
+      else
+      {
+        info.SelectionReason = "No preferred vendor found";
+      }
+
+      return info;
+    }
   }
+
 }

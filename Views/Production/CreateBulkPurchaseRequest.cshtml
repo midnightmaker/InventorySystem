@@ -1,340 +1,816 @@
 ﻿@model InventorySystem.ViewModels.BulkPurchaseRequest
 @{
-    ViewData["Title"] = "Bulk Purchase Request";
-    var shortageAnalysis = ViewBag.ShortageAnalysis as InventorySystem.ViewModels.MaterialShortageViewModel;
+  ViewData["Title"] = "Bulk Purchase Request";
+  var shortageAnalysis = ViewBag.ShortageAnalysis as InventorySystem.ViewModels.MaterialShortageViewModel;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-shopping-cart"></i> Bulk Purchase Request</h1>
-    <div class="btn-group">
-        <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.Quantity" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left"></i> Back to Shortage Report
-        </a>
-        <a href="/Purchases" class="btn btn-outline-info">
-            <i class="fas fa-list"></i> All Purchases
-        </a>
-    </div>
+  <h1><i class="fas fa-shopping-cart"></i> Bulk Purchase Request</h1>
+  <div class="btn-group">
+    <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.Quantity" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Shortage Report
+    </a>
+    <a href="/Purchases" class="btn btn-outline-info">
+      <i class="fas fa-list"></i> All Purchases
+    </a>
+  </div>
 </div>
 
 @if (TempData["ErrorMessage"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show">
-        @TempData["ErrorMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
 }
 
 <form asp-action="CreateBulkPurchaseRequest" method="post">
-    <input asp-for="BomId" type="hidden" />
-    <input asp-for="Quantity" type="hidden" />
-    
-    <div class="row">
-        <div class="col-md-8">
-            <!-- Purchase Settings -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5><i class="fas fa-cogs"></i> Purchase Settings</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label asp-for="PurchaseOrderNumber" class="form-label">Purchase Order Number</label>
-                                <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="Auto-generated if empty" />
-                                <span asp-validation-for="PurchaseOrderNumber" class="text-danger"></span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label asp-for="ExpectedDeliveryDate" class="form-label">Expected Delivery Date</label>
-                                <input asp-for="ExpectedDeliveryDate" type="date" class="form-control" />
-                                <span asp-validation-for="ExpectedDeliveryDate" class="text-danger"></span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-check mb-3">
-                                <input asp-for="IncludeSafetyStock" class="form-check-input" type="checkbox" />
-                                <label asp-for="IncludeSafetyStock" class="form-check-label">
-                                    Include Safety Stock
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label asp-for="SafetyStockMultiplier" class="form-label">Safety Stock Multiplier</label>
-                                <input asp-for="SafetyStockMultiplier" class="form-control" step="0.1" min="1.0" max="5.0" />
-                                <span asp-validation-for="SafetyStockMultiplier" class="text-danger"></span>
-                                <div class="form-text">1.0 = exact shortage, 1.2 = 20% extra safety stock</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label asp-for="Notes" class="form-label">Notes</label>
-                        <textarea asp-for="Notes" class="form-control" rows="2" placeholder="Additional notes for all purchase orders"></textarea>
-                        <span asp-validation-for="Notes" class="text-danger"></span>
-                    </div>
-                </div>
-            </div>
+  <input asp-for="BomId" type="hidden" />
+  <input asp-for="Quantity" type="hidden" />
 
-            <!-- Items to Purchase -->
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5><i class="fas fa-list"></i> Items to Purchase (@Model.ItemsToPurchase.Count)</h5>
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-outline-success" onclick="selectAllItems()">
-                            <i class="fas fa-check-square"></i> Select All
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="deselectAllItems()">
-                            <i class="fas fa-square"></i> Deselect All
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th width="50">Select</th>
-                                    <th>Part Number</th>
-                                    <th>Description</th>
-                                    <th>Shortage</th>
-                                    <th>Suggested Qty</th>
-                                    <th>Est. Unit Cost</th>
-                                    <th>Total Cost</th>
-                                    <th>Vendor</th>
-                                    <th>Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (int i = 0; i < Model.ItemsToPurchase.Count; i++)
-                                {
-                                    var item = Model.ItemsToPurchase[i];
-                                    var shortage = shortageAnalysis?.MaterialShortages.FirstOrDefault(s => s.ItemId == item.ItemId);
-                                    
-                                    <tr>
-                                        <td>
-                                            <input asp-for="ItemsToPurchase[i].ItemId" type="hidden" />
-                                            <div class="form-check">
-                                                <input asp-for="ItemsToPurchase[i].Selected" class="form-check-input item-checkbox" type="checkbox" />
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <strong>@shortage?.PartNumber</strong>
-                                            @if (shortage?.IsCriticalShortage == true)
-                                            {
-                                                <span class="badge bg-danger">CRITICAL</span>
-                                            }
-                                        </td>
-                                        <td>@shortage?.Description</td>
-                                        <td>
-                                            <span class="badge bg-danger">@shortage?.ShortageQuantity</span>
-                                        </td>
-                                        <td>
-                                            <input asp-for="ItemsToPurchase[i].QuantityToPurchase" class="form-control form-control-sm quantity-input" 
-                                                   type="number" min="1" style="width: 80px;" data-index="@i" />
-                                        </td>
-                                        <td>
-                                            <div class="input-group input-group-sm" style="width: 100px;">
-                                                <span class="input-group-text">$</span>
-                                                <input asp-for="ItemsToPurchase[i].EstimatedUnitCost" class="form-control unit-cost-input" 
-                                                       type="number" step="0.01" min="0" data-index="@i" />
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <strong id="totalCost-@i">@((item.QuantityToPurchase * item.EstimatedUnitCost).ToString("C"))</strong>
-                                        </td>
-                                        <td>
-                                            <input asp-for="ItemsToPurchase[i].PreferredVendor" class="form-control form-control-sm" 
-                                                   style="width: 120px;" placeholder="Vendor" />
-                                        </td>
-                                        <td>
-                                            <input asp-for="ItemsToPurchase[i].Notes" class="form-control form-control-sm" 
-                                                   style="width: 100px;" placeholder="Notes" />
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                            <tfoot class="table-dark">
-                                <tr>
-                                    <th colspan="6">Total Selected Cost:</th>
-                                    <th id="grandTotal">$0.00</th>
-                                    <th colspan="2"></th>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
+  <div class="row">
+    <div class="col-md-8">
+      <!-- Purchase Settings -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-cogs"></i> Purchase Settings</h5>
         </div>
-
-        <div class="col-md-4">
-            <!-- BOM Summary -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5><i class="fas fa-info-circle"></i> BOM Summary</h5>
-                </div>
-                <div class="card-body">
-                    <dl class="row">
-                        <dt class="col-sm-5">BOM:</dt>
-                        <dd class="col-sm-7">@shortageAnalysis?.BomName</dd>
-                        
-                        <dt class="col-sm-5">Quantity:</dt>
-                        <dd class="col-sm-7">
-                            <span class="badge bg-primary">@Model.Quantity units</span>
-                        </dd>
-                        
-                        <dt class="col-sm-5">Total Shortages:</dt>
-                        <dd class="col-sm-7">
-                            <span class="badge bg-danger">@shortageAnalysis?.TotalShortageItems items</span>
-                        </dd>
-                        
-                        <dt class="col-sm-5">Shortage Value:</dt>
-                        <dd class="col-sm-7">@shortageAnalysis?.ShortageValue.ToString("C")</dd>
-                    </dl>
-                </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="PurchaseOrderNumber" class="form-label">Purchase Order Number</label>
+                <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="Auto-generated if empty" />
+                <span asp-validation-for="PurchaseOrderNumber" class="text-danger"></span>
+              </div>
             </div>
-
-            <!-- Purchase Summary -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5><i class="fas fa-calculator"></i> Purchase Summary</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <h4 id="selectedCount">@Model.ItemsToPurchase.Count(i => i.Selected)</h4>
-                            <small class="text-muted">Selected Items</small>
-                        </div>
-                        <div class="col-6">
-                            <h4 id="selectedTotal">@Model.ItemsToPurchase.Where(i => i.Selected).Sum(i => i.QuantityToPurchase * i.EstimatedUnitCost).ToString("C")</h4>
-                            <small class="text-muted">Total Cost</small>
-                        </div>
-                    </div>
-                </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="ExpectedDeliveryDate" class="form-label">Expected Delivery Date</label>
+                <input asp-for="ExpectedDeliveryDate" type="date" class="form-control" />
+                <span asp-validation-for="ExpectedDeliveryDate" class="text-danger"></span>
+              </div>
             </div>
+          </div>
 
-            <!-- Actions -->
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-save"></i> Actions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-success" id="createPurchasesBtn">
-                            <i class="fas fa-shopping-cart"></i> Create Purchase Orders
-                        </button>
-                        <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.Quantity" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </a>
-                    </div>
-                    
-                    <hr>
-                    
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Note:</strong> This will create separate purchase orders for each selected item. 
-                        You can modify quantities and vendors before creating.
-                    </div>
-                </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input asp-for="IncludeSafetyStock" class="form-check-input" type="checkbox" />
+                <label asp-for="IncludeSafetyStock" class="form-check-label">
+                  Include Safety Stock
+                </label>
+              </div>
             </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="SafetyStockMultiplier" class="form-label">Safety Stock Multiplier</label>
+                <input asp-for="SafetyStockMultiplier" type="number" step="0.1" min="1.0" max="5.0" class="form-control" />
+                <span asp-validation-for="SafetyStockMultiplier" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Notes" class="form-label">Notes</label>
+            <textarea asp-for="Notes" class="form-control" rows="2" placeholder="Additional notes for all purchase orders"></textarea>
+            <span asp-validation-for="Notes" class="text-danger"></span>
+          </div>
         </div>
+      </div>
+
+      <!-- Items to Purchase -->
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-list"></i> Items to Purchase (@Model.ItemsToPurchase.Count)</h5>
+          <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="selectAllItems(true)">
+              <i class="fas fa-check-square"></i> Select All
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-warning" onclick="selectAllItems(false)">
+              <i class="fas fa-square"></i> Deselect All
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <!-- Bulk Vendor Actions -->
+          <div class="mb-3 border-bottom pb-3">
+            <h6><i class="fas fa-magic"></i> Bulk Vendor Actions</h6>
+            <div class="btn-group" role="group">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="useLastVendorsBtn">
+                <i class="fas fa-history"></i> Use Last Vendors for All
+              </button>
+              <button type="button" class="btn btn-outline-success btn-sm" id="usePreferredVendorsBtn">
+                <i class="fas fa-star"></i> Use Preferred Vendors for All
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="clearVendorsBtn">
+                <i class="fas fa-eraser"></i> Clear All Vendors
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead class="table-dark">
+                <tr>
+                  <th width="50">
+                    <input type="checkbox" id="selectAllCheckbox" checked title="Select/Deselect All" />
+                  </th>
+                  <th>Part Number</th>
+                  <th>Description</th>
+                  <th>Shortage</th>
+                  <th>Qty to Purchase</th>
+                  <th>Unit Cost</th>
+                  <th>Total Cost</th>
+                  <th width="250">Vendor</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (int i = 0; i < Model.ItemsToPurchase.Count; i++)
+                {
+                  var item = Model.ItemsToPurchase[i];
+                  var shortage = shortageAnalysis?.MaterialShortages.FirstOrDefault(s => s.ItemId == item.ItemId);
+
+                  <tr data-item-id="@item.ItemId" data-row-index="@i">
+                    <td>
+                      <input asp-for="ItemsToPurchase[i].ItemId" type="hidden" />
+                      <input asp-for="ItemsToPurchase[i].LastVendorId" type="hidden" />
+                      <input asp-for="ItemsToPurchase[i].LastVendorName" type="hidden" />
+                      <input asp-for="ItemsToPurchase[i].PreferredVendor" type="hidden" />
+                      <div class="form-check">
+                        <input asp-for="ItemsToPurchase[i].Selected" class="form-check-input item-checkbox" type="checkbox" />
+                      </div>
+                    </td>
+                    <td>
+                      <strong>@shortage?.PartNumber</strong>
+                      @if (shortage?.IsCriticalShortage == true)
+                      {
+                        <span class="badge bg-danger">CRITICAL</span>
+                      }
+                    </td>
+                    <td>
+                      <span title="@shortage?.Description">
+                        @(shortage?.Description?.Length > 50 ? shortage.Description.Substring(0, 50) + "..." : shortage?.Description)
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge bg-danger">@shortage?.ShortageQuantity</span>
+                    </td>
+                    <td>
+                      <input asp-for="ItemsToPurchase[i].QuantityToPurchase"
+                             class="form-control form-control-sm quantity-input"
+                             type="number"
+                             min="1"
+                             data-index="@i"
+                             style="width: 80px;" />
+                    </td>
+                    <td>
+                      <input asp-for="ItemsToPurchase[i].EstimatedUnitCost"
+                             class="form-control form-control-sm unit-cost-input"
+                             type="number"
+                             step="0.01"
+                             min="0"
+                             data-index="@i"
+                             style="width: 90px;" />
+                    </td>
+                    <td>
+                      <span class="total-cost fw-bold" id="totalCost-@i">
+                        @((item.QuantityToPurchase * item.EstimatedUnitCost).ToString("C"))
+                      </span>
+                    </td>
+                    <td>
+                      <!-- Enhanced vendor selection section for the bulk purchase view -->
+                      <!-- Replace the vendor selection <td> section in your CreateBulkPurchaseRequest.cshtml -->
+
+                    <td>
+                      <!-- Vendor Selection Section with Priority Information -->
+                      <div class="vendor-selection">
+                        <input asp-for="ItemsToPurchase[i].PrimaryVendorId" type="hidden" />
+                        <input asp-for="ItemsToPurchase[i].PrimaryVendorName" type="hidden" />
+                        <input asp-for="ItemsToPurchase[i].ItemPreferredVendorName" type="hidden" />
+                        <input asp-for="ItemsToPurchase[i].SelectionReason" type="hidden" />
+
+                        <select asp-for="ItemsToPurchase[i].VendorId"
+                                class="form-select form-select-sm vendor-dropdown mb-1"
+                                data-item-id="@item.ItemId"
+                                data-row-index="@i">
+                          <option value="">-- Select Vendor --</option>
+                          @if (ViewBag.Vendors != null)
+                          {
+                            @foreach (var vendor in (IEnumerable<InventorySystem.Models.Vendor>)ViewBag.Vendors)
+                            {
+                              var isSelected = vendor.Id == item.VendorId;
+                              var displayText = vendor.CompanyName;
+                              var optionClass = "";
+
+                              // Add priority indicators and styling
+                              if (vendor.Id == item.PrimaryVendorId)
+                              {
+                                displayText += " ⭐ (Primary)";
+                                optionClass = "primary-vendor";
+                              }
+                              else if (vendor.CompanyName == item.ItemPreferredVendorName)
+                              {
+                                displayText += " ✓ (Preferred)";
+                                optionClass = "preferred-vendor";
+                              }
+                              else if (vendor.Id == item.LastVendorId)
+                              {
+                                displayText += " 🕒 (Last Used)";
+                                optionClass = "last-vendor";
+                              }
+
+                              <option value="@vendor.Id" selected="@isSelected" class="@optionClass">@displayText</option>
+                            }
+                          }
+                        </select>
+
+                        <!-- Vendor Priority Information Display -->
+                        <div class="vendor-priority-info mb-1">
+                          @if (item.HasPrimaryVendor)
+                          {
+                            <small class="text-success">
+                              <i class="fas fa-star"></i> Primary: @item.PrimaryVendorName
+                            </small>
+                          }
+                          else if (item.HasItemPreferredVendor)
+                          {
+                            <small class="text-info">
+                              <i class="fas fa-check"></i> Preferred: @item.ItemPreferredVendorName
+                            </small>
+                          }
+                          else if (item.HasLastVendor)
+                          {
+                            <small class="text-warning">
+                              <i class="fas fa-history"></i> Last: @item.LastVendorName
+                            </small>
+                          }
+                          else
+                          {
+                            <small class="text-muted">
+                              <i class="fas fa-question-circle"></i> No vendor history
+                            </small>
+                          }
+                        </div>
+
+                        <!-- Selection Reason (for debugging/transparency) -->
+                        @if (!string.IsNullOrEmpty(item.SelectionReason))
+                        {
+                          <div class="selection-reason">
+                            <small class="text-muted fst-italic">
+                              Auto-selected: @item.SelectionReason
+                            </small>
+                          </div>
+                        }
+
+                        <!-- Quick action buttons for vendor selection -->
+                        <div class="btn-group mt-1" style="font-size: 0.7rem;">
+                          @if (item.PrimaryVendorId.HasValue)
+                          {
+                            <button type="button"
+                                    class="btn btn-outline-success btn-sm use-primary-vendor-btn"
+                                    data-vendor-id="@item.PrimaryVendorId"
+                                    data-row-index="@i"
+                                    title="Use Primary Vendor: @item.PrimaryVendorName">
+                              <i class="fas fa-star"></i>
+                            </button>
+                          }
+                          @if (!string.IsNullOrEmpty(item.ItemPreferredVendorName) && item.ItemPreferredVendorName != item.PrimaryVendorName)
+                          {
+                            var itemPreferredVendor = ViewBag.Vendors != null ?
+                            ((IEnumerable<InventorySystem.Models.Vendor>)ViewBag.Vendors)
+                            .FirstOrDefault(v => v.CompanyName.Equals(item.ItemPreferredVendorName, StringComparison.OrdinalIgnoreCase)) : null;
+                            if (itemPreferredVendor != null)
+                            {
+                              <button type="button"
+                                      class="btn btn-outline-info btn-sm use-item-preferred-vendor-btn"
+                                      data-vendor-id="@itemPreferredVendor.Id"
+                                      data-row-index="@i"
+                                      title="Use Item Preferred Vendor: @item.ItemPreferredVendorName">
+                                <i class="fas fa-check"></i>
+                              </button>
+                            }
+                          }
+                          @if (item.LastVendorId.HasValue && item.LastVendorId != item.PrimaryVendorId)
+                          {
+                            <button type="button"
+                                    class="btn btn-outline-warning btn-sm use-last-vendor-btn"
+                                    data-vendor-id="@item.LastVendorId"
+                                    data-row-index="@i"
+                                    title="Use Last Vendor: @item.LastVendorName">
+                              <i class="fas fa-history"></i>
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- Enhanced JavaScript for vendor selection -->
+                    <script>
+                      $(document).ready(function() {
+                          // Enhanced vendor quick-select buttons
+                          $('.use-primary-vendor-btn').click(function() {
+                              var vendorId = $(this).data('vendor-id');
+                              var rowIndex = $(this).data('row-index');
+                              var row = $(this).closest('tr');
+
+                              $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
+                              updateRowStyling(rowIndex);
+                              updateValidationStatus();
+
+                              // Visual feedback
+                              showVendorSelectionFeedback($(this), 'Primary vendor selected', 'success');
+                          });
+
+                          $('.use-item-preferred-vendor-btn').click(function() {
+                              var vendorId = $(this).data('vendor-id');
+                              var rowIndex = $(this).data('row-index');
+
+                              $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
+                              updateRowStyling(rowIndex);
+                              updateValidationStatus();
+
+                              // Visual feedback
+                              showVendorSelectionFeedback($(this), 'Preferred vendor selected', 'info');
+                          });
+
+                          $('.use-last-vendor-btn').click(function() {
+                              var vendorId = $(this).data('vendor-id');
+                              var rowIndex = $(this).data('row-index');
+
+                              $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
+                              updateRowStyling(rowIndex);
+                              updateValidationStatus();
+
+                              // Visual feedback
+                              showVendorSelectionFeedback($(this), 'Last vendor selected', 'warning');
+                          });
+
+                          // Enhanced bulk vendor selection actions
+                          $('#usePrimaryVendorsBtn').click(function() {
+                              var count = 0;
+                              $('.use-primary-vendor-btn').each(function() {
+                                  $(this).click();
+                                  count++;
+                              });
+                              if (count > 0) {
+                                  showBulkActionFeedback(`Applied primary vendors to ${count} items`, 'success');
+                              } else {
+                                  showBulkActionFeedback('No primary vendors found', 'warning');
+                              }
+                          });
+
+                          $('#usePreferredVendorsBtn').click(function() {
+                              var count = 0;
+                              $('.use-primary-vendor-btn, .use-item-preferred-vendor-btn').each(function() {
+                                  $(this).click();
+                                  count++;
+                              });
+                              if (count > 0) {
+                                  showBulkActionFeedback(`Applied preferred vendors to ${count} items`, 'success');
+                              } else {
+                                  showBulkActionFeedback('No preferred vendors found', 'warning');
+                              }
+                          });
+
+                          $('#useLastVendorsBtn').click(function() {
+                              var count = 0;
+                              $('.use-last-vendor-btn').each(function() {
+                                  $(this).click();
+                                  count++;
+                              });
+                              if (count > 0) {
+                                  showBulkActionFeedback(`Applied last vendors to ${count} items`, 'success');
+                              } else {
+                                  showBulkActionFeedback('No last vendors found', 'warning');
+                              }
+                          });
+
+                          function showVendorSelectionFeedback(button, message, type) {
+                              var originalHtml = button.html();
+                              var icon = type === 'success' ? 'fa-check' : (type === 'info' ? 'fa-info' : 'fa-clock');
+
+                              button.html(`<i class="fas ${icon}"></i>`);
+                              button.removeClass('btn-outline-success btn-outline-info btn-outline-warning')
+                                    .addClass(`btn-${type}`);
+
+                              setTimeout(function() {
+                                  button.html(originalHtml);
+                                  button.removeClass(`btn-${type}`)
+                                        .addClass(button.hasClass('use-primary-vendor-btn') ? 'btn-outline-success' :
+                                                 button.hasClass('use-item-preferred-vendor-btn') ? 'btn-outline-info' : 'btn-outline-warning');
+                              }, 1000);
+                          }
+
+                          function showBulkActionFeedback(message, type) {
+                              // You can implement a toast notification or temporary alert here
+                              var alertClass = type === 'success' ? 'alert-success' : 'alert-warning';
+                              var alert = $(`<div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;">
+                                  ${message}
+                                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                              </div>`);
+
+                              $('body').append(alert);
+
+                              setTimeout(function() {
+                                  alert.alert('close');
+                              }, 3000);
+                          }
+                      });
+                    </script>
+
+                    <!-- Enhanced CSS for vendor priority styling -->
+                    <style>
+                      .vendor-dropdown option.primary-vendor {
+                        background-color: #d4edda;
+                        font-weight: bold;
+                      }
+
+                      .vendor-dropdown option.preferred-vendor {
+                        background-color: #d1ecf1;
+                      }
+
+                      .vendor-dropdown option.last-vendor {
+                        background-color: #fff3cd;
+                      }
+
+                      .vendor-priority-info {
+                        font-size: 0.75rem;
+                        min-height: 1rem;
+                      }
+
+                      .selection-reason {
+                        font-size: 0.7rem;
+                        max-width: 200px;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                      }
+
+                      .vendor-selection .btn-group .btn {
+                        padding: 0.1rem 0.2rem;
+                        font-size: 0.6rem;
+                      }
+                    </style>
+                    <td>
+                      <input asp-for="ItemsToPurchase[i].Notes"
+                             class="form-control form-control-sm"
+                             placeholder="Notes..."
+                             style="width: 120px;" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- Right Sidebar -->
+    <div class="col-md-4">
+      <!-- BOM Summary -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> BOM Summary</h5>
+        </div>
+        <div class="card-body">
+          @if (shortageAnalysis != null)
+          {
+            <p><strong>BOM:</strong> @shortageAnalysis.BomName</p>
+            <p><strong>Description:</strong> @shortageAnalysis.BomDescription</p>
+            <p><strong>Quantity:</strong> @shortageAnalysis.RequestedQuantity</p>
+            <hr>
+            <p><strong>Total Items:</strong> @shortageAnalysis.MaterialShortages.Count()</p>
+            <p>
+              <strong>Critical Items:</strong>
+              <span class="badge bg-danger">@shortageAnalysis.MaterialShortages.Count(s => s.IsCriticalShortage)</span>
+            </p>
+          }
+        </div>
+      </div>
+
+      <!-- Purchase Summary -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-calculator"></i> Purchase Summary</h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-6">
+              <h4 id="selectedCount">@Model.ItemsToPurchase.Count(i => i.Selected)</h4>
+              <small class="text-muted">Selected Items</small>
+            </div>
+            <div class="col-6">
+              <h4 id="selectedTotal">@Model.ItemsToPurchase.Where(i => i.Selected).Sum(i => i.QuantityToPurchase * i.EstimatedUnitCost).ToString("C")</h4>
+              <small class="text-muted">Total Cost</small>
+            </div>
+          </div>
+          <hr>
+          <div class="text-center">
+            <h5 id="grandTotal">@Model.ItemsToPurchase.Where(i => i.Selected).Sum(i => i.QuantityToPurchase * i.EstimatedUnitCost).ToString("C")</h5>
+            <small class="text-muted">Grand Total</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Validation Status -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-check-circle"></i> Validation Status</h5>
+        </div>
+        <div class="card-body">
+          <div id="validationStatus">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span>Items Selected:</span>
+              <span id="itemsSelectedStatus" class="badge bg-success">✓</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span>Vendors Selected:</span>
+              <span id="vendorsSelectedStatus" class="badge bg-warning">⚠</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span>Ready to Submit:</span>
+              <span id="readyToSubmitStatus" class="badge bg-warning">⚠</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-save"></i> Actions</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success" id="createPurchasesBtn">
+              <i class="fas fa-shopping-cart"></i> Create Purchase Orders
+            </button>
+            <a href="/Production/MaterialShortageReport?bomId=@Model.BomId&quantity=@Model.Quantity" class="btn btn-outline-secondary">
+              <i class="fas fa-times"></i> Cancel
+            </a>
+          </div>
+
+          <hr>
+
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> This will create separate purchase orders for each selected item.
+            You can modify quantities, costs, and vendors before creating.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </form>
 
 @section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            updateTotals();
-            
-            // Add event listeners for quantity and cost changes
-            document.querySelectorAll('.quantity-input, .unit-cost-input').forEach(input => {
-                input.addEventListener('input', function() {
-                    const index = this.getAttribute('data-index');
-                    updateRowTotal(index);
-                    updateTotals();
-                });
-            });
-            
-            // Add event listeners for checkbox changes
-            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', updateTotals);
+  <script>
+    $(document).ready(function() {
+        // Initialize
+        updateTotals();
+        updateValidationStatus();
+
+        // Individual vendor quick-select buttons
+        $('.use-last-vendor-btn').click(function() {
+            var vendorId = $(this).data('vendor-id');
+            var rowIndex = $(this).data('row-index');
+            $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
+            updateRowStyling(rowIndex);
+            updateValidationStatus();
+        });
+
+        $('.use-preferred-vendor-btn').click(function() {
+            var vendorId = $(this).data('vendor-id');
+            var rowIndex = $(this).data('row-index');
+            $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
+            updateRowStyling(rowIndex);
+            updateValidationStatus();
+        });
+
+        // Bulk vendor selection actions
+        $('#useLastVendorsBtn').click(function() {
+            $('.use-last-vendor-btn').each(function() {
+                $(this).click();
             });
         });
 
-        function updateRowTotal(index) {
-            const quantity = parseFloat(document.querySelector(`input[name="ItemsToPurchase[${index}].QuantityToPurchase"]`).value) || 0;
-            const unitCost = parseFloat(document.querySelector(`input[name="ItemsToPurchase[${index}].EstimatedUnitCost"]`).value) || 0;
-            const total = quantity * unitCost;
-            
-            document.getElementById(`totalCost-${index}`).textContent = '$' + total.toFixed(2);
-        }
+        $('#usePreferredVendorsBtn').click(function() {
+            $('.use-preferred-vendor-btn').each(function() {
+                $(this).click();
+            });
+        });
 
-        function updateTotals() {
-            let selectedCount = 0;
-            let selectedTotal = 0;
-            
-            document.querySelectorAll('.item-checkbox').forEach((checkbox, index) => {
-                if (checkbox.checked) {
-                    selectedCount++;
-                    const quantity = parseFloat(document.querySelector(`input[name="ItemsToPurchase[${index}].QuantityToPurchase"]`).value) || 0;
-                    const unitCost = parseFloat(document.querySelector(`input[name="ItemsToPurchase[${index}].EstimatedUnitCost"]`).value) || 0;
-                    selectedTotal += quantity * unitCost;
+        $('#clearVendorsBtn').click(function() {
+            $('.vendor-dropdown').val('');
+            $('.vendor-dropdown').each(function(index) {
+                updateRowStyling(index);
+            });
+            updateValidationStatus();
+        });
+
+        // Select all checkbox functionality
+        $('#selectAllCheckbox').change(function() {
+            var isChecked = $(this).is(':checked');
+            selectAllItems(isChecked);
+        });
+
+        // Update row styling when vendor is selected
+        $('.vendor-dropdown').change(function() {
+            var rowIndex = $(this).data('row-index');
+            updateRowStyling(rowIndex);
+            updateValidationStatus();
+        });
+
+        // Add event listeners for quantity and cost changes
+        $('.quantity-input, .unit-cost-input').on('input', function() {
+            var index = $(this).data('index');
+            updateRowTotal(index);
+            updateTotals();
+        });
+
+        // Add event listeners for checkbox changes
+        $('.item-checkbox').change(function() {
+            updateTotals();
+            updateValidationStatus();
+
+            // Update select all checkbox state
+            var totalCheckboxes = $('.item-checkbox').length;
+            var checkedCheckboxes = $('.item-checkbox:checked').length;
+            $('#selectAllCheckbox').prop('indeterminate', checkedCheckboxes > 0 && checkedCheckboxes < totalCheckboxes);
+            $('#selectAllCheckbox').prop('checked', checkedCheckboxes === totalCheckboxes);
+        });
+
+        // Form submission validation
+        $('form').submit(function(e) {
+            var hasSelectedItems = $('.item-checkbox:checked').length > 0;
+            var hasVendorIssues = false;
+
+            $('.item-checkbox:checked').each(function() {
+                var row = $(this).closest('tr');
+                var vendorSelect = row.find('.vendor-dropdown');
+                if (!vendorSelect.val()) {
+                    hasVendorIssues = true;
+                    vendorSelect.addClass('is-invalid');
+                    row.addClass('table-danger');
                 }
             });
-            
-            document.getElementById('selectedCount').textContent = selectedCount;
-            document.getElementById('selectedTotal').textContent = '$' + selectedTotal.toFixed(2);
-            document.getElementById('grandTotal').textContent = '$' + selectedTotal.toFixed(2);
-            
-            // Enable/disable submit button
-            const submitBtn = document.getElementById('createPurchasesBtn');
-            submitBtn.disabled = selectedCount === 0;
-            
-            if (selectedCount === 0) {
-                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> No Items Selected';
-                submitBtn.classList.add('btn-secondary');
-                submitBtn.classList.remove('btn-success');
+
+            if (!hasSelectedItems) {
+                alert('Please select at least one item to purchase.');
+                e.preventDefault();
+                return false;
+            }
+
+            if (hasVendorIssues) {
+                alert('Please select a vendor for all selected items.');
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // Initial styling check
+        $('.vendor-dropdown').each(function(index) {
+            updateRowStyling(index);
+        });
+    });
+
+    function updateRowTotal(index) {
+        var quantity = parseFloat($(`input[name="ItemsToPurchase[${index}].QuantityToPurchase"]`).val()) || 0;
+        var unitCost = parseFloat($(`input[name="ItemsToPurchase[${index}].EstimatedUnitCost"]`).val()) || 0;
+        var total = quantity * unitCost;
+
+        $(`#totalCost-${index}`).text('$' + total.toFixed(2));
+    }
+
+    function updateTotals() {
+        var selectedCount = 0;
+        var selectedTotal = 0;
+
+        $('.item-checkbox').each(function(index) {
+            if ($(this).is(':checked')) {
+                selectedCount++;
+                var quantity = parseFloat($(`input[name="ItemsToPurchase[${index}].QuantityToPurchase"]`).val()) || 0;
+                var unitCost = parseFloat($(`input[name="ItemsToPurchase[${index}].EstimatedUnitCost"]`).val()) || 0;
+                selectedTotal += quantity * unitCost;
+            }
+        });
+
+        $('#selectedCount').text(selectedCount);
+        $('#selectedTotal').text('$' + selectedTotal.toFixed(2));
+        $('#grandTotal').text('$' + selectedTotal.toFixed(2));
+    }
+
+    function updateRowStyling(rowIndex) {
+        var row = $('tbody tr').eq(rowIndex);
+        var vendorDropdown = row.find('.vendor-dropdown');
+        var isSelected = row.find('.item-checkbox').is(':checked');
+
+        // Remove previous styling
+        row.removeClass('table-warning table-danger table-light');
+        vendorDropdown.removeClass('is-invalid is-valid');
+
+        if (isSelected) {
+            if (vendorDropdown.val()) {
+                row.addClass('table-light');
+                vendorDropdown.addClass('is-valid');
             } else {
-                submitBtn.innerHTML = `<i class="fas fa-shopping-cart"></i> Create ${selectedCount} Purchase Orders`;
-                submitBtn.classList.add('btn-success');
-                submitBtn.classList.remove('btn-secondary');
+                row.addClass('table-warning');
+                vendorDropdown.addClass('is-invalid');
             }
         }
+    }
 
-        function selectAllItems() {
-            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
-                checkbox.checked = true;
-            });
-            updateTotals();
-        }
+    function updateValidationStatus() {
+        var selectedItems = $('.item-checkbox:checked').length;
+        var selectedItemsWithVendors = 0;
 
-        function deselectAllItems() {
-            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            updateTotals();
-        }
-
-        // Safety stock multiplier update
-        document.querySelector('input[name="SafetyStockMultiplier"]').addEventListener('input', function() {
-            const multiplier = parseFloat(this.value) || 1.0;
-            
-            document.querySelectorAll('.quantity-input').forEach((input, index) => {
-                const baseShortage = parseInt(input.getAttribute('data-base-shortage')) || parseInt(input.value);
-                if (!input.hasAttribute('data-base-shortage')) {
-                    input.setAttribute('data-base-shortage', input.value);
-                }
-                
-                const newQuantity = Math.ceil(baseShortage * multiplier);
-                input.value = newQuantity;
-                updateRowTotal(index);
-            });
-            
-            updateTotals();
+        $('.item-checkbox:checked').each(function() {
+            var row = $(this).closest('tr');
+            var vendorSelect = row.find('.vendor-dropdown');
+            if (vendorSelect.val()) {
+                selectedItemsWithVendors++;
+            }
         });
-    </script>
+
+        // Update status indicators
+        if (selectedItems > 0) {
+            $('#itemsSelectedStatus').removeClass('bg-warning bg-danger').addClass('bg-success').text('✓');
+        } else {
+            $('#itemsSelectedStatus').removeClass('bg-success bg-danger').addClass('bg-warning').text('⚠');
+        }
+
+        if (selectedItemsWithVendors === selectedItems && selectedItems > 0) {
+            $('#vendorsSelectedStatus').removeClass('bg-warning bg-danger').addClass('bg-success').text('✓');
+            $('#readyToSubmitStatus').removeClass('bg-warning bg-danger').addClass('bg-success').text('✓');
+        } else if (selectedItemsWithVendors > 0) {
+            $('#vendorsSelectedStatus').removeClass('bg-success bg-danger').addClass('bg-warning').text('⚠');
+            $('#readyToSubmitStatus').removeClass('bg-success bg-danger').addClass('bg-warning').text('⚠');
+        } else {
+            $('#vendorsSelectedStatus').removeClass('bg-success bg-warning').addClass('bg-danger').text('✗');
+            $('#readyToSubmitStatus').removeClass('bg-success bg-warning').addClass('bg-danger').text('✗');
+        }
+
+        // Update submit button
+        var canSubmit = selectedItems > 0 && selectedItemsWithVendors === selectedItems;
+        $('#createPurchasesBtn').prop('disabled', !canSubmit);
+
+        if (!canSubmit) {
+            $('#createPurchasesBtn').removeClass('btn-success').addClass('btn-secondary');
+            if (selectedItems === 0) {
+                $('#createPurchasesBtn').html('<i class="fas fa-shopping-cart"></i> No Items Selected');
+            } else {
+                $('#createPurchasesBtn').html('<i class="fas fa-shopping-cart"></i> Select Vendors First');
+            }
+        } else {
+            $('#createPurchasesBtn').removeClass('btn-secondary').addClass('btn-success');
+            $('#createPurchasesBtn').html(`<i class="fas fa-shopping-cart"></i> Create ${selectedItems} Purchase Orders`);
+        }
+    }
+
+    function selectAllItems(select) {
+        $('.item-checkbox').prop('checked', select);
+
+        // Update styling for all rows
+        $('.item-checkbox').each(function(index) {
+            updateRowStyling(index);
+        });
+
+        updateTotals();
+        updateValidationStatus();
+    }
+  </script>
 }
+
+<style>
+  .vendor-selection .btn-group .btn {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.7rem;
+  }
+
+  .table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  .vendor-dropdown.is-invalid {
+    border-color: #dc3545;
+  }
+
+  .vendor-dropdown.is-valid {
+    border-color: #28a745;
+  }
+
+  .table-warning {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+  }
+
+  .table-danger {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+  }
+
+  .table-light {
+    background-color: rgba(248, 249, 250, 0.5) !important;
+  }
+</style>

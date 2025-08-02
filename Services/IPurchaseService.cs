@@ -35,5 +35,7 @@ namespace InventorySystem.Services
     // Helper methods for cost calculations
     Task<decimal> GetAverageCostAsync(int itemId);
     Task<decimal> GetFifoValueAsync(int itemId);
+
+    
   }
 }

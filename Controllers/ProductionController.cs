@@ -615,6 +615,9 @@ namespace InventorySystem.Controllers
         // Get the shortage analysis
         var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(bomId, quantity);
 
+        // Get all active vendors for dropdowns
+        var vendors = await _vendorService.GetActiveVendorsAsync();
+
         // Create the bulk purchase request model
         var bulkRequest = new BulkPurchaseRequest
         {
@@ -625,24 +628,48 @@ namespace InventorySystem.Controllers
           SafetyStockMultiplier = 1.2m
         };
 
-        // Convert material shortages to purchase items
+        // Convert material shortages to purchase items with enhanced vendor selection
         foreach (var shortage in shortageAnalysis.MaterialShortages)
         {
+          // Get comprehensive vendor selection info for this item
+          var vendorInfo = await _vendorService.GetVendorSelectionInfoForItemAsync(shortage.ItemId);
+
           var purchaseItem = new ShortageItemPurchase
           {
             ItemId = shortage.ItemId,
             Selected = true, // Pre-select all items
             QuantityToPurchase = shortage.SuggestedPurchaseQuantity,
             EstimatedUnitCost = shortage.EstimatedUnitCost,
-            PreferredVendor = shortage.PreferredVendor,
-            Notes = $"For BOM: {shortageAnalysis.BomName}"
+            Notes = $"For BOM: {shortageAnalysis.BomName}",
+
+            // Enhanced vendor selection with priority:
+            // 1. Primary vendor (VendorItem.IsPrimary)
+            // 2. Item's preferred vendor 
+            // 3. Last purchase vendor
+            VendorId = vendorInfo.RecommendedVendor?.Id,
+            PreferredVendor = vendorInfo.RecommendedVendor?.CompanyName ?? shortage.PreferredVendor,
+            LastVendorId = vendorInfo.LastPurchaseVendor?.Id,
+            LastVendorName = vendorInfo.LastPurchaseVendor?.CompanyName,
+
+            // Additional vendor context for UI display
+            PrimaryVendorId = vendorInfo.PrimaryVendor?.Id,
+            PrimaryVendorName = vendorInfo.PrimaryVendor?.CompanyName,
+            ItemPreferredVendorName = vendorInfo.ItemPreferredVendorName,
+            SelectionReason = vendorInfo.SelectionReason
           };
+
+          // Use the recommended cost if available and valid
+          if (vendorInfo.RecommendedCost.HasValue && vendorInfo.RecommendedCost.Value > 0)
+          {
+            purchaseItem.EstimatedUnitCost = vendorInfo.RecommendedCost.Value;
+          }
 
           bulkRequest.ItemsToPurchase.Add(purchaseItem);
         }
 
-        // Pass the shortage analysis to the view via ViewBag
+        // Pass data to the view
         ViewBag.ShortageAnalysis = shortageAnalysis;
+        ViewBag.Vendors = vendors; // All active vendors for dropdowns
 
         return View(bulkRequest);
       }
@@ -655,7 +682,7 @@ namespace InventorySystem.Controllers
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [HttpPost]
+    // Controllers/ProductionController.cs - Updated POST action
     public async Task<IActionResult> CreateBulkPurchaseRequest(BulkPurchaseRequest model)
     {
       try
@@ -663,7 +690,9 @@ namespace InventorySystem.Controllers
         if (!ModelState.IsValid)
         {
           var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
+          var vendors = await _vendorService.GetActiveVendorsAsync();
           ViewBag.ShortageAnalysis = shortageAnalysis;
+          ViewBag.Vendors = vendors;
           return View(model);
         }
 
@@ -673,7 +702,21 @@ namespace InventorySystem.Controllers
         {
           TempData["ErrorMessage"] = "Please select at least one item to purchase.";
           var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
+          var vendors = await _vendorService.GetActiveVendorsAsync();
           ViewBag.ShortageAnalysis = shortageAnalysis;
+          ViewBag.Vendors = vendors;
+          return View(model);
+        }
+
+        // Validate that all selected items have vendors
+        var itemsWithoutVendors = selectedItems.Where(i => !i.VendorId.HasValue).ToList();
+        if (itemsWithoutVendors.Any())
+        {
+          TempData["ErrorMessage"] = "Please select a vendor for all selected items.";
+          var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
+          var vendors = await _vendorService.GetActiveVendorsAsync();
+          ViewBag.ShortageAnalysis = shortageAnalysis;
+          ViewBag.Vendors = vendors;
           return View(model);
         }
 
@@ -681,54 +724,17 @@ namespace InventorySystem.Controllers
 
         foreach (var item in selectedItems)
         {
-          // Find or create vendor - FIXED to work with VendorId
-          Vendor vendor = null;
+          // Use the selected VendorId directly - no need to lookup by name
+          var vendor = await _vendorService.GetVendorByIdAsync(item.VendorId.Value);
 
-          if (!string.IsNullOrWhiteSpace(item.PreferredVendor))
-          {
-            // Try to find existing vendor by name
-            vendor = await _vendorService.GetVendorByNameAsync(item.PreferredVendor);
-
-            if (vendor == null)
-            {
-              // Create new vendor if it doesn't exist
-              vendor = new Vendor
-              {
-                CompanyName = item.PreferredVendor,
-                IsActive = true,
-                CreatedDate = DateTime.Now,
-                LastUpdated = DateTime.Now,
-                QualityRating = 3,
-                DeliveryRating = 3,
-                ServiceRating = 3,
-                PaymentTerms = "Net 30"
-              };
-
-              vendor = await _vendorService.CreateVendorAsync(vendor);
-            }
-          }
-
-          // If still no vendor, create a "TBD" vendor
           if (vendor == null)
           {
-            vendor = await _vendorService.GetVendorByNameAsync("TBD");
-
-            if (vendor == null)
-            {
-              vendor = new Vendor
-              {
-                CompanyName = "TBD",
-                IsActive = true,
-                CreatedDate = DateTime.Now,
-                LastUpdated = DateTime.Now,
-                QualityRating = 3,
-                DeliveryRating = 3,
-                ServiceRating = 3,
-                PaymentTerms = "Net 30"
-              };
-
-              vendor = await _vendorService.CreateVendorAsync(vendor);
-            }
+            TempData["ErrorMessage"] = $"Selected vendor not found for item {item.ItemId}.";
+            var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
+            var vendors = await _vendorService.GetActiveVendorsAsync();
+            ViewBag.ShortageAnalysis = shortageAnalysis;
+            ViewBag.Vendors = vendors;
+            return View(model);
           }
 
           var purchase = new Purchase
@@ -736,7 +742,7 @@ namespace InventorySystem.Controllers
             ItemId = item.ItemId,
             QuantityPurchased = item.QuantityToPurchase,
             CostPerUnit = item.EstimatedUnitCost,
-            VendorId = vendor.Id, // Use VendorId instead of Vendor string
+            VendorId = vendor.Id, // Use the selected VendorId
             PurchaseOrderNumber = model.PurchaseOrderNumber ?? $"PO-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString()[..8]}",
             Notes = $"{model.Notes} | {item.Notes}".Trim(' ', '|'),
             PurchaseDate = DateTime.Today,
@@ -757,14 +763,12 @@ namespace InventorySystem.Controllers
       }
       catch (Exception ex)
       {
-        TempData["ErrorMessage"] = $"Error creating purchase orders: {ex.Message}";
-        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
-        ViewBag.ShortageAnalysis = shortageAnalysis;
-        return View(model);
+        TempData["ErrorMessage"] = $"Error creating bulk purchase request: {ex.Message}";
+        return RedirectToAction("MaterialShortageReport", new { bomId = model.BomId, quantity = model.Quantity });
       }
     }
 
-    
+
     // Create Finished Good - GET
     public async Task<IActionResult> CreateFinishedGood()
     {

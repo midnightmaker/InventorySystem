@@ -1,4 +1,4 @@
-﻿// ViewModels/BulkPurchaseRequest.cs
+﻿// ViewModels/BulkPurchaseRequest.cs - Complete updated version
 using System.ComponentModel.DataAnnotations;
 
 namespace InventorySystem.ViewModels
@@ -37,7 +37,39 @@ namespace InventorySystem.ViewModels
     public bool Selected { get; set; } = true;
     public int QuantityToPurchase { get; set; }
     public decimal EstimatedUnitCost { get; set; }
-    public string? PreferredVendor { get; set; }
+
+    // Primary vendor selection (highest priority)
+    public int? VendorId { get; set; } // Selected vendor ID for dropdown
+    public string? PreferredVendor { get; set; } // Keep for backward compatibility and display
+
+    // Vendor priority information for UI display and selection
+    public int? PrimaryVendorId { get; set; } // Primary vendor from VendorItem relationship
+    public string? PrimaryVendorName { get; set; } // Primary vendor name
+
+    public string? ItemPreferredVendorName { get; set; } // From Item.PreferredVendor property
+
+    public int? LastVendorId { get; set; } // Last vendor used for this item
+    public string? LastVendorName { get; set; } // Last vendor name for display
+
+    // Selection context for debugging and UI feedback
+    public string? SelectionReason { get; set; } // Why this vendor was recommended
+
     public string? Notes { get; set; }
+
+    // Helper properties for UI display
+    public bool HasPrimaryVendor => PrimaryVendorId.HasValue;
+    public bool HasItemPreferredVendor => !string.IsNullOrEmpty(ItemPreferredVendorName);
+    public bool HasLastVendor => LastVendorId.HasValue;
+
+    public string VendorPriorityDisplay
+    {
+      get
+      {
+        if (HasPrimaryVendor) return "Primary Vendor";
+        if (HasItemPreferredVendor) return "Item Preferred";
+        if (HasLastVendor) return "Last Used";
+        return "No Preference";
+      }
+    }
   }
 }

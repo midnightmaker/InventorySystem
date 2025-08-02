@@ -173,29 +173,95 @@ namespace InventorySystem.Controllers
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, Purchase purchase)
     {
-      if (id != purchase.Id)
+      try
       {
-        return NotFound();
-      }
+        Console.WriteLine($"Edit POST called for Purchase ID: {id}");
+        Console.WriteLine($"Received Purchase data - VendorId: {purchase.VendorId}, ItemId: {purchase.ItemId}");
 
-      if (ModelState.IsValid)
+        if (id != purchase.Id)
+        {
+          Console.WriteLine($"ID mismatch: URL ID {id} != Model ID {purchase.Id}");
+          return NotFound();
+        }
+
+        // Remove validation for navigation properties that aren't bound from the form
+        ModelState.Remove("Item");
+        ModelState.Remove("Vendor");
+        ModelState.Remove("ItemVersionReference");
+        ModelState.Remove("PurchaseDocuments");
+
+        // Remove validation for calculated properties
+        ModelState.Remove("TotalCost");
+        ModelState.Remove("TotalPaid");
+
+        // Ensure required hidden fields are set
+        if (purchase.RemainingQuantity <= 0)
+        {
+          var existingPurchase = await _context.Purchases.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+          if (existingPurchase != null)
+          {
+            purchase.RemainingQuantity = existingPurchase.RemainingQuantity;
+            purchase.CreatedDate = existingPurchase.CreatedDate;
+          }
+        }
+
+        // Log ModelState errors
+        if (!ModelState.IsValid)
+        {
+          Console.WriteLine("ModelState is invalid:");
+          foreach (var modelError in ModelState)
+          {
+            foreach (var error in modelError.Value.Errors)
+            {
+              Console.WriteLine($"Field: {modelError.Key}, Error: {error.ErrorMessage}");
+            }
+          }
+
+          // Reload dropdowns and return view with validation errors
+          await ReloadDropdownsAsync(purchase.ItemId, purchase.VendorId);
+          return View(purchase);
+        }
+
+        Console.WriteLine("ModelState is valid, proceeding with update...");
+
+        // Validate that vendor exists
+        var vendor = await _vendorService.GetVendorByIdAsync(purchase.VendorId);
+        if (vendor == null)
+        {
+          Console.WriteLine($"Vendor not found with ID: {purchase.VendorId}");
+          ModelState.AddModelError("VendorId", "Selected vendor does not exist.");
+          await ReloadDropdownsAsync(purchase.ItemId, purchase.VendorId);
+          return View(purchase);
+        }
+
+        // Validate that item exists
+        var item = await _inventoryService.GetItemByIdAsync(purchase.ItemId);
+        if (item == null)
+        {
+          Console.WriteLine($"Item not found with ID: {purchase.ItemId}");
+          ModelState.AddModelError("ItemId", "Selected item does not exist.");
+          await ReloadDropdownsAsync(purchase.ItemId, purchase.VendorId);
+          return View(purchase);
+        }
+
+        Console.WriteLine("Calling UpdatePurchaseAsync...");
+        await _purchaseService.UpdatePurchaseAsync(purchase);
+
+        Console.WriteLine("Purchase updated successfully");
+        TempData["SuccessMessage"] = "Purchase updated successfully!";
+        return RedirectToAction("Details", new { id = purchase.Id });
+      }
+      catch (Exception ex)
       {
-        try
-        {
-          await _purchaseService.UpdatePurchaseAsync(purchase);
-          TempData["SuccessMessage"] = "Purchase updated successfully!";
-          return RedirectToAction("Details", new { id = purchase.Id });
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine($"Error updating purchase: {ex.Message}");
-          ModelState.AddModelError("", $"Error updating purchase: {ex.Message}");
-        }
-      }
+        Console.WriteLine($"Error updating purchase: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
 
-      // Reload dropdowns
-      await ReloadDropdownsAsync(purchase.ItemId, purchase.VendorId);
-      return View(purchase);
+        ModelState.AddModelError("", $"Error updating purchase: {ex.Message}");
+
+        // Reload dropdowns and return view with error
+        await ReloadDropdownsAsync(purchase.ItemId, purchase.VendorId);
+        return View(purchase);
+      }
     }
 
     public async Task<IActionResult> Details(int id)
