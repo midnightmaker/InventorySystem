@@ -110,38 +110,58 @@
                 <td>10</td>
               </tr>
               <tr class="table-info">
-                <td colspan="5"><strong>New Phase 1 Fields</strong></td>
+                <td colspan="5"><strong>Vendor Information</strong></td>
               </tr>
               <tr>
                 <td><strong>E</strong></td>
                 <td>Vendor Part Number</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Supplier's part number</td>
-                <td>ABC-12345</td>
+                <td>Distributor's part number</td>
+                <td>595-TPS54331DR</td>
               </tr>
               <tr>
                 <td><strong>F</strong></td>
                 <td>Preferred Vendor</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Primary supplier name</td>
-                <td>ABC Suppliers</td>
+                <td>Primary supplier/distributor name</td>
+                <td>Mouser Electronics</td>
+              </tr>
+              <tr class="table-success">
+                <td colspan="5"><strong>Manufacturer Information (NEW)</strong></td>
               </tr>
               <tr>
                 <td><strong>G</strong></td>
+                <td>Manufacturer</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Component manufacturer name</td>
+                <td>Texas Instruments</td>
+              </tr>
+              <tr>
+                <td><strong>H</strong></td>
+                <td>Manufacturer Part Number</td>
+                <td><span class="badge bg-secondary">Optional</span></td>
+                <td>Original manufacturer's part number</td>
+                <td>TPS54331DR</td>
+              </tr>
+              <tr class="table-info">
+                <td colspan="5"><strong>Item Properties</strong></td>
+              </tr>
+              <tr>
+                <td><strong>I</strong></td>
                 <td>Sellable</td>
                 <td><span class="badge bg-warning">Optional</span></td>
                 <td>Can be sold (true/false, default: true)</td>
                 <td>true</td>
               </tr>
               <tr>
-                <td><strong>H</strong></td>
+                <td><strong>J</strong></td>
                 <td>Item Type</td>
                 <td><span class="badge bg-warning">Optional</span></td>
                 <td>Inventoried, Non-Inventoried, Service, Virtual</td>
                 <td>Inventoried</td>
               </tr>
               <tr>
-                <td><strong>I</strong></td>
+                <td><strong>K</strong></td>
                 <td>Version</td>
                 <td><span class="badge bg-warning">Optional</span></td>
                 <td>Item revision (default: A)</td>
@@ -151,35 +171,35 @@
                 <td colspan="5"><strong>Initial Purchase Data (Optional - Only for Inventoried Items)</strong></td>
               </tr>
               <tr>
-                <td><strong>J</strong></td>
+                <td><strong>L</strong></td>
                 <td>Initial Quantity</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Starting inventory quantity</td>
                 <td>25</td>
               </tr>
               <tr>
-                <td><strong>K</strong></td>
+                <td><strong>M</strong></td>
                 <td>Initial Cost Per Unit</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Cost per unit for initial purchase</td>
                 <td>15.50</td>
               </tr>
               <tr>
-                <td><strong>L</strong></td>
+                <td><strong>N</strong></td>
                 <td>Initial Vendor</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Vendor for initial purchase</td>
-                <td>ABC Suppliers</td>
+                <td>Mouser Electronics</td>
               </tr>
               <tr>
-                <td><strong>M</strong></td>
+                <td><strong>O</strong></td>
                 <td>Initial Purchase Date</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Date of initial purchase</td>
                 <td>2025-01-15</td>
               </tr>
               <tr>
-                <td><strong>N</strong></td>
+                <td><strong>P</strong></td>
                 <td>Initial PO Number</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Purchase order number</td>
@@ -191,9 +211,29 @@
                 
                 <div class="alert alert-info mt-3">
                     <i class="fas fa-lightbulb"></i>
+                    <strong>Distribution Channel Example:</strong>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <small>
+                                <strong>Vendor:</strong> Mouser Electronics<br>
+                                <strong>Vendor P/N:</strong> 595-TPS54331DR
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <small>
+                                <strong>Manufacturer:</strong> Texas Instruments<br>
+                                <strong>MFG P/N:</strong> TPS54331DR
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary mt-3">
+                    <i class="fas fa-info-circle"></i>
                     <strong>Tips:</strong>
                     <ul class="mb-0 mt-2">
-                        <li>If you include initial purchase data (columns E-I), make sure to include at least Quantity, Cost Per Unit, and Vendor</li>
+                        <li>Manufacturer fields help with component traceability and alternative sourcing</li>
+                        <li>If you include initial purchase data (columns L-P), make sure to include at least Quantity, Cost Per Unit, and Vendor</li>
                         <li>Part numbers must be unique - duplicates will be rejected</li>
                         <li>Empty rows will be skipped automatically</li>
                         <li>Download our <a href="#" id="downloadTemplate">CSV template</a> to get started</li>
@@ -268,6 +308,8 @@
                                         <th>Row</th>
                                         <th>Part Number</th>
                                         <th>Description</th>
+                                        <th>Vendor Info</th>
+                                        <th>Manufacturer Info</th>
                                         <th>Min Stock</th>
                                         <th>Initial Purchase</th>
                                         <th>Warnings</th>
@@ -280,12 +322,50 @@
                                             <td>@valid.RowNumber</td>
                                             <td><strong>@valid.ItemData!.PartNumber</strong></td>
                                             <td>@valid.ItemData.Description</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor) || !string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
+                                                {
+                                                    <small>
+                                                        @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor))
+                                                        {
+                                                            <strong>@valid.ItemData.PreferredVendor</strong><br>
+                                                        }
+                                                        @if (!string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
+                                                        {
+                                                            <span class="text-muted">P/N: @valid.ItemData.VendorPartNumber</span>
+                                                        }
+                                                    </small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Not specified</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(valid.ItemData.Manufacturer) || !string.IsNullOrEmpty(valid.ItemData.ManufacturerPartNumber))
+                                                {
+                                                    <small>
+                                                        @if (!string.IsNullOrEmpty(valid.ItemData.Manufacturer))
+                                                        {
+                                                            <strong>@valid.ItemData.Manufacturer</strong><br>
+                                                        }
+                                                        @if (!string.IsNullOrEmpty(valid.ItemData.ManufacturerPartNumber))
+                                                        {
+                                                            <span class="text-muted">MFG P/N: @valid.ItemData.ManufacturerPartNumber</span>
+                                                        }
+                                                    </small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Not specified</span>
+                                                }
+                                            </td>
                                             <td>@valid.ItemData.MinimumStock</td>
                                             <td>
                                                 @if (valid.ItemData.InitialQuantity.HasValue && valid.ItemData.InitialCostPerUnit.HasValue && !string.IsNullOrEmpty(valid.ItemData.InitialVendor))
                                                 {
                                                     <span class="badge bg-success">
-                                                        @valid.ItemData.InitialQuantity&nbsp;@valid.ItemData.InitialCostPerUnit.Value.ToString("F6")
+                                                        @valid.ItemData.InitialQuantity&nbsp;&nbsp;$@valid.ItemData.InitialCostPerUnit.Value.ToString("F2")
                                                     </span>
                                                 }
                                                 else
@@ -314,6 +394,13 @@
                                 <input type="hidden" asp-for="PreviewItems[i].Comments" />
                                 <input type="hidden" asp-for="PreviewItems[i].MinimumStock" />
                                 <input type="hidden" asp-for="PreviewItems[i].RowNumber" />
+                                <input type="hidden" asp-for="PreviewItems[i].VendorPartNumber" />
+                                <input type="hidden" asp-for="PreviewItems[i].PreferredVendor" />
+                                <input type="hidden" asp-for="PreviewItems[i].Manufacturer" />
+                                <input type="hidden" asp-for="PreviewItems[i].ManufacturerPartNumber" />
+                                <input type="hidden" asp-for="PreviewItems[i].IsSellable" />
+                                <input type="hidden" asp-for="PreviewItems[i].ItemType" />
+                                <input type="hidden" asp-for="PreviewItems[i].Version" />
                                 <input type="hidden" asp-for="PreviewItems[i].InitialQuantity" />
                                 <input type="hidden" asp-for="PreviewItems[i].InitialCostPerUnit" />
                                 <input type="hidden" asp-for="PreviewItems[i].InitialVendor" />
@@ -377,13 +464,15 @@
     });
 
       function downloadCsvTemplate() {
-      // Updated CSV template with new Phase 1 fields
+      // Updated CSV template with manufacturer fields
       const templateData = [
-          ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Sellable', 'Item Type', 'Version', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
-          ['PUMP-001', 'Water Pump 12V', 'Used in main assembly', '10', 'ABC-12345', 'ABC Suppliers', 'true', 'Inventoried', 'A', '25', '15.50', 'ABC Suppliers', '2025-01-15', 'PO-2025-001'],
-          ['VALVE-002', 'Ball Valve 1/2"', 'Stainless steel', '5', 'XYZ-67890', 'XYZ Parts', 'true', 'Inventoried', 'A', '50', '8.25', 'XYZ Parts', '2025-01-15', 'PO-2025-001'],
-          ['FW-001', 'Main Controller Firmware', 'Version 2.1.3', '0', '', '', 'false', 'Non-Inventoried', 'A', '', '', '', '', ''],
-          ['SERVICE-001', 'Assembly Labor', 'Per hour rate', '0', '', '', 'true', 'Service', 'A', '', '', '', '', '']
+          ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Manufacturer', 'Manufacturer Part Number', 'Sellable', 'Item Type', 'Version', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
+          ['IC-001', 'DC-DC Converter 12V to 3.3V', 'Used in power supply circuit', '25', '595-TPS54331DR', 'Mouser Electronics', 'Texas Instruments', 'TPS54331DR', 'true', 'Inventoried', 'A', '50', '2.85', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+          ['RES-001', '10K Ohm Resistor 1%', '0603 package size', '100', '71-CRCW060310K0FKEA', 'Mouser Electronics', 'Vishay', 'CRCW060310K0FKEA', 'true', 'Inventoried', 'A', '200', '0.12', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+          ['CAP-001', '10uF Ceramic Capacitor', '0805 package, 25V rating', '50', '81-GRM21BR61E106KA3L', 'Mouser Electronics', 'Murata', 'GRM21BR61E106KA73L', 'true', 'Inventoried', 'A', '100', '0.45', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+          ['VALVE-002', 'Ball Valve 1/2"', 'Stainless steel', '5', 'XYZ-67890', 'XYZ Parts', '', '', 'true', 'Inventoried', 'A', '10', '8.25', 'XYZ Parts', '2025-01-15', 'PO-2025-001'],
+          ['FW-001', 'Main Controller Firmware', 'Version 2.1.3', '0', '', '', '', '', 'false', 'Non-Inventoried', 'A', '', '', '', '', ''],
+          ['SERVICE-001', 'Assembly Labor', 'Per hour rate', '0', '', '', '', '', 'true', 'Service', 'A', '', '', '', '', '']
       ];
 
       // Convert to CSV format for download
@@ -396,7 +485,7 @@
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'bulk_upload_template_v2.csv';
+      a.download = 'bulk_upload_template_with_manufacturer.csv';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

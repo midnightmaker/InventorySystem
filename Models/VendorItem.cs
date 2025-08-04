@@ -19,6 +19,14 @@ namespace InventorySystem.Models
     [Display(Name = "Vendor Part Number")]
     public string? VendorPartNumber { get; set; }
 
+    [StringLength(200)]
+    [Display(Name = "Manufacturer")]
+    public string? Manufacturer { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Manufacturer Part Number")]
+    public string? ManufacturerPartNumber { get; set; }
+
     [Display(Name = "Unit Cost")]
     [Column(TypeName = "decimal(18,6)")]  // Changed from decimal(18,2)
     [Range(0, double.MaxValue, ErrorMessage = "Unit cost must be 0 or greater")]
@@ -74,5 +82,27 @@ namespace InventorySystem.Models
       <= 30 => $"{LeadTimeDays} Days (~{LeadTimeDays / 7} weeks)",
       _ => $"{LeadTimeDays} Days (~{LeadTimeDays / 30} months)"
     };
+
+    [NotMapped]
+    [Display(Name = "Full Part Identification")]
+    public string FullPartIdentification
+    {
+      get
+      {
+        var parts = new List<string>();
+        
+        if (!string.IsNullOrEmpty(VendorPartNumber))
+          parts.Add($"Vendor: {VendorPartNumber}");
+          
+        if (!string.IsNullOrEmpty(Manufacturer) && !string.IsNullOrEmpty(ManufacturerPartNumber))
+          parts.Add($"MFG: {Manufacturer} - {ManufacturerPartNumber}");
+        else if (!string.IsNullOrEmpty(ManufacturerPartNumber))
+          parts.Add($"MFG P/N: {ManufacturerPartNumber}");
+        else if (!string.IsNullOrEmpty(Manufacturer))
+          parts.Add($"MFG: {Manufacturer}");
+          
+        return parts.Any() ? string.Join(" | ", parts) : "No part numbers specified";
+      }
+    }
   }
 }

@@ -23,11 +23,8 @@ namespace InventorySystem.ViewModels
     [Display(Name = "Minimum Stock")]
     public int MinimumStock { get; set; }
 
-    // UNIT OF MEASURE - NEW PROPERTY
     [Display(Name = "Unit of Measure")]
     public UnitOfMeasure UnitOfMeasure { get; set; } = UnitOfMeasure.Each;
-
-    // NEW PHASE 1 FIELDS
 
     [StringLength(100, ErrorMessage = "Vendor Part Number cannot exceed 100 characters.")]
     [Display(Name = "Vendor Part Number")]
@@ -48,7 +45,6 @@ namespace InventorySystem.ViewModels
     [Display(Name = "Version")]
     public string Version { get; set; } = "A";
 
-    // Image upload
     [Display(Name = "Item Image")]
     public IFormFile? ImageFile { get; set; }
 
@@ -73,7 +69,34 @@ namespace InventorySystem.ViewModels
     [Display(Name = "Initial Purchase Order Number")]
     public string? InitialPurchaseOrderNumber { get; set; }
 
+    [StringLength(200, ErrorMessage = "Manufacturer cannot exceed 200 characters.")]
+    [Display(Name = "Manufacturer")]
+    public string? Manufacturer { get; set; }
+
+    [StringLength(100, ErrorMessage = "Manufacturer Part Number cannot exceed 100 characters.")]
+    [Display(Name = "Manufacturer Part Number")]
+    public string? ManufacturerPartNumber { get; set; }
+
+    // ENHANCED MATERIAL TYPE FIELDS WITH VALIDATION
+
+    [Display(Name = "Material Type")]
+    public MaterialType MaterialType { get; set; } = MaterialType.Standard;
+
+    [Display(Name = "Parent Raw Material")]
+    public int? ParentRawMaterialId { get; set; }
+
+    [Display(Name = "Yield Factor")]
+    [Range(0.01, 1.0, ErrorMessage = "Yield factor must be between 0.01 and 1.0 (1% to 100%)")]
+    public decimal? YieldFactor { get; set; }
+
+    [Display(Name = "Waste Percentage")]
+    [Range(0, 50, ErrorMessage = "Waste percentage must be between 0 and 50%")]
+    public decimal? WastePercentage { get; set; }
+
     // Helper properties
     public bool ShowStockFields => ItemType == ItemType.Inventoried;
+    public bool IsTransformedMaterial => MaterialType == MaterialType.Transformed;
+    public bool ShowYieldFields => IsTransformedMaterial;
+    public bool RequiresManufacturingBom => IsTransformedMaterial && ItemType == ItemType.Inventoried;
   }
 }

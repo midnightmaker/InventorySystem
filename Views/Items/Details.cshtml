@@ -198,7 +198,69 @@
         </dl>
       </div>
     </div>
-
+    @if (Model.IsTransformed && Model.MaterialType == MaterialType.Transformed)
+{
+  <div class="card mt-4">
+    <div class="card-header">
+      <h5><i class="fas fa-industry text-success"></i> Manufacturing Information</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <dl class="row">
+            <dt class="col-sm-6">Parent Raw Material:</dt>
+            <dd class="col-sm-6">
+              @if (Model.ParentRawMaterial != null)
+              {
+                <a href="/Items/Details/@Model.ParentRawMaterial.Id" class="text-decoration-none">
+                  @Model.ParentRawMaterial.PartNumber
+                </a>
+                <br><small class="text-muted">@Model.ParentRawMaterial.Description</small>
+              }
+              else
+              {
+                <span class="text-muted">Not specified</span>
+              }
+            </dd>
+            
+            <dt class="col-sm-6">Yield Factor:</dt>
+            <dd class="col-sm-6">
+              @if (Model.YieldFactor.HasValue)
+              {
+                <strong>@Model.YieldFactor.Value.ToString("P2")</strong>
+                <br><small class="text-muted">@Math.Round(1.0m / (decimal)Model.YieldFactor.Value, 2) units raw material needed per unit</small>
+              }
+              else
+              {
+                <span class="text-muted">Not specified</span>
+              }
+            </dd>
+            
+            @if (Model.WastePercentage.HasValue)
+            {
+              <dt class="col-sm-6">Expected Waste:</dt>
+              <dd class="col-sm-6">
+                <span class="text-warning">@Model.WastePercentage.Value.ToString("F1")%</span>
+              </dd>
+            }
+          </dl>
+        </div>
+        <div class="col-md-6">
+          <div class="alert alert-info">
+            <h6><i class="fas fa-info-circle"></i> Manufacturing BOM</h6>
+            <p class="mb-1">
+              <strong>BOM Number:</strong> @Model.PartNumber-MFG<br>
+              <small class="text-muted">Automatically generated manufacturing bill of materials</small>
+            </p>
+            <a href="/Boms?search=@(Model.PartNumber)-MFG" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-external-link-alt"></i> View Manufacturing BOM
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
     <!-- NEW: Vendor Relationships Section -->
     @if (vendorItems.Any())
     {

@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace InventorySystem.Controllers
 {
   public class ItemsController : Controller
@@ -18,18 +17,26 @@ namespace InventorySystem.Controllers
     private readonly InventoryContext _context;
     private readonly IVersionControlService _versionService;
     private readonly IVendorService _vendorService;
+    private readonly IBomService _bomService;
+    private readonly ILogger<ItemsController> _logger;
 
-    public ItemsController(IInventoryService inventoryService, IPurchaseService purchaseService, 
-      IVendorService vendorService, InventoryContext context, IVersionControlService versionService)
+    public ItemsController(
+      IInventoryService inventoryService, 
+      IPurchaseService purchaseService, 
+      IVendorService vendorService, 
+      InventoryContext context, 
+      IVersionControlService versionService,
+      IBomService bomService,
+      ILogger<ItemsController> logger)
     {
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
       _versionService = versionService;
       _vendorService = vendorService;
       _context = context;
-
+      _bomService = bomService;
+      _logger = logger;
     }
-
 
     public async Task<IActionResult> Index()
     {
@@ -84,17 +91,22 @@ namespace InventorySystem.Controllers
           ItemType = ItemType.Inventoried,
           Version = "A",
           IsSellable = true,
-          UnitOfMeasure = UnitOfMeasure.Each, // Set default to "Each"
-          InitialPurchaseDate = DateTime.Today
+          UnitOfMeasure = UnitOfMeasure.Each,
+          InitialPurchaseDate = DateTime.Today,
+          MaterialType = MaterialType.Standard // Set default
         };
 
         // Pass UOM options to the view
         ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList();
+        
+        // Load raw materials for parent selection
+        await LoadRawMaterialsForView();
 
         return View(viewModel);
       }
       catch (Exception ex)
       {
+        _logger.LogError(ex, "Error loading create item form");
         TempData["ErrorMessage"] = $"Error loading create form: {ex.Message}";
         return RedirectToAction("Index");
       }
@@ -219,172 +231,448 @@ namespace InventorySystem.Controllers
       {
         ModelState.AddModelError("", "ViewModel is null");
         ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList();
+        await LoadRawMaterialsForView();
         return View(new CreateItemViewModel());
       }
 
-      // Remove validation for optional fields
-      ModelState.Remove("ImageFile");
-
-      // Remove stock-related validation for non-inventoried items
-      if (viewModel.ItemType != ItemType.Inventoried)
+      try
       {
-        ModelState.Remove("MinimumStock");
-        ModelState.Remove("InitialQuantity");
-        ModelState.Remove("InitialCostPerUnit");
-        ModelState.Remove("InitialVendor");
-        ModelState.Remove("InitialPurchaseDate");
-        ModelState.Remove("InitialPurchaseOrderNumber");
+        // Custom validation for transformed materials
+        await ValidateTransformedMaterialAsync(viewModel);
 
-        // Force HasInitialPurchase to false for non-inventoried items
-        viewModel.HasInitialPurchase = false;
-      }
+        // Remove validation for optional fields
+        ModelState.Remove("ImageFile");
+        ModelState.Remove("Manufacturer");
+        ModelState.Remove("ManufacturerPartNumber");
 
-      // Remove validation for initial purchase fields when not selected
-      if (!viewModel.HasInitialPurchase || viewModel.ItemType != ItemType.Inventoried)
-      {
-        ModelState.Remove("InitialQuantity");
-        ModelState.Remove("InitialCostPerUnit");
-        ModelState.Remove("InitialVendor");
-        ModelState.Remove("InitialPurchaseDate");
-        ModelState.Remove("InitialPurchaseOrderNumber");
-      }
-      else
-      {
-        // Only validate initial purchase fields if HasInitialPurchase is true and item is inventoried
-        if (viewModel.InitialQuantity <= 0)
+        // Conditional validation based on item type
+        if (viewModel.ItemType != ItemType.Inventoried)
         {
-          ModelState.AddModelError("InitialQuantity", "Initial quantity must be greater than 0 when adding initial purchase.");
+          ModelState.Remove("MinimumStock");
+          ModelState.Remove("InitialQuantity");
+          ModelState.Remove("InitialCostPerUnit");
+          ModelState.Remove("InitialVendor");
+          ModelState.Remove("InitialPurchaseDate");
+          ModelState.Remove("InitialPurchaseOrderNumber");
+          viewModel.HasInitialPurchase = false;
         }
 
-        if (viewModel.InitialCostPerUnit <= 0)
+        // Conditional validation for initial purchase
+        if (!viewModel.HasInitialPurchase || viewModel.ItemType != ItemType.Inventoried)
         {
-          ModelState.AddModelError("InitialCostPerUnit", "Initial cost per unit must be greater than 0 when adding initial purchase.");
+          ModelState.Remove("InitialQuantity");
+          ModelState.Remove("InitialCostPerUnit");
+          ModelState.Remove("InitialVendor");
+          ModelState.Remove("InitialPurchaseDate");
+          ModelState.Remove("InitialPurchaseOrderNumber");
         }
-
-        if (string.IsNullOrWhiteSpace(viewModel.InitialVendor))
+        else
         {
-          ModelState.AddModelError("InitialVendor", "Initial vendor is required when adding initial purchase.");
-        }
-      }
-
-      if (ModelState.IsValid)
-      {
-        try
-        {
-          var item = new Item
+          if (viewModel.InitialQuantity <= 0)
           {
-            PartNumber = viewModel.PartNumber,
-            Description = viewModel.Description,
-            Comments = viewModel.Comments ?? string.Empty,
-            MinimumStock = viewModel.ItemType == ItemType.Inventoried ? viewModel.MinimumStock : 0,
-            CurrentStock = 0, // Will be updated if initial purchase is added
-            UnitOfMeasure = viewModel.UnitOfMeasure, // NEW: Set the Unit of Measure
-
-            // NEW PHASE 1 PROPERTIES
-            VendorPartNumber = viewModel.VendorPartNumber,
-            // PreferredVendor = viewModel.PreferredVendor, // Remove assignment, set after creation if needed
-            IsSellable = viewModel.IsSellable,
-            ItemType = viewModel.ItemType,
-            Version = viewModel.Version
-          };
-
-          // Handle image upload (existing code)
-          if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
-          {
-            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp" };
-            if (!allowedTypes.Contains(viewModel.ImageFile.ContentType.ToLower()))
-            {
-              ModelState.AddModelError("ImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
-              ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
-              return View(viewModel);
-            }
-
-            if (viewModel.ImageFile.Length > 5 * 1024 * 1024) // 5MB limit
-            {
-              ModelState.AddModelError("ImageFile", "Image file size must be less than 5MB.");
-              ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
-              return View(viewModel);
-            }
-
-            using (var memoryStream = new MemoryStream())
-            {
-              await viewModel.ImageFile.CopyToAsync(memoryStream);
-              item.ImageData = memoryStream.ToArray();
-              item.ImageContentType = viewModel.ImageFile.ContentType;
-              item.ImageFileName = viewModel.ImageFile.FileName;
-            }
+            ModelState.AddModelError("InitialQuantity", "Initial quantity must be greater than 0 when adding initial purchase.");
           }
 
-          var createdItem = await _inventoryService.CreateItemAsync(item);
-
-          // Create initial purchase ONLY if HasInitialPurchase is true AND item is inventoried
-          if (viewModel.HasInitialPurchase &&
-              viewModel.ItemType == ItemType.Inventoried &&
-              viewModel.InitialQuantity > 0 &&
-              viewModel.InitialCostPerUnit > 0 &&
-              !string.IsNullOrWhiteSpace(viewModel.InitialVendor))
+          if (viewModel.InitialCostPerUnit <= 0)
           {
-            // Find the vendor by name to get the VendorId
-            var vendor = await _context.Vendors
-              .FirstOrDefaultAsync(v => v.CompanyName.ToLower() == viewModel.InitialVendor.ToLower());
+            ModelState.AddModelError("InitialCostPerUnit", "Initial cost per unit must be greater than 0 when adding initial purchase.");
+          }
 
-            if (vendor == null)
+          if (string.IsNullOrWhiteSpace(viewModel.InitialVendor))
+          {
+            ModelState.AddModelError("InitialVendor", "Initial vendor is required when adding initial purchase.");
+          }
+        }
+
+        if (ModelState.IsValid)
+        {
+          // Use database transaction to ensure data consistency
+          using var transaction = await _context.Database.BeginTransactionAsync();
+          
+          try
+          {
+            var item = new Item
             {
-              // Create a new vendor if it doesn't exist
-              vendor = new Vendor
-              {
-                CompanyName = viewModel.InitialVendor,
-                IsActive = true,
-                CreatedDate = DateTime.Now,
-                LastUpdated = DateTime.Now,
-                QualityRating = 3,
-                DeliveryRating = 3,
-                ServiceRating = 3
-              };
-
-              _context.Vendors.Add(vendor);
-              await _context.SaveChangesAsync();
-            }
-
-            var initialPurchase = new Purchase
-            {
-              ItemId = createdItem.Id,
-              VendorId = vendor.Id, // Use VendorId instead of Vendor string
-              PurchaseDate = viewModel.InitialPurchaseDate ?? DateTime.Today,
-              QuantityPurchased = viewModel.InitialQuantity,
-              CostPerUnit = viewModel.InitialCostPerUnit,
-              PurchaseOrderNumber = viewModel.InitialPurchaseOrderNumber,
-              Notes = $"Initial inventory entry - {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}",
-              Status = PurchaseStatus.Received, // Mark as received since it's initial inventory
-              RemainingQuantity = viewModel.InitialQuantity,
+              PartNumber = viewModel.PartNumber,
+              Description = viewModel.Description,
+              Comments = viewModel.Comments ?? string.Empty,
+              MinimumStock = viewModel.ItemType == ItemType.Inventoried ? viewModel.MinimumStock : 0,
+              CurrentStock = 0,
+              UnitOfMeasure = viewModel.UnitOfMeasure,
+              VendorPartNumber = viewModel.VendorPartNumber,
+              IsSellable = viewModel.IsSellable,
+              ItemType = viewModel.ItemType,
+              Version = viewModel.Version,
+              MaterialType = viewModel.MaterialType,
+              ParentRawMaterialId = viewModel.ParentRawMaterialId,
+              YieldFactor = viewModel.YieldFactor,
+              WastePercentage = viewModel.WastePercentage,
+              IsCurrentVersion = true,
               CreatedDate = DateTime.Now
             };
 
-            await _purchaseService.CreatePurchaseAsync(initialPurchase);
+            // Handle image upload with validation
+            if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
+            {
+              var imageValidation = await ValidateAndProcessImageAsync(viewModel.ImageFile);
+              if (imageValidation.IsValid)
+              {
+                item.ImageData = imageValidation.ImageData;
+                item.ImageContentType = imageValidation.ContentType;
+                item.ImageFileName = imageValidation.FileName;
+              }
+              else
+              {
+                ModelState.AddModelError("ImageFile", imageValidation.ErrorMessage);
+                ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
+                await LoadRawMaterialsForView();
+                return View(viewModel);
+              }
+            }
 
-            TempData["SuccessMessage"] = $"Item created successfully with initial purchase of {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)} from {vendor.CompanyName}!";
+            var createdItem = await _inventoryService.CreateItemAsync(item);
+            _logger.LogInformation("Item created successfully: {PartNumber} (ID: {ItemId})", createdItem.PartNumber, createdItem.Id);
+
+            // Create Manufacturing BOM for transformed materials
+            string bomMessage = "";
+            if (viewModel.IsTransformedMaterial && viewModel.ParentRawMaterialId.HasValue)
+            {
+              await CreateManufacturingBomAsync(createdItem, viewModel);
+              var parentName = await GetParentMaterialName(viewModel.ParentRawMaterialId.Value);
+              bomMessage = $" Manufacturing BOM '{createdItem.PartNumber}-MFG' created from {parentName}.";
+              _logger.LogInformation("Manufacturing BOM created for transformed item: {PartNumber}", createdItem.PartNumber);
+            }
+
+            // Handle vendor relationship creation
+            Vendor? vendor = null;
+            if (!string.IsNullOrWhiteSpace(viewModel.PreferredVendor))
+            {
+              vendor = await FindOrCreateVendorAsync(viewModel.PreferredVendor);
+              await CreateVendorItemRelationshipAsync(vendor, createdItem, viewModel);
+              _logger.LogInformation("Vendor relationship created: {VendorName} for item {PartNumber}", vendor.CompanyName, createdItem.PartNumber);
+            }
+
+            // Create initial purchase if specified
+            if (viewModel.HasInitialPurchase &&
+                viewModel.ItemType == ItemType.Inventoried &&
+                viewModel.InitialQuantity > 0 &&
+                viewModel.InitialCostPerUnit > 0 &&
+                !string.IsNullOrWhiteSpace(viewModel.InitialVendor))
+            {
+              if (vendor == null || vendor.CompanyName != viewModel.InitialVendor)
+              {
+                vendor = await FindOrCreateVendorAsync(viewModel.InitialVendor);
+              }
+
+              await CreateInitialPurchaseAsync(createdItem, vendor, viewModel);
+              
+              var manufacturerInfo = !string.IsNullOrWhiteSpace(viewModel.Manufacturer) ? $" (MFG: {viewModel.Manufacturer})" : "";
+              TempData["SuccessMessage"] = $"Item created successfully with initial purchase of {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)} from {vendor.CompanyName}{manufacturerInfo}!{bomMessage}";
+              _logger.LogInformation("Initial purchase created for item: {PartNumber}, Qty: {Quantity}, Vendor: {VendorName}", 
+                createdItem.PartNumber, viewModel.InitialQuantity, vendor.CompanyName);
+            }
+            else
+            {
+              var itemTypeMsg = viewModel.ItemType == ItemType.Inventoried ? "inventoried item" : $"{viewModel.ItemType.ToString().ToLower()} item";
+              var manufacturerInfo = !string.IsNullOrWhiteSpace(viewModel.Manufacturer) ? $" (MFG: {viewModel.Manufacturer})" : "";
+              TempData["SuccessMessage"] = $"New {itemTypeMsg} created successfully! Unit: {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}{manufacturerInfo}{bomMessage}";
+            }
+
+            await transaction.CommitAsync();
+            return RedirectToAction("Details", new { id = createdItem.Id });
           }
-          else
+          catch (Exception ex)
           {
-            var itemTypeMsg = viewModel.ItemType == ItemType.Inventoried ? "inventoried item" : $"{viewModel.ItemType.ToString().ToLower()} item";
-            TempData["SuccessMessage"] = $"New {itemTypeMsg} created successfully! Unit: {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}";
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Error during item creation transaction for part number: {PartNumber}", viewModel.PartNumber);
+            throw;
           }
-
-          return RedirectToAction("Details", new { id = createdItem.Id });
-        }
-        catch (Exception ex)
-        {
-          ModelState.AddModelError("", $"Error creating item: {ex.Message}");
         }
       }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error creating item: {PartNumber}", viewModel.PartNumber);
+        ModelState.AddModelError("", $"Error creating item: {ex.Message}");
+      }
 
-
-      // Reload UOM options if validation fails
+      // Reload form data if validation fails
       ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
+      await LoadRawMaterialsForView();
       return View(viewModel);
     }
 
-    [HttpGet]
+    #region Validation Methods
+
+    private async Task ValidateTransformedMaterialAsync(CreateItemViewModel viewModel)
+    {
+      if (viewModel.MaterialType == MaterialType.Transformed)
+      {
+        // Validate parent raw material is selected
+        if (!viewModel.ParentRawMaterialId.HasValue)
+        {
+          ModelState.AddModelError("ParentRawMaterialId", "Parent raw material is required for transformed materials.");
+        }
+        else
+        {
+          // Validate parent material exists and is a raw material
+          var parentMaterial = await _context.Items.FindAsync(viewModel.ParentRawMaterialId.Value);
+          if (parentMaterial == null)
+          {
+            ModelState.AddModelError("ParentRawMaterialId", "Selected parent raw material does not exist.");
+          }
+          else if (parentMaterial.MaterialType != MaterialType.RawMaterial)
+          {
+            ModelState.AddModelError("ParentRawMaterialId", "Parent material must be of type 'Raw Material'.");
+          }
+          else if (!parentMaterial.TrackInventory)
+          {
+            ModelState.AddModelError("ParentRawMaterialId", "Parent raw material must be an inventoried item.");
+          }
+        }
+
+        // Validate yield factor
+        if (!viewModel.YieldFactor.HasValue)
+        {
+          ModelState.AddModelError("YieldFactor", "Yield factor is required for transformed materials.");
+        }
+        else if (viewModel.YieldFactor <= 0 || viewModel.YieldFactor > 1)
+        {
+          ModelState.AddModelError("YieldFactor", "Yield factor must be between 0.01 and 1.0 (1% to 100%).");
+        }
+
+        // Validate waste percentage
+        if (viewModel.WastePercentage.HasValue && (viewModel.WastePercentage < 0 || viewModel.WastePercentage > 50))
+        {
+          ModelState.AddModelError("WastePercentage", "Waste percentage must be between 0 and 50%.");
+        }
+
+        // Check for circular references
+        if (viewModel.ParentRawMaterialId.HasValue)
+        {
+          var hasCircularReference = await CheckForCircularReferenceAsync(null, viewModel.ParentRawMaterialId.Value);
+          if (hasCircularReference)
+          {
+            ModelState.AddModelError("ParentRawMaterialId", "Circular reference detected. This would create an infinite loop in the material hierarchy.");
+          }
+        }
+
+        // Check for duplicate part numbers with same yield factor
+        var existingTransformedItem = await _context.Items
+          .FirstOrDefaultAsync(i => 
+            i.PartNumber != viewModel.PartNumber &&
+            i.ParentRawMaterialId == viewModel.ParentRawMaterialId &&
+            i.YieldFactor == viewModel.YieldFactor);
+        
+        if (existingTransformedItem != null)
+        {
+          ModelState.AddModelError("YieldFactor", $"A transformed material with the same parent and yield factor already exists: {existingTransformedItem.PartNumber}");
+        }
+      }
+    }
+
+    private async Task<bool> CheckForCircularReferenceAsync(int? itemId, int parentId)
+    {
+      // If we're checking the same item, we have a circular reference
+      if (itemId.HasValue && itemId.Value == parentId)
+        return true;
+
+      // Get the parent item and check its parent recursively
+      var parentItem = await _context.Items.FindAsync(parentId);
+      if (parentItem?.ParentRawMaterialId.HasValue == true)
+      {
+        return await CheckForCircularReferenceAsync(itemId, parentItem.ParentRawMaterialId.Value);
+      }
+
+      return false;
+    }
+
+    private async Task<(bool IsValid, byte[]? ImageData, string? ContentType, string? FileName, string ErrorMessage)> ValidateAndProcessImageAsync(IFormFile imageFile)
+    {
+      try
+      {
+        var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp", "image/webp" };
+        if (!allowedTypes.Contains(imageFile.ContentType.ToLower()))
+        {
+          return (false, null, null, null, "Please upload a valid image file (JPEG, PNG, GIF, BMP, WebP).");
+        }
+
+        if (imageFile.Length > 5 * 1024 * 1024) // 5MB limit
+        {
+          return (false, null, null, null, "Image file size must be less than 5MB.");
+        }
+
+        using var memoryStream = new MemoryStream();
+        await imageFile.CopyToAsync(memoryStream);
+        return (true, memoryStream.ToArray(), imageFile.ContentType, imageFile.FileName, "");
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error processing image file: {FileName}", imageFile.FileName);
+        return (false, null, null, null, "Error processing image file.");
+      }
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private async Task LoadRawMaterialsForView()
+    {
+      try
+      {
+        var rawMaterials = await _context.Items
+          .Where(i => i.MaterialType == MaterialType.RawMaterial && 
+                     i.ItemType == ItemType.Inventoried &&
+                     i.IsCurrentVersion)
+          .OrderBy(i => i.PartNumber)
+          .Select(i => new { i.Id, DisplayText = $"{i.PartNumber} - {i.Description}" })
+          .ToListAsync();
+
+        ViewBag.ParentRawMaterials = new SelectList(rawMaterials, "Id", "DisplayText");
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading raw materials for view");
+        ViewBag.ParentRawMaterials = new SelectList(new List<object>(), "Id", "DisplayText");
+      }
+    }
+
+    private async Task<string> GetParentMaterialName(int parentRawMaterialId)
+    {
+      try
+      {
+        var parent = await _context.Items.FindAsync(parentRawMaterialId);
+        return parent?.PartNumber ?? "unknown material";
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting parent material name for ID: {ParentId}", parentRawMaterialId);
+        return "unknown material";
+      }
+    }
+
+    private async Task<Vendor> FindOrCreateVendorAsync(string vendorName)
+    {
+      var vendor = await _context.Vendors
+        .FirstOrDefaultAsync(v => v.CompanyName.ToLower() == vendorName.ToLower());
+
+      if (vendor == null)
+      {
+        vendor = new Vendor
+        {
+          CompanyName = vendorName,
+          IsActive = true,
+          CreatedDate = DateTime.Now,
+          LastUpdated = DateTime.Now,
+          QualityRating = 3,
+          DeliveryRating = 3,
+          ServiceRating = 3
+        };
+        _context.Vendors.Add(vendor);
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("New vendor created: {VendorName}", vendorName);
+      }
+
+      return vendor;
+    }
+
+    private async Task CreateVendorItemRelationshipAsync(Vendor vendor, Item item, CreateItemViewModel viewModel)
+    {
+      var vendorItem = new VendorItem
+      {
+        VendorId = vendor.Id,
+        ItemId = item.Id,
+        VendorPartNumber = viewModel.VendorPartNumber,
+        Manufacturer = viewModel.Manufacturer,
+        ManufacturerPartNumber = viewModel.ManufacturerPartNumber,
+        IsPrimary = true,
+        IsActive = true,
+        LastUpdated = DateTime.Now
+      };
+
+      _context.VendorItems.Add(vendorItem);
+      await _context.SaveChangesAsync();
+
+      // Set as preferred vendor
+      item.PreferredVendorItemId = vendorItem.Id;
+      await _inventoryService.UpdateItemAsync(item);
+    }
+
+    private async Task CreateInitialPurchaseAsync(Item item, Vendor vendor, CreateItemViewModel viewModel)
+    {
+      var initialPurchase = new Purchase
+      {
+        ItemId = item.Id,
+        VendorId = vendor.Id,
+        PurchaseDate = viewModel.InitialPurchaseDate ?? DateTime.Today,
+        QuantityPurchased = viewModel.InitialQuantity,
+        CostPerUnit = viewModel.InitialCostPerUnit,
+        PurchaseOrderNumber = viewModel.InitialPurchaseOrderNumber,
+        Notes = $"Initial inventory entry - {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}",
+        Status = PurchaseStatus.Received,
+        RemainingQuantity = viewModel.InitialQuantity,
+        CreatedDate = DateTime.Now
+      };
+
+      await _purchaseService.CreatePurchaseAsync(initialPurchase);
+    }
+
+    #endregion
+
+    #region Manufacturing BOM Creation
+
+    private async Task CreateManufacturingBomAsync(Item transformedItem, CreateItemViewModel viewModel)
+    {
+      if (!viewModel.ParentRawMaterialId.HasValue || !viewModel.YieldFactor.HasValue)
+      {
+        _logger.LogWarning("CreateManufacturingBomAsync called with missing required data for item: {PartNumber}", transformedItem.PartNumber);
+        return;
+      }
+
+      try
+      {
+        // Create the manufacturing BOM using service layer
+        var manufacturingBom = new Bom
+        {
+          BomNumber = $"{transformedItem.PartNumber}-MFG",
+          Description = $"Manufacturing BOM for {transformedItem.Description}",
+          Version = "A",
+          IsCurrentVersion = true,
+          CreatedDate = DateTime.Now,
+          ModifiedDate = DateTime.Now
+        };
+
+        var createdBom = await _bomService.CreateBomAsync(manufacturingBom);
+        _logger.LogInformation("Manufacturing BOM created: {BomNumber} for item {PartNumber}", createdBom.BomNumber, transformedItem.PartNumber);
+
+        // Calculate required raw material quantity based on yield factor
+        var requiredQuantity = Math.Round(1.0m / (decimal)viewModel.YieldFactor.Value, 4);
+
+        // Add raw material requirement
+        var bomItem = new BomItem
+        {
+          BomId = createdBom.Id,
+          ItemId = viewModel.ParentRawMaterialId.Value,
+          Quantity = (int)requiredQuantity, // <-- FIX: Explicit cast from decimal to int
+          Notes = $"Raw material for {transformedItem.PartNumber}. Yield: {viewModel.YieldFactor:P2}"
+        };
+
+        await _bomService.AddBomItemAsync(bomItem);
+
+        // Log the creation details
+        var parentMaterial = await _context.Items.FindAsync(viewModel.ParentRawMaterialId.Value);
+        _logger.LogInformation("BOM item added: {ParentPartNumber} - Required quantity: {RequiredQuantity} for BOM {BomNumber}", 
+          parentMaterial?.PartNumber, requiredQuantity, createdBom.BomNumber);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error creating manufacturing BOM for item: {PartNumber}", transformedItem.PartNumber);
+        throw new InvalidOperationException($"Failed to create manufacturing BOM for {transformedItem.PartNumber}: {ex.Message}", ex);
+      }
+    }
+
+    #endregion
+
     public async Task<IActionResult> Edit(int id)
     {
       try

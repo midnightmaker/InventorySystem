@@ -162,5 +162,33 @@ namespace InventorySystem.Models
     public string VersionedPartNumber => $"{PartNumber} Rev {Version}";
     [NotMapped]
     public int VersionCount => Versions?.Count ?? 0;
+
+    [Display(Name = "Material Type")]
+    public MaterialType MaterialType { get; set; } = MaterialType.Standard;
+
+    [Display(Name = "Parent Raw Material")]
+    public int? ParentRawMaterialId { get; set; }
+    public virtual Item? ParentRawMaterial { get; set; }
+
+    [Display(Name = "Yield Factor")]
+    [Column(TypeName = "decimal(10,4)")]
+    public decimal? YieldFactor { get; set; }
+
+    [Display(Name = "Waste Percentage")]
+    [Column(TypeName = "decimal(5,2)")]
+    public decimal? WastePercentage { get; set; }
+
+    // Navigation properties
+    public virtual ICollection<Item> TransformedItems { get; set; } = new List<Item>();
+
+    // Computed properties
+    [NotMapped]
+    public bool IsRawMaterial => MaterialType == MaterialType.RawMaterial;
+
+    [NotMapped]
+    public bool IsTransformed => MaterialType == MaterialType.Transformed;
+
+    [NotMapped]
+    public decimal EffectiveYield => YieldFactor ?? 1.0m;
   }
 }

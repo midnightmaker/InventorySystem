@@ -39,6 +39,7 @@ namespace InventorySystem.Infrastructure.Services
       _context = context;
       _logger = logger;
       _backorderNotificationService = backorderNotificationService;
+      _backorderService = backorderService;
     }
 
     public async Task<CommandResult> CreateProductionWithWorkflowAsync(

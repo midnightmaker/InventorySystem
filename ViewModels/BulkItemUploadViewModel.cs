@@ -37,9 +37,14 @@ namespace InventorySystem.ViewModels
     public int MinimumStock { get; set; }
     public int RowNumber { get; set; }
 
-
+    // Vendor information
     public string? VendorPartNumber { get; set; }
     public string? PreferredVendor { get; set; }
+
+    // NEW: Manufacturer information
+    public string? Manufacturer { get; set; }
+    public string? ManufacturerPartNumber { get; set; }
+
     public bool IsSellable { get; set; } = true;
     public ItemType ItemType { get; set; } = ItemType.Inventoried;
     public string Version { get; set; } = "A";
@@ -54,8 +59,12 @@ namespace InventorySystem.ViewModels
     // Helper properties
     public bool TrackInventory => ItemType == ItemType.Inventoried;
     public string ItemTypeDisplayName => ItemType.ToString();
-  }
 
+    // NEW: Helper property for display
+    public string ManufacturerInfo => !string.IsNullOrEmpty(Manufacturer) || !string.IsNullOrEmpty(ManufacturerPartNumber)
+        ? $"{Manufacturer ?? "Unknown"} - {ManufacturerPartNumber ?? "N/A"}"
+        : "Not specified";
+  }
 
   public class ItemValidationResult
   {
@@ -67,6 +76,4 @@ namespace InventorySystem.ViewModels
     public List<string> Warnings { get; set; } = new List<string>();
     public BulkItemPreview? ItemData { get; set; }
   }
-
- 
 }
