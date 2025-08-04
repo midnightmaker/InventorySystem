@@ -1,4 +1,4 @@
-﻿// ViewModels/CreatePurchaseViewModel.cs - Updated with VendorId
+﻿// ViewModels/CreatePurchaseViewModel.cs - Enhanced with higher precision decimal fields
 using System;
 using System.ComponentModel.DataAnnotations;
 using InventorySystem.Models.Enums;
@@ -27,7 +27,7 @@ namespace InventorySystem.ViewModels
 
     [Required(ErrorMessage = "Cost per unit is required")]
     [Display(Name = "Cost Per Unit")]
-    [Range(0.01, (double)decimal.MaxValue, ErrorMessage = "Cost per unit must be greater than 0")]
+    [Range(0.0001, (double)decimal.MaxValue, ErrorMessage = "Cost per unit must be greater than 0")]
     public decimal CostPerUnit { get; set; }
 
     [Display(Name = "Shipping Cost")]

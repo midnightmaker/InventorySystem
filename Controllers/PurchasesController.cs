@@ -562,7 +562,39 @@ namespace InventorySystem.Controllers
       ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", selectedItemId);
       ViewBag.VendorId = new SelectList(vendors, "Id", "CompanyName", selectedVendorId);
     }
+    // Add this action method to PurchasesController
+    public async Task<IActionResult> Vendors()
+    {
+      try
+      {
+        var vendors = await _vendorService.GetActiveVendorsAsync();
 
+        // You might want to include purchase-related information for each vendor
+        var vendorsWithPurchaseInfo = new List<dynamic>();
+
+        foreach (var vendor in vendors)
+        {
+          var purchaseHistory = await _vendorService.GetVendorPurchaseHistoryAsync(vendor.Id);
+          var totalPurchases = await _vendorService.GetVendorTotalPurchasesAsync(vendor.Id);
+
+          vendorsWithPurchaseInfo.Add(new
+          {
+            Vendor = vendor,
+            PurchaseCount = purchaseHistory.Count(),
+            TotalPurchaseValue = totalPurchases,
+            LastPurchaseDate = purchaseHistory.FirstOrDefault()?.PurchaseDate
+          });
+        }
+
+        return View(vendorsWithPurchaseInfo);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error loading vendors: {ex.Message}");
+        TempData["ErrorMessage"] = $"Error loading vendors: {ex.Message}";
+        return View(new List<object>());
+      }
+    }
     // AJAX endpoint to get last vendor for an item
     [HttpGet]
     public async Task<IActionResult> GetLastVendorForItem(int itemId)

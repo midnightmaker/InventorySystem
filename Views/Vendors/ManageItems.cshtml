@@ -170,12 +170,12 @@
                         }
                       </td>
                       <td>
-                        <span class="text-success">$@vendorItem.UnitCost.ToString("N2")</span>
+                        <span class="text-success">$@vendorItem.UnitCost.ToString("N6")</span>
                         @if (vendorItem.LastPurchaseCost.HasValue && vendorItem.LastPurchaseCost != vendorItem.UnitCost)
                         {
                           <br>
                           <small class="text-muted">
-                            Last: $@vendorItem.LastPurchaseCost.Value.ToString("N2")
+                            Last: $@vendorItem.LastPurchaseCost.Value.ToString("N6")
                           </small>
                         }
                       </td>

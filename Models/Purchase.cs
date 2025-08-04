@@ -1,4 +1,4 @@
-// Models/Purchase.cs - Clean implementation with VendorId only
+// Models/Purchase.cs - Enhanced with higher precision decimal fields
 using InventorySystem.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -28,8 +28,8 @@ namespace InventorySystem.Models
 
     [Required(ErrorMessage = "Cost per unit is required")]
     [Display(Name = "Cost Per Unit")]
-    [Column(TypeName = "decimal(18,2)")]
-    [Range(0.01, double.MaxValue, ErrorMessage = "Cost per unit must be greater than 0")]
+    [Column(TypeName = "decimal(18,6)")]  // Changed from decimal(18,2) to decimal(18,6)
+    [Range(0.0001, double.MaxValue, ErrorMessage = "Cost per unit must be greater than 0")]
     public decimal CostPerUnit { get; set; }
 
     [NotMapped]
@@ -47,12 +47,12 @@ namespace InventorySystem.Models
     public string? Notes { get; set; }
 
     [Display(Name = "Shipping Cost")]
-    [Column(TypeName = "decimal(18,2)")]
+    [Column(TypeName = "decimal(18,6)")]  // Changed from decimal(18,4) to decimal(18,6)
     [Range(0, double.MaxValue, ErrorMessage = "Shipping cost cannot be negative")]
     public decimal ShippingCost { get; set; } = 0;
 
     [Display(Name = "Tax Amount")]
-    [Column(TypeName = "decimal(18,2)")]
+    [Column(TypeName = "decimal(18,4)")]  // Changed from decimal(18,2) to decimal(18,4)
     [Range(0, double.MaxValue, ErrorMessage = "Tax amount cannot be negative")]
     public decimal TaxAmount { get; set; } = 0;
 

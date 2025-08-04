@@ -33,9 +33,15 @@ namespace InventorySystem.Models
     [Display(Name = "Vendor Part Number")]
     public string? VendorPartNumber { get; set; }
 
-    [StringLength(200)]
+    // REPLACED: Simple string with structured relationship
+    // [StringLength(200)]
+    // [Display(Name = "Preferred Vendor")]
+    // public string? PreferredVendor { get; set; }
+
+    // NEW: Preferred Vendor relationship via VendorItem
     [Display(Name = "Preferred Vendor")]
-    public string? PreferredVendor { get; set; }
+    public int? PreferredVendorItemId { get; set; }
+    public virtual VendorItem? PreferredVendorItem { get; set; }
 
     [Display(Name = "Sellable")]
     public bool IsSellable { get; set; } = true;
@@ -64,6 +70,15 @@ namespace InventorySystem.Models
       ItemType.Virtual => "Virtual",
       _ => "Unknown"
     };
+
+    // NEW: Computed property for backward compatibility and display
+    [NotMapped]
+    [Display(Name = "Preferred Vendor")]
+    public string? PreferredVendor => PreferredVendorItem?.Vendor?.CompanyName ?? "TBA";
+
+    [NotMapped]
+    [Display(Name = "Has Preferred Vendor")]
+    public bool HasPreferredVendor => PreferredVendorItemId.HasValue;
 
     // UNIT OF MEASURE DISPLAY PROPERTIES
     [NotMapped]
@@ -122,6 +137,9 @@ namespace InventorySystem.Models
     public List<Purchase> Purchases { get; set; } = new List<Purchase>();
     public List<BomItem> BomItems { get; set; } = new List<BomItem>();
     public List<ItemDocument> DesignDocuments { get; set; } = new List<ItemDocument>();
+
+    // NEW: All vendor relationships for this item
+    public virtual ICollection<VendorItem> VendorItems { get; set; } = new List<VendorItem>();
 
     // Image properties
     public byte[]? ImageData { get; set; }

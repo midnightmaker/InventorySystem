@@ -41,11 +41,37 @@ namespace InventorySystem.Data
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+      // Configure existing entities
+      ConfigureExistingEntities(modelBuilder);
+
       // Configure new workflow entities
       ConfigureWorkflowEntities(modelBuilder);
-      ConfigureExistingEntities(modelBuilder);
-      base.OnModelCreating(modelBuilder);
 
+      // NEW: Configure Item -> VendorItem preferred relationship
+      modelBuilder.Entity<Item>()
+          .HasOne(i => i.PreferredVendorItem)
+          .WithMany()
+          .HasForeignKey(i => i.PreferredVendorItemId)
+          .OnDelete(DeleteBehavior.SetNull);
+
+      // Configure Item -> VendorItem collection relationship  
+      modelBuilder.Entity<Item>()
+          .HasMany(i => i.VendorItems)
+          .WithOne(vi => vi.Item)
+          .HasForeignKey(vi => vi.ItemId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // Ensure VendorItem -> Vendor relationship
+      modelBuilder.Entity<VendorItem>()
+          .HasOne(vi => vi.Vendor)
+          .WithMany(v => v.VendorItems)
+          .HasForeignKey(vi => vi.VendorId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // Configure unique constraint for VendorItem (one relationship per vendor-item pair)
+      modelBuilder.Entity<VendorItem>()
+          .HasIndex(vi => new { vi.VendorId, vi.ItemId })
+          .IsUnique();
     }
 
     private void ConfigureExistingEntities(ModelBuilder modelBuilder)

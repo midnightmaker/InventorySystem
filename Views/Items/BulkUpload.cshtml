@@ -285,7 +285,7 @@
                                                 @if (valid.ItemData.InitialQuantity.HasValue && valid.ItemData.InitialCostPerUnit.HasValue && !string.IsNullOrEmpty(valid.ItemData.InitialVendor))
                                                 {
                                                     <span class="badge bg-success">
-                                                        @valid.ItemData.InitialQuantity&nbsp;@valid.ItemData.InitialCostPerUnit.Value.ToString("F2")
+                                                        @valid.ItemData.InitialQuantity&nbsp;@valid.ItemData.InitialCostPerUnit.Value.ToString("F6")
                                                     </span>
                                                 }
                                                 else

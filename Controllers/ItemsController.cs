@@ -42,27 +42,35 @@ namespace InventorySystem.Controllers
       var item = await _inventoryService.GetItemByIdAsync(id);
       if (item == null) return NotFound();
 
-      // ? ADD: Get all versions for this item (similar to BOM implementation)
-      var itemVersions = await _versionService.GetItemVersionsAsync(item.BaseItemId ?? item.Id);
+      // Load item versions for version dropdown
+      var itemVersions = await _inventoryService.GetItemVersionsAsync(item.BaseItemId ?? item.Id);
       ViewBag.ItemVersions = itemVersions;
 
-      // ? ADD: Get purchases filtered by version (similar to BOM implementation)
-      var allPurchases = await _purchaseService.GetPurchasesByItemIdAsync(id);
+      // Load purchase history
+      var purchases = await _purchaseService.GetPurchasesByItemIdAsync(id);
+      ViewBag.Purchases = purchases;
 
-      // Group purchases by version for the filter dropdown
-      var purchasesByVersion = allPurchases
+      // Group purchases by item version for filtering
+      var purchasesByVersion = purchases
           .GroupBy(p => p.ItemVersion ?? "N/A")
           .ToDictionary(g => g.Key, g => g.AsEnumerable());
       ViewBag.PurchasesByVersion = purchasesByVersion;
 
+      // NEW: Load vendor relationships
+      var vendorService = HttpContext.RequestServices.GetRequiredService<IVendorService>();
+      var vendorItems = await vendorService.GetItemVendorsAsync(id);
+      ViewBag.VendorItems = vendorItems;
+
+      // Load financial data
       ViewBag.AverageCost = await _inventoryService.GetAverageCostAsync(id);
       ViewBag.FifoValue = await _inventoryService.GetFifoValueAsync(id);
-      ViewBag.Purchases = allPurchases; // ? CHANGED: Use allPurchases instead of specific call
 
-      // Check for pending change orders
-      var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("Item", item.BaseItemId ?? item.Id);
-      ViewBag.PendingChangeOrders = pendingChangeOrders;
-      ViewBag.EntityType = "Item";
+      // Load pending change orders if applicable
+      if (item.IsCurrentVersion)
+      {
+          var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("Item", item.BaseItemId ?? item.Id);
+          ViewBag.PendingChangeOrders = pendingChangeOrders;
+      }
 
       return View(item);
     }
@@ -172,6 +180,22 @@ namespace InventorySystem.Controllers
           {
             TempData["WarningMessage"] = $"{result.FailedImports} items failed to import.";
           }
+
+          // NEW: Check if there are vendor assignments that need user review
+          if (result is IVendorAssignmentResult)
+          {
+              var vendorAssignmentResult = (IVendorAssignmentResult)result;
+              if (vendorAssignmentResult.VendorAssignments != null &&
+                  vendorAssignmentResult.VendorAssignments.NewVendorRequests != null &&
+                  vendorAssignmentResult.VendorAssignments.NewVendorRequests.Any())
+              {
+                  var vendorAssignmentsJson = System.Text.Json.JsonSerializer.Serialize(vendorAssignmentResult.VendorAssignments);
+                  TempData["VendorAssignments"] = vendorAssignmentsJson;
+
+                  TempData["InfoMessage"] = "Items imported successfully. Please review vendor assignments.";
+                  return RedirectToAction("ImportVendorAssignments");
+              }
+          }
         }
         else
         {
@@ -258,7 +282,7 @@ namespace InventorySystem.Controllers
 
             // NEW PHASE 1 PROPERTIES
             VendorPartNumber = viewModel.VendorPartNumber,
-            PreferredVendor = viewModel.PreferredVendor,
+            // PreferredVendor = viewModel.PreferredVendor, // Remove assignment, set after creation if needed
             IsSellable = viewModel.IsSellable,
             ItemType = viewModel.ItemType,
             Version = viewModel.Version
@@ -450,19 +474,20 @@ namespace InventorySystem.Controllers
           var selectedVendor = await _vendorService.GetVendorByIdAsync(preferredVendorId.Value);
           if (selectedVendor != null)
           {
-            item.PreferredVendor = selectedVendor.CompanyName;
-            Console.WriteLine($"Set preferred vendor to: {item.PreferredVendor}");
+            // item.PreferredVendor = selectedVendor.CompanyName; // <-- REMOVE THIS LINE
+            item.PreferredVendorItemId = selectedVendor.Id; // <-- SET THE ID INSTEAD
+            Console.WriteLine($"Set preferred vendor to: {selectedVendor.CompanyName}");
           }
           else
           {
             Console.WriteLine($"Vendor with ID {preferredVendorId.Value} not found");
-            item.PreferredVendor = null;
+            item.PreferredVendorItemId = null; // <-- CLEAR THE ID
           }
         }
         else
         {
           Console.WriteLine("No preferred vendor selected - clearing field");
-          item.PreferredVendor = null;
+          item.PreferredVendorItemId = null; // <-- CLEAR THE ID
         }
       }
       catch (Exception ex)
@@ -697,7 +722,57 @@ namespace InventorySystem.Controllers
       return View(new BulkItemUploadViewModel());
     }
 
+    // Add these new action methods to ItemsController
 
+    [HttpGet]
+    public async Task<IActionResult> ImportVendorAssignments(string? importId)
+    {
+        // In a real implementation, you might store the ImportVendorAssignmentViewModel
+        // in TempData, Session, or database temporarily
+        if (TempData["VendorAssignments"] is string vendorAssignmentsJson)
+        {
+            var model = System.Text.Json.JsonSerializer.Deserialize<ImportVendorAssignmentViewModel>(vendorAssignmentsJson);
+            return View(model);
+        }
 
+        // If no pending assignments, redirect to items
+        TempData["InfoMessage"] = "No vendor assignments pending.";
+        return RedirectToAction("Index");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CompleteVendorAssignments(ImportVendorAssignmentViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View("ImportVendorAssignments", model);
+        }
+
+        try
+        {
+            var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
+            var result = await bulkUploadService.CompleteVendorAssignmentsAsync(model);
+
+            if (result.Success)
+            {
+                TempData["SuccessMessage"] = result.Summary;
+                
+                // Clear any stored vendor assignments
+                TempData.Remove("VendorAssignments");
+            }
+            else
+            {
+                TempData["ErrorMessage"] = $"Assignment completed with errors: {string.Join(", ", result.Errors)}";
+            }
+
+            return RedirectToAction("Index");
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"Error completing vendor assignments: {ex.Message}";
+            return View("ImportVendorAssignments", model);
+        }
+    }
   }
 }

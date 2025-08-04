@@ -67,4 +67,6 @@ namespace InventorySystem.ViewModels
     public List<string> Warnings { get; set; } = new List<string>();
     public BulkItemPreview? ItemData { get; set; }
   }
+
+ 
 }

@@ -141,12 +141,16 @@ namespace InventorySystem.Services
 
     public async Task<IEnumerable<VendorItem>> GetItemVendorsAsync(int itemId)
     {
-      return await _context.VendorItems
+      // First fetch the data without decimal ordering
+      var vendorItems = await _context.VendorItems
         .Include(vi => vi.Vendor)
         .Where(vi => vi.ItemId == itemId && vi.IsActive && vi.Vendor.IsActive)
-        .OrderBy(vi => vi.IsPrimary ? 0 : 1)
-        .ThenBy(vi => vi.UnitCost)
         .ToListAsync();
+
+      // Then order by computed properties in memory
+      return vendorItems
+        .OrderBy(vi => vi.IsPrimary ? 0 : 1)
+        .ThenBy(vi => vi.UnitCost);
     }
 
     public async Task<VendorItem?> GetVendorItemAsync(int vendorId, int itemId)

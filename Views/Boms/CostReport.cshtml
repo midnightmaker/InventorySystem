@@ -39,7 +39,7 @@
             <dd class="col-sm-4">@DateTime.Now.ToString("MM/dd/yyyy")</dd>
             
             <dt class="col-sm-2"><strong>Total Cost:</strong></dt>
-            <dd class="col-sm-4"><strong class="text-success fs-4">$@totalCost.ToString("F2")</strong></dd>
+            <dd class="col-sm-4"><strong class="text-success fs-4">$@totalCost.ToString("F6")</strong></dd>
         </dl>
     </div>
 </div>
@@ -75,8 +75,8 @@
                                 <td><strong>@bomItem.Item.PartNumber</strong></td>
                                 <td>@bomItem.Item.Description</td>
                                 <td>@bomItem.Quantity</td>
-                                <td>$@bomItem.UnitCost.ToString("F2")</td>
-                                <td>$@bomItem.ExtendedCost.ToString("F2")</td>
+                                <td>$@bomItem.UnitCost.ToString("F6")</td>
+                                <td>$@bomItem.ExtendedCost.ToString("F6")</td>
                                 <td>@bomItem.ReferenceDesignator</td>
                                 <td>@bomItem.Notes</td>
                             </tr>
@@ -85,7 +85,7 @@
                     <tfoot class="table-dark">
                         <tr>
                             <th colspan="4">Component Subtotal:</th>
-                            <th>$@componentTotal.ToString("F2")</th>
+                            <th>$@componentTotal.ToString("F6")</th>
                             <th colspan="2"></th>
                         </tr>
                     </tfoot>

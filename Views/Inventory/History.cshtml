@@ -64,11 +64,11 @@
                 <dd class="col-sm-4">
                     @if (totalCostImpact > 0)
                     {
-                        <span class="text-success">+$@totalCostImpact.ToString("F2")</span>
+                        <span class="text-success">+$@totalCostImpact.ToString("F6")</span>
                     }
                     else if (totalCostImpact < 0)
                     {
-                        <span class="text-danger">-$@Math.Abs(totalCostImpact).ToString("F2")</span>
+                        <span class="text-danger">-$@Math.Abs(totalCostImpact).ToString("F6")</span>
                     }
                     else
                     {
@@ -138,11 +138,11 @@
                                 <td>
                                     @if (adjustment.CostImpact > 0)
                                     {
-                                        <span class="text-success">+$@adjustment.CostImpact.ToString("F2")</span>
+                                        <span class="text-success">+$@adjustment.CostImpact.ToString("F6")</span>
                                     }
                                     else if (adjustment.CostImpact < 0)
                                     {
-                                        <span class="text-danger">-$@Math.Abs(adjustment.CostImpact).ToString("F2")</span>
+                                        <span class="text-danger">-$@Math.Abs(adjustment.CostImpact).ToString("F6")</span>
                                     }
                                     else
                                     {
@@ -201,7 +201,7 @@
                     <div class="card text-center">
                         <div class="card-body">
                             <h5 class="@(totalCostImpact >= 0 ? "text-success" : "text-danger")">
-                                @(totalCostImpact >= 0 ? "+$" : "-$")@Math.Abs(totalCostImpact).ToString("F2")
+                                @(totalCostImpact >= 0 ? "+$" : "-$")@Math.Abs(totalCostImpact).ToString("F6")
                             </h5>
                             <small class="text-muted">Total Cost Impact</small>
                         </div>

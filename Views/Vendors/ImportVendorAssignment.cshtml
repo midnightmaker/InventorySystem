@@ -1,0 +1,211 @@
+﻿@model InventorySystem.ViewModels.ImportVendorAssignmentViewModel
+@{
+  ViewData["Title"] = "Complete Vendor Assignments";
+}
+
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-handshake"></i> Complete Vendor Assignments</h1>
+    <div>
+      <a href="/Items" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Items
+      </a>
+    </div>
+  </div>
+
+  @if (Model.NewVendorRequests.Any())
+  {
+    <div class="alert alert-info">
+      <h5><i class="fas fa-info-circle"></i> New Vendors Needed</h5>
+      <p>The following vendors were referenced in your import but don't exist in the system. Select which ones you'd like to create:</p>
+    </div>
+
+    <form asp-action="CompleteVendorAssignments" method="post">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-building"></i> New Vendor Creation</h5>
+        </div>
+        <div class="card-body">
+          @for (int i = 0; i < Model.NewVendorRequests.Count; i++)
+          {
+            <input type="hidden" asp-for="NewVendorRequests[i].VendorName" />
+
+            <div class="card mb-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="form-check">
+                  <input type="checkbox" asp-for="NewVendorRequests[i].ShouldCreate" class="form-check-input" id="vendor-@i" checked />
+                  <label class="form-check-label fw-bold" for="vendor-@i">
+                    @Model.NewVendorRequests[i].VendorName
+                  </label>
+                </div>
+                <span class="badge bg-primary">@Model.NewVendorRequests[i].RelatedItems.Count item(s)</span>
+              </div>
+              <div class="card-body">
+                <h6>Items that will be linked to this vendor:</h6>
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Part Number</th>
+                        <th>Description</th>
+                        <th>Vendor Part Number</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @foreach (var item in Model.NewVendorRequests[i].RelatedItems)
+                      {
+                        <tr>
+                          <td><code>@item.PartNumber</code></td>
+                          <td>@item.Description</td>
+                          <td>@(item.VendorPartNumber ?? "N/A")</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Hidden fields for related items -->
+                @for (int j = 0; j < Model.NewVendorRequests[i].RelatedItems.Count; j++)
+                {
+                  <input type="hidden" asp-for="NewVendorRequests[i].RelatedItems[j].ItemId" />
+                  <input type="hidden" asp-for="NewVendorRequests[i].RelatedItems[j].PartNumber" />
+                  <input type="hidden" asp-for="NewVendorRequests[i].RelatedItems[j].Description" />
+                  <input type="hidden" asp-for="NewVendorRequests[i].RelatedItems[j].VendorPartNumber" />
+                  <input type="hidden" asp-for="NewVendorRequests[i].RelatedItems[j].VendorName" />
+                  <input type="hidden" asp-for="NewVendorRequests[i].RelatedItems[j].VendorExists" />
+                  <input type="hidden" asp-for="NewVendorRequests[i].RelatedItems[j].IsAssigned" />
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      @if (Model.PendingAssignments.Any(pa => pa.IsAssigned))
+      {
+        <div class="card mb-4">
+          <div class="card-header bg-success text-white">
+            <h5><i class="fas fa-check-circle"></i> Automatically Assigned</h5>
+          </div>
+          <div class="card-body">
+            <p>These items were automatically linked to existing vendors:</p>
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Part Number</th>
+                    <th>Description</th>
+                    <th>Vendor</th>
+                    <th>Vendor Part Number</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var assignment in Model.PendingAssignments.Where(pa => pa.IsAssigned))
+                  {
+                    <tr>
+                      <td><code>@assignment.PartNumber</code></td>
+                      <td>@assignment.Description</td>
+                      <td>
+                        <strong class="text-success">@assignment.FoundVendorName</strong>
+                      </td>
+                      <td>@(assignment.VendorPartNumber ?? "N/A")</td>
+                      <td>
+                        <span class="badge bg-success">
+                          <i class="fas fa-check"></i> Linked
+                        </span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Hidden fields for already assigned items -->
+      @{
+        var assignedItems = Model.PendingAssignments.Where(pa => pa.IsAssigned).ToList();
+      }
+      @for (int i = 0; i < assignedItems.Count; i++)
+      {
+        <input type="hidden" asp-for="PendingAssignments[i].ItemId" value="@assignedItems[i].ItemId" />
+        <input type="hidden" asp-for="PendingAssignments[i].PartNumber" value="@assignedItems[i].PartNumber" />
+        <input type="hidden" asp-for="PendingAssignments[i].Description" value="@assignedItems[i].Description" />
+        <input type="hidden" asp-for="PendingAssignments[i].VendorPartNumber" value="@assignedItems[i].VendorPartNumber" />
+        <input type="hidden" asp-for="PendingAssignments[i].VendorName" value="@assignedItems[i].VendorName" />
+        <input type="hidden" asp-for="PendingAssignments[i].VendorExists" value="@assignedItems[i].VendorExists" />
+        <input type="hidden" asp-for="PendingAssignments[i].FoundVendorId" value="@assignedItems[i].FoundVendorId" />
+        <input type="hidden" asp-for="PendingAssignments[i].FoundVendorName" value="@assignedItems[i].FoundVendorName" />
+        <input type="hidden" asp-for="PendingAssignments[i].IsAssigned" value="@assignedItems[i].IsAssigned" />
+      }
+
+      <div class="d-flex justify-content-between">
+        <div>
+          <button type="button" class="btn btn-outline-secondary" onclick="selectAll(true)">
+            <i class="fas fa-check-square"></i> Select All
+          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="selectAll(false)">
+            <i class="fas fa-square"></i> Select None
+          </button>
+        </div>
+        <div>
+          <button type="submit" class="btn btn-success btn-lg">
+            <i class="fas fa-save"></i> Complete Vendor Assignments
+          </button>
+        </div>
+      </div>
+    </form>
+  }
+  else
+  {
+    <div class="alert alert-success">
+      <h5><i class="fas fa-check-circle"></i> All Vendor Assignments Complete</h5>
+      <p>All items have been successfully linked to existing vendors. No new vendor creation is required.</p>
+      <a href="/Items" class="btn btn-primary">
+        <i class="fas fa-arrow-left"></i> Return to Items
+      </a>
+    </div>
+  }
+</div>
+
+<script>
+  function selectAll(checked) {
+      const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="vendor-"]');
+      checkboxes.forEach(cb => cb.checked = checked);
+  }
+
+  // Add visual feedback for checkbox changes
+  document.addEventListener('DOMContentLoaded', function() {
+      const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="vendor-"]');
+      checkboxes.forEach(cb => {
+          cb.addEventListener('change', function() {
+              const card = this.closest('.card');
+              if (this.checked) {
+                  card.classList.remove('border-secondary');
+                  card.classList.add('border-success');
+              } else {
+                  card.classList.remove('border-success');
+                  card.classList.add('border-secondary');
+              }
+          });
+      });
+  });
+</script>
+
+@section Scripts {
+  <style>
+    .card {
+      transition: border-color 0.2s ease-in-out;
+    }
+
+    .border-success {
+      border-color: #198754 !important;
+    }
+
+    .border-secondary {
+      border-color: #6c757d !important;
+    }
+  </style>
+}

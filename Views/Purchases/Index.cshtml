@@ -346,21 +346,21 @@
                     }
                   </td>
                   <td>
-                    <strong>$@purchase.CostPerUnit.ToString("N2")</strong>
+                    <strong>$@purchase.CostPerUnit.ToString("N6")</strong>
                   </td>
                   <td>
-                    <strong class="text-success">$@purchase.TotalPaid.ToString("N2")</strong>
+                    <strong class="text-success">$@purchase.TotalPaid.ToString("N6")</strong>
                     @if (purchase.ShippingCost > 0 || purchase.TaxAmount > 0)
                     {
                       <br>
                       <small class="text-muted">
                         @if (purchase.ShippingCost > 0)
                         {
-                          <span>+$@purchase.ShippingCost.ToString("N2") ship</span>
+                          <span>+$@purchase.ShippingCost.ToString("N6") ship</span>
                         }
                         @if (purchase.TaxAmount > 0)
                         {
-                          <span>+$@purchase.TaxAmount.ToString("N2") tax</span>
+                          <span>+$@purchase.TaxAmount.ToString("N6") tax</span>
                         }
                       </small>
                     }

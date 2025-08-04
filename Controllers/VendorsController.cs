@@ -69,13 +69,13 @@ namespace InventorySystem.Controllers
             success = true,
             vendorItem = new
             {
-              unitCost = vendorItem.UnitCost.ToString("F2"),
+              unitCost = vendorItem.UnitCost.ToString("F6"),
               leadTimeDays = vendorItem.LeadTimeDays,
               minimumOrderQuantity = vendorItem.MinimumOrderQuantity,
               isPrimary = vendorItem.IsPrimary,
               vendorPartNumber = vendorItem.VendorPartNumber,
               lastPurchaseDate = vendorItem.LastPurchaseDate?.ToString("MM/dd/yyyy"),
-              lastPurchaseCost = vendorItem.LastPurchaseCost?.ToString("F2"),
+              lastPurchaseCost = vendorItem.LastPurchaseCost?.ToString("F6"),
               notes = vendorItem.Notes
             }
           });

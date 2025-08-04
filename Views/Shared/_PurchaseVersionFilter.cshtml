@@ -40,8 +40,8 @@
               <span class="badge bg-primary">@versionGroup.Key</span>
             </td>
             <td>@purchase.QuantityPurchased</td>
-            <td>$@purchase.CostPerUnit.ToString("F2")</td>
-            <td>$@purchase.TotalCost.ToString("F2")</td>
+            <td>$@purchase.CostPerUnit.ToString("F6")</td>
+            <td>$@purchase.TotalCost.ToString("F6")</td>
             <td>
               <span class="badge bg-@(purchase.RemainingQuantity > 0 ? "success" : "secondary")">
                 @purchase.RemainingQuantity

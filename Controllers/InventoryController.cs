@@ -194,7 +194,7 @@ namespace InventorySystem.Controllers
             return Json(new
             {
                 recentAdjustments = adjustments.Count,
-                totalCostImpact = totalCostImpact.ToString("F2"),
+                totalCostImpact = totalCostImpact.ToString("F6"),
                 totalQuantityAdjusted = totalQuantityAdjusted,
                 adjustments = adjustments.Select(a => new
                 {
@@ -203,7 +203,7 @@ namespace InventorySystem.Controllers
                     quantity = a.QuantityAdjusted,
                     date = a.AdjustmentDate.ToString("MM/dd/yyyy"),
                     reason = a.Reason,
-                    costImpact = a.CostImpact.ToString("F2")
+                    costImpact = a.CostImpact.ToString("F6")
                 })
             });
         }

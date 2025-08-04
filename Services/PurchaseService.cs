@@ -20,13 +20,16 @@ namespace InventorySystem.Services
 
     public async Task<IEnumerable<Purchase>> GetPurchasesByItemIdAsync(int itemId)
     {
-      return await _context.Purchases
+      // First fetch the data without ordering by computed properties
+      var purchases = await _context.Purchases
           .Include(p => p.Item)
           .Include(p => p.Vendor)
           .Include(p => p.PurchaseDocuments)
           .Where(p => p.ItemId == itemId)
-          .OrderByDescending(p => p.PurchaseDate)
           .ToListAsync();
+
+      // Then order by computed property in memory
+      return purchases.OrderByDescending(p => p.PurchaseDate);
     }
 
     public async Task<Purchase?> GetPurchaseByIdAsync(int id)
@@ -428,5 +431,19 @@ namespace InventorySystem.Services
     }
 
     #endregion
+
+    // If you need to order by TotalCost:
+    public async Task<IEnumerable<Purchase>> GetPurchasesByItemIdOrderedByTotalCostAsync(int itemId)
+    {
+      var purchases = await _context.Purchases
+          .Include(p => p.Item)
+          .Include(p => p.Vendor)
+          .Include(p => p.PurchaseDocuments)
+          .Where(p => p.ItemId == itemId)
+          .ToListAsync();
+
+      // Order by computed property in memory
+      return purchases.OrderByDescending(p => p.TotalCost);
+    }
   }
 }

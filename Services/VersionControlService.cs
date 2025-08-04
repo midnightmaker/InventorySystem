@@ -50,7 +50,6 @@ namespace InventorySystem.Services
         ItemType = baseItem.ItemType,
         Version = newVersion,
         VendorPartNumber = baseItem.VendorPartNumber,
-        PreferredVendor = baseItem.PreferredVendor,
         Comments = baseItem.Comments,
         MinimumStock = baseItem.MinimumStock,
         IsSellable = baseItem.IsSellable,

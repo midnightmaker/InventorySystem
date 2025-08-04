@@ -67,7 +67,6 @@ namespace InventorySystem.Services
         existingItem.MinimumStock = item.MinimumStock;
         existingItem.UnitOfMeasure = item.UnitOfMeasure;
         existingItem.VendorPartNumber = item.VendorPartNumber;
-        existingItem.PreferredVendor = item.PreferredVendor;
         existingItem.IsSellable = item.IsSellable;
         existingItem.ItemType = item.ItemType;
         existingItem.Version = item.Version;

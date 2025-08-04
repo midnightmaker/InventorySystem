@@ -20,7 +20,7 @@ namespace InventorySystem.Models
     public string? VendorPartNumber { get; set; }
 
     [Display(Name = "Unit Cost")]
-    [Column(TypeName = "decimal(18,2)")]
+    [Column(TypeName = "decimal(18,6)")]  // Changed from decimal(18,2)
     [Range(0, double.MaxValue, ErrorMessage = "Unit cost must be 0 or greater")]
     public decimal UnitCost { get; set; }
 
@@ -49,7 +49,7 @@ namespace InventorySystem.Models
     public DateTime? LastPurchaseDate { get; set; }
 
     [Display(Name = "Last Purchase Cost")]
-    [Column(TypeName = "decimal(18,2)")]
+    [Column(TypeName = "decimal(18,6)")]  // Changed from decimal(18,2)
     public decimal? LastPurchaseCost { get; set; }
 
     // Computed Properties
