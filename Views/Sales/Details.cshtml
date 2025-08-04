@@ -127,6 +127,42 @@
             <dt class="col-sm-3">Notes:</dt>
             <dd class="col-sm-9">@Model.Notes</dd>
           }
+
+          <!-- Add this section to display payment terms and due date -->
+
+          <dt class="col-sm-3">Payment Terms:</dt>
+          <dd class="col-sm-9">
+            <span class="badge bg-info">@Model.Terms.ToString().Replace("Net", "Net ")</span>
+          </dd>
+
+          <dt class="col-sm-3">Payment Due Date:</dt>
+          <dd class="col-sm-9">
+            @Model.PaymentDueDate.ToString("MMMM dd, yyyy")
+            @if (Model.IsOverdue)
+            {
+              <br>
+              <span class="badge bg-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                OVERDUE by @Model.DaysOverdue days
+              </span>
+            }
+            else if (Model.PaymentDueDate.Date == DateTime.Today)
+            {
+              <br>
+              <span class="badge bg-warning text-dark">
+                <i class="fas fa-clock"></i>
+                Due Today
+              </span>
+            }
+            else if (Model.PaymentDueDate.Date <= DateTime.Today.AddDays(7))
+            {
+              <br>
+              <span class="badge bg-warning text-dark">
+                <i class="fas fa-clock"></i>
+                Due in @((Model.PaymentDueDate.Date - DateTime.Today).Days) days
+              </span>
+            }
+          </dd>
         </dl>
       </div>
     </div>

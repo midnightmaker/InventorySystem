@@ -1,5 +1,4 @@
-﻿
-// Controllers/SalesController.cs
+﻿// Controllers/SalesController.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using InventorySystem.Services;
@@ -59,21 +58,33 @@ namespace InventorySystem.Controllers
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(Sale sale)
     {
-      if (ModelState.IsValid)
-      {
-        try
-        {
-          await _salesService.CreateSaleAsync(sale);
-          TempData["SuccessMessage"] = "Sale created successfully!";
-          return RedirectToAction("Details", new { id = sale.Id });
-        }
-        catch (Exception ex)
-        {
-          TempData["ErrorMessage"] = $"Error updating sale: {ex.Message}";
-        }
-      }
+        // Perform additional server-side validation
+        ValidatePaymentDueDate(sale);
 
-      return View(sale);
+        if (ModelState.IsValid)
+        {
+            try
+            {
+                // Calculate payment due date before saving
+                sale.CalculatePaymentDueDate();
+                
+                // Validate again after calculation
+                ValidatePaymentDueDate(sale);
+                
+                if (ModelState.IsValid)
+                {
+                    await _salesService.CreateSaleAsync(sale);
+                    TempData["SuccessMessage"] = "Sale created successfully!";
+                    return RedirectToAction("Details", new { id = sale.Id });
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Error creating sale: {ex.Message}";
+            }
+        }
+        
+        return View(sale);
     }
 
     // Replace the AddItem GET method:
@@ -199,7 +210,29 @@ namespace InventorySystem.Controllers
       }
     }
 
-   
+    // Add this action for past due sales report
+    public async Task<IActionResult> PastDueReport()
+    {
+      try
+      {
+        var allSales = await _salesService.GetAllSalesAsync();
+        
+        var pastDueSales = allSales
+            .Where(s => s.IsOverdue && s.PaymentStatus != PaymentStatus.Paid)
+            .OrderByDescending(s => s.DaysOverdue)
+            .ToList();
+        
+        ViewBag.TotalOverdueAmount = pastDueSales.Sum(s => s.TotalAmount);
+        ViewBag.AverageDaysOverdue = pastDueSales.Any() ? pastDueSales.Average(s => s.DaysOverdue) : 0;
+        
+        return View(pastDueSales);
+      }
+      catch (Exception ex)
+      {
+        TempData["ErrorMessage"] = $"Error loading past due report: {ex.Message}";
+        return View(new List<Sale>());
+      }
+    }
 
     // Remove Item from Sale
     [HttpPost]
@@ -452,6 +485,31 @@ namespace InventorySystem.Controllers
       }
 
       return RedirectToAction("Index");
+    }
+
+    // Helper method for payment due date validation
+    private void ValidatePaymentDueDate(Sale sale)
+    {
+        // Check if payment due date is in the past
+        if (sale.PaymentDueDate.Date < DateTime.Today)
+        {
+            ModelState.AddModelError(nameof(sale.PaymentDueDate), 
+                "Payment due date cannot be in the past.");
+        }
+        
+        // Check if payment due date is before sale date
+        if (sale.PaymentDueDate.Date < sale.SaleDate.Date)
+        {
+            ModelState.AddModelError(nameof(sale.PaymentDueDate), 
+                "Payment due date cannot be before the sale date.");
+        }
+        
+        // Business rule: Immediate terms should have same due date as sale date
+        if (sale.Terms == PaymentTerms.Immediate && sale.PaymentDueDate.Date != sale.SaleDate.Date)
+        {
+            ModelState.AddModelError(nameof(sale.PaymentDueDate), 
+                "Payment due date must be the same as sale date for Immediate terms.");
+        }
     }
   }
 }

@@ -83,6 +83,25 @@
             </div>
             <div class="col-md-4">
               <div class="mb-3">
+                <label asp-for="Terms" class="form-label">Payment Terms *</label>
+                <select asp-for="Terms" asp-items="Html.GetEnumSelectList<InventorySystem.Models.Enums.PaymentTerms>()" class="form-select">
+                  <option value="">-- Select Payment Terms --</option>
+                </select>
+                <span asp-validation-for="Terms" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="PaymentDueDate" class="form-label">Payment Due Date *</label>
+                <input asp-for="PaymentDueDate" type="date" class="form-control" />
+                <span asp-validation-for="PaymentDueDate" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
                 <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
                 <select asp-for="PaymentMethod" class="form-select">
                   <option value="">-- Select Payment Method --</option>
@@ -99,14 +118,17 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label asp-for="PaymentStatus" class="form-label">Payment Status *</label>
-                <select asp-for="PaymentStatus" class="form-select">
-                  <option value="0">Pending</option>
-                  <option value="1">Paid</option>
-                  <option value="2">Partial</option>
-                  <option value="3">Overdue</option>
-                  <option value="4">Refunded</option>
+                <select asp-for="PaymentStatus" asp-items="Html.GetEnumSelectList<InventorySystem.Models.Enums.PaymentStatus>()" class="form-select">
                 </select>
                 <span asp-validation-for="PaymentStatus" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="SaleStatus" class="form-label">Sale Status *</label>
+                <select asp-for="SaleStatus" asp-items="Html.GetEnumSelectList<InventorySystem.Models.Enums.SaleStatus>()" class="form-select">
+                </select>
+                <span asp-validation-for="SaleStatus" class="text-danger"></span>
               </div>
             </div>
           </div>
@@ -133,16 +155,7 @@
               </div>
             </div>
             <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="SaleStatus" class="form-label">Sale Status *</label>
-                <select asp-for="SaleStatus" class="form-select">
-                  <option value="0">Processing</option>
-                  <option value="1">Shipped</option>
-                  <option value="2">Delivered</option>
-                  <option value="3">Cancelled</option>
-                </select>
-                <span asp-validation-for="SaleStatus" class="text-danger"></span>
-              </div>
+              <!-- Empty column for layout balance -->
             </div>
           </div>
 
@@ -205,9 +218,18 @@
     });
 
     // Set default date to today if not set
-    const dateInput = document.querySelector('input[type="date"]');
-    if (dateInput && !dateInput.value) {
-      dateInput.value = new Date().toISOString().split('T')[0];
+    const saleDateInput = document.querySelector('input[name="SaleDate"]');
+    if (saleDateInput && !saleDateInput.value) {
+      saleDateInput.value = new Date().toISOString().split('T')[0];
     }
+
+    // Setup payment validation using the reusable utility
+    document.addEventListener('DOMContentLoaded', function() {
+      PaymentValidation.setupPaymentValidation(
+        'input[name="SaleDate"]',
+        'select[name="Terms"]', 
+        'input[name="PaymentDueDate"]'
+      );
+    });
   </script>
 }

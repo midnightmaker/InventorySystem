@@ -94,10 +94,53 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label asp-for="SaleDate" class="form-label">Sale Date *</label>
-                <input asp-for="SaleDate" type="date" class="form-control" />
+                <input asp-for="SaleDate" class="form-control" type="date" onchange="updatePaymentDueDate()" />
                 <span asp-validation-for="SaleDate" class="text-danger"></span>
               </div>
             </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="Terms" class="form-label">
+                  <i class="fas fa-calendar-check text-primary"></i>
+                  Payment Terms *
+                </label>
+                <select asp-for="Terms" class="form-select" onchange="updatePaymentDueDate()">
+                  <option value="0">Immediate</option>
+                  <option value="10">Net 10</option>
+                  <option value="30">Net 30</option>
+                  <option value="45">Net 45</option>
+                  <option value="60">Net 60</option>
+                </select>
+                <span asp-validation-for="Terms" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label asp-for="PaymentDueDate" class="form-label">
+                  <i class="fas fa-clock text-warning"></i>
+                  Payment Due Date
+                </label>
+                <input asp-for="PaymentDueDate" class="form-control" type="date" readonly style="background-color: #e9ecef;" />
+                <span asp-validation-for="PaymentDueDate" class="text-danger"></span>
+                @if (Model.IsOverdue)
+                {
+                  <div class="form-text text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>OVERDUE by @Model.DaysOverdue days!</strong>
+                  </div>
+                }
+                @if (Model.PaymentDueDate.Date < DateTime.Today && Model.PaymentStatus != PaymentStatus.Paid)
+                {
+                  <div class="alert alert-warning mt-2">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Warning:</strong> This payment due date is in the past. Consider updating the terms or marking as paid.
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
             <div class="col-md-4">
               <div class="mb-3">
                 <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
@@ -270,5 +313,26 @@
         const date = new Date(dateInput.value);
         dateInput.value = date.toISOString().split('T')[0];
     }
+
+    function updatePaymentDueDate() {
+      const saleDateInput = document.querySelector('input[name="SaleDate"]');
+      const termsSelect = document.querySelector('select[name="Terms"]');
+      const dueDateInput = document.querySelector('input[name="PaymentDueDate"]');
+      
+      if (saleDateInput.value && termsSelect.value) {
+        const saleDate = new Date(saleDateInput.value);
+        const termsDays = parseInt(termsSelect.value);
+        
+        const dueDate = new Date(saleDate);
+        dueDate.setDate(dueDate.getDate() + termsDays);
+        
+        dueDateInput.value = dueDate.toISOString().split('T')[0];
+      }
+    }
+    
+    // Calculate initial due date on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      updatePaymentDueDate();
+    });
   </script>
 }

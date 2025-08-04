@@ -1,0 +1,117 @@
+@model IEnumerable<InventorySystem.Models.Sale>
+@{
+    ViewData["Title"] = "Past Due Sales Report";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-exclamation-triangle text-danger"></i> Past Due Sales Report</h1>
+    <div class="btn-group">
+        <a href="/Sales/Reports" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Reports
+        </a>
+        <button class="btn btn-outline-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Report
+        </button>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <h3>@Model.Count()</h3>
+                <p class="mb-0">Overdue Sales</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h3>@ViewBag.TotalOverdueAmount.ToString("C")</h3>
+                <p class="mb-0">Total Overdue Amount</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3>@ViewBag.AverageDaysOverdue.ToString("F0")</h3>
+                <p class="mb-0">Avg Days Overdue</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.Any())
+{
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-list"></i> Overdue Sales Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Sale #</th>
+                            <th>Customer</th>
+                            <th>Sale Date</th>
+                            <th>Due Date</th>
+                            <th>Terms</th>
+                            <th>Amount</th>
+                            <th>Days Overdue</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sale in Model)
+                        {
+                            <tr class="@(sale.DaysOverdue > 30 ? "table-danger" : sale.DaysOverdue > 7 ? "table-warning" : "")">
+                                <td>
+                                    <a href="/Sales/Details/@sale.Id">@sale.SaleNumber</a>
+                                </td>
+                                <td>
+                                    <strong>@sale.CustomerName</strong>
+                                    @if (!string.IsNullOrEmpty(sale.CustomerEmail))
+                                    {
+                                        <br><small class="text-muted">@sale.CustomerEmail</small>
+                                    }
+                                </td>
+                                <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
+                                <td>@sale.PaymentDueDate.ToString("MM/dd/yyyy")</td>
+                                <td>
+                                    <span class="badge bg-secondary">@sale.Terms.ToString().Replace("Net", "Net ")</span>
+                                </td>
+                                <td>@sale.TotalAmount.ToString("C")</td>
+                                <td>
+                                    <span class="badge bg-@(sale.DaysOverdue > 30 ? "danger" : "warning")">
+                                        @sale.DaysOverdue days
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/Sales/Details/@sale.Id" class="btn btn-outline-primary" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/Sales/Edit/@sale.Id" class="btn btn-outline-warning" title="Edit Sale">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="text-center py-5">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h4 class="text-success">No Past Due Sales!</h4>
+        <p class="text-muted">All sales are either paid or within their payment terms.</p>
+    </div>
+}
