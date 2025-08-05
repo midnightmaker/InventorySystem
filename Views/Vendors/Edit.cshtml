@@ -30,6 +30,80 @@
       @Html.HiddenFor(m => m.CreatedDate)
 
       <!-- Basic Information -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+        </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-8">
+            <div class="mb-3">
+              <label asp-for="CompanyName" class="form-label">
+                <i class="fas fa-building text-primary"></i>
+                Company Name <span class="text-danger">*</span>
+              </label>
+              <input asp-for="CompanyName" class="form-control" required />
+              <span asp-validation-for="CompanyName" class="text-danger"></span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label asp-for="VendorCode" class="form-label">
+                <i class="fas fa-barcode text-info"></i>
+                Vendor Code
+              </label>
+              <input asp-for="VendorCode" class="form-control" />
+              <span asp-validation-for="VendorCode" class="text-danger"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label asp-for="ContactName" class="form-label">
+                <i class="fas fa-user text-success"></i>
+                Contact Name
+              </label>
+              <input asp-for="ContactName" class="form-control" />
+              <span asp-validation-for="ContactName" class="text-danger"></span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label asp-for="ContactEmail" class="form-label">
+                <i class="fas fa-envelope text-warning"></i>
+                Contact Email
+              </label>
+              <input asp-for="ContactEmail" class="form-control" type="email" />
+              <span asp-validation-for="ContactEmail" class="text-danger"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label asp-for="ContactPhone" class="form-label">
+                <i class="fas fa-phone text-info"></i>
+                Contact Phone
+              </label>
+              <input asp-for="ContactPhone" class="form-control" type="tel" />
+              <span asp-validation-for="ContactPhone" class="text-danger"></span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label asp-for="Website" class="form-label">
+                <i class="fas fa-globe text-primary"></i>
+                Website
+              </label>
+              <input asp-for="Website" class="form-control" type="url" />
+              <span asp-validation-for="Website" class="text-danger"></span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-header">
           <h5><i class="fas fa-map-marker-alt"></i> Address Information</h5>
@@ -78,7 +152,7 @@
           </div>
         </div>
       </div>
-
+    </div>
       <!-- Business Information -->
       <div class="card mt-3">
         <div class="card-header">
@@ -294,79 +368,9 @@
       </div>
     </div>
   </div>
-</div>5><i class="fas fa-info-circle"></i> Basic Information</h5>
 </div>
-<div class="card-body">
-  <div class="row">
-    <div class="col-md-8">
-      <div class="mb-3">
-        <label asp-for="CompanyName" class="form-label">
-          <i class="fas fa-building text-primary"></i>
-          Company Name <span class="text-danger">*</span>
-        </label>
-        <input asp-for="CompanyName" class="form-control" required />
-        <span asp-validation-for="CompanyName" class="text-danger"></span>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="mb-3">
-        <label asp-for="VendorCode" class="form-label">
-          <i class="fas fa-barcode text-info"></i>
-          Vendor Code
-        </label>
-        <input asp-for="VendorCode" class="form-control" />
-        <span asp-validation-for="VendorCode" class="text-danger"></span>
-      </div>
-    </div>
-  </div>
 
-  <div class="row">
-    <div class="col-md-6">
-      <div class="mb-3">
-        <label asp-for="ContactName" class="form-label">
-          <i class="fas fa-user text-success"></i>
-          Contact Name
-        </label>
-        <input asp-for="ContactName" class="form-control" />
-        <span asp-validation-for="ContactName" class="text-danger"></span>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="mb-3">
-        <label asp-for="ContactEmail" class="form-label">
-          <i class="fas fa-envelope text-warning"></i>
-          Contact Email
-        </label>
-        <input asp-for="ContactEmail" class="form-control" type="email" />
-        <span asp-validation-for="ContactEmail" class="text-danger"></span>
-      </div>
-    </div>
-  </div>
 
-  <div class="row">
-    <div class="col-md-6">
-      <div class="mb-3">
-        <label asp-for="ContactPhone" class="form-label">
-          <i class="fas fa-phone text-info"></i>
-          Contact Phone
-        </label>
-        <input asp-for="ContactPhone" class="form-control" type="tel" />
-        <span asp-validation-for="ContactPhone" class="text-danger"></span>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="mb-3">
-        <label asp-for="Website" class="form-label">
-          <i class="fas fa-globe text-primary"></i>
-          Website
-        </label>
-        <input asp-for="Website" class="form-control" type="url" />
-        <span asp-validation-for="Website" class="text-danger"></span>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
 
 <!-- Address Information -->
 <div class="card mt-3">

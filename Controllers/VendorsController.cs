@@ -2,6 +2,8 @@
 using InventorySystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using System.IO;
+using InventorySystem.ViewModels; // Add this using directive at the top
 
 namespace InventorySystem.Controllers
 {
@@ -531,6 +533,151 @@ namespace InventorySystem.Controllers
         TempData["ErrorMessage"] = "Error loading vendor reports: " + ex.Message;
         return View();
       }
+    }
+
+    // GET: Vendors/BulkUpload
+    public IActionResult BulkUpload()
+    {
+      return View(new BulkVendorUploadViewModel());
+    }
+
+    // POST: Vendors/BulkUpload
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkUpload(BulkVendorUploadViewModel viewModel)
+    {
+      if (viewModel.CsvFile == null)
+      {
+        ModelState.AddModelError("CsvFile", "Please select a CSV file to upload.");
+        return View(viewModel);
+      }
+
+      // Validate file type
+      var allowedExtensions = new[] { ".csv" };
+      var fileExtension = Path.GetExtension(viewModel.CsvFile.FileName).ToLower();
+
+      if (!allowedExtensions.Contains(fileExtension))
+      {
+        ModelState.AddModelError("CsvFile", "Please upload a valid CSV file (.csv).");
+        return View(viewModel);
+      }
+
+      // Validate file size (10MB limit)
+      if (viewModel.CsvFile.Length > 10 * 1024 * 1024)
+      {
+        ModelState.AddModelError("CsvFile", "File size must be less than 10MB.");
+        return View(viewModel);
+      }
+
+      try
+      {
+        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
+        viewModel.ValidationResults = await bulkUploadService.ValidateVendorCsvFileAsync(viewModel.CsvFile, viewModel.SkipHeaderRow);
+
+        if (viewModel.ValidationResults.Any())
+        {
+          viewModel.PreviewVendors = viewModel.ValidationResults
+              .Where(vr => vr.IsValid)
+              .Select(vr => vr.VendorData!)
+              .ToList();
+        }
+
+        if (viewModel.ValidVendorsCount == 0)
+        {
+          viewModel.ErrorMessage = "No valid vendors found in the CSV file. Please check the format and data.";
+        }
+        else if (viewModel.InvalidVendorsCount > 0)
+        {
+          viewModel.ErrorMessage = $"Found {viewModel.InvalidVendorsCount} invalid vendors. Please review and correct the errors.";
+        }
+      }
+      catch (Exception ex)
+      {
+        ModelState.AddModelError("", $"Error processing file: {ex.Message}");
+      }
+
+      return View(viewModel);
+    }
+
+    // POST: Vendors/ProcessBulkUpload
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ProcessBulkUpload(BulkVendorUploadViewModel viewModel)
+    {
+      _logger.LogInformation("ProcessBulkUpload called. ViewModel is null: {IsNull}", viewModel == null);
+      
+      if (viewModel == null)
+      {
+        _logger.LogWarning("ProcessBulkUpload received null viewModel");
+        TempData["ErrorMessage"] = "Invalid form data. Please try uploading the file again.";
+        return RedirectToAction("BulkUpload");
+      }
+
+      _logger.LogInformation("ProcessBulkUpload - PreviewVendors count: {Count}", 
+          viewModel.PreviewVendors?.Count ?? 0);
+
+      if (viewModel.PreviewVendors == null || !viewModel.PreviewVendors.Any())
+      {
+        _logger.LogWarning("ProcessBulkUpload - No preview vendors found");
+        TempData["ErrorMessage"] = "No vendors to import. Please upload and validate a file first.";
+        return RedirectToAction("BulkUpload");
+      }
+
+      try
+      {
+        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
+        var result = await bulkUploadService.ImportValidVendorsAsync(viewModel.PreviewVendors);
+
+        if (result.SuccessfulImports > 0)
+        {
+          TempData["SuccessMessage"] = $"Successfully imported {result.SuccessfulImports} vendors.";
+
+          if (result.FailedImports > 0)
+          {
+            if (result.DetailedErrors.Any())
+            {
+              var errorDetails = System.Text.Json.JsonSerializer.Serialize(result.DetailedErrors);
+              TempData["VendorImportErrors"] = errorDetails;
+            }
+            
+            TempData["WarningMessage"] = $"{result.FailedImports} vendors failed to import. Click 'View Error Details' to see specific issues.";
+          }
+        }
+        else
+        {
+          if (result.DetailedErrors.Any())
+          {
+            var errorDetails = System.Text.Json.JsonSerializer.Serialize(result.DetailedErrors);
+            TempData["VendorImportErrors"] = errorDetails;
+            TempData["ErrorMessage"] = $"No vendors were imported. {result.DetailedErrors.Count} vendors had errors. Click 'View Error Details' below.";
+          }
+          else
+          {
+            TempData["ErrorMessage"] = "No vendors were imported. " + string.Join("; ", result.Errors);
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error during vendor bulk import");
+        TempData["ErrorMessage"] = $"Error during import: {ex.Message}";
+      }
+
+      return RedirectToAction("Index");
+    }
+
+    // GET: Vendors/ViewImportErrors
+    [HttpGet]
+    public IActionResult ViewVendorImportErrors()
+    {
+      if (TempData["VendorImportErrors"] is string errorJson)
+      {
+        var errors = System.Text.Json.JsonSerializer.Deserialize<List<VendorImportError>>(errorJson);
+        return View(errors);
+      }
+      
+      TempData["InfoMessage"] = "No vendor import errors to display.";
+      return RedirectToAction("Index");
     }
   }
 }

@@ -79,4 +79,65 @@ namespace InventorySystem.ViewModels
     public List<string> Warnings { get; set; } = new List<string>();
     public BulkItemPreview? ItemData { get; set; }
   }
+
+  // NEW: Vendor upload classes
+  public class BulkVendorPreview
+  {
+    public int RowNumber { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string? VendorCode { get; set; }
+    public string? ContactName { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? ContactPhone { get; set; }
+    public string? Website { get; set; }
+    
+    // Address Information
+    public string? AddressLine1 { get; set; }
+    public string? AddressLine2 { get; set; }
+    public string? City { get; set; }
+    public string? State { get; set; }
+    public string? PostalCode { get; set; }
+    public string? Country { get; set; } = "United States";
+    
+    // Business Information
+    public string? TaxId { get; set; }
+    public string? PaymentTerms { get; set; } = "Net 30";
+    public decimal DiscountPercentage { get; set; } = 0;
+    public decimal CreditLimit { get; set; } = 0;
+    
+    // Status and Preferences
+    public bool IsActive { get; set; } = true;
+    public bool IsPreferred { get; set; } = false;
+    public int QualityRating { get; set; } = 3;
+    public int DeliveryRating { get; set; } = 3;
+    public int ServiceRating { get; set; } = 3;
+    public string? Notes { get; set; }
+  }
+
+  public class BulkVendorUploadViewModel
+  {
+    public IFormFile? CsvFile { get; set; }
+    public bool SkipHeaderRow { get; set; } = true;
+    public string? ErrorMessage { get; set; }
+    public string? SuccessMessage { get; set; }
+    
+    public List<VendorValidationResult>? ValidationResults { get; set; }
+    public List<BulkVendorPreview>? PreviewVendors { get; set; }
+    
+    public bool HasValidationResults => ValidationResults?.Any() == true;
+    public int ValidVendorsCount => ValidationResults?.Count(vr => vr.IsValid) ?? 0;
+    public int InvalidVendorsCount => ValidationResults?.Count(vr => !vr.IsValid) ?? 0;
+    public bool CanProceedWithImport => ValidVendorsCount > 0;
+  }
+
+  public class VendorValidationResult
+  {
+    public int RowNumber { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string VendorCode { get; set; } = string.Empty;
+    public bool IsValid { get; set; }
+    public List<string> Errors { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = new List<string>();
+    public BulkVendorPreview? VendorData { get; set; }
+  }
 }

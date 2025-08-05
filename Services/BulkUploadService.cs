@@ -530,7 +530,307 @@ namespace InventorySystem.Services
       return result;
     }
 
-    // Helper methods remain the same
+    // NEW: Parse vendor CSV file
+    public async Task<List<BulkVendorPreview>> ParseVendorCsvFileAsync(IFormFile file, bool skipHeaderRow = true)
+    {
+      var vendors = new List<BulkVendorPreview>();
+
+      using var reader = new StreamReader(file.OpenReadStream());
+      string? line;
+      int rowNumber = 0;
+
+      while ((line = await reader.ReadLineAsync()) != null)
+      {
+        rowNumber++;
+
+        // Skip header row if requested
+        if (skipHeaderRow && rowNumber == 1) continue;
+
+        // Skip empty lines
+        if (string.IsNullOrWhiteSpace(line)) continue;
+
+        var values = ParseCsvLine(line);
+
+        // Skip rows with insufficient data (need at least company name)
+        if (values.Count < 1 || string.IsNullOrWhiteSpace(GetValue(values, 0))) continue;
+
+        var vendor = new BulkVendorPreview
+        {
+          RowNumber = rowNumber,
+          CompanyName = GetValue(values, 0), // Column A
+          VendorCode = GetValue(values, 1), // Column B
+          ContactName = GetValue(values, 2), // Column C
+          ContactEmail = GetValue(values, 3), // Column D
+          ContactPhone = GetValue(values, 4), // Column E
+          Website = GetValue(values, 5), // Column F
+          AddressLine1 = GetValue(values, 6), // Column G
+          AddressLine2 = GetValue(values, 7), // Column H
+          City = GetValue(values, 8), // Column I
+          State = GetValue(values, 9), // Column J
+          PostalCode = GetValue(values, 10), // Column K
+          Country = !string.IsNullOrWhiteSpace(GetValue(values, 11)) ? GetValue(values, 11) : "United States", // Column L
+          TaxId = GetValue(values, 12), // Column M
+          PaymentTerms = !string.IsNullOrWhiteSpace(GetValue(values, 13)) ? GetValue(values, 13) : "Net 30", // Column N
+          DiscountPercentage = GetDecimalValue(values, 14) ?? 0, // Column O
+          CreditLimit = GetDecimalValue(values, 15) ?? 0, // Column P
+          IsActive = GetBoolValue(values, 16, true), // Column Q - default true
+          IsPreferred = GetBoolValue(values, 17, false), // Column R - default false
+          QualityRating = GetIntValue(values, 18, 1, 5, 3), // Column S - range 1-5, default 3
+          DeliveryRating = GetIntValue(values, 19, 1, 5, 3), // Column T - range 1-5, default 3
+          ServiceRating = GetIntValue(values, 20, 1, 5, 3), // Column U - range 1-5, default 3
+          Notes = GetValue(values, 21) // Column V
+        };
+
+        vendors.Add(vendor);
+      }
+
+      return vendors;
+    }
+
+    // NEW: Validate vendor CSV file
+    public async Task<List<VendorValidationResult>> ValidateVendorCsvFileAsync(IFormFile file, bool skipHeaderRow = true)
+    {
+      var results = new List<VendorValidationResult>();
+
+      try
+      {
+        var parsedVendors = await ParseVendorCsvFileAsync(file, skipHeaderRow);
+        var existingVendorNames = await _context.Vendors
+            .Select(v => v.CompanyName.ToLower())
+            .ToListAsync();
+
+        var existingVendorCodes = await _context.Vendors
+            .Where(v => !string.IsNullOrEmpty(v.VendorCode))
+            .Select(v => v.VendorCode!.ToLower())
+            .ToListAsync();
+
+        foreach (var vendor in parsedVendors)
+        {
+          var validationResult = new VendorValidationResult
+          {
+            RowNumber = vendor.RowNumber,
+            CompanyName = vendor.CompanyName,
+            VendorCode = vendor.VendorCode ?? "",
+            VendorData = vendor
+          };
+
+          // Validate required fields
+          if (string.IsNullOrWhiteSpace(vendor.CompanyName))
+          {
+            validationResult.Errors.Add("Company Name is required");
+          }
+          else if (vendor.CompanyName.Length > 200)
+          {
+            validationResult.Errors.Add("Company Name must be 200 characters or less");
+          }
+
+          // Check for duplicate company names
+          if (!string.IsNullOrWhiteSpace(vendor.CompanyName) &&
+              existingVendorNames.Contains(vendor.CompanyName.ToLower()))
+          {
+            validationResult.Errors.Add($"Company Name '{vendor.CompanyName}' already exists in the system");
+          }
+
+          // Check for duplicate vendor codes if provided
+          if (!string.IsNullOrWhiteSpace(vendor.VendorCode))
+          {
+            if (vendor.VendorCode.Length > 100)
+            {
+              validationResult.Errors.Add("Vendor Code must be 100 characters or less");
+            }
+            else if (existingVendorCodes.Contains(vendor.VendorCode.ToLower()))
+            {
+              validationResult.Errors.Add($"Vendor Code '{vendor.VendorCode}' already exists in the system");
+            }
+          }
+
+          // Validate email format
+          if (!string.IsNullOrWhiteSpace(vendor.ContactEmail))
+          {
+            try
+            {
+              var addr = new System.Net.Mail.MailAddress(vendor.ContactEmail);
+              if (addr.Address != vendor.ContactEmail)
+              {
+                validationResult.Errors.Add("Contact Email format is invalid");
+              }
+            }
+            catch
+            {
+              validationResult.Errors.Add("Contact Email format is invalid");
+            }
+          }
+
+          // Validate website URL
+          if (!string.IsNullOrWhiteSpace(vendor.Website))
+          {
+            if (!Uri.TryCreate(vendor.Website, UriKind.Absolute, out _))
+            {
+              validationResult.Errors.Add("Website URL format is invalid");
+            }
+          }
+
+          // Validate ratings (1-5 range)
+          if (vendor.QualityRating < 1 || vendor.QualityRating > 5)
+          {
+            validationResult.Errors.Add("Quality Rating must be between 1 and 5");
+          }
+          if (vendor.DeliveryRating < 1 || vendor.DeliveryRating > 5)
+          {
+            validationResult.Errors.Add("Delivery Rating must be between 1 and 5");
+          }
+          if (vendor.ServiceRating < 1 || vendor.ServiceRating > 5)
+          {
+            validationResult.Errors.Add("Service Rating must be between 1 and 5");
+          }
+
+          // Validate discount percentage
+          if (vendor.DiscountPercentage < 0 || vendor.DiscountPercentage > 100)
+          {
+            validationResult.Errors.Add("Discount Percentage must be between 0 and 100");
+          }
+
+          // Validate credit limit
+          if (vendor.CreditLimit < 0)
+          {
+            validationResult.Errors.Add("Credit Limit cannot be negative");
+          }
+
+          // Warnings
+          if (string.IsNullOrWhiteSpace(vendor.ContactEmail) && string.IsNullOrWhiteSpace(vendor.ContactPhone))
+          {
+            validationResult.Warnings.Add("No contact email or phone provided");
+          }
+
+          if (string.IsNullOrWhiteSpace(vendor.AddressLine1))
+          {
+            validationResult.Warnings.Add("No address information provided");
+          }
+
+          validationResult.IsValid = !validationResult.Errors.Any();
+          results.Add(validationResult);
+        }
+      }
+      catch (Exception ex)
+      {
+        results.Add(new VendorValidationResult
+        {
+          RowNumber = 0,
+          IsValid = false,
+          Errors = new List<string> { $"Error reading CSV file: {ex.Message}" }
+        });
+      }
+
+      return results;
+    }
+
+    // NEW: Import valid vendors
+    public async Task<BulkVendorUploadResult> ImportValidVendorsAsync(List<BulkVendorPreview> validVendors)
+    {
+      var result = new BulkVendorUploadResult();
+
+      using var transaction = await _context.Database.BeginTransactionAsync();
+
+      try
+      {
+        foreach (var vendorData in validVendors)
+        {
+          try
+          {
+            var vendor = new Vendor
+            {
+              CompanyName = vendorData.CompanyName,
+              VendorCode = vendorData.VendorCode,
+              ContactName = vendorData.ContactName,
+              ContactEmail = vendorData.ContactEmail,
+              ContactPhone = vendorData.ContactPhone,
+              Website = vendorData.Website,
+              AddressLine1 = vendorData.AddressLine1,
+              AddressLine2 = vendorData.AddressLine2,
+              City = vendorData.City,
+              State = vendorData.State,
+              PostalCode = vendorData.PostalCode,
+              Country = vendorData.Country,
+              TaxId = vendorData.TaxId,
+              PaymentTerms = vendorData.PaymentTerms,
+              DiscountPercentage = vendorData.DiscountPercentage,
+              CreditLimit = vendorData.CreditLimit,
+              IsActive = vendorData.IsActive,
+              IsPreferred = vendorData.IsPreferred,
+              QualityRating = vendorData.QualityRating,
+              DeliveryRating = vendorData.DeliveryRating,
+              ServiceRating = vendorData.ServiceRating,
+              Notes = vendorData.Notes,
+              CreatedDate = DateTime.Now,
+              LastUpdated = DateTime.Now
+            };
+
+            var createdVendor = await _vendorService.CreateVendorAsync(vendor);
+            result.CreatedVendorIds.Add(createdVendor.Id);
+            result.SuccessfulImports++;
+          }
+          catch (Exception ex)
+          {
+            result.FailedImports++;
+            
+            var detailedError = new VendorImportError
+            {
+              RowNumber = vendorData.RowNumber,
+              CompanyName = vendorData.CompanyName,
+              VendorCode = vendorData.VendorCode ?? "",
+              ErrorMessage = ex.Message
+            };
+            result.DetailedErrors.Add(detailedError);
+            
+            result.Errors.Add($"Row {vendorData.RowNumber} - {vendorData.CompanyName}: {ex.Message}");
+          }
+        }
+
+        await transaction.CommitAsync();
+      }
+      catch (Exception ex)
+      {
+        await transaction.RollbackAsync();
+        result.Errors.Add($"Transaction failed: {ex.Message}");
+        result.SuccessfulImports = 0;
+        result.FailedImports = validVendors.Count;
+        
+        foreach (var vendorData in validVendors)
+        {
+          result.DetailedErrors.Add(new VendorImportError
+          {
+            RowNumber = vendorData.RowNumber,
+            CompanyName = vendorData.CompanyName,
+            VendorCode = vendorData.VendorCode ?? "",
+            ErrorMessage = "Transaction failed - no vendors were imported"
+          });
+        }
+      }
+
+      return result;
+    }
+
+    // Helper method for boolean values with default
+    private bool GetBoolValue(List<string> values, int index, bool defaultValue)
+    {
+      var value = GetValue(values, index).ToLower();
+      if (string.IsNullOrWhiteSpace(value)) return defaultValue;
+      return value == "true" || value == "yes" || value == "1" || value == "y";
+    }
+
+    // Helper method for integer values with range and default
+    private int GetIntValue(List<string> values, int index, int min, int max, int defaultValue)
+    {
+      var value = GetValue(values, index);
+      if (string.IsNullOrWhiteSpace(value)) return defaultValue;
+      
+      if (int.TryParse(value, out int result))
+      {
+        return Math.Max(min, Math.Min(max, result));
+      }
+      return defaultValue;
+    }
+
     private void ValidateInitialPurchaseData(BulkItemPreview item, ItemValidationResult validationResult)
     {
       bool hasAnyPurchaseData = item.InitialQuantity.HasValue ||

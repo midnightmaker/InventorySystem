@@ -30,4 +30,28 @@ namespace InventorySystem.Models
     public string ErrorMessage { get; set; } = string.Empty;
     public DateTime ErrorTime { get; set; } = DateTime.Now;
   }
+
+  // Add these new classes to the existing file
+  public class BulkVendorUploadResult
+  {
+    public int SuccessfulImports { get; set; }
+    public int FailedImports { get; set; }
+    public List<string> Errors { get; set; } = new List<string>();
+    public List<int> CreatedVendorIds { get; set; } = new List<int>();
+    public List<VendorImportError> DetailedErrors { get; set; } = new List<VendorImportError>();
+
+    public bool IsSuccess => FailedImports == 0 && !Errors.Any();
+    public string GetSummary() => IsSuccess
+        ? $"Successfully imported {SuccessfulImports} vendors"
+        : $"Imported {SuccessfulImports} vendors with {FailedImports} failures";
+  }
+
+  public class VendorImportError
+  {
+    public int RowNumber { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string VendorCode { get; set; } = string.Empty;
+    public string ErrorMessage { get; set; } = string.Empty;
+    public DateTime ErrorTime { get; set; } = DateTime.Now;
+  }
 }

@@ -1,0 +1,541 @@
+@model InventorySystem.ViewModels.BulkVendorUploadViewModel
+@{
+    ViewData["Title"] = "Bulk Upload Vendors";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-upload"></i> Bulk Upload Vendors</h2>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Vendors
+            </a>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> @Model.ErrorMessage
+                @if (TempData["VendorImportErrors"] != null)
+                {
+                    <div class="mt-2">
+                        <a asp-action="ViewVendorImportErrors" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-list"></i> View Error Details
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+        {
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> @Model.SuccessMessage
+            </div>
+        }
+
+        <!-- Step 1: File Upload -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-file-csv"></i> Step 1: Upload CSV File</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="BulkUpload" method="post" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label asp-for="CsvFile" class="form-label">Select CSV File</label>
+                                <input asp-for="CsvFile" class="form-control" type="file" accept=".csv" />
+                                <span asp-validation-for="CsvFile" class="text-danger"></span>
+                                <div class="form-text">
+                                    Supported format: .csv (Maximum size: 10MB)
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mt-4">
+                                <input asp-for="SkipHeaderRow" class="form-check-input" type="checkbox" checked />
+                                <label asp-for="SkipHeaderRow" class="form-check-label">
+                                    Skip first row (header)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Validate & Preview
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- CSV Format Instructions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> CSV File Format</h5>
+            </div>
+            <div class="card-body">
+                <p>Your CSV file should have the following column structure:</p>
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Column</th>
+                                <th>Field Name</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                                <th>Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>A</strong></td>
+                                <td>Company Name</td>
+                                <td><span class="badge bg-danger">Required</span></td>
+                                <td>Vendor company name</td>
+                                <td>Mouser Electronics</td>
+                            </tr>
+                            <tr>
+                                <td><strong>B</strong></td>
+                                <td>Vendor Code</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Internal vendor code</td>
+                                <td>MOUS001</td>
+                            </tr>
+                            <tr>
+                                <td><strong>C</strong></td>
+                                <td>Contact Name</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Primary contact person</td>
+                                <td>John Smith</td>
+                            </tr>
+                            <tr>
+                                <td><strong>D</strong></td>
+                                <td>Contact Email</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Contact email address</td>
+                                <td>john.smith@mouser.com</td>
+                            </tr>
+                            <tr>
+                                <td><strong>E</strong></td>
+                                <td>Contact Phone</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Contact phone number</td>
+                                <td>(555) 123-4567</td>
+                            </tr>
+                            <tr>
+                                <td><strong>F</strong></td>
+                                <td>Website</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Company website URL</td>
+                                <td>https://www.mouser.com</td>
+                            </tr>
+                            <tr class="table-info">
+                                <td colspan="5"><strong>Address Information</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>G</strong></td>
+                                <td>Address Line 1</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Street address</td>
+                                <td>1000 N Main St</td>
+                            </tr>
+                            <tr>
+                                <td><strong>H</strong></td>
+                                <td>Address Line 2</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Additional address info</td>
+                                <td>Suite 100</td>
+                            </tr>
+                            <tr>
+                                <td><strong>I</strong></td>
+                                <td>City</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>City name</td>
+                                <td>Dallas</td>
+                            </tr>
+                            <tr>
+                                <td><strong>J</strong></td>
+                                <td>State</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>State or province</td>
+                                <td>TX</td>
+                            </tr>
+                            <tr>
+                                <td><strong>K</strong></td>
+                                <td>Postal Code</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>ZIP or postal code</td>
+                                <td>75201</td>
+                            </tr>
+                            <tr>
+                                <td><strong>L</strong></td>
+                                <td>Country</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Country (default: United States)</td>
+                                <td>United States</td>
+                            </tr>
+                            <tr class="table-warning">
+                                <td colspan="5"><strong>Business Information</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>M</strong></td>
+                                <td>Tax ID</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Tax ID or EIN</td>
+                                <td>12-3456789</td>
+                            </tr>
+                            <tr>
+                                <td><strong>N</strong></td>
+                                <td>Payment Terms</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Payment terms (default: Net 30)</td>
+                                <td>Net 30</td>
+                            </tr>
+                            <tr>
+                                <td><strong>O</strong></td>
+                                <td>Discount Percentage</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Discount percentage (0-100, default: 0)</td>
+                                <td>5.0</td>
+                            </tr>
+                            <tr>
+                                <td><strong>P</strong></td>
+                                <td>Credit Limit</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Credit limit amount (default: 0)</td>
+                                <td>10000.00</td>
+                            </tr>
+                            <tr class="table-success">
+                                <td colspan="5"><strong>Status and Ratings</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Q</strong></td>
+                                <td>Is Active</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Active status (true/false, default: true)</td>
+                                <td>true</td>
+                            </tr>
+                            <tr>
+                                <td><strong>R</strong></td>
+                                <td>Is Preferred</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Preferred vendor (true/false, default: false)</td>
+                                <td>false</td>
+                            </tr>
+                            <tr>
+                                <td><strong>S</strong></td>
+                                <td>Quality Rating</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Quality rating (1-5, default: 3)</td>
+                                <td>4</td>
+                            </tr>
+                            <tr>
+                                <td><strong>T</strong></td>
+                                <td>Delivery Rating</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Delivery rating (1-5, default: 3)</td>
+                                <td>4</td>
+                            </tr>
+                            <tr>
+                                <td><strong>U</strong></td>
+                                <td>Service Rating</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Service rating (1-5, default: 3)</td>
+                                <td>5</td>
+                            </tr>
+                            <tr>
+                                <td><strong>V</strong></td>
+                                <td>Notes</td>
+                                <td><span class="badge bg-secondary">Optional</span></td>
+                                <td>Additional notes</td>
+                                <td>Preferred for electronic components</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="alert alert-secondary mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Tips:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Company Name must be unique - duplicates will be rejected</li>
+                        <li>Vendor Code must be unique if provided</li>
+                        <li>Email addresses will be validated for format</li>
+                        <li>Ratings must be between 1 and 5</li>
+                        <li>Empty rows will be skipped automatically</li>
+                        <li>Download our <a href="#" id="downloadVendorTemplate">CSV template</a> to get started</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.HasValidationResults)
+        {
+            <!-- Step 2: Validation Results -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-check-circle"></i> Step 2: Validation Results</h5>
+                    <div>
+                        <span class="badge bg-success fs-6 me-2">@Model.ValidVendorsCount Valid</span>
+                        @if (Model.InvalidVendorsCount > 0)
+                        {
+                            <span class="badge bg-danger fs-6">@Model.InvalidVendorsCount Invalid</span>
+                        }
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (Model.ValidationResults!.Any(vr => !vr.IsValid))
+                    {
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle"></i> Vendors with Errors</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Row</th>
+                                            <th>Company Name</th>
+                                            <th>Vendor Code</th>
+                                            <th>Errors</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var invalid in Model.ValidationResults.Where(vr => !vr.IsValid))
+                                        {
+                                            <tr>
+                                                <td>@invalid.RowNumber</td>
+                                                <td>@invalid.CompanyName</td>
+                                                <td>@invalid.VendorCode</td>
+                                                <td>
+                                                    @foreach (var error in invalid.Errors)
+                                                    {
+                                                        <span class="badge bg-danger me-1">@error</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    @if (Model.CanProceedWithImport)
+                    {
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle"></i> Ready to Import</h6>
+                            <p class="mb-0">@Model.ValidVendorsCount vendors are ready to be imported into the system.</p>
+                        </div>
+
+                        <!-- Preview of valid vendors -->
+                        <h6>Vendors to Import:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Row</th>
+                                        <th>Company Name</th>
+                                        <th>Vendor Code</th>
+                                        <th>Contact</th>
+                                        <th>Location</th>
+                                        <th>Ratings</th>
+                                        <th>Warnings</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var valid in Model.ValidationResults.Where(vr => vr.IsValid))
+                                    {
+                                        <tr>
+                                            <td>@valid.RowNumber</td>
+                                            <td><strong>@valid.VendorData!.CompanyName</strong></td>
+                                            <td>@(valid.VendorData.VendorCode ?? "N/A")</td>
+                                            <td>
+                                                <small>
+                                                    @if (!string.IsNullOrEmpty(valid.VendorData.ContactName))
+                                                    {
+                                                        <strong>@valid.VendorData.ContactName</strong><br>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(valid.VendorData.ContactEmail))
+                                                    {
+                                                        <span class="text-muted">@valid.VendorData.ContactEmail</span>
+                                                    }
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <small>
+                                                    @if (!string.IsNullOrEmpty(valid.VendorData.City) || !string.IsNullOrEmpty(valid.VendorData.State))
+                                                    {
+                                                        <span class="text-muted">@valid.VendorData.City, @valid.VendorData.State</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Not specified</span>
+                                                    }
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <small>
+                                                    Q: @valid.VendorData.QualityRating &nbsp;
+                                                    D: @valid.VendorData.DeliveryRating &nbsp;
+                                                    S: @valid.VendorData.ServiceRating
+                                                </small>
+                                            </td>
+                                            <td>
+                                                @foreach (var warning in valid.Warnings)
+                                                {
+                                                    <span class="badge bg-warning text-dark me-1">@warning</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Import Button -->
+                        <form asp-action="ProcessBulkUpload" method="post" enctype="multipart/form-data">
+                            @if (Model.PreviewVendors != null && Model.PreviewVendors.Any())
+                            {
+                                <!-- Preserve all preview vendors as hidden fields -->
+                                @for (int i = 0; i < Model.PreviewVendors.Count; i++)
+                                {
+                                    <input asp-for="PreviewVendors[i].CompanyName" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].VendorCode" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].ContactName" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].ContactEmail" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].ContactPhone" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].Website" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].AddressLine1" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].AddressLine2" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].City" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].State" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].PostalCode" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].Country" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].TaxId" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].PaymentTerms" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].DiscountPercentage" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].CreditLimit" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].IsActive" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].IsPreferred" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].QualityRating" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].DeliveryRating" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].ServiceRating" type="hidden" />
+                                    <input asp-for="PreviewVendors[i].Notes" type="hidden" />
+                                }
+                                
+                                <input asp-for="SkipHeaderRow" type="hidden" />
+                                
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-success btn-lg">
+                                            <i class="fas fa-upload"></i> Import @Model.PreviewVendors.Count Vendors
+                                        </button>
+                                        <a asp-action="BulkUpload" class="btn btn-secondary btn-lg ms-2">
+                                            <i class="fas fa-arrow-left"></i> Back to Upload
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    No valid vendors found to import. Please upload a file first.
+                                </div>
+                                <a asp-action="BulkUpload" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i> Upload File
+                                </a>
+                            }
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // CSV template download functionality
+        const downloadTemplateLink = document.getElementById('downloadVendorTemplate');
+        if (downloadTemplateLink) {
+            downloadTemplateLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                downloadVendorCsvTemplate();
+            });
+        }
+        
+        // File input validation
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                        alert('File size must be less than 10MB');
+                        this.value = '';
+                        return;
+                    }
+                    
+                    const allowedExtensions = ['.csv'];
+                    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                    if (!allowedExtensions.includes(fileExtension)) {
+                        alert('Please select a valid CSV file (.csv)');
+                        this.value = '';
+                        return;
+                    }
+                }
+            });
+        }
+    });
+
+    function downloadVendorCsvTemplate() {
+        const templateData = [
+            ['Company Name', 'Vendor Code', 'Contact Name', 'Contact Email', 'Contact Phone', 'Website', 'Address Line 1', 'Address Line 2', 'City', 'State', 'Postal Code', 'Country', 'Tax ID', 'Payment Terms', 'Discount Percentage', 'Credit Limit', 'Is Active', 'Is Preferred', 'Quality Rating', 'Delivery Rating', 'Service Rating', 'Notes'],
+            ['Mouser Electronics', 'MOUS001', 'John Smith', 'john.smith@mouser.com', '(555) 123-4567', 'https://www.mouser.com', '1000 N Main St', 'Suite 100', 'Dallas', 'TX', '75201', 'United States', '12-3456789', 'Net 30', '5.0', '10000.00', 'true', 'true', '4', '4', '5', 'Preferred for electronic components'],
+            ['Digi-Key Electronics', 'DIGI001', 'Jane Doe', 'jane.doe@digikey.com', '(555) 987-6543', 'https://www.digikey.com', '701 Brooks Ave S', '', 'Thief River Falls', 'MN', '56701', 'United States', '98-7654321', 'Net 15', '3.0', '15000.00', 'true', 'false', '5', '4', '4', 'Fast delivery on electronic parts'],
+            ['Newark Electronics', 'NEWA001', 'Bob Wilson', 'bob.wilson@newark.com', '(555) 456-7890', 'https://www.newark.com', '4801 N Ravenswood Ave', '', 'Chicago', 'IL', '60640', 'United States', '', 'Net 30', '0', '5000.00', 'true', 'false', '3', '3', '3', 'Good for industrial components']
+        ];
+
+        const csvContent = templateData.map(row =>
+            row.map(cell => `"${cell}"`).join(',')
+        ).join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'vendor_bulk_upload_template.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+</script>
+
+<style>
+    .table th {
+        vertical-align: middle;
+    }
+    
+    .badge.fs-6 {
+        font-size: 0.875rem !important;
+    }
+    
+    .card-header h5 {
+        margin-bottom: 0;
+    }
+    
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .alert ul {
+        padding-left: 1.5rem;
+    }
+    
+    .form-text {
+        font-size: 0.875rem;
+    }
+</style>
