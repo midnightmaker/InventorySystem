@@ -7,24 +7,38 @@
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\itemscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\items\\bulkupload.cshtml||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\items\\bulkupload.cshtml||{8B382828-6202-11D1-8870-0000F87579D2}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\bulkuploadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\bulkuploadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\inventoryservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\inventoryservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\items\\bulkupload.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\items\\bulkupload.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\ibulkuploadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\ibulkuploadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\iinventoryservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\iinventoryservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\bulkuploadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\bulkuploadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\deons\\AppData\\Local\\SourceServer\\a475d692702bcef905558be9984c40631a699a3c664136caaf49b8ce45a4bd16\\src\\libraries\\System.Private.CoreLib\\src\\System\\Runtime\\CompilerServices\\TaskAwaiter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\deons\\AppData\\Local\\SourceServer\\3a17c7abe19a54ce18398580a8f959eb45735c2e6f66779eecf177ad19711b64\\src\\libraries\\System.Private.CoreLib\\src\\System\\Threading\\Tasks\\Task.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\item.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\item.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\items\\bulkupload.cshtml||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\items\\bulkupload.cshtml||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\ibulkuploadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\ibulkuploadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\items\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
@@ -78,7 +92,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 6,
           "Children": [
             {
               "$type": "Bookmark",
@@ -98,15 +112,28 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "DocumentsController.cs",
-              "DocumentMoniker": "C:\\InventorySystem\\Controllers\\DocumentsController.cs",
-              "RelativeDocumentMoniker": "Controllers\\DocumentsController.cs",
-              "ToolTip": "C:\\InventorySystem\\Controllers\\DocumentsController.cs",
-              "RelativeToolTip": "Controllers\\DocumentsController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "DocumentIndex": 3,
+              "Title": "IInventoryService.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Services\\IInventoryService.cs",
+              "RelativeDocumentMoniker": "Services\\IInventoryService.cs",
+              "ToolTip": "C:\\InventorySystem\\Services\\IInventoryService.cs",
+              "RelativeToolTip": "Services\\IInventoryService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAA/AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-05T20:44:51.81Z",
+              "WhenOpened": "2025-08-05T23:17:49.73Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "Task.cs",
+              "DocumentMoniker": "C:\\Users\\deons\\AppData\\Local\\SourceServer\\3a17c7abe19a54ce18398580a8f959eb45735c2e6f66779eecf177ad19711b64\\src\\libraries\\System.Private.CoreLib\\src\\System\\Threading\\Tasks\\Task.cs",
+              "RelativeDocumentMoniker": "..\\Users\\deons\\AppData\\Local\\SourceServer\\3a17c7abe19a54ce18398580a8f959eb45735c2e6f66779eecf177ad19711b64\\src\\libraries\\System.Private.CoreLib\\src\\System\\Threading\\Tasks\\Task.cs",
+              "ToolTip": "C:\\Users\\deons\\AppData\\Local\\SourceServer\\3a17c7abe19a54ce18398580a8f959eb45735c2e6f66779eecf177ad19711b64\\src\\libraries\\System.Private.CoreLib\\src\\System\\Threading\\Tasks\\Task.cs",
+              "RelativeToolTip": "..\\Users\\deons\\AppData\\Local\\SourceServer\\3a17c7abe19a54ce18398580a8f959eb45735c2e6f66779eecf177ad19711b64\\src\\libraries\\System.Private.CoreLib\\src\\System\\Threading\\Tasks\\Task.cs",
+              "ViewState": "AgIAAO4CAAAAAAAAAAAawAIDAAAQAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-05T23:13:06.676Z",
               "EditorCaption": ""
             },
             {
@@ -117,14 +144,14 @@
               "RelativeDocumentMoniker": "Controllers\\ItemsController.cs",
               "ToolTip": "C:\\InventorySystem\\Controllers\\ItemsController.cs",
               "RelativeToolTip": "Controllers\\ItemsController.cs",
-              "ViewState": "AgIAAJsAAAAAAAAAAAAiwMAAAAALAAAAAAAAAA==",
+              "ViewState": "AgIAABkAAAAAAAAAAAAawP4AAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-05T13:17:08.744Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 14,
               "Title": "Edit.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\Edit.cshtml",
               "RelativeDocumentMoniker": "Views\\Vendors\\Edit.cshtml",
@@ -137,38 +164,77 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 7,
               "Title": "Item.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Item.cs",
               "RelativeDocumentMoniker": "Models\\Item.cs",
               "ToolTip": "C:\\InventorySystem\\Models\\Item.cs",
               "RelativeToolTip": "Models\\Item.cs",
-              "ViewState": "AgIAAA8AAAAAAAAAAAAAACcAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-05T21:18:02.94Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "BulkUploadService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\BulkUploadService.cs",
               "RelativeDocumentMoniker": "Services\\BulkUploadService.cs",
               "ToolTip": "C:\\InventorySystem\\Services\\BulkUploadService.cs",
               "RelativeToolTip": "Services\\BulkUploadService.cs",
-              "ViewState": "AgIAAKQAAAAAAAAAAAAawLgAAAAGAAAAAAAAAA==",
+              "ViewState": "AgIAAAMBAAAAAAAAAAAawBgBAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-05T13:15:54.276Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "BulkUpload.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\BulkUpload.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml*",
-              "RelativeToolTip": "Views\\Items\\BulkUpload.cshtml*",
+              "ToolTip": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml",
+              "RelativeToolTip": "Views\\Items\\BulkUpload.cshtml",
+              "ViewState": "AgIAAIgBAAAAAAAAAADwv6ABAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-05T13:21:12.718Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "InventoryService.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Services\\InventoryService.cs",
+              "RelativeDocumentMoniker": "Services\\InventoryService.cs",
+              "ToolTip": "C:\\InventorySystem\\Services\\InventoryService.cs",
+              "RelativeToolTip": "Services\\InventoryService.cs",
+              "ViewState": "AgIAAAwAAAAAAAAAAAAAACMAAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-05T23:17:58.223Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "TaskAwaiter.cs",
+              "DocumentMoniker": "C:\\Users\\deons\\AppData\\Local\\SourceServer\\a475d692702bcef905558be9984c40631a699a3c664136caaf49b8ce45a4bd16\\src\\libraries\\System.Private.CoreLib\\src\\System\\Runtime\\CompilerServices\\TaskAwaiter.cs",
+              "RelativeDocumentMoniker": "..\\Users\\deons\\AppData\\Local\\SourceServer\\a475d692702bcef905558be9984c40631a699a3c664136caaf49b8ce45a4bd16\\src\\libraries\\System.Private.CoreLib\\src\\System\\Runtime\\CompilerServices\\TaskAwaiter.cs",
+              "ToolTip": "C:\\Users\\deons\\AppData\\Local\\SourceServer\\a475d692702bcef905558be9984c40631a699a3c664136caaf49b8ce45a4bd16\\src\\libraries\\System.Private.CoreLib\\src\\System\\Runtime\\CompilerServices\\TaskAwaiter.cs",
+              "RelativeToolTip": "..\\Users\\deons\\AppData\\Local\\SourceServer\\a475d692702bcef905558be9984c40631a699a3c664136caaf49b8ce45a4bd16\\src\\libraries\\System.Private.CoreLib\\src\\System\\Runtime\\CompilerServices\\TaskAwaiter.cs",
+              "ViewState": "AgIAADoBAAAAAAAAAAAawE8BAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-05T23:13:08.685Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "BulkUpload.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml",
+              "RelativeDocumentMoniker": "Views\\Items\\BulkUpload.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml",
+              "RelativeToolTip": "Views\\Items\\BulkUpload.cshtml",
               "ViewState": "AgIAAJQBAAAAAAAAAADwv54BAAAFAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2025-08-05T22:50:33.468Z",
@@ -176,7 +242,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 9,
               "Title": "IBulkUploadService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\IBulkUploadService.cs",
               "RelativeDocumentMoniker": "Services\\IBulkUploadService.cs",
@@ -189,7 +255,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 12,
+              "Title": "DocumentsController.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Controllers\\DocumentsController.cs",
+              "RelativeDocumentMoniker": "Controllers\\DocumentsController.cs",
+              "ToolTip": "C:\\InventorySystem\\Controllers\\DocumentsController.cs",
+              "RelativeToolTip": "Controllers\\DocumentsController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-05T20:44:51.81Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Vendors\\Index.cshtml",
@@ -202,20 +281,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "BulkUpload.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml",
-              "RelativeDocumentMoniker": "Views\\Items\\BulkUpload.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml*",
-              "RelativeToolTip": "Views\\Items\\BulkUpload.cshtml*",
-              "ViewState": "AgIAAJEBAAAAAAAAAAAtwL4BAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-05T13:21:12.718Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 10,
               "Title": "Edit.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\Edit.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\Edit.cshtml",
@@ -228,7 +294,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 11,
               "Title": "program.cs",
               "DocumentMoniker": "C:\\InventorySystem\\program.cs",
               "RelativeDocumentMoniker": "program.cs",
@@ -241,7 +307,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 16,
               "Title": "ViewVendorImportErrors.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\ViewVendorImportErrors.cshtml",
               "RelativeDocumentMoniker": "Views\\Vendors\\ViewVendorImportErrors.cshtml",
@@ -254,7 +320,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 17,
               "Title": "BulkUpload.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\BulkUpload.cshtml",
               "RelativeDocumentMoniker": "Views\\Vendors\\BulkUpload.cshtml",
@@ -267,7 +333,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 20,
               "Title": "ViewImportErrors.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\ViewImportErrors.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\ViewImportErrors.cshtml",
@@ -280,7 +346,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 18,
               "Title": "BulkUploadResult.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\BulkUploadResult.cs",
               "RelativeDocumentMoniker": "Models\\BulkUploadResult.cs",
@@ -293,7 +359,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 19,
               "Title": "BulkItemUploadViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\BulkItemUploadViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\BulkItemUploadViewModel.cs",
@@ -306,7 +372,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 13,
               "Title": "VendorsController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\VendorsController.cs",
               "RelativeDocumentMoniker": "Controllers\\VendorsController.cs",

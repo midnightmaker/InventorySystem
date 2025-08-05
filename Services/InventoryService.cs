@@ -14,19 +14,24 @@ namespace InventorySystem.Services
       _context = context;
     }
 
-    #region Existing Core Methods
+		#region Existing Core Methods
 
-    public async Task<IEnumerable<Item>> GetAllItemsAsync()
-    {
-      return await _context.Items
-          .Where(i => i.IsCurrentVersion) // ? ONLY SHOW CURRENT VERSIONS
-          .Include(i => i.Purchases)
-          .Include(i => i.DesignDocuments)
-          .OrderBy(i => i.PartNumber)
-          .ToListAsync();
-    }
+		public async Task<IEnumerable<Item>> GetAllItemsAsync()
+		{
+			return await _context.Items
+				.OrderBy(i => i.PartNumber)
+				.ToListAsync();
+		}
 
-    public async Task<Item?> GetItemByIdAsync(int id)
+		public async Task<IEnumerable<Item>> GetItemsForIndexAsync()
+		{
+			return await _context.Items
+					.Include(i => i.PreferredVendorItem)
+							.ThenInclude(vi => vi.Vendor) // Include the Vendor from the VendorItem
+					.OrderBy(i => i.PartNumber)
+					.ToListAsync();
+		}
+		public async Task<Item?> GetItemByIdAsync(int id)
     {
       return await _context.Items
           .Include(i => i.Purchases.OrderBy(p => p.PurchaseDate))

@@ -4,6 +4,9 @@ namespace InventorySystem.Services
 {
   public interface IInventoryService
   {
+    // NEW: Method for optimized indexing
+    Task<IEnumerable<Item>> GetItemsForIndexAsync();
+
     // Existing core methods
     Task<IEnumerable<Item>> GetAllItemsAsync();
     Task<Item?> GetItemByIdAsync(int id);

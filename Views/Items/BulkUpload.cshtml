@@ -413,7 +413,7 @@
     
     @if (Model.PreviewItems != null && Model.PreviewItems.Any())
     {
-        <!-- Preserve all preview items as hidden fields -->
+        @* Preserve all preview items as hidden fields *@
         @for (int i = 0; i < Model.PreviewItems.Count; i++)
         {
             <input asp-for="PreviewItems[i].PartNumber" type="hidden" />
@@ -424,6 +424,7 @@
             <input asp-for="PreviewItems[i].MinimumStock" type="hidden" />
             <input asp-for="PreviewItems[i].Comments" type="hidden" />
             <!-- Add other necessary fields that your BulkItemPreview contains -->
+            <input asp-for="PreviewItems[i].PreferredVendor" type="hidden" />
         }
         
         <!-- Preserve other form properties -->

@@ -43,7 +43,8 @@ namespace InventorySystem.Controllers
 
     public async Task<IActionResult> Index()
     {
-      var items = await _inventoryService.GetAllItemsAsync();
+      // Use the new method to get items with vendor data included
+      var items = await _inventoryService.GetItemsForIndexAsync();
       return View(items);
     }
 
