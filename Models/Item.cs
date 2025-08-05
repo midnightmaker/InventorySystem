@@ -12,7 +12,7 @@ namespace InventorySystem.Models
     [StringLength(100)]
     public string PartNumber { get; set; } = string.Empty;
 
-    [Required]
+    
     [StringLength(500)]
     public string Description { get; set; } = string.Empty;
 
@@ -23,22 +23,14 @@ namespace InventorySystem.Models
     public int CurrentStock { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
-    // UNIT OF MEASURE - NEW PROPERTY
     [Display(Name = "Unit of Measure")]
     public UnitOfMeasure UnitOfMeasure { get; set; } = UnitOfMeasure.Each;
-
-    // NEW PHASE 1 PROPERTIES
 
     [StringLength(100)]
     [Display(Name = "Vendor Part Number")]
     public string? VendorPartNumber { get; set; }
 
-    // REPLACED: Simple string with structured relationship
-    // [StringLength(200)]
-    // [Display(Name = "Preferred Vendor")]
-    // public string? PreferredVendor { get; set; }
-
-    // NEW: Preferred Vendor relationship via VendorItem
+    // Preferred Vendor relationship via VendorItem
     [Display(Name = "Preferred Vendor")]
     public int? PreferredVendorItemId { get; set; }
     public virtual VendorItem? PreferredVendorItem { get; set; }

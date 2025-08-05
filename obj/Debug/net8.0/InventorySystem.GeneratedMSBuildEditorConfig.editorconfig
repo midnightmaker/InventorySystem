@@ -1,11 +1,19 @@
 is_global = true
 build_property.TargetFramework = net8.0
+build_property.TargetFramework = net8.0
+build_property.TargetPlatformMinVersion = 
 build_property.TargetPlatformMinVersion = 
 build_property.UsingMicrosoftNETSdkWeb = true
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
 build_property.ProjectTypeGuids = 
 build_property.InvariantGlobalization = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
 build_property.PlatformNeutralAssembly = 
 build_property.EnforceExtendedAnalyzerRules = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = InventorySystem
 build_property.RootNamespace = InventorySystem
@@ -106,6 +114,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/InventorySystem/Views/Items/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSXRlbXNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/InventorySystem/Views/Items/ViewImportErrors.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSXRlbXNcVmlld0ltcG9ydEVycm9ycy5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/InventorySystem/Views/Production/BuildBom.cshtml]
@@ -228,6 +240,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9WZXJzaW9uRHJvcGRvd24uY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/InventorySystem/Views/Vendors/BulkUpload.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVmVuZG9yc1xCdWxrVXBsb2FkLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/InventorySystem/Views/Vendors/Create.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVmVuZG9yc1xDcmVhdGUuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
@@ -250,6 +266,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/InventorySystem/Views/Vendors/ManageItems.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVmVuZG9yc1xNYW5hZ2VJdGVtcy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/InventorySystem/Views/Vendors/ViewVendorImportErrors.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVmVuZG9yc1xWaWV3VmVuZG9ySW1wb3J0RXJyb3JzLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/InventorySystem/Views/WipDashboard/Index.cshtml]
