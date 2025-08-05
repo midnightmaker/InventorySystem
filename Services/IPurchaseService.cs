@@ -41,5 +41,19 @@ namespace InventorySystem.Services
     /// </summary>
     /// <returns>Generated purchase order number</returns>
     Task<string> GeneratePurchaseOrderNumberAsync();
+
+    /// <summary>
+    /// Gets all purchases for a specific purchase order number (grouped purchases)
+    /// </summary>
+    /// <param name="purchaseOrderNumber">The purchase order number</param>
+    /// <returns>List of purchases with the same PO number</returns>
+    Task<IEnumerable<Purchase>> GetPurchasesByOrderNumberAsync(string purchaseOrderNumber);
+
+    /// <summary>
+    /// Gets summary information for a purchase order (vendor grouping)
+    /// </summary>
+    /// <param name="purchaseOrderNumber">The purchase order number</param>
+    /// <returns>Purchase order summary with totals</returns>
+    Task<PurchaseOrderSummary> GetPurchaseOrderSummaryAsync(string purchaseOrderNumber);
   }
 }

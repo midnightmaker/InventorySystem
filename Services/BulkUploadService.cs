@@ -62,16 +62,24 @@ namespace InventorySystem.Services
           // NEW PHASE 1 FIELDS
           VendorPartNumber = GetValue(values, 4), // Column 5
           PreferredVendor = GetValue(values, 5), // Column 6 - This will be matched/created
-          IsSellable = GetBoolValue(values, 6), // Column 7
-          ItemType = GetItemTypeValue(values, 7), // Column 8
-          Version = !string.IsNullOrWhiteSpace(GetValue(values, 8)) ? GetValue(values, 8) : "A", // Column 9
+          
+          // NEW: Manufacturer information
+          Manufacturer = GetValue(values, 6), // Column 7
+          ManufacturerPartNumber = GetValue(values, 7), // Column 8
+          
+          IsSellable = GetBoolValue(values, 8), // Column 9
+          ItemType = GetItemTypeValue(values, 9), // Column 10
+          Version = !string.IsNullOrWhiteSpace(GetValue(values, 10)) ? GetValue(values, 10) : "A", // Column 11
+          
+          // ADD: Unit of Measure parsing
+          UnitOfMeasure = GetUnitOfMeasureValue(values, 11), // Column 12
 
           // Optional initial purchase columns (shifted)
-          InitialQuantity = GetDecimalValue(values, 9), // Column 10
-          InitialCostPerUnit = GetDecimalValue(values, 10), // Column 11
-          InitialVendor = GetValue(values, 11), // Column 12
-          InitialPurchaseDate = GetDateValue(values, 12), // Column 13
-          InitialPurchaseOrderNumber = GetValue(values, 13) // Column 14
+          InitialQuantity = GetDecimalValue(values, 12), // Column 13
+          InitialCostPerUnit = GetDecimalValue(values, 13), // Column 14
+          InitialVendor = GetValue(values, 14), // Column 15
+          InitialPurchaseDate = GetDateValue(values, 15), // Column 16
+          InitialPurchaseOrderNumber = GetValue(values, 16) // Column 17
         };
 
         items.Add(item);
@@ -199,7 +207,10 @@ namespace InventorySystem.Services
               // PreferredVendorItemId will be set after vendor processing
               IsSellable = itemData.IsSellable,
               ItemType = itemData.ItemType,
-              Version = itemData.Version
+              Version = itemData.Version,
+              
+              // ADD: Unit of Measure
+              UnitOfMeasure = itemData.UnitOfMeasure
             };
 
             var createdItem = await _inventoryService.CreateItemAsync(item);
@@ -222,6 +233,18 @@ namespace InventorySystem.Services
           catch (Exception ex)
           {
             result.FailedImports++;
+            
+            // ADD: Capture detailed error information
+            var detailedError = new ItemImportError
+            {
+              RowNumber = itemData.RowNumber,
+              PartNumber = itemData.PartNumber,
+              Description = itemData.Description,
+              ErrorMessage = ex.Message
+            };
+            result.DetailedErrors.Add(detailedError);
+            
+            // Keep the simple error format for backward compatibility
             result.Errors.Add($"Row {itemData.RowNumber} - {itemData.PartNumber}: {ex.Message}");
           }
         }
@@ -240,6 +263,18 @@ namespace InventorySystem.Services
         result.Errors.Add($"Transaction failed: {ex.Message}");
         result.SuccessfulImports = 0;
         result.FailedImports = validItems.Count;
+        
+        // ADD: Add detailed errors for all items when transaction fails
+        foreach (var itemData in validItems)
+        {
+          result.DetailedErrors.Add(new ItemImportError
+          {
+            RowNumber = itemData.RowNumber,
+            PartNumber = itemData.PartNumber,
+            Description = itemData.Description,
+            ErrorMessage = "Transaction failed - no items were imported"
+          });
+        }
       }
 
       return result;
@@ -646,6 +681,47 @@ namespace InventorySystem.Services
         "service" or "2" => ItemType.Service,
         "virtual" or "3" => ItemType.Virtual,
         _ => ItemType.Inventoried
+      };
+    }
+
+    private UnitOfMeasure GetUnitOfMeasureValue(List<string> values, int index)
+    {
+      var value = GetValue(values, index).ToLower().Trim();
+      
+      if (string.IsNullOrWhiteSpace(value))
+        return UnitOfMeasure.Each; // Default
+        
+      // Try to parse by abbreviation first
+      return value switch
+      {
+        "ea" or "each" => UnitOfMeasure.Each,
+        "g" or "gram" or "grams" => UnitOfMeasure.Gram,
+        "kg" or "kilogram" or "kilograms" => UnitOfMeasure.Kilogram,
+        "oz" or "ounce" or "ounces" => UnitOfMeasure.Ounce,
+        "lb" or "pound" or "pounds" => UnitOfMeasure.Pound,
+        "mm" or "millimeter" or "millimeters" => UnitOfMeasure.Millimeter,
+        "cm" or "centimeter" or "centimeters" => UnitOfMeasure.Centimeter,
+        "m" or "meter" or "meters" => UnitOfMeasure.Meter,
+        "in" or "inch" or "inches" => UnitOfMeasure.Inch,
+        "ft" or "foot" or "feet" => UnitOfMeasure.Foot,
+        "yd" or "yard" or "yards" => UnitOfMeasure.Yard,
+        "ml" or "milliliter" or "milliliters" => UnitOfMeasure.Milliliter,
+        "l" or "liter" or "liters" => UnitOfMeasure.Liter,
+        "fl oz" or "fluidounce" or "fluid ounce" => UnitOfMeasure.FluidOunce,
+        "pt" or "pint" or "pints" => UnitOfMeasure.Pint,
+        "qt" or "quart" or "quarts" => UnitOfMeasure.Quart,
+        "gal" or "gallon" or "gallons" => UnitOfMeasure.Gallon,
+        "box" => UnitOfMeasure.Box,
+        "case" => UnitOfMeasure.Case,
+        "doz" or "dozen" => UnitOfMeasure.Dozen,
+        "pr" or "pair" => UnitOfMeasure.Pair,
+        "set" => UnitOfMeasure.Set,
+        "roll" => UnitOfMeasure.Roll,
+        "sht" or "sheet" => UnitOfMeasure.Sheet,
+        "hr" or "hour" or "hours" => UnitOfMeasure.Hour,
+        "day" or "days" => UnitOfMeasure.Day,
+        "mo" or "month" or "months" => UnitOfMeasure.Month,
+        _ => UnitOfMeasure.Each // Default fallback
       };
     }
   }

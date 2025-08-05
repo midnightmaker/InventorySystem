@@ -17,6 +17,29 @@
         {
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-triangle"></i> @Model.ErrorMessage
+                @if (TempData["ImportErrors"] != null)
+                {
+                    <div class="mt-2">
+                        <a asp-action="ViewImportErrors" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-list"></i> View Error Details
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (TempData["WarningMessage"] != null)
+        {
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+                @if (TempData["ImportErrors"] != null)
+                {
+                    <div class="mt-2">
+                        <a asp-action="ViewImportErrors" class="btn btn-sm btn-outline-warning">
+                            <i class="fas fa-list"></i> View Error Details
+                        </a>
+                    </div>
+                }
             </div>
         }
 
@@ -386,38 +409,48 @@
                         </div>
 
                         <!-- Import Button -->
-                        <form asp-action="ProcessBulkUpload" method="post" class="mt-3">
-                            @for (int i = 0; i < Model.PreviewItems!.Count; i++)
-                            {
-                                <input type="hidden" asp-for="PreviewItems[i].PartNumber" />
-                                <input type="hidden" asp-for="PreviewItems[i].Description" />
-                                <input type="hidden" asp-for="PreviewItems[i].Comments" />
-                                <input type="hidden" asp-for="PreviewItems[i].MinimumStock" />
-                                <input type="hidden" asp-for="PreviewItems[i].RowNumber" />
-                                <input type="hidden" asp-for="PreviewItems[i].VendorPartNumber" />
-                                <input type="hidden" asp-for="PreviewItems[i].PreferredVendor" />
-                                <input type="hidden" asp-for="PreviewItems[i].Manufacturer" />
-                                <input type="hidden" asp-for="PreviewItems[i].ManufacturerPartNumber" />
-                                <input type="hidden" asp-for="PreviewItems[i].IsSellable" />
-                                <input type="hidden" asp-for="PreviewItems[i].ItemType" />
-                                <input type="hidden" asp-for="PreviewItems[i].Version" />
-                                <input type="hidden" asp-for="PreviewItems[i].InitialQuantity" />
-                                <input type="hidden" asp-for="PreviewItems[i].InitialCostPerUnit" />
-                                <input type="hidden" asp-for="PreviewItems[i].InitialVendor" />
-                                <input type="hidden" asp-for="PreviewItems[i].InitialPurchaseDate" />
-                                <input type="hidden" asp-for="PreviewItems[i].InitialPurchaseOrderNumber" />
-                            }
-                            
-                            <div class="d-flex justify-content-between">
-                                <button type="button" class="btn btn-outline-secondary" onclick="window.location.reload()">
-                                    <i class="fas fa-redo"></i> Upload Different File
-                                </button>
-                                <button type="submit" class="btn btn-success btn-lg" 
-                                        onclick="return confirm('Are you sure you want to import @Model.ValidItemsCount items?')">
-                                    <i class="fas fa-cloud-upload-alt"></i> Import @Model.ValidItemsCount Items
-                                </button>
-                            </div>
-                        </form>
+<form asp-action="ProcessBulkUpload" method="post" enctype="multipart/form-data">
+    
+    @if (Model.PreviewItems != null && Model.PreviewItems.Any())
+    {
+        <!-- Preserve all preview items as hidden fields -->
+        @for (int i = 0; i < Model.PreviewItems.Count; i++)
+        {
+            <input asp-for="PreviewItems[i].PartNumber" type="hidden" />
+            <input asp-for="PreviewItems[i].Description" type="hidden" />
+            <input asp-for="PreviewItems[i].UnitOfMeasure" type="hidden" />
+            <input asp-for="PreviewItems[i].ItemType" type="hidden" />
+            <input asp-for="PreviewItems[i].IsSellable" type="hidden" />
+            <input asp-for="PreviewItems[i].MinimumStock" type="hidden" />
+            <input asp-for="PreviewItems[i].Comments" type="hidden" />
+            <!-- Add other necessary fields that your BulkItemPreview contains -->
+        }
+        
+        <!-- Preserve other form properties -->
+        <input asp-for="SkipHeaderRow" type="hidden" />
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-upload"></i> Import @Model.PreviewItems.Count Items
+                </button>
+                <a asp-action="BulkUpload" class="btn btn-secondary btn-lg ms-2">
+                    <i class="fas fa-arrow-left"></i> Back to Upload
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            No valid items found to import. Please upload a file first.
+        </div>
+        <a asp-action="BulkUpload" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Upload File
+        </a>
+    }
+</form>
                     }
                 </div>
             </div>
@@ -466,11 +499,11 @@
       function downloadCsvTemplate() {
       // Updated CSV template with manufacturer fields
       const templateData = [
-          ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Manufacturer', 'Manufacturer Part Number', 'Sellable', 'Item Type', 'Version', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
-          ['IC-001', 'DC-DC Converter 12V to 3.3V', 'Used in power supply circuit', '25', '595-TPS54331DR', 'Mouser Electronics', 'Texas Instruments', 'TPS54331DR', 'true', 'Inventoried', 'A', '50', '2.85', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
-          ['RES-001', '10K Ohm Resistor 1%', '0603 package size', '100', '71-CRCW060310K0FKEA', 'Mouser Electronics', 'Vishay', 'CRCW060310K0FKEA', 'true', 'Inventoried', 'A', '200', '0.12', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
-          ['CAP-001', '10uF Ceramic Capacitor', '0805 package, 25V rating', '50', '81-GRM21BR61E106KA3L', 'Mouser Electronics', 'Murata', 'GRM21BR61E106KA73L', 'true', 'Inventoried', 'A', '100', '0.45', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
-          ['VALVE-002', 'Ball Valve 1/2"', 'Stainless steel', '5', 'XYZ-67890', 'XYZ Parts', '', '', 'true', 'Inventoried', 'A', '10', '8.25', 'XYZ Parts', '2025-01-15', 'PO-2025-001'],
+          ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Manufacturer', 'Manufacturer Part Number', 'Sellable', 'Item Type', 'Version', 'Unit of Measure', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
+          ['IC-001', 'DC-DC Converter 12V to 3.3V', 'Used in power supply circuit', '25', '595-TPS54331DR', 'Mouser Electronics', 'Texas Instruments', 'TPS54331DR', 'true', 'Inventoried', 'A', 'EA', '50', '2.85', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+          ['RES-001', '10K Ohm Resistor 1%', '0603 package size', '100', '71-CRCW060310K0FKEA', 'Mouser Electronics', 'Vishay', 'CRCW060310K0FKEA', 'true', 'Inventoried', 'A', 'EA', '200', '0.12', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+          ['CAP-001', '10uF Ceramic Capacitor', '0805 package, 25V rating', '50', '81-GRM21BR61E106KA3L', 'Mouser Electronics', 'Murata', 'GRM21BR61E106KA73L', 'true', 'Inventoried', 'A', 'EA', '100', '0.45', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+          ['VALVE-002', 'Ball Valve 1/2"', 'Stainless steel', '5', 'XYZ-67890', 'XYZ Parts', '', '', 'true', 'Inventoried', 'A', 'EA', '10', '8.25', 'XYZ Parts', '2025-01-15', 'PO-2025-001'],
           ['FW-001', 'Main Controller Firmware', 'Version 2.1.3', '0', '', '', '', '', 'false', 'Non-Inventoried', 'A', '', '', '', '', ''],
           ['SERVICE-001', 'Assembly Labor', 'Per hour rate', '0', '', '', '', '', 'true', 'Service', 'A', '', '', '', '', '']
       ];

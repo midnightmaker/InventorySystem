@@ -702,87 +702,8 @@ namespace InventorySystem.Controllers
     // Controllers/ProductionController.cs - Updated POST action
     public async Task<IActionResult> CreateBulkPurchaseRequest(BulkPurchaseRequest model)
     {
-      try
-      {
-        if (!ModelState.IsValid)
-        {
-          var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
-          var vendors = await _vendorService.GetActiveVendorsAsync();
-          ViewBag.ShortageAnalysis = shortageAnalysis;
-          ViewBag.Vendors = vendors;
-          return View(model);
-        }
-
-        var selectedItems = model.ItemsToPurchase.Where(i => i.Selected).ToList();
-
-        if (!selectedItems.Any())
-        {
-          TempData["ErrorMessage"] = "Please select at least one item to purchase.";
-          var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
-          var vendors = await _vendorService.GetActiveVendorsAsync();
-          ViewBag.ShortageAnalysis = shortageAnalysis;
-          ViewBag.Vendors = vendors;
-          return View(model);
-        }
-
-        // Validate that all selected items have vendors
-        var itemsWithoutVendors = selectedItems.Where(i => !i.VendorId.HasValue).ToList();
-        if (itemsWithoutVendors.Any())
-        {
-          TempData["ErrorMessage"] = "Please select a vendor for all selected items.";
-          var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
-          var vendors = await _vendorService.GetActiveVendorsAsync();
-          ViewBag.ShortageAnalysis = shortageAnalysis;
-          ViewBag.Vendors = vendors;
-          return View(model);
-        }
-
-        var createdPurchases = new List<int>();
-
-        foreach (var item in selectedItems)
-        {
-          // Use the selected VendorId directly - no need to lookup by name
-          var vendor = await _vendorService.GetVendorByIdAsync(item.VendorId.Value);
-
-          if (vendor == null)
-          {
-            TempData["ErrorMessage"] = $"Selected vendor not found for item {item.ItemId}.";
-            var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
-            var vendors = await _vendorService.GetActiveVendorsAsync();
-            ViewBag.ShortageAnalysis = shortageAnalysis;
-            ViewBag.Vendors = vendors;
-            return View(model);
-          }
-
-          var purchase = new Purchase
-          {
-            ItemId = item.ItemId,
-            QuantityPurchased = item.QuantityToPurchase,
-            CostPerUnit = item.EstimatedUnitCost,
-            VendorId = vendor.Id, // Use the selected VendorId
-            PurchaseOrderNumber = model.PurchaseOrderNumber ?? $"PO-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString()[..8]}",
-            Notes = $"{model.Notes} | {item.Notes}".Trim(' ', '|'),
-            PurchaseDate = DateTime.Today,
-            RemainingQuantity = item.QuantityToPurchase,
-            CreatedDate = DateTime.Now,
-            ShippingCost = 0,
-            TaxAmount = 0,
-            Status = PurchaseStatus.Pending,
-            ExpectedDeliveryDate = model.ExpectedDeliveryDate
-          };
-
-          var createdPurchase = await _purchaseService.CreatePurchaseAsync(purchase);
-          createdPurchases.Add(createdPurchase.Id);
-        }
-
-        TempData["SuccessMessage"] = $"Successfully created {createdPurchases.Count} purchase orders.";
-        return RedirectToAction("Index", "Purchases");
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error creating bulk purchase request: {ex.Message}";
-        return RedirectToAction("MaterialShortageReport", new { bomId = model.BomId, quantity = model.Quantity });
-      }
+      // Replace the existing foreach loop with a call to the new vendor grouping method
+      return await CreateVendorGroupedBulkPurchases(model);
     }
 
 
@@ -1010,6 +931,201 @@ namespace InventorySystem.Controllers
           details = ex.Message 
         });
       }
+    }
+
+    // Add this method to your ProductionController.cs class
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateVendorGroupedBulkPurchases(BulkPurchaseRequest model)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                await ReloadBulkPurchaseViewData(model);
+                return View("CreateBulkPurchaseRequest", model);
+            }
+
+            var selectedItems = model.ItemsToPurchase.Where(i => i.Selected).ToList();
+
+            if (!selectedItems.Any())
+            {
+                TempData["ErrorMessage"] = "Please select at least one item to purchase.";
+                await ReloadBulkPurchaseViewData(model);
+                return View("CreateBulkPurchaseRequest", model);
+            }
+
+            // Validate that all selected items have vendors
+            var itemsWithoutVendors = selectedItems.Where(i => !i.VendorId.HasValue).ToList();
+            if (itemsWithoutVendors.Any())
+            {
+                TempData["ErrorMessage"] = "Please select a vendor for all selected items.";
+                await ReloadBulkPurchaseViewData(model);
+                return View("CreateBulkPurchaseRequest", model);
+            }
+
+            // Group items by vendor for consolidated purchase orders
+            var vendorGroups = selectedItems.GroupBy(i => i.VendorId.Value).ToList();
+            var createdPurchaseOrders = new List<string>();
+            var totalPurchasesCreated = 0;
+
+            foreach (var vendorGroup in vendorGroups)
+            {
+                var vendorId = vendorGroup.Key;
+                var vendor = await _vendorService.GetVendorByIdAsync(vendorId);
+                
+                if (vendor == null)
+                {
+                    _logger.LogWarning("Vendor not found for ID {VendorId}", vendorId);
+                    continue;
+                }
+
+                // Calculate totals for this vendor group
+                var vendorItems = vendorGroup.ToList();
+                var totalItemValue = vendorItems.Sum(i => i.QuantityToPurchase * i.EstimatedUnitCost);
+                
+                // Generate unique PO number for this vendor
+                var purchaseOrderNumber = !string.IsNullOrEmpty(model.PurchaseOrderNumber) 
+                    ? $"{model.PurchaseOrderNumber}-{vendor.CompanyName.Replace(" ", "").Substring(0, Math.Min(3, vendor.CompanyName.Length)).ToUpper()}"
+                    : await _purchaseService.GeneratePurchaseOrderNumberAsync();
+
+                // Calculate vendor-specific shipping and tax
+                var shippingCost = CalculateShippingCost(totalItemValue, vendor);
+                var taxAmount = CalculateTaxAmount(totalItemValue, vendor);
+
+                _logger.LogInformation("Processing vendor group - Vendor: {VendorName}, Items: {ItemCount}, Total Value: {TotalValue:C}, Shipping: {Shipping:C}, Tax: {Tax:C}",
+                    vendor.CompanyName, vendorItems.Count, totalItemValue, shippingCost, taxAmount);
+
+                // Create individual Purchase records for each item, with proportional costs
+                foreach (var item in vendorItems)
+                {
+                    var itemValue = item.QuantityToPurchase * item.EstimatedUnitCost;
+                    var proportionOfTotal = totalItemValue > 0 ? itemValue / totalItemValue : 0;
+                    
+                    // Calculate proportional shipping and tax for this item
+                    var itemShippingCost = Math.Round(shippingCost * proportionOfTotal, 2);
+                    var itemTaxAmount = Math.Round(taxAmount * proportionOfTotal, 2);
+
+                    var purchase = new Purchase
+                    {
+                        ItemId = item.ItemId,
+                        QuantityPurchased = item.QuantityToPurchase,
+                        CostPerUnit = item.EstimatedUnitCost,
+                        VendorId = vendorId,
+                        PurchaseOrderNumber = purchaseOrderNumber,
+                        Notes = BuildPurchaseNotes(model.Notes, item.Notes, vendorItems.Count, vendor.CompanyName),
+                        PurchaseDate = DateTime.Today,
+                        RemainingQuantity = item.QuantityToPurchase,
+                        CreatedDate = DateTime.Now,
+                        
+                        // Proportional shipping and tax allocation
+                        ShippingCost = itemShippingCost,
+                        TaxAmount = itemTaxAmount,
+                        
+                        Status = PurchaseStatus.Pending,
+                        ExpectedDeliveryDate = model.ExpectedDeliveryDate
+                    };
+
+                    await _purchaseService.CreatePurchaseAsync(purchase);
+                    totalPurchasesCreated++;
+
+                    _logger.LogDebug("Created purchase for item {ItemId} - Qty: {Quantity}, Unit Cost: {UnitCost:C}, Shipping: {Shipping:C}, Tax: {Tax:C}",
+                        item.ItemId, item.QuantityToPurchase, item.EstimatedUnitCost, itemShippingCost, itemTaxAmount);
+                }
+
+                createdPurchaseOrders.Add($"{vendor.CompanyName}: {purchaseOrderNumber} ({vendorItems.Count} items, {totalItemValue:C})");
+            }
+
+            var successMessage = $"Successfully created {vendorGroups.Count} consolidated purchase orders with {totalPurchasesCreated} line items:\n" +
+                           string.Join("\n", createdPurchaseOrders);
+            
+            TempData["SuccessMessage"] = successMessage;
+            _logger.LogInformation("Bulk purchase completed - {VendorCount} vendors, {PurchaseCount} purchases created", 
+                vendorGroups.Count, totalPurchasesCreated);
+
+            return RedirectToAction("Index", "Purchases");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating vendor-grouped bulk purchases");
+            TempData["ErrorMessage"] = $"Error creating vendor-grouped bulk purchases: {ex.Message}";
+            await ReloadBulkPurchaseViewData(model);
+            return View("CreateBulkPurchaseRequest", model);
+        }
+    }
+
+    // Helper method to calculate shipping costs based on order value and vendor
+    private decimal CalculateShippingCost(decimal orderValue, Vendor vendor)
+    {
+        // Business rules for shipping calculation - customize as needed
+        
+        // Free shipping threshold
+        if (orderValue >= 500m) return 0m;
+        
+        // Flat rate for small orders
+        if (orderValue < 100m) return 25m;
+        
+        // Percentage-based shipping for medium orders
+        if (orderValue < 300m) return Math.Round(orderValue * 0.05m, 2); // 5%
+        
+        // Reduced rate for larger orders
+        return Math.Round(orderValue * 0.03m, 2); // 3%
+    }
+
+    // Helper method to calculate tax based on order value and vendor location
+    private decimal CalculateTaxAmount(decimal orderValue, Vendor vendor)
+    {
+        // Get tax rate for vendor - customize based on your tax rules
+        decimal taxRate = GetTaxRateForVendor(vendor);
+        return Math.Round(orderValue * taxRate, 2);
+    }
+
+    // Helper method to get tax rate for vendor
+    private decimal GetTaxRateForVendor(Vendor vendor)
+    {
+        // Example tax rate logic - customize based on your business needs
+        // You might want to:
+        // 1. Store tax rate in Vendor entity
+        // 2. Use a tax calculation service
+        // 3. Look up rates by state/province
+        // 4. Use different rates for different vendor types
+        
+        // For now, return a default rate (8.75%)
+        return 0.0875m;
+    }
+
+    // Helper method to build purchase notes
+    private string BuildPurchaseNotes(string? modelNotes, string? itemNotes, int vendorItemCount, string vendorName)
+    {
+        var notes = new List<string>();
+        
+        if (!string.IsNullOrWhiteSpace(modelNotes))
+            notes.Add(modelNotes);
+        
+        notes.Add($"Vendor Group PO ({vendorItemCount} items from {vendorName})");
+        
+        if (!string.IsNullOrWhiteSpace(itemNotes))
+            notes.Add(itemNotes);
+        
+        return string.Join(" | ", notes);
+    }
+
+    // Helper method to reload view data for bulk purchase form
+    private async Task ReloadBulkPurchaseViewData(BulkPurchaseRequest model)
+    {
+        try
+        {
+            var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
+            var vendors = await _vendorService.GetActiveVendorsAsync();
+            ViewBag.ShortageAnalysis = shortageAnalysis;
+            ViewBag.Vendors = vendors;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reloading bulk purchase view data");
+            ViewBag.ShortageAnalysis = null;
+            ViewBag.Vendors = new List<Vendor>();
+        }
     }
   }
 }

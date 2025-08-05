@@ -129,7 +129,7 @@ namespace InventorySystem.Models
 
     [NotMapped]
     [Display(Name = "Total Purchases")]
-    public decimal TotalPurchases => Purchases?.Sum(p => p.TotalPaid) ?? 0;
+    public decimal TotalPurchases => Purchases?.Sum(p => p.TotalCost) ?? 0;
 
     [NotMapped]
     [Display(Name = "Purchase Count")]

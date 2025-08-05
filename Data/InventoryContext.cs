@@ -84,6 +84,12 @@ namespace InventorySystem.Data
         entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
         entity.HasIndex(e => e.PartNumber).IsUnique();
 
+        // Configure self-referencing relationships for Item versioning
+        entity.HasOne(i => i.BaseItem)
+              .WithMany(i => i.Versions)
+              .HasForeignKey(i => i.BaseItemId)
+              .OnDelete(DeleteBehavior.Restrict);
+
         // Configure relationships
         entity.HasMany(i => i.Purchases)
               .WithOne(p => p.Item)
@@ -94,6 +100,24 @@ namespace InventorySystem.Data
               .WithOne(d => d.Item)
               .HasForeignKey(d => d.ItemId)
               .OnDelete(DeleteBehavior.Cascade);
+
+        // Configure relationship with ChangeOrder for Items
+        entity.HasOne(i => i.CreatedFromChangeOrder)
+              .WithOne(c => c.NewItem)
+              .HasForeignKey<Item>(i => i.CreatedFromChangeOrderId)
+              .OnDelete(DeleteBehavior.SetNull);
+
+        // Configure VendorItems relationship
+        entity.HasMany(i => i.VendorItems)
+              .WithOne(vi => vi.Item)
+              .HasForeignKey(vi => vi.ItemId)
+              .OnDelete(DeleteBehavior.Cascade);
+
+        // Configure PreferredVendorItem relationship
+        entity.HasOne(i => i.PreferredVendorItem)
+              .WithMany()
+              .HasForeignKey(i => i.PreferredVendorItemId)
+              .OnDelete(DeleteBehavior.SetNull);
       });
 
     

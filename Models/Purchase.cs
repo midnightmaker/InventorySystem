@@ -47,18 +47,23 @@ namespace InventorySystem.Models
     public string? Notes { get; set; }
 
     [Display(Name = "Shipping Cost")]
-    [Column(TypeName = "decimal(18,6)")]  // Changed from decimal(18,4) to decimal(18,6)
+    [Column(TypeName = "decimal(18,6)")]
     [Range(0, double.MaxValue, ErrorMessage = "Shipping cost cannot be negative")]
     public decimal ShippingCost { get; set; } = 0;
 
     [Display(Name = "Tax Amount")]
-    [Column(TypeName = "decimal(18,4)")]  // Changed from decimal(18,2) to decimal(18,4)
+    [Column(TypeName = "decimal(18,6)")]
     [Range(0, double.MaxValue, ErrorMessage = "Tax amount cannot be negative")]
     public decimal TaxAmount { get; set; } = 0;
 
+    // Computed property for total cost including shipping and tax
     [NotMapped]
-    [Display(Name = "Total Paid")]
-    public decimal TotalPaid => TotalCost + ShippingCost + TaxAmount;
+    [Display(Name = "Total Cost Per Unit")]
+    public decimal TotalCostPerUnit => CostPerUnit + (QuantityPurchased > 0 ? (ShippingCost + TaxAmount) / QuantityPurchased : 0);
+
+    [NotMapped]
+    [Display(Name = "Extended Total")]
+    public decimal ExtendedTotal => (CostPerUnit * QuantityPurchased) + ShippingCost + TaxAmount;
 
     [Display(Name = "Item Version")]
     public string? ItemVersion { get; set; }

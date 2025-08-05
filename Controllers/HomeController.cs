@@ -166,11 +166,12 @@ namespace InventorySystem.Controllers
         // Calculate monthly purchases
         var currentMonthPurchases = allPurchases
             .Where(p => p.PurchaseDate.Month == currentMonth && p.PurchaseDate.Year == currentYear)
-            .Sum(p => p.TotalPaid);
+            .Sum(p => p.TotalCost);
+            
 
         var lastMonthPurchases = allPurchases
             .Where(p => p.PurchaseDate.Month == lastMonth.Month && p.PurchaseDate.Year == lastMonth.Year)
-            .Sum(p => p.TotalPaid);
+            .Sum(p => p.TotalCost);
 
         // Calculate growth metrics
         var itemsAddedThisMonth = allItems.Count(i => i.CreatedDate.Month == currentMonth && i.CreatedDate.Year == currentYear);
@@ -229,7 +230,7 @@ namespace InventorySystem.Controllers
           TotalBomItems = totalBomItems,
 
           // Purchase Insights
-          AveragePurchaseValue = allPurchases.Any() ? allPurchases.Average(p => p.TotalPaid) : 0,
+          AveragePurchaseValue = allPurchases.Any() ? allPurchases.Average(p => p.TotalCost) : 0,
           CurrentMonthPurchases = currentMonthPurchases,
           LastMonthPurchases = lastMonthPurchases,
           PurchasesWithDocuments = allPurchases.Count(p => p.PurchaseDocuments?.Any() == true),

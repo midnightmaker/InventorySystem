@@ -281,21 +281,22 @@ namespace InventorySystem.Services
 
     public async Task<decimal> GetTotalPurchaseValueAsync()
     {
-      return await _context.Purchases.SumAsync(p => p.TotalPaid);
+      // Use TotalCost instead of TotalPaid
+      return await _context.Purchases.SumAsync(p => p.TotalCost);
     }
 
     public async Task<decimal> GetTotalPurchaseValueByItemAsync(int itemId)
     {
       return await _context.Purchases
           .Where(p => p.ItemId == itemId)
-          .SumAsync(p => p.TotalPaid);
+          .SumAsync(p => p.TotalCost);
     }
 
     public async Task<decimal> GetPurchaseValueByMonthAsync(int year, int month)
     {
       return await _context.Purchases
           .Where(p => p.PurchaseDate.Year == year && p.PurchaseDate.Month == month)
-          .SumAsync(p => p.TotalPaid);
+          .SumAsync(p => p.TotalCost);
     }
 
     public async Task<int> GetPurchaseCountByMonthAsync(int year, int month)
@@ -444,6 +445,45 @@ namespace InventorySystem.Services
 
       // Order by computed property in memory
       return purchases.OrderByDescending(p => p.TotalCost);
+    }
+
+    public async Task<IEnumerable<Purchase>> GetPurchasesByOrderNumberAsync(string purchaseOrderNumber)
+    {
+      return await _context.Purchases
+          .Include(p => p.Item)
+          .Include(p => p.Vendor)
+          .Include(p => p.PurchaseDocuments)
+          .Where(p => p.PurchaseOrderNumber == purchaseOrderNumber)
+          .OrderByDescending(p => p.PurchaseDate)
+          .ToListAsync();
+    }
+
+    public async Task<PurchaseOrderSummary> GetPurchaseOrderSummaryAsync(string purchaseOrderNumber)
+    {
+      var purchases = await _context.Purchases
+          .Include(p => p.Item)
+          .Include(p => p.Vendor)
+          .Include(p => p.PurchaseDocuments)
+          .Where(p => p.PurchaseOrderNumber == purchaseOrderNumber)
+          .ToListAsync();
+
+      if (!purchases.Any())
+        throw new InvalidOperationException("No purchases found for the given order number.");
+
+      var firstPurchase = purchases.First();
+
+      var summary = new PurchaseOrderSummary
+      {
+        PurchaseOrderNumber = purchaseOrderNumber,
+        VendorId = firstPurchase.VendorId,
+        VendorName = firstPurchase.Vendor?.CompanyName ?? "",
+        PurchaseDate = firstPurchase.PurchaseDate,
+        LineItems = purchases,
+        // Remove direct assignment to TotalQuantity (it's a read-only property)
+        // Other properties like SubTotal, TotalShippingCost, etc. are assumed to be computed properties
+      };
+
+      return summary;
     }
   }
 }

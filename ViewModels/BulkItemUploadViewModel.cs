@@ -48,6 +48,9 @@ namespace InventorySystem.ViewModels
     public bool IsSellable { get; set; } = true;
     public ItemType ItemType { get; set; } = ItemType.Inventoried;
     public string Version { get; set; } = "A";
+    
+    // ADD: Unit of Measure support
+    public UnitOfMeasure UnitOfMeasure { get; set; } = UnitOfMeasure.Each;
 
     // Initial purchase data (optional)
     public decimal? InitialQuantity { get; set; }

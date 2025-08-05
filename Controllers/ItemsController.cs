@@ -19,6 +19,7 @@ namespace InventorySystem.Controllers
     private readonly IVendorService _vendorService;
     private readonly IBomService _bomService;
     private readonly ILogger<ItemsController> _logger;
+    private readonly IProductionService _productionService;
 
     public ItemsController(
       IInventoryService inventoryService, 
@@ -27,7 +28,8 @@ namespace InventorySystem.Controllers
       InventoryContext context, 
       IVersionControlService versionService,
       IBomService bomService,
-      ILogger<ItemsController> logger)
+      ILogger<ItemsController> logger,
+      IProductionService productionService)
     {
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
@@ -36,6 +38,7 @@ namespace InventorySystem.Controllers
       _context = context;
       _bomService = bomService;
       _logger = logger;
+      _productionService = productionService;
     }
 
     public async Task<IActionResult> Index()
@@ -170,13 +173,27 @@ namespace InventorySystem.Controllers
     }
 
     [HttpPost]
-    [ValidateAntiForgeryToken]
+    //[ValidateAntiForgeryToken]
     public async Task<IActionResult> ProcessBulkUpload(BulkItemUploadViewModel viewModel)
     {
+      // Add null check and logging
+      _logger.LogInformation("ProcessBulkUpload called. ViewModel is null: {IsNull}", viewModel == null);
+      
+      if (viewModel == null)
+      {
+          _logger.LogWarning("ProcessBulkUpload received null viewModel");
+          TempData["ErrorMessage"] = "Invalid form data. Please try uploading the file again.";
+          return RedirectToAction("BulkUpload");
+      }
+
+      _logger.LogInformation("ProcessBulkUpload - PreviewItems count: {Count}", 
+          viewModel.PreviewItems?.Count ?? 0);
+
       if (viewModel.PreviewItems == null || !viewModel.PreviewItems.Any())
       {
-        TempData["ErrorMessage"] = "No items to import.";
-        return RedirectToAction("BulkUpload");
+          _logger.LogWarning("ProcessBulkUpload - No preview items found");
+          TempData["ErrorMessage"] = "No items to import. Please upload and validate a file first.";
+          return RedirectToAction("BulkUpload");
       }
 
       try
@@ -190,32 +207,47 @@ namespace InventorySystem.Controllers
 
           if (result.FailedImports > 0)
           {
-            TempData["WarningMessage"] = $"{result.FailedImports} items failed to import.";
+            // NEW: Store detailed error information for display
+            if (result.DetailedErrors.Any())
+            {
+              var errorDetails = System.Text.Json.JsonSerializer.Serialize(result.DetailedErrors);
+              TempData["ImportErrors"] = errorDetails;
+            }
+            
+            TempData["WarningMessage"] = $"{result.FailedImports} items failed to import. Click 'View Error Details' to see specific issues.";
           }
 
-          // NEW: Check if there are vendor assignments that need user review
-          if (result is IVendorAssignmentResult)
+          // Check if there are vendor assignments that need user review
+          if (result is IVendorAssignmentResult vendorAssignmentResult)
           {
-              var vendorAssignmentResult = (IVendorAssignmentResult)result;
-              if (vendorAssignmentResult.VendorAssignments != null &&
-                  vendorAssignmentResult.VendorAssignments.NewVendorRequests != null &&
-                  vendorAssignmentResult.VendorAssignments.NewVendorRequests.Any())
-              {
-                  var vendorAssignmentsJson = System.Text.Json.JsonSerializer.Serialize(vendorAssignmentResult.VendorAssignments);
-                  TempData["VendorAssignments"] = vendorAssignmentsJson;
+            if (vendorAssignmentResult.VendorAssignments?.NewVendorRequests?.Any() == true)
+            {
+              var vendorAssignmentsJson = System.Text.Json.JsonSerializer.Serialize(vendorAssignmentResult.VendorAssignments);
+              TempData["VendorAssignments"] = vendorAssignmentsJson;
 
-                  TempData["InfoMessage"] = "Items imported successfully. Please review vendor assignments.";
-                  return RedirectToAction("ImportVendorAssignments");
-              }
+              TempData["InfoMessage"] = "Items imported successfully. Please review vendor assignments.";
+              return RedirectToAction("ImportVendorAssignments");
+            }
           }
         }
         else
         {
-          TempData["ErrorMessage"] = "No items were imported. " + string.Join("; ", result.Errors);
+          // NEW: Better error handling when no items were imported
+          if (result.DetailedErrors.Any())
+          {
+            var errorDetails = System.Text.Json.JsonSerializer.Serialize(result.DetailedErrors);
+            TempData["ImportErrors"] = errorDetails;
+            TempData["ErrorMessage"] = $"No items were imported. {result.DetailedErrors.Count} items had errors. Click 'View Error Details' below.";
+          }
+          else
+          {
+            TempData["ErrorMessage"] = "No items were imported. " + string.Join("; ", result.Errors);
+          }
         }
       }
       catch (Exception ex)
       {
+        _logger.LogError(ex, "Error during bulk import");
         TempData["ErrorMessage"] = $"Error during import: {ex.Message}";
       }
 
@@ -1060,6 +1092,172 @@ namespace InventorySystem.Controllers
         {
             TempData["ErrorMessage"] = $"Error completing vendor assignments: {ex.Message}";
             return View("ImportVendorAssignments", model);
+        }
+    }
+
+    // Add this new method to your ItemsController.cs for vendor-grouped bulk purchases
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateVendorGroupedBulkPurchases(BulkPurchaseRequest model)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                // Reload view data and return to form
+                await ReloadBulkPurchaseViewData(model);
+                return View("CreateBulkPurchaseRequest", model);
+            }
+
+            var selectedItems = model.ItemsToPurchase.Where(i => i.Selected).ToList();
+
+            if (!selectedItems.Any())
+            {
+                TempData["ErrorMessage"] = "Please select at least one item to purchase.";
+                await ReloadBulkPurchaseViewData(model);
+                return View("CreateBulkPurchaseRequest", model);
+            }
+
+            // Validate that all selected items have vendors
+            var itemsWithoutVendors = selectedItems.Where(i => !i.VendorId.HasValue).ToList();
+            if (itemsWithoutVendors.Any())
+            {
+                TempData["ErrorMessage"] = "Please select a vendor for all selected items.";
+                await ReloadBulkPurchaseViewData(model);
+                return View("CreateBulkPurchaseRequest", model);
+            }
+
+            // NEW: Group items by vendor for consolidated purchase orders
+            var vendorGroups = selectedItems.GroupBy(i => i.VendorId.Value).ToList();
+            var createdPurchaseOrders = new List<string>();
+
+            foreach (var vendorGroup in vendorGroups)
+            {
+                var vendorId = vendorGroup.Key;
+                var vendor = await _vendorService.GetVendorByIdAsync(vendorId);
+                
+                if (vendor == null)
+                {
+                    TempData["ErrorMessage"] = $"Vendor not found for ID {vendorId}.";
+                    continue;
+                }
+
+                // Calculate totals for this vendor group
+                var vendorItems = vendorGroup.ToList();
+                var totalItemValue = vendorItems.Sum(i => i.QuantityToPurchase * i.EstimatedUnitCost);
+                
+                // Generate unique PO number for this vendor
+                var purchaseOrderNumber = model.PurchaseOrderNumber ?? 
+                    await _purchaseService.GeneratePurchaseOrderNumberAsync();
+
+                // Apply vendor-specific shipping and tax (you may want to make these configurable)
+                var shippingCost = CalculateShippingCost(totalItemValue, vendor);
+                var taxAmount = CalculateTaxAmount(totalItemValue, vendor);
+
+                // Create individual Purchase records for each item, with proportional costs
+                foreach (var item in vendorItems)
+                {
+                    var itemValue = item.QuantityToPurchase * item.EstimatedUnitCost;
+                    var proportionOfTotal = totalItemValue > 0 ? itemValue / totalItemValue : 0;
+                    
+                    // Calculate proportional shipping and tax for this item
+                    var itemShippingCost = shippingCost * proportionOfTotal;
+                    var itemTaxAmount = taxAmount * proportionOfTotal;
+
+                    var purchase = new Purchase
+                    {
+                        ItemId = item.ItemId,
+                        QuantityPurchased = item.QuantityToPurchase,
+                        CostPerUnit = item.EstimatedUnitCost,
+                        VendorId = vendorId,
+                        PurchaseOrderNumber = purchaseOrderNumber,
+                        Notes = $"{model.Notes} | Vendor Group PO | {item.Notes}".Trim(' ', '|'),
+                        PurchaseDate = DateTime.Today,
+                        RemainingQuantity = item.QuantityToPurchase,
+                        CreatedDate = DateTime.Now,
+                        
+                        // NEW: Proportional shipping and tax allocation
+                        ShippingCost = itemShippingCost,
+                        TaxAmount = itemTaxAmount,
+                        
+                        Status = PurchaseStatus.Pending,
+                        ExpectedDeliveryDate = model.ExpectedDeliveryDate
+                    };
+
+                    await _purchaseService.CreatePurchaseAsync(purchase);
+                }
+
+                createdPurchaseOrders.Add($"{vendor.CompanyName}: {purchaseOrderNumber}");
+            }
+
+            TempData["SuccessMessage"] = $"Successfully created {vendorGroups.Count} consolidated purchase orders: {string.Join(", ", createdPurchaseOrders)}";
+            return RedirectToAction("Index", "Purchases");
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"Error creating vendor-grouped bulk purchases: {ex.Message}";
+            await ReloadBulkPurchaseViewData(model);
+            return View("CreateBulkPurchaseRequest", model);
+        }
+    }
+
+    // Helper method to calculate shipping costs based on order value and vendor
+    private decimal CalculateShippingCost(decimal orderValue, Vendor vendor)
+    {
+        // Example shipping calculation logic - customize based on your business rules
+        
+        // Free shipping threshold check
+        if (orderValue >= 500m) return 0m;
+        
+        // Flat rate for small orders
+        if (orderValue < 100m) return 25m;
+        
+        // Percentage-based shipping for medium orders
+        if (orderValue < 300m) return orderValue * 0.05m; // 5%
+        
+        // Reduced rate for larger orders
+        return orderValue * 0.03m; // 3%
+    }
+
+    // Helper method to calculate tax based on order value and vendor location
+    private decimal CalculateTaxAmount(decimal orderValue, Vendor vendor)
+    {
+        // Example tax calculation - customize based on your tax rules
+        
+        // You might want to store tax rate in Vendor entity or use a tax calculation service
+        decimal taxRate = GetTaxRateForVendor(vendor);
+        
+        return orderValue * taxRate;
+    }
+
+    // Helper method to get tax rate for vendor (customize based on your needs)
+    private decimal GetTaxRateForVendor(Vendor vendor)
+    {
+        // Example: Different tax rates based on vendor location
+        // In a real implementation, you might:
+        // 1. Store tax rate in Vendor entity
+        // 2. Use a tax calculation service
+        // 3. Look up rates by state/province
+        
+        // For now, return a default rate
+        return 0.0725m; // 7.25 default tax rate for NC
+    }
+
+    // Helper method to reload view data for bulk purchase form
+    private async Task ReloadBulkPurchaseViewData(BulkPurchaseRequest model)
+    {
+        try
+        {
+            var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(model.BomId, model.Quantity);
+            var vendors = await _vendorService.GetActiveVendorsAsync();
+            ViewBag.ShortageAnalysis = shortageAnalysis;
+            ViewBag.Vendors = vendors;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reloading bulk purchase view data");
+            ViewBag.ShortageAnalysis = null;
+            ViewBag.Vendors = new List<Vendor>();
         }
     }
   }

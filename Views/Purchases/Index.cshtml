@@ -349,7 +349,7 @@
                     <strong>$@purchase.CostPerUnit.ToString("N6")</strong>
                   </td>
                   <td>
-                    <strong class="text-success">$@purchase.TotalPaid.ToString("N6")</strong>
+                    <strong class="text-success">$@purchase.TotalCost.ToString("N6")</strong>
                     @if (purchase.ShippingCost > 0 || purchase.TaxAmount > 0)
                     {
                       <br>
@@ -445,7 +445,7 @@
                     <i class="fas fa-dollar-sign"></i>
                     Total Value
                   </h6>
-                  <h4 class="text-success mb-0">$@Model.Sum(p => p.TotalPaid).ToString("N0")</h4>
+                  <h4 class="text-success mb-0">$@Model.Sum(p => p.TotalCost).ToString("N0")</h4>
                 </div>
               </div>
             </div>
@@ -489,7 +489,7 @@
                     <i class="fas fa-chart-line"></i>
                     Avg. Value
                   </h6>
-                  <h4 class="text-muted mb-0">$@(Model.Any() ? Model.Average(p => p.TotalPaid).ToString("N0") : "0")</h4>
+                  <h4 class="text-muted mb-0">$@(Model.Any() ? Model.Average(p => p.TotalCost).ToString("N0") : "0")</h4>
                 </div>
               </div>
             </div>

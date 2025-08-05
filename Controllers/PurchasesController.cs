@@ -300,7 +300,34 @@ namespace InventorySystem.Controllers
       {
         Console.WriteLine($"Error in Purchases Index: {ex.Message}");
         Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        
+        // Set essential ViewBag properties that the view expects
         ViewBag.ErrorMessage = $"Error loading purchases: {ex.Message}";
+        ViewBag.AllowedPageSizes = AllowedPageSizes;
+        
+        // Set pagination defaults to prevent null reference exceptions
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = 1;
+        ViewBag.TotalCount = 0;
+        ViewBag.HasPreviousPage = false;
+        ViewBag.HasNextPage = false;
+        ViewBag.ShowingFrom = 0;
+        ViewBag.ShowingTo = 0;
+        
+        // Set filter defaults
+        ViewBag.SearchTerm = search;
+        ViewBag.VendorFilter = vendorFilter;
+        ViewBag.StatusFilter = statusFilter;
+        ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
+        ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
+        ViewBag.SortOrder = sortOrder;
+        ViewBag.IsFiltered = false;
+        
+        // Set empty dropdown options
+        ViewBag.VendorOptions = new SelectList(new List<object>(), "Id", "CompanyName");
+        ViewBag.StatusOptions = new SelectList(new List<object>(), "Value", "Text");
+        
         return View(new List<Purchase>());
       }
     }
