@@ -39,6 +39,9 @@ namespace InventorySystem.Data
     public DbSet<Vendor> Vendors { get; set; }
     public DbSet<VendorItem> VendorItems { get; set; }
 
+    // Add this to your InventoryContext class
+    public DbSet<CompanyInfo> CompanyInfo { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
       // Configure existing entities
@@ -72,6 +75,17 @@ namespace InventorySystem.Data
       modelBuilder.Entity<VendorItem>()
           .HasIndex(vi => new { vi.VendorId, vi.ItemId })
           .IsUnique();
+
+      // CompanyInfo configuration
+      modelBuilder.Entity<CompanyInfo>(entity =>
+      {
+          entity.HasKey(e => e.Id);
+          entity.Property(e => e.CompanyName).IsRequired().HasMaxLength(200);
+          entity.Property(e => e.Email).HasMaxLength(200);
+          entity.Property(e => e.Website).HasMaxLength(200);
+          entity.Property(e => e.LogoContentType).HasMaxLength(100);
+          entity.Property(e => e.LogoFileName).HasMaxLength(255);
+      });
     }
 
     private void ConfigureExistingEntities(ModelBuilder modelBuilder)

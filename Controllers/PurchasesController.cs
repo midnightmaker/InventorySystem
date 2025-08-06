@@ -1048,7 +1048,7 @@ namespace InventorySystem.Controllers
             ExpectedDeliveryDate = p.ExpectedDeliveryDate,
             Status = p.Status
           }).ToList(),
-          CompanyInfo = GetCompanyInfo(), // Helper method to get your company info
+          CompanyInfo = await GetCompanyInfo(), // Helper method to get your company info
           VendorEmail = primaryVendor.ContactEmail ?? string.Empty,
           EmailSubject = $"Purchase Order {poNumber}",
           EmailMessage = $"Please find attached Purchase Order {poNumber} for your review and processing."
@@ -1111,7 +1111,7 @@ namespace InventorySystem.Controllers
             ExpectedDeliveryDate = p.ExpectedDeliveryDate,
             Status = p.Status
           }).ToList(),
-          CompanyInfo = GetCompanyInfo()
+          CompanyInfo = await GetCompanyInfo()
         };
 
         return View("PurchaseOrderReportPrint", viewModel);
@@ -1166,20 +1166,42 @@ namespace InventorySystem.Controllers
     }
 
     // Helper method to get company information
-    private CompanyInfo GetCompanyInfo()
+    private async Task<Models.CompanyInfo> GetCompanyInfo()
     {
-      // You can load this from configuration, database, or hardcode it
-      return new CompanyInfo
+      try
       {
-        CompanyName = "Your Inventory Management Company",
-        Address = "123 Business Drive",
-        City = "Business City",
-        State = "NC",
-        ZipCode = "27101",
-        Phone = "(336) 555-0123",
-        Email = "purchasing@yourcompany.com",
-        Website = "www.yourcompany.com"
-      };
+        // Try to get from the database first
+        var companyInfoService = HttpContext.RequestServices.GetRequiredService<ICompanyInfoService>();
+        var dbCompanyInfo = await companyInfoService.GetCompanyInfoAsync();
+
+        // Convert to the ViewModel CompanyInfo
+        return new Models.CompanyInfo
+        {
+            CompanyName = dbCompanyInfo.CompanyName,
+            Address = dbCompanyInfo.Address,
+            City = dbCompanyInfo.City,
+            State = dbCompanyInfo.State,
+            ZipCode = dbCompanyInfo.ZipCode,
+            Phone = dbCompanyInfo.Phone,
+            Email = dbCompanyInfo.Email,
+            Website = dbCompanyInfo.Website
+        };
+      }
+      catch
+      {
+        // Fallback to hardcoded values if database access fails
+        return new Models.CompanyInfo
+        {
+            CompanyName = "Your Inventory Management Company",
+            Address = "123 Business Drive",
+            City = "Business City",
+            State = "NC",
+            ZipCode = "27101",
+            Phone = "(336) 555-0123",
+            Email = "purchasing@yourcompany.com",
+            Website = "www.yourcompany.com"
+        };
+      }
     }
 
     // Helper method to render view to string (for email HTML)

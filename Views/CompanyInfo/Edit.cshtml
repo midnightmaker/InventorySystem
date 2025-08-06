@@ -1,0 +1,253 @@
+@model InventorySystem.ViewModels.EditCompanyInfoViewModel
+@{
+    ViewData["Title"] = "Edit Company Information";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-edit"></i> Edit Company Information</h2>
+        <a href="@Url.Action("Index")" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Company Info
+        </a>
+    </div>
+
+    <form asp-action="Edit" method="post" enctype="multipart/form-data">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <input asp-for="Id" type="hidden" />
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Basic Information -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-building"></i> Basic Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label asp-for="CompanyName" class="form-label"></label>
+                                <input asp-for="CompanyName" class="form-control" />
+                                <span asp-validation-for="CompanyName" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label asp-for="Address" class="form-label"></label>
+                                <input asp-for="Address" class="form-control" />
+                                <span asp-validation-for="Address" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label asp-for="AddressLine2" class="form-label"></label>
+                                <input asp-for="AddressLine2" class="form-control" />
+                                <span asp-validation-for="AddressLine2" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="City" class="form-label"></label>
+                                <input asp-for="City" class="form-control" />
+                                <span asp-validation-for="City" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label asp-for="State" class="form-label"></label>
+                                <input asp-for="State" class="form-control" />
+                                <span asp-validation-for="State" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label asp-for="ZipCode" class="form-label"></label>
+                                <input asp-for="ZipCode" class="form-control" />
+                                <span asp-validation-for="ZipCode" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Country" class="form-label"></label>
+                                <input asp-for="Country" class="form-control" />
+                                <span asp-validation-for="Country" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Information -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-phone"></i> Contact Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Phone" class="form-label"></label>
+                                <input asp-for="Phone" class="form-control" />
+                                <span asp-validation-for="Phone" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Fax" class="form-label"></label>
+                                <input asp-for="Fax" class="form-control" />
+                                <span asp-validation-for="Fax" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Email" class="form-label"></label>
+                                <input asp-for="Email" class="form-control" type="email" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Website" class="form-label"></label>
+                                <input asp-for="Website" class="form-control" />
+                                <span asp-validation-for="Website" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Business Information -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-briefcase"></i> Business Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="TaxId" class="form-label"></label>
+                                <input asp-for="TaxId" class="form-control" />
+                                <span asp-validation-for="TaxId" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="BusinessLicense" class="form-label"></label>
+                                <input asp-for="BusinessLicense" class="form-control" />
+                                <span asp-validation-for="BusinessLicense" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label"></label>
+                            <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Primary Contact -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-user"></i> Primary Contact</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="PrimaryContactName" class="form-label"></label>
+                                <input asp-for="PrimaryContactName" class="form-control" />
+                                <span asp-validation-for="PrimaryContactName" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="PrimaryContactTitle" class="form-label"></label>
+                                <input asp-for="PrimaryContactTitle" class="form-control" />
+                                <span asp-validation-for="PrimaryContactTitle" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="PrimaryContactEmail" class="form-label"></label>
+                                <input asp-for="PrimaryContactEmail" class="form-control" type="email" />
+                                <span asp-validation-for="PrimaryContactEmail" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="PrimaryContactPhone" class="form-label"></label>
+                                <input asp-for="PrimaryContactPhone" class="form-control" />
+                                <span asp-validation-for="PrimaryContactPhone" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Logo Upload -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-image"></i> Company Logo</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.HasExistingLogo)
+                        {
+                            <div class="text-center mb-3">
+                                <img src="@Url.Action("Logo", new { id = Model.Id })" 
+                                     alt="Current Logo" 
+                                     class="img-fluid" 
+                                     style="max-width: 200px; max-height: 200px;" />
+                                <p class="text-muted mt-2">
+                                    Current: @Model.ExistingLogoFileName<br>
+                                    Size: @Model.ExistingLogoSizeDisplay
+                                </p>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input asp-for="RemoveExistingLogo" class="form-check-input" type="checkbox" />
+                                <label asp-for="RemoveExistingLogo" class="form-check-label">
+                                    Remove existing logo
+                                </label>
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <label asp-for="LogoFile" class="form-label"></label>
+                            <input asp-for="LogoFile" class="form-control" type="file" accept="image/*" />
+                            <span asp-validation-for="LogoFile" class="text-danger"></span>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i>
+                                Supported formats: JPEG, PNG, GIF, WebP<br>
+                                Maximum size: 5MB
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                            <a href="@Url.Action("Index")" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+  @{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+  }
+    
+    <script>
+        $(document).ready(function() {
+            // Preview uploaded image
+            $('#LogoFile').change(function() {
+                var file = this.files[0];
+                if (file) {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        // Show preview if needed
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+    </script>
+}

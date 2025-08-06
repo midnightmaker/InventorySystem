@@ -51,15 +51,4 @@ namespace InventorySystem.ViewModels
         public PurchaseStatus Status { get; set; }
     }
 
-    public class CompanyInfo
-    {
-        public string CompanyName { get; set; } = "Your Company Name";
-        public string Address { get; set; } = "123 Main Street";
-        public string City { get; set; } = "Your City";
-        public string State { get; set; } = "ST";
-        public string ZipCode { get; set; } = "12345";
-        public string Phone { get; set; } = "(555) 123-4567";
-        public string Email { get; set; } = "purchasing@yourcompany.com";
-        public string Website { get; set; } = "www.yourcompany.com";
-    }
 }

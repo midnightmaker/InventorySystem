@@ -43,6 +43,9 @@ builder.Services.AddScoped<ISalesService, SalesService>();
 builder.Services.AddScoped<IBulkUploadService, BulkUploadService>();
 builder.Services.AddScoped<IVersionControlService, VersionControlService>();
 
+// NEW: Add CompanyInfoService registration
+builder.Services.AddScoped<ICompanyInfoService, CompanyInfoService>();
+
 // New Workflow Domain Services
 builder.Services.AddScoped<IWorkflowEngine, WorkflowEngine>();
 builder.Services.AddScoped<IProductionOrchestrator, ProductionOrchestrator>();
@@ -105,7 +108,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Create database and initialize workflow tables
+// Create database and initialize workflow tables AND CompanyInfo table
 using (var scope = app.Services.CreateScope())
 {
   var context = scope.ServiceProvider.GetRequiredService<InventoryContext>();
@@ -115,15 +118,21 @@ using (var scope = app.Services.CreateScope())
 
     // Ensure workflow tables exist
     await EnsureWorkflowTablesExist(context);
+    
+    // NEW: Ensure CompanyInfo table exists
+    await EnsureCompanyInfoTableExists(context);
 
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("Application started successfully with workflow support");
+    logger.LogInformation("Application started successfully with workflow support and CompanyInfo");
 
     // Test service registration
     var workflowEngine = scope.ServiceProvider.GetService<IWorkflowEngine>();
     var orchestrator = scope.ServiceProvider.GetService<IProductionOrchestrator>();
+    var companyInfoService = scope.ServiceProvider.GetService<ICompanyInfoService>();
+    
     logger.LogInformation($"WorkflowEngine registered: {workflowEngine != null}");
     logger.LogInformation($"ProductionOrchestrator registered: {orchestrator != null}");
+    logger.LogInformation($"CompanyInfoService registered: {companyInfoService != null}");
   }
   catch (Exception ex)
   {
@@ -229,6 +238,109 @@ async Task EnsureWorkflowTablesExist(InventoryContext context)
   {
     var logger = context.GetService<ILogger<Program>>();
     logger?.LogError(ex, "Failed to ensure workflow tables exist");
+    throw;
+  }
+}
+
+// NEW: Helper method to ensure CompanyInfo table exists
+async Task EnsureCompanyInfoTableExists(InventoryContext context)
+{
+  try
+  {
+    var logger = context.GetService<ILogger<Program>>();
+
+    // Check if CompanyInfo table exists
+    var connection = context.Database.GetDbConnection();
+    if (connection.State != System.Data.ConnectionState.Open)
+    {
+      await connection.OpenAsync();
+    }
+
+    using var command = connection.CreateCommand();
+    command.CommandText = @"
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='CompanyInfo';";
+
+    var result = await command.ExecuteScalarAsync();
+
+    if (result == null)
+    {
+      logger?.LogInformation("Creating CompanyInfo table...");
+
+      // Create CompanyInfo table
+      command.CommandText = @"
+                CREATE TABLE CompanyInfo (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    CompanyName TEXT NOT NULL,
+                    Address TEXT NULL,
+                    AddressLine2 TEXT NULL,
+                    City TEXT NULL,
+                    State TEXT NULL,
+                    ZipCode TEXT NULL,
+                    Country TEXT NULL DEFAULT 'United States',
+                    Phone TEXT NULL,
+                    Fax TEXT NULL,
+                    Email TEXT NULL,
+                    Website TEXT NULL,
+                    LogoData BLOB NULL,
+                    LogoContentType TEXT NULL,
+                    LogoFileName TEXT NULL,
+                    TaxId TEXT NULL,
+                    BusinessLicense TEXT NULL,
+                    Description TEXT NULL,
+                    PrimaryContactName TEXT NULL,
+                    PrimaryContactTitle TEXT NULL,
+                    PrimaryContactEmail TEXT NULL,
+                    PrimaryContactPhone TEXT NULL,
+                    CreatedDate TEXT NOT NULL,
+                    LastUpdated TEXT NOT NULL,
+                    IsActive INTEGER NOT NULL DEFAULT 1
+                );";
+      await command.ExecuteNonQueryAsync();
+
+      // Create indexes for CompanyInfo
+      command.CommandText = @"
+                CREATE INDEX IX_CompanyInfo_CompanyName ON CompanyInfo(CompanyName);
+                CREATE INDEX IX_CompanyInfo_IsActive ON CompanyInfo(IsActive);";
+      await command.ExecuteNonQueryAsync();
+
+      // Insert default company info
+      command.CommandText = @"
+                INSERT INTO CompanyInfo (
+                    CompanyName, Address, City, State, ZipCode, Country, Phone, Email, Website,
+                    CreatedDate, LastUpdated, IsActive
+                ) VALUES (
+                    'Your Inventory Management Company',
+                    '123 Business Drive',
+                    'Business City',
+                    'NC',
+                    '27101',
+                    'United States',
+                    '(336) 555-0123',
+                    'purchasing@yourcompany.com',
+                    'www.yourcompany.com',
+                    datetime('now'),
+                    datetime('now'),
+                    1
+                );";
+      await command.ExecuteNonQueryAsync();
+
+      logger?.LogInformation("CompanyInfo table created successfully with default data");
+    }
+    else
+    {
+      logger?.LogInformation("CompanyInfo table already exists");
+    }
+
+    if (connection.State == System.Data.ConnectionState.Open)
+    {
+      await connection.CloseAsync();
+    }
+  }
+  catch (Exception ex)
+  {
+    var logger = context.GetService<ILogger<Program>>();
+    logger?.LogError(ex, "Failed to ensure CompanyInfo table exists");
     throw;
   }
 }
