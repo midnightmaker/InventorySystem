@@ -26,7 +26,7 @@ namespace InventorySystem.ViewModels
         public int LineItemCount => LineItems.Count;
         
         // Contact Information (for your company)
-        public CompanyInfo CompanyInfo { get; set; } = new();
+        public InventorySystem.Models.CompanyInfo CompanyInfo { get; set; } = new();
         
         // Email options
         public bool EmailToVendor { get; set; }

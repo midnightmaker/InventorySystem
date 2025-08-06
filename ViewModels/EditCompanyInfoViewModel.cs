@@ -99,7 +99,7 @@ namespace InventorySystem.ViewModels
         public bool RemoveExistingLogo { get; set; }
 
         // Convert from CompanyInfo entity
-        public static EditCompanyInfoViewModel FromEntity(CompanyInfo entity)
+        public static EditCompanyInfoViewModel FromEntity(InventorySystem.Models.CompanyInfo entity)
         {
             return new EditCompanyInfoViewModel
             {
@@ -129,9 +129,9 @@ namespace InventorySystem.ViewModels
         }
 
         // Convert to CompanyInfo entity
-        public CompanyInfo ToEntity()
+        public InventorySystem.Models.CompanyInfo ToEntity()
         {
-            return new CompanyInfo
+            return new InventorySystem.Models.CompanyInfo
             {
                 Id = Id,
                 CompanyName = CompanyName,

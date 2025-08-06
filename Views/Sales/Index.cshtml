@@ -25,7 +25,6 @@
   </div>
 </div>
 
-
 @if (TempData["SuccessMessage"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show">
@@ -87,13 +86,17 @@
                                 </td>
                                 <td>@sale.TotalAmount.ToString("C")</td>
                                 <td>
-                                    @if (sale.PaymentStatus == PaymentStatus.Paid)
+                                    @if (sale.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
                                     {
                                         <span class="badge bg-success">Paid</span>
                                     }
-                                    else if (sale.PaymentStatus == PaymentStatus.Pending)
+                                    else if (sale.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Pending)
                                     {
                                         <span class="badge bg-warning">Pending</span>
+                                        @if (sale.IsOverdue)
+                                        {
+                                            <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> @sale.DaysOverdue days overdue</small>
+                                        }
                                     }
                                     else
                                     {
@@ -101,15 +104,15 @@
                                     }
                                 </td>
                                 <td>
-                                    @if (sale.SaleStatus == SaleStatus.Processing)
+                                    @if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Processing)
                                     {
                                         <span class="badge bg-primary">Processing</span>
                                     }
-                                    else if (sale.SaleStatus == SaleStatus.Shipped)
+                                    else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Shipped)
                                     {
                                         <span class="badge bg-success">Shipped</span>
                                     }
-                                    else if (sale.SaleStatus == SaleStatus.Delivered)
+                                    else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Delivered)
                                     {
                                         <span class="badge bg-info">Delivered</span>
                                     }
@@ -120,11 +123,15 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="/Sales/Details/@sale.Id" class="btn btn-outline-primary">
-                                            <i class="fas fa-eye"></i> Details
+                                        <a href="/Sales/Details/@sale.Id" class="btn btn-outline-primary" title="View Details">
+                                            <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="/Sales/Edit/@sale.Id" class="btn btn-outline-secondary">
-                                            <i class="fas fa-edit"></i> Edit
+                                        <a href="@Url.Action("InvoiceReport", new { saleId = sale.Id })" 
+                                           class="btn btn-outline-success" title="View Invoice">
+                                            <i class="fas fa-file-invoice-dollar"></i>
+                                        </a>
+                                        <a href="/Sales/Edit/@sale.Id" class="btn btn-outline-secondary" title="Edit Sale">
+                                            <i class="fas fa-edit"></i>
                                         </a>
                                     </div>
                                 </td>
@@ -146,10 +153,10 @@
                                     <h6>Total Value: <span class="badge bg-success">@Model.Sum(s => s.TotalAmount).ToString("C")</span></h6>
                                 </div>
                                 <div class="col-md-3">
-                                    <h6>Paid: <span class="badge bg-success">@Model.Count(s => s.PaymentStatus == PaymentStatus.Paid)</span></h6>
+                                    <h6>Paid: <span class="badge bg-success">@Model.Count(s => s.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)</span></h6>
                                 </div>
                                 <div class="col-md-3">
-                                    <h6>Pending: <span class="badge bg-warning">@Model.Count(s => s.PaymentStatus == PaymentStatus.Pending)</span></h6>
+                                    <h6>Pending: <span class="badge bg-warning">@Model.Count(s => s.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Pending)</span></h6>
                                 </div>
                             </div>
                         </div>

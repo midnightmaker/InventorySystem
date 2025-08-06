@@ -7,7 +7,8 @@ namespace InventorySystem.Models.Enums
     Paid,
     PartiallyPaid,
     Refunded,
-    Failed
+    Failed,
+    Overdue
   }
 
   public enum SaleStatus
