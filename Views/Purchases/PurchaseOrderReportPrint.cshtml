@@ -1,0 +1,407 @@
+@model InventorySystem.ViewModels.PurchaseOrderReportViewModel
+@{
+    ViewData["Title"] = $"Purchase Order {Model.PurchaseOrderNumber} - Print";
+    Layout = null; // No layout for printing
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Purchase Order @Model.PurchaseOrderNumber</title>
+    <style>
+        /* Print-optimized styles */
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 20px;
+            color: #000;
+            background: white;
+        }
+        
+        .print-header {
+            text-align: center;
+            border-bottom: 3px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .print-header h1 {
+            font-size: 24px;
+            margin: 0 0 5px 0;
+            font-weight: bold;
+        }
+        
+        .print-header h2 {
+            font-size: 20px;
+            margin: 0;
+            color: #0066cc;
+        }
+        
+        .company-vendor-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .company-info, .vendor-info {
+            display: table-cell;
+            width: 48%;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        .company-info {
+            margin-right: 4%;
+        }
+        
+        .section-header {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 3px;
+        }
+        
+        address {
+            font-style: normal;
+            line-height: 1.3;
+            margin: 0;
+        }
+        
+        .po-details {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+        }
+        
+        .po-details-row {
+            display: table;
+            width: 100%;
+        }
+        
+        .po-detail {
+            display: table-cell;
+            width: 33.33%;
+            padding: 5px;
+        }
+        
+        .po-detail strong {
+            font-weight: bold;
+        }
+        
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-ordered { background-color: #d1ecf1; color: #0c5460; }
+        .status-received { background-color: #d4edda; color: #155724; }
+        .status-cancelled { background-color: #f8d7da; color: #721c24; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 11px;
+        }
+        
+        th, td {
+            border: 1px solid #333;
+            padding: 6px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        
+        .line-item-row td {
+            vertical-align: top;
+        }
+        
+        .line-number {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .total-row {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .grand-total-row {
+            background-color: #e9ecef;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .notes-section {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+        }
+        
+        .print-footer {
+            margin-top: 30px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+            font-size: 10px;
+            color: #666;
+        }
+        
+        /* Print-specific styles */
+        @@media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+        }
+        
+        /* Ensure good printing */
+        @@page {
+            margin: 0.5in;
+            size: letter;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Header -->
+    <div class="print-header">
+        <h1>PURCHASE ORDER</h1>
+        <h2>PO# @Model.PurchaseOrderNumber</h2>
+    </div>
+
+    <!-- Company and Vendor Information -->
+    <div class="company-vendor-section">
+        <div class="company-info">
+            <div class="section-header">FROM:</div>
+            <address>
+                <strong>@Model.CompanyInfo.CompanyName</strong><br>
+                @Model.CompanyInfo.Address<br>
+                @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
+                Phone: @Model.CompanyInfo.Phone<br>
+                Email: @Model.CompanyInfo.Email<br>
+                Web: @Model.CompanyInfo.Website
+            </address>
+        </div>
+        
+        <div class="vendor-info">
+            <div class="section-header">TO:</div>
+            <address>
+                <strong>@Model.Vendor.CompanyName</strong><br>
+                @{
+                    // Construct vendor address from individual fields
+                    var addressParts = new List<string>();
+                    
+                    // Add Address Line 1
+                    if (!string.IsNullOrWhiteSpace(Model.Vendor.AddressLine1))
+                    {
+                        addressParts.Add(Model.Vendor.AddressLine1);
+                    }
+                    
+                    // Add Address Line 2 if it exists
+                    if (!string.IsNullOrWhiteSpace(Model.Vendor.AddressLine2))
+                    {
+                        addressParts.Add(Model.Vendor.AddressLine2);
+                    }
+                    
+                    // Construct City, State PostalCode line
+                    var cityStateZip = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(Model.Vendor.City))
+                    {
+                        cityStateZip.Add(Model.Vendor.City);
+                    }
+                    if (!string.IsNullOrWhiteSpace(Model.Vendor.State))
+                    {
+                        cityStateZip.Add(Model.Vendor.State);
+                    }
+                    if (!string.IsNullOrWhiteSpace(Model.Vendor.PostalCode))
+                    {
+                        cityStateZip.Add(Model.Vendor.PostalCode);
+                    }
+                    
+                    if (cityStateZip.Any())
+                    {
+                        addressParts.Add(string.Join(", ", cityStateZip.Take(2)) + (cityStateZip.Count > 2 ? " " + cityStateZip.Last() : ""));
+                    }
+                    
+                    // Add country if different from default
+                    if (!string.IsNullOrWhiteSpace(Model.Vendor.Country) && 
+                        !Model.Vendor.Country.Equals("United States", StringComparison.OrdinalIgnoreCase))
+                    {
+                        addressParts.Add(Model.Vendor.Country);
+                    }
+                }
+                
+                @* Display each address part on a new line *@
+                @foreach (var addressPart in addressParts)
+                {
+                    @addressPart<br>
+                }
+                
+                @* Display contact information if available *@
+                @if (!string.IsNullOrWhiteSpace(Model.Vendor.ContactPhone))
+                {
+                    <text>Phone: @Model.Vendor.ContactPhone<br></text>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Vendor.ContactEmail))
+                {
+                    <text>Email: @Model.Vendor.ContactEmail<br></text>
+                }
+                
+                @* Show message if no address is available *@
+                @if (!addressParts.Any())
+                {
+                    <em>Address not available</em><br>
+                }
+            </address>
+        </div>
+    </div>
+
+    <!-- PO Details -->
+    <div class="po-details">
+        <div class="po-details-row">
+            <div class="po-detail">
+                <strong>PO Date:</strong> @Model.PurchaseDate.ToString("MMMM dd, yyyy")
+            </div>
+            <div class="po-detail">
+                <strong>Expected Delivery:</strong> @(Model.ExpectedDeliveryDate?.ToString("MMMM dd, yyyy") ?? "TBD")
+            </div>
+            <div class="po-detail">
+                <strong>Status:</strong> 
+                <span class="status-badge status-@(Model.Status.ToString().ToLower())">
+                    @Model.Status
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Line Items Table -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">Line #</th>
+                <th style="width: 15%;">Item Number</th>
+                <th style="width: 35%;">Description</th>
+                <th style="width: 8%;">Qty</th>
+                <th style="width: 12%;">Unit Price</th>
+                <th style="width: 12%;">Line Total</th>
+                <th style="width: 8%;">Status</th>
+                <th style="width: 5%;">Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                int lineNumber = 1;
+            }
+            @foreach (var item in Model.LineItems)
+            {
+                <tr class="line-item-row">
+                    <td class="line-number">@lineNumber</td>
+                    <td><strong>@item.PartNumber</strong></td>
+                    <td>@item.Description</td>
+                    <td class="text-center">@item.Quantity</td>
+                    <td class="text-right">$@item.UnitCost.ToString("N2")</td>
+                    <td class="text-right">$@item.LineTotal.ToString("N2")</td>
+                    <td class="text-center">
+                        <span class="status-badge status-@(item.Status.ToString().ToLower())">
+                            @item.Status.ToString().Substring(0, 1)
+                        </span>
+                    </td>
+                    <td style="font-size: 9px;">@(string.IsNullOrEmpty(item.Notes) ? "-" : item.Notes)</td>
+                </tr>
+                lineNumber++;
+            }
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="5" class="text-right">
+                    <strong>Subtotal (@Model.LineItemCount items, @Model.TotalQuantity total qty):</strong>
+                </td>
+                <td class="text-right"><strong>$@Model.SubtotalAmount.ToString("N2")</strong></td>
+                <td colspan="2"></td>
+            </tr>
+            @if (Model.TotalShipping > 0)
+            {
+                <tr class="total-row">
+                    <td colspan="5" class="text-right"><strong>Shipping:</strong></td>
+                    <td class="text-right"><strong>$@Model.TotalShipping.ToString("N2")</strong></td>
+                    <td colspan="2"></td>
+                </tr>
+            }
+            @if (Model.TotalTax > 0)
+            {
+                <tr class="total-row">
+                    <td colspan="5" class="text-right"><strong>Tax:</strong></td>
+                    <td class="text-right"><strong>$@Model.TotalTax.ToString("N2")</strong></td>
+                    <td colspan="2"></td>
+                </tr>
+            }
+            <tr class="grand-total-row">
+                <td colspan="5" class="text-right"><strong>GRAND TOTAL:</strong></td>
+                <td class="text-right"><strong>$@Model.GrandTotal.ToString("N2")</strong></td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Notes Section -->
+    @if (!string.IsNullOrEmpty(Model.Notes))
+    {
+        <div class="notes-section">
+            <div class="section-header">NOTES:</div>
+            <p>@Model.Notes</p>
+        </div>
+    }
+
+    <!-- Print Footer -->
+    <div class="print-footer">
+        <p><strong>Thank you for your business!</strong></p>
+        <p>Generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</p>
+        
+        <!-- Terms and Conditions (optional) -->
+        <div style="margin-top: 15px; font-size: 9px; text-align: left;">
+            <strong>Terms & Conditions:</strong><br>
+            • Payment terms as agreed upon between parties<br>
+            • Delivery dates are estimates and subject to change<br>
+            • All items subject to availability and final confirmation<br>
+            • Please confirm receipt of this purchase order<br>
+            • Reference line numbers when communicating about specific items
+        </div>
+    </div>
+
+    <!-- Auto-print script (optional) -->
+    <script>
+        // Uncomment the line below to auto-print when the page loads
+        // window.onload = function() { window.print(); }
+        
+        // Print button functionality
+        function printPO() {
+            window.print();
+        }
+        
+        // Close window after printing (optional)
+        window.onafterprint = function() {
+            // window.close(); // Uncomment to auto-close after printing
+        }
+    </script>
+</body>
+</html>

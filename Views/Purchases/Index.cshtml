@@ -383,11 +383,14 @@
                   <td>
                     @if (!string.IsNullOrEmpty(purchase.PurchaseOrderNumber))
                     {
-                      <code>@purchase.PurchaseOrderNumber</code>
+                        <a href="@Url.Action("PurchaseOrderReport", new { poNumber = purchase.PurchaseOrderNumber })" 
+                           class="btn btn-sm btn-outline-primary" title="View PO Report">
+                            <i class="fas fa-file-invoice"></i> @purchase.PurchaseOrderNumber
+                        </a>
                     }
                     else
                     {
-                      <span class="text-muted">-</span>
+                        <span class="text-muted">No PO</span>
                     }
                   </td>
                   <td>

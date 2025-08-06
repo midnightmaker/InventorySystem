@@ -3,6 +3,26 @@
   "WorkspaceRootPath": "C:\\InventorySystem\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\purchases\\purchaseorderreport.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\purchases\\purchaseorderreport.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\purchases\\purchaseorderreportprint.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\purchases\\purchaseorderreportprint.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\purchasescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\purchasescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\purchases\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\purchases\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\viewmodels\\purchaseorderreportviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:viewmodels\\purchaseorderreportviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\purchases\\createmultiline.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\purchases\\createmultiline.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
@@ -13,10 +33,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\viewmodels\\multilinepurchaseviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:viewmodels\\multilinepurchaseviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\purchasescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\purchasescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\purchases\\create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
@@ -112,7 +128,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 7,
           "Children": [
             {
               "$type": "Bookmark",
@@ -133,32 +149,19 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "_Layout.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
-              "RelativeDocumentMoniker": "Views\\Shared\\_Layout.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
-              "RelativeToolTip": "Views\\Shared\\_Layout.cshtml",
-              "ViewState": "AgIAAA0AAAAAAAAAAAAWwCEAAAAMAAAAAAAAAA==",
+              "Title": "PurchaseOrderReportPrint.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\PurchaseOrderReportPrint.cshtml",
+              "RelativeDocumentMoniker": "Views\\Purchases\\PurchaseOrderReportPrint.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Purchases\\PurchaseOrderReportPrint.cshtml",
+              "RelativeToolTip": "Views\\Purchases\\PurchaseOrderReportPrint.cshtml",
+              "ViewState": "AgIAAHgAAAAAAAAAAAAgwC8BAAAvAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-06T00:05:48.728Z",
+              "WhenOpened": "2025-08-06T00:33:58.124Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "CreateMultiLine.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\CreateMultiLine.cshtml",
-              "RelativeDocumentMoniker": "Views\\Purchases\\CreateMultiLine.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Purchases\\CreateMultiLine.cshtml",
-              "RelativeToolTip": "Views\\Purchases\\CreateMultiLine.cshtml",
-              "ViewState": "AgIAABcAAAAAAAAAAAAWwEQBAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-06T00:04:40.969Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 7,
               "Title": "MultiLinePurchaseViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\MultiLinePurchaseViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\MultiLinePurchaseViewModel.cs",
@@ -171,20 +174,85 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 2,
               "Title": "PurchasesController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\PurchasesController.cs",
               "RelativeDocumentMoniker": "Controllers\\PurchasesController.cs",
               "ToolTip": "C:\\InventorySystem\\Controllers\\PurchasesController.cs",
               "RelativeToolTip": "Controllers\\PurchasesController.cs",
-              "ViewState": "AgIAAHgCAAAAAAAAAAAAAMoCAAAFAAAAAAAAAA==",
+              "ViewState": "AgIAALUEAAAAAAAAAAAgwMkEAAA1AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-05T23:56:22.699Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "PurchaseOrderReport.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\PurchaseOrderReport.cshtml",
+              "RelativeDocumentMoniker": "Views\\Purchases\\PurchaseOrderReport.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Purchases\\PurchaseOrderReport.cshtml",
+              "RelativeToolTip": "Views\\Purchases\\PurchaseOrderReport.cshtml",
+              "ViewState": "AgIAAOwAAAAAAAAAAAAuwDEAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-06T00:22:09.704Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "CreateMultiLine.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\CreateMultiLine.cshtml",
+              "RelativeDocumentMoniker": "Views\\Purchases\\CreateMultiLine.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Purchases\\CreateMultiLine.cshtml",
+              "RelativeToolTip": "Views\\Purchases\\CreateMultiLine.cshtml",
+              "ViewState": "AgIAABcAAAAAAAAAAAAWwEQBAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-06T00:04:40.969Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "_Layout.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
+              "RelativeDocumentMoniker": "Views\\Shared\\_Layout.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
+              "RelativeToolTip": "Views\\Shared\\_Layout.cshtml",
+              "ViewState": "AgIAAA0AAAAAAAAAAAAWwCEAAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-06T00:05:48.728Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\Index.cshtml",
+              "RelativeDocumentMoniker": "Views\\Purchases\\Index.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Purchases\\Index.cshtml",
+              "RelativeToolTip": "Views\\Purchases\\Index.cshtml",
+              "ViewState": "AgIAAHUBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-06T00:22:32.005Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 4,
+              "Title": "PurchaseOrderReportViewModel.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\PurchaseOrderReportViewModel.cs",
+              "RelativeDocumentMoniker": "ViewModels\\PurchaseOrderReportViewModel.cs",
+              "ToolTip": "C:\\InventorySystem\\ViewModels\\PurchaseOrderReportViewModel.cs",
+              "RelativeToolTip": "ViewModels\\PurchaseOrderReportViewModel.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEAAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-06T00:20:33.802Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
               "Title": "Create.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\Create.cshtml",
               "RelativeDocumentMoniker": "Views\\Purchases\\Create.cshtml",
@@ -197,7 +265,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 9,
               "Title": "IInventoryService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\IInventoryService.cs",
               "RelativeDocumentMoniker": "Services\\IInventoryService.cs",
@@ -210,7 +278,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 15,
               "Title": "Task.cs",
               "DocumentMoniker": "C:\\Users\\deons\\AppData\\Local\\SourceServer\\3a17c7abe19a54ce18398580a8f959eb45735c2e6f66779eecf177ad19711b64\\src\\libraries\\System.Private.CoreLib\\src\\System\\Threading\\Tasks\\Task.cs",
               "RelativeDocumentMoniker": "..\\Users\\deons\\AppData\\Local\\SourceServer\\3a17c7abe19a54ce18398580a8f959eb45735c2e6f66779eecf177ad19711b64\\src\\libraries\\System.Private.CoreLib\\src\\System\\Threading\\Tasks\\Task.cs",
@@ -223,7 +291,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 10,
               "Title": "ItemsController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\ItemsController.cs",
               "RelativeDocumentMoniker": "Controllers\\ItemsController.cs",
@@ -236,7 +304,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 19,
+              "DocumentIndex": 23,
               "Title": "Edit.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\Edit.cshtml",
               "RelativeDocumentMoniker": "Views\\Vendors\\Edit.cshtml",
@@ -249,7 +317,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 16,
               "Title": "Item.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Item.cs",
               "RelativeDocumentMoniker": "Models\\Item.cs",
@@ -262,7 +330,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 13,
               "Title": "BulkUploadService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\BulkUploadService.cs",
               "RelativeDocumentMoniker": "Services\\BulkUploadService.cs",
@@ -275,7 +343,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 12,
               "Title": "BulkUpload.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\BulkUpload.cshtml",
@@ -288,7 +356,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 11,
               "Title": "InventoryService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\InventoryService.cs",
               "RelativeDocumentMoniker": "Services\\InventoryService.cs",
@@ -301,7 +369,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 14,
               "Title": "TaskAwaiter.cs",
               "DocumentMoniker": "C:\\Users\\deons\\AppData\\Local\\SourceServer\\a475d692702bcef905558be9984c40631a699a3c664136caaf49b8ce45a4bd16\\src\\libraries\\System.Private.CoreLib\\src\\System\\Runtime\\CompilerServices\\TaskAwaiter.cs",
               "RelativeDocumentMoniker": "..\\Users\\deons\\AppData\\Local\\SourceServer\\a475d692702bcef905558be9984c40631a699a3c664136caaf49b8ce45a4bd16\\src\\libraries\\System.Private.CoreLib\\src\\System\\Runtime\\CompilerServices\\TaskAwaiter.cs",
@@ -314,7 +382,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 17,
               "Title": "BulkUpload.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\BulkUpload.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\BulkUpload.cshtml",
@@ -327,7 +395,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 18,
               "Title": "IBulkUploadService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\IBulkUploadService.cs",
               "RelativeDocumentMoniker": "Services\\IBulkUploadService.cs",
@@ -340,7 +408,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 17,
+              "DocumentIndex": 21,
               "Title": "DocumentsController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\DocumentsController.cs",
               "RelativeDocumentMoniker": "Controllers\\DocumentsController.cs",
@@ -353,7 +421,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 20,
+              "DocumentIndex": 24,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Vendors\\Index.cshtml",
@@ -366,7 +434,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 19,
               "Title": "Edit.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\Edit.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\Edit.cshtml",
@@ -379,7 +447,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 20,
               "Title": "program.cs",
               "DocumentMoniker": "C:\\InventorySystem\\program.cs",
               "RelativeDocumentMoniker": "program.cs",
@@ -392,7 +460,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 21,
+              "DocumentIndex": 25,
               "Title": "ViewVendorImportErrors.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\ViewVendorImportErrors.cshtml",
               "RelativeDocumentMoniker": "Views\\Vendors\\ViewVendorImportErrors.cshtml",
@@ -405,7 +473,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 22,
+              "DocumentIndex": 26,
               "Title": "BulkUpload.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\BulkUpload.cshtml",
               "RelativeDocumentMoniker": "Views\\Vendors\\BulkUpload.cshtml",
@@ -418,7 +486,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 25,
+              "DocumentIndex": 29,
               "Title": "ViewImportErrors.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\ViewImportErrors.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\ViewImportErrors.cshtml",
@@ -431,7 +499,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 23,
+              "DocumentIndex": 27,
               "Title": "BulkUploadResult.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\BulkUploadResult.cs",
               "RelativeDocumentMoniker": "Models\\BulkUploadResult.cs",
@@ -444,7 +512,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 24,
+              "DocumentIndex": 28,
               "Title": "BulkItemUploadViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\BulkItemUploadViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\BulkItemUploadViewModel.cs",
@@ -457,7 +525,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 18,
+              "DocumentIndex": 22,
               "Title": "VendorsController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\VendorsController.cs",
               "RelativeDocumentMoniker": "Controllers\\VendorsController.cs",
