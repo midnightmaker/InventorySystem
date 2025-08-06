@@ -340,18 +340,65 @@ namespace InventorySystem.Controllers
         var items = await _inventoryService.GetAllItemsAsync();
         var vendors = await _vendorService.GetActiveVendorsAsync();
 
-        var viewModel = new CreatePurchaseViewModel();
+        var viewModel = new CreatePurchaseViewModel
+        {
+          PurchaseDate = DateTime.Today,
+          QuantityPurchased = 1,
+          Status = PurchaseStatus.Pending
+        };
 
-        // If itemId is provided, set it and get the last vendor used for this item
+        // If itemId is provided, set it and get the recommended vendor using priority logic
         if (itemId.HasValue)
         {
           viewModel.ItemId = itemId.Value;
 
-          // Get the last vendor used for this item
-          var lastVendorId = await _purchaseService.GetLastVendorIdForItemAsync(itemId.Value);
-          if (lastVendorId.HasValue)
+          // NEW: Use the comprehensive vendor selection logic instead of just last vendor
+          var recommendedVendor = await _vendorService.GetPreferredVendorForItemAsync(itemId.Value);
+          if (recommendedVendor != null)
           {
-            viewModel.VendorId = lastVendorId.Value;
+            viewModel.VendorId = recommendedVendor.Id;
+            
+            // Get the vendor item relationship to get the last known cost
+            var vendorInfo = await _vendorService.GetVendorSelectionInfoForItemAsync(itemId.Value);
+            if (vendorInfo.RecommendedCost.HasValue && vendorInfo.RecommendedCost.Value > 0)
+            {
+              viewModel.CostPerUnit = vendorInfo.RecommendedCost.Value;
+            }
+            else
+            {
+              // Fallback to average cost if no vendor cost is available
+              var averageCost = await _inventoryService.GetAverageCostAsync(itemId.Value);
+              if (averageCost > 0)
+              {
+                viewModel.CostPerUnit = averageCost;
+              }
+            }
+
+            // Store selection reason for user feedback (optional)
+            ViewBag.VendorSelectionReason = vendorInfo.SelectionReason;
+          }
+          else
+          {
+            // No vendor found, but still set a default cost
+            var averageCost = await _inventoryService.GetAverageCostAsync(itemId.Value);
+            if (averageCost > 0)
+            {
+              viewModel.CostPerUnit = averageCost;
+            }
+            ViewBag.VendorSelectionReason = "No preferred vendor found";
+          }
+
+          // Get the item details for display
+          var item = await _inventoryService.GetItemByIdAsync(itemId.Value);
+          if (item != null)
+          {
+            ViewBag.ItemDetails = new
+            {
+              PartNumber = item.PartNumber,
+              Description = item.Description,
+              CurrentStock = item.CurrentStock,
+              MinimumStock = item.MinimumStock
+            };
           }
         }
 
@@ -362,8 +409,16 @@ namespace InventorySystem.Controllers
           Text = $"{item.PartNumber} - {item.Description}"
         }).ToList();
 
+        // Enhanced vendor dropdown with priority indicators
+        var formattedVendors = vendors.Select(vendor => new
+        {
+          Value = vendor.Id,
+          Text = vendor.CompanyName,
+          Selected = vendor.Id == viewModel.VendorId
+        }).ToList();
+
         ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", viewModel.ItemId);
-        ViewBag.VendorId = new SelectList(vendors, "Id", "CompanyName", viewModel.VendorId);
+        ViewBag.VendorId = new SelectList(formattedVendors, "Value", "Text", viewModel.VendorId);
 
         return View(viewModel);
       }
@@ -371,6 +426,11 @@ namespace InventorySystem.Controllers
       {
         Console.WriteLine($"Error in Create GET: {ex.Message}");
         ViewBag.ErrorMessage = ex.Message;
+        
+        // Ensure dropdowns are available even on error
+        ViewBag.ItemId = new SelectList(new List<object>(), "Value", "Text");
+        ViewBag.VendorId = new SelectList(new List<object>(), "Value", "Text");
+        
         return View(new CreatePurchaseViewModel());
       }
     }
@@ -622,7 +682,39 @@ namespace InventorySystem.Controllers
         return View(new List<object>());
       }
     }
-    // AJAX endpoint to get last vendor for an item
+    // AJAX endpoint to get recommended vendor for an item with comprehensive logic
+    [HttpGet]
+    public async Task<IActionResult> GetRecommendedVendorForItem(int itemId)
+    {
+      try
+      {
+        var vendorInfo = await _vendorService.GetVendorSelectionInfoForItemAsync(itemId);
+        var averageCost = await _inventoryService.GetAverageCostAsync(itemId);
+
+        return Json(new
+        {
+          success = true,
+          vendorId = vendorInfo.RecommendedVendor?.Id,
+          vendorName = vendorInfo.RecommendedVendor?.CompanyName,
+          recommendedCost = vendorInfo.RecommendedCost ?? averageCost,
+          selectionReason = vendorInfo.SelectionReason,
+          hasPrimaryVendor = vendorInfo.PrimaryVendor != null,
+          hasItemPreferredVendor = !string.IsNullOrEmpty(vendorInfo.ItemPreferredVendorName),
+          hasLastPurchaseVendor = vendorInfo.LastPurchaseVendor != null,
+          lastPurchaseDate = vendorInfo.LastPurchaseDate?.ToString("yyyy-MM-dd"),
+          primaryVendorName = vendorInfo.PrimaryVendor?.CompanyName,
+          itemPreferredVendorName = vendorInfo.ItemPreferredVendorName,
+          lastPurchaseVendorName = vendorInfo.LastPurchaseVendor?.CompanyName
+        });
+      }
+      catch (Exception ex)
+      {
+        return Json(new { success = false, error = ex.Message });
+      }
+    }
+
+    // Keep the existing method for backward compatibility, but mark it as obsolete
+    [Obsolete("Use GetRecommendedVendorForItem instead")]
     [HttpGet]
     public async Task<IActionResult> GetLastVendorForItem(int itemId)
     {

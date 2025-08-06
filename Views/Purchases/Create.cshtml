@@ -38,15 +38,24 @@
                 <select asp-for="VendorId" asp-items="ViewBag.VendorId" class="form-select" id="vendorSelect">
                   <option value="">-- Select Vendor --</option>
                 </select>
-                <button type="button" class="btn btn-outline-info" id="useLastVendorBtn" title="Use Last Vendor for Selected Item">
-                  <i class="fas fa-history"></i>
+                <button type="button" class="btn btn-outline-info" id="useLastVendorBtn" title="Use Recommended Vendor for Selected Item">
+                  <i class="fas fa-star"></i>
                 </button>
               </div>
               <span asp-validation-for="VendorId" class="text-danger"></span>
               <div class="form-text">
                 <i class="fas fa-info-circle"></i>
-                The last vendor used for the selected item will be automatically selected.
+                The preferred vendor for the selected item will be automatically selected (Primary ? Preferred ? Last Used).
               </div>
+              
+              @* Display vendor selection reason if available *@
+              @if (ViewBag.VendorSelectionReason != null)
+              {
+                <div class="form-text text-success">
+                  <i class="fas fa-check-circle"></i>
+                  @ViewBag.VendorSelectionReason
+                </div>
+              }
             </div>
 
             <div class="row">
@@ -274,7 +283,7 @@
             // Show higher precision in calculations
             $('#totalCost').val(subtotal.toFixed(6));
             $('#summarySubtotal').text('$' + subtotal.toFixed(4));
-            $('#summaryShipping').text('$' + shipping.toFixed(6));  // Updated to show 6 decimal places
+            $('#summaryShipping').text('$' + shipping.toFixed(6));
             $('#summaryTax').text('$' + tax.toFixed(4));
             $('#summaryTotal').text('$' + total.toFixed(4));
         }
@@ -282,31 +291,61 @@
         // Bind change events
         $('#QuantityPurchased, #CostPerUnit, #ShippingCost, #TaxAmount').on('input change', updateTotals);
 
-        // Auto-select last vendor when item changes
+        // UPDATED: Auto-select recommended vendor when item changes
         $('#itemSelect').change(function () {
             var itemId = $(this).val();
-            if (itemId) {
+            console.log('Item selected:', itemId); // Debug log
+            
+            if (itemId && itemId !== '') {
+                console.log('Calling GetRecommendedVendorForItem for itemId:', itemId); // Debug log
+                
                 $.ajax({
-                    url: '@Url.Action("GetLastVendorForItem")',
+                    url: '@Url.Action("GetRecommendedVendorForItem")',
                     type: 'GET',
                     data: { itemId: itemId },
                     success: function (response) {
+                        console.log('Response received:', response); // Debug log
+                        
                         if (response.success && response.vendorId) {
                             $('#vendorSelect').val(response.vendorId);
-                            // Show a brief notification
-                            if ($('#vendorSelect option:selected').text() !== '-- Select Vendor --') {
-                                showTempMessage('Last vendor selected: ' + $('#vendorSelect option:selected').text());
+                            
+                            // Also update the cost if available
+                            if (response.recommendedCost && response.recommendedCost > 0) {
+                                $('#CostPerUnit').val(response.recommendedCost.toFixed(6));
+                                updateTotals(); // Recalculate totals
                             }
+                            
+                            // Show enhanced notification with selection reason
+                            var vendorName = $('#vendorSelect option:selected').text();
+                            var message = 'Vendor selected: ' + vendorName;
+                            if (response.selectionReason) {
+                                message += ' (' + response.selectionReason + ')';
+                            }
+                            
+                            showTempMessage(message, 'success');
+                            
+                            // Update vendor selection button tooltip
+                            updateVendorButtonTooltip(response);
+                        } else {
+                            console.log('No vendor recommendation found');
+                            showTempMessage('No preferred vendor found for this item', 'warning');
                         }
                     },
-                    error: function () {
-                        console.log('Could not retrieve last vendor');
+                    error: function(xhr, status, error) {
+                        console.error('AJAX Error:', status, error); // Debug log
+                        console.error('Response:', xhr.responseText); // Debug log
+                        showTempMessage('Could not retrieve vendor recommendation', 'warning');
                     }
                 });
+            } else {
+                // Clear vendor selection if no item is selected
+                $('#vendorSelect').val('');
+                $('#CostPerUnit').val('');
+                updateTotals();
             }
         });
 
-        // Manual "Use Last Vendor" button
+        // UPDATED: Manual "Use Recommended Vendor" button
         $('#useLastVendorBtn').click(function () {
             var itemId = $('#itemSelect').val();
             if (!itemId) {
@@ -315,19 +354,31 @@
             }
 
             $.ajax({
-                url: '@Url.Action("GetLastVendorForItem")',
+                url: '@Url.Action("GetRecommendedVendorForItem")',
                 type: 'GET',
                 data: { itemId: itemId },
                 success: function (response) {
                     if (response.success && response.vendorId) {
                         $('#vendorSelect').val(response.vendorId);
-                        showTempMessage('Last vendor selected: ' + $('#vendorSelect option:selected').text());
+                        
+                        // Update cost if available
+                        if (response.recommendedCost && response.recommendedCost > 0) {
+                            $('#CostPerUnit').val(response.recommendedCost.toFixed(6));
+                            updateTotals();
+                        }
+                        
+                        var vendorName = $('#vendorSelect option:selected').text();
+                        var message = 'Vendor selected: ' + vendorName;
+                        if (response.selectionReason) {
+                            message += ' (' + response.selectionReason + ')';
+                        }
+                        showTempMessage(message, 'success');
                     } else {
-                        showTempMessage('No previous vendor found for this item', 'warning');
+                        showTempMessage('No preferred vendor found for this item', 'warning');
                     }
                 },
                 error: function () {
-                    alert('Error retrieving last vendor');
+                    alert('Error retrieving vendor recommendation');
                 }
             });
         });
@@ -351,10 +402,32 @@
             });
         });
 
+        // Helper function to update vendor button tooltip with detailed info
+        function updateVendorButtonTooltip(response) {
+            var tooltip = 'Vendor Selection Info:\n';
+            
+            if (response.hasPrimaryVendor) {
+                tooltip += '• Primary: ' + response.primaryVendorName + '\n';
+            }
+            if (response.hasItemPreferredVendor) {
+                tooltip += '• Item Preferred: ' + response.itemPreferredVendorName + '\n';
+            }
+            if (response.hasLastPurchaseVendor) {
+                tooltip += '• Last Used: ' + response.lastPurchaseVendorName;
+                if (response.lastPurchaseDate) {
+                    tooltip += ' (' + response.lastPurchaseDate + ')';
+                }
+            }
+            
+            $('#useLastVendorBtn').attr('title', tooltip);
+        }
+
         // Helper function to show temporary messages
         function showTempMessage(message, type = 'info') {
-            var alertClass = type === 'warning' ? 'alert-warning' : 'alert-info';
-            var icon = type === 'warning' ? 'fas fa-exclamation-triangle' : 'fas fa-info-circle';
+            var alertClass = type === 'warning' ? 'alert-warning' : 
+                           type === 'success' ? 'alert-success' : 'alert-info';
+            var icon = type === 'warning' ? 'fas fa-exclamation-triangle' : 
+                      type === 'success' ? 'fas fa-check-circle' : 'fas fa-info-circle';
 
             var $alert = $('<div class="alert ' + alertClass + ' alert-dismissible fade show" role="alert">' +
                 '<i class="' + icon + '"></i> ' + message +
@@ -370,6 +443,9 @@
 
         // Initial calculation
         updateTotals();
+        
+        // Debug: Log when page loads
+        console.log('Create Purchase page loaded, JavaScript initialized');
     });
   </script>
 }
