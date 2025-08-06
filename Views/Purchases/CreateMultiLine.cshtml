@@ -1,0 +1,325 @@
+@model InventorySystem.ViewModels.MultiLinePurchaseViewModel
+@{
+    ViewData["Title"] = "Multi-Line Purchase";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-shopping-cart"></i> Multi-Line Purchase</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="CreateMultiLine" method="post">
+                        <!-- Purchase Header -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <label asp-for="PurchaseDate" class="form-label">Purchase Date</label>
+                                <input asp-for="PurchaseDate" class="form-control" type="date" />
+                            </div>
+                            <div class="col-md-3">
+                                <label asp-for="PurchaseOrderNumber" class="form-label">PO Number</label>
+                                <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="Auto-generated" />
+                            </div>
+                            <div class="col-md-3">
+                                <label asp-for="ExpectedDeliveryDate" class="form-label">Expected Delivery</label>
+                                <input asp-for="ExpectedDeliveryDate" class="form-control" type="date" />
+                            </div>
+                            <div class="col-md-3">
+                                <label asp-for="Status" class="form-label">Status</label>
+                                <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<InventorySystem.Models.Enums.PurchaseStatus>()"></select>
+                            </div>
+                        </div>
+
+                        <!-- Add Item Section -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <h6><i class="fas fa-plus"></i> Add Items</h6>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <select id="itemSelector" class="form-select">
+                                        <option value="">-- Select Item to Add --</option>
+                                        @if (ViewBag.AllItems != null)
+                                        {
+                                            @* Fix: Don't cast to List<dynamic>, iterate directly *@
+                                            @foreach (var item in ViewBag.AllItems)
+                                            {
+                                                <option value="@item.Value" 
+                                                        data-part-number="@item.Text.Split('-')[0].Trim()" 
+                                                        data-description="@(item.Text.Contains('-') ? item.Text.Substring(item.Text.IndexOf('-') + 1).Trim() : "")"
+                                                        data-current-stock="@item.CurrentStock"
+                                                        data-min-stock="@item.MinStock">
+                                                    @item.Text
+                                                </option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-primary" id="addItemBtn">
+                                        <i class="fas fa-plus"></i> Add Item
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="addLowStockBtn">
+                                        <i class="fas fa-exclamation-triangle"></i> Add Low Stock Items
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Line Items Table -->
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="lineItemsTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th width="50">Select</th>
+                                        <th>Part Number</th>
+                                        <th>Description</th>
+                                        <th width="80">Stock</th>
+                                        <th width="100">Quantity</th>
+                                        <th width="120">Unit Cost</th>
+                                        <th width="150">Vendor</th>
+                                        <th width="100">Line Total</th>
+                                        <th width="80">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lineItemsBody">
+                                    <!-- Dynamic line items will be added here -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-3">
+                            <label asp-for="Notes" class="form-label">Purchase Notes</label>
+                            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="General notes for all line items..."></textarea>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="@Url.Action("Index")" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success" id="submitBtn">
+                                <i class="fas fa-save"></i> Create Multi-Line Purchase
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Panel -->
+        <div class="col-lg-3">
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-calculator"></i> Purchase Summary</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Line Items:</dt>
+                        <dd class="col-sm-6" id="totalLines">0</dd>
+                        
+                        <dt class="col-sm-6">Selected:</dt>
+                        <dd class="col-sm-6" id="selectedLines">0</dd>
+                        
+                        <dt class="col-sm-6">Total Qty:</dt>
+                        <dd class="col-sm-6" id="totalQuantity">0</dd>
+                        
+                        <dt class="col-sm-6 border-top pt-2"><strong>Total Amount:</strong></dt>
+                        <dd class="col-sm-6 border-top pt-2"><strong id="totalAmount">$0.00</strong></dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-info-circle"></i> Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllBtn">
+                            <i class="fas fa-check-square"></i> Select All
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="deselectAllBtn">
+                            <i class="fas fa-square"></i> Deselect All
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="removeUnselectedBtn">
+                            <i class="fas fa-trash"></i> Remove Unselected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+$(document).ready(function() {
+    let lineIndex = 0;
+
+    // Add item button click
+    $('#addItemBtn').click(function() {
+        const itemId = $('#itemSelector').val();
+        if (!itemId) {
+            alert('Please select an item to add');
+            return;
+        }
+
+        addItemToTable(itemId);
+    });
+
+    // Add low stock items
+    $('#addLowStockBtn').click(function() {
+        $('#itemSelector option').each(function() {
+            const currentStock = parseInt($(this).data('current-stock') || 0);
+            const minStock = parseInt($(this).data('min-stock') || 0);
+            
+            if (currentStock <= minStock && $(this).val()) {
+                addItemToTable($(this).val());
+            }
+        });
+    });
+
+    function addItemToTable(itemId) {
+        // Check if item already exists
+        if ($(`tr[data-item-id="${itemId}"]`).length > 0) {
+            alert('Item already added to the purchase');
+            return;
+        }
+
+        $.get('@Url.Action("GetItemForMultiLine")', { itemId: itemId })
+            .done(function(response) {
+                if (response.success) {
+                    const item = response;
+                    const stockBadge = item.isLowStock ? 
+                        `<span class="badge bg-warning">${item.currentStock}</span>` : 
+                        item.currentStock;
+
+                    const row = `
+                        <tr data-item-id="${item.itemId}" data-index="${lineIndex}">
+                            <td>
+                                <input type="hidden" name="LineItems[${lineIndex}].ItemId" value="${item.itemId}" />
+                                <input type="hidden" name="LineItems[${lineIndex}].PartNumber" value="${item.partNumber}" />
+                                <input type="hidden" name="LineItems[${lineIndex}].Description" value="${item.description}" />
+                                <input type="hidden" name="LineItems[${lineIndex}].CurrentStock" value="${item.currentStock}" />
+                                <input type="hidden" name="LineItems[${lineIndex}].MinimumStock" value="${item.minimumStock}" />
+                                <input type="checkbox" name="LineItems[${lineIndex}].Selected" value="true" checked class="form-check-input line-checkbox" />
+                            </td>
+                            <td><strong>${item.partNumber}</strong></td>
+                            <td>${item.description}</td>
+                            <td>${stockBadge}</td>
+                            <td>
+                                <input type="number" name="LineItems[${lineIndex}].Quantity" value="1" min="1" class="form-control form-control-sm quantity-input" />
+                            </td>
+                            <td>
+                                <input type="number" name="LineItems[${lineIndex}].UnitCost" value="${item.recommendedCost || 0}" step="0.0001" min="0.0001" class="form-control form-control-sm cost-input" />
+                            </td>
+                            <td>
+                                <select name="LineItems[${lineIndex}].VendorId" class="form-select form-select-sm vendor-select">
+                                    @if (ViewBag.AllVendors != null)
+                                    {
+                                        @foreach (var vendor in (SelectList)ViewBag.AllVendors)
+                                        {
+                                            <option value="@vendor.Value">@vendor.Text</option>
+                                        }
+                                    }
+                                </select>
+                            </td>
+                            <td class="line-total">$0.00</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-danger remove-line">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+
+                    $('#lineItemsBody').append(row);
+
+                    // Set recommended vendor
+                    if (item.recommendedVendorId) {
+                        $(`select[name="LineItems[${lineIndex}].VendorId"]`).val(item.recommendedVendorId);
+                    }
+
+                    updateLineTotal(lineIndex);
+                    updateSummary();
+                    lineIndex++;
+                    
+                    $('#itemSelector').val('');
+                }
+            })
+            .fail(function() {
+                alert('Error loading item information');
+            });
+    }
+
+    // Event delegation for dynamic elements
+    $(document).on('click', '.remove-line', function() {
+        $(this).closest('tr').remove();
+        updateSummary();
+    });
+
+    $(document).on('input change', '.quantity-input, .cost-input', function() {
+        const index = $(this).closest('tr').data('index');
+        updateLineTotal(index);
+        updateSummary();
+    });
+
+    $(document).on('change', '.line-checkbox', function() {
+        updateSummary();
+    });
+
+    // Quick action buttons
+    $('#selectAllBtn').click(function() {
+        $('.line-checkbox').prop('checked', true);
+        updateSummary();
+    });
+
+    $('#deselectAllBtn').click(function() {
+        $('.line-checkbox').prop('checked', false);
+        updateSummary();
+    });
+
+    $('#removeUnselectedBtn').click(function() {
+        $('.line-checkbox:not(:checked)').closest('tr').remove();
+        updateSummary();
+    });
+
+    function updateLineTotal(index) {
+        const row = $(`tr[data-index="${index}"]`);
+        const quantity = parseFloat(row.find('.quantity-input').val()) || 0;
+        const cost = parseFloat(row.find('.cost-input').val()) || 0;
+        const total = quantity * cost;
+        row.find('.line-total').text('$' + total.toFixed(2));
+    }
+
+    function updateSummary() {
+        let totalLines = $('#lineItemsBody tr').length;
+        let selectedLines = 0;
+        let totalQuantity = 0;
+        let totalAmount = 0;
+
+        $('.line-checkbox:checked').each(function() {
+            selectedLines++;
+            const row = $(this).closest('tr');
+            const quantity = parseFloat(row.find('.quantity-input').val()) || 0;
+            const cost = parseFloat(row.find('.cost-input').val()) || 0;
+            totalQuantity += quantity;
+            totalAmount += quantity * cost;
+        });
+
+        $('#totalLines').text(totalLines);
+        $('#selectedLines').text(selectedLines);
+        $('#totalQuantity').text(totalQuantity);
+        $('#totalAmount').text('$' + totalAmount.toFixed(2));
+
+        // Enable/disable submit button
+        $('#submitBtn').prop('disabled', selectedLines === 0);
+    }
+
+    // Initialize
+    updateSummary();
+});
+</script>
+}

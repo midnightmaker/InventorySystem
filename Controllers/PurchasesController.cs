@@ -1,4 +1,4 @@
-// Controllers/PurchasesController.cs - Enhanced with pagination and performance optimizations
+// Controllers/PurchasesController.cs - Enhanced with pagination, performance optimizations, and multi-line purchase support
 using InventorySystem.Data;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
@@ -649,6 +649,7 @@ namespace InventorySystem.Controllers
       ViewBag.ItemId = new SelectList(formattedItems, "Value", "Text", selectedItemId);
       ViewBag.VendorId = new SelectList(vendors, "Id", "CompanyName", selectedVendorId);
     }
+
     // Add this action method to PurchasesController
     public async Task<IActionResult> Vendors()
     {
@@ -825,6 +826,172 @@ namespace InventorySystem.Controllers
 
       // Anchor the pattern to match the entire string
       return $"^{escaped}$";
+    }
+
+    // Action methods for multi-line purchase creation
+
+    [HttpGet]
+    public async Task<IActionResult> CreateMultiLine()
+    {
+        try
+        {
+            var vendors = await _vendorService.GetActiveVendorsAsync();
+            var items = await _inventoryService.GetAllItemsAsync();
+
+            var viewModel = new MultiLinePurchaseViewModel
+            {
+                PurchaseDate = DateTime.Today,
+                ExpectedDeliveryDate = DateTime.Today.AddDays(7),
+                Status = PurchaseStatus.Pending,
+                LineItems = new List<PurchaseLineItemViewModel>()
+            };
+
+            ViewBag.AllVendors = new SelectList(vendors, "Id", "CompanyName");
+            ViewBag.AllItems = items.Select(i => new { 
+                Value = i.Id, 
+                Text = $"{i.PartNumber} - {i.Description}",
+                CurrentStock = i.CurrentStock,
+                MinStock = i.MinimumStock
+            }).ToList();
+
+            return View(viewModel);
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"Error loading multi-line purchase form: {ex.Message}";
+            return RedirectToAction("Index");
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateMultiLine(MultiLinePurchaseViewModel viewModel)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                await ReloadMultiLineViewData(viewModel);
+                return View(viewModel);
+            }
+
+            var selectedItems = viewModel.LineItems.Where(l => l.Selected && l.Quantity > 0).ToList();
+            
+            if (!selectedItems.Any())
+            {
+                TempData["ErrorMessage"] = "Please add at least one line item.";
+                await ReloadMultiLineViewData(viewModel);
+                return View(viewModel);
+            }
+
+            // Group by vendor for consolidated purchase orders
+            var vendorGroups = selectedItems.GroupBy(l => l.VendorId).ToList();
+            var createdPurchases = new List<string>();
+
+            foreach (var vendorGroup in vendorGroups)
+            {
+                var vendorId = vendorGroup.Key;
+                var vendor = await _vendorService.GetVendorByIdAsync(vendorId);
+                
+                if (vendor == null) continue;
+
+                // Generate PO number for this vendor group
+                var poNumber = !string.IsNullOrEmpty(viewModel.PurchaseOrderNumber) 
+                    ? $"{viewModel.PurchaseOrderNumber}-{vendor.CompanyName.Substring(0, Math.Min(3, vendor.CompanyName.Length)).ToUpper()}"
+                    : await _purchaseService.GeneratePurchaseOrderNumberAsync();
+
+                var vendorItems = vendorGroup.ToList();
+
+                // Create individual purchases for each line item
+                foreach (var lineItem in vendorItems)
+                {
+                    var purchase = new Purchase
+                    {
+                        ItemId = lineItem.ItemId,
+                        VendorId = vendorId,
+                        PurchaseDate = viewModel.PurchaseDate,
+                        QuantityPurchased = lineItem.Quantity,
+                        CostPerUnit = lineItem.UnitCost,
+                        PurchaseOrderNumber = poNumber,
+                        Notes = $"Multi-line Purchase | {viewModel.Notes} | {lineItem.Notes}".Trim(' ', '|'),
+                        Status = viewModel.Status,
+                        ExpectedDeliveryDate = viewModel.ExpectedDeliveryDate,
+                        RemainingQuantity = lineItem.Quantity,
+                        CreatedDate = DateTime.Now
+                    };
+
+                    await _purchaseService.CreatePurchaseAsync(purchase);
+                }
+
+                createdPurchases.Add($"{vendor.CompanyName}: {poNumber} ({vendorItems.Count} items)");
+            }
+
+            TempData["SuccessMessage"] = $"Successfully created multi-line purchase orders: {string.Join(", ", createdPurchases)}";
+            return RedirectToAction("Index");
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"Error creating multi-line purchase: {ex.Message}";
+            await ReloadMultiLineViewData(viewModel);
+            return View(viewModel);
+        }
+    }
+
+    // AJAX endpoint to add item to multi-line purchase
+    [HttpGet]
+    public async Task<IActionResult> GetItemForMultiLine(int itemId)
+    {
+        try
+        {
+            var item = await _inventoryService.GetItemByIdAsync(itemId);
+            if (item == null)
+                return Json(new { success = false, error = "Item not found" });
+
+            var vendorInfo = await _vendorService.GetVendorSelectionInfoForItemAsync(itemId);
+            var averageCost = await _inventoryService.GetAverageCostAsync(itemId);
+
+            return Json(new
+            {
+                success = true,
+                itemId = item.Id,
+                partNumber = item.PartNumber,
+                description = item.Description,
+                currentStock = item.CurrentStock,
+                minimumStock = item.MinimumStock,
+                recommendedVendorId = vendorInfo.RecommendedVendor?.Id,
+                recommendedVendorName = vendorInfo.RecommendedVendor?.CompanyName,
+                recommendedCost = vendorInfo.RecommendedCost ?? averageCost,
+                selectionReason = vendorInfo.SelectionReason,
+                isLowStock = item.CurrentStock <= item.MinimumStock
+            });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    private async Task ReloadMultiLineViewData(MultiLinePurchaseViewModel viewModel)
+    {
+        try
+        {
+            var vendors = await _vendorService.GetActiveVendorsAsync();
+            var items = await _inventoryService.GetAllItemsAsync();
+
+            ViewBag.AllVendors = new SelectList(vendors, "Id", "CompanyName");
+            ViewBag.AllItems = items.Select(i => new { 
+                Value = i.Id, 
+                Text = $"{i.PartNumber} - {i.Description}",
+                CurrentStock = i.CurrentStock,
+                MinStock = i.MinimumStock
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reloading multi-line view data: {ex.Message}");
+            ViewBag.AllVendors = new SelectList(new List<object>(), "Id", "CompanyName");
+            ViewBag.AllItems = new List<object>();
+        }
     }
   }
 }
