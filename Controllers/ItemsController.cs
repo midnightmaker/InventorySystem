@@ -823,8 +823,18 @@ namespace InventorySystem.Controllers
       ModelState.Remove("UnitOfMeasureDisplayName");
       ModelState.Remove("TotalValue");
       ModelState.Remove("IsLowStock");
+			
+			// Optional fields - remove validation if empty but keep length validation if populated
+			if (string.IsNullOrWhiteSpace(item.Description))
+				ModelState.Remove("Description");
 
-      if (ModelState.IsValid)
+			if (string.IsNullOrWhiteSpace(item.Comments))
+      {
+				item.Comments = string.Empty;
+				ModelState.Remove("Comments");
+			}
+
+			if (ModelState.IsValid)
       {
         try
         {
@@ -873,8 +883,14 @@ namespace InventorySystem.Controllers
         {
           Console.WriteLine($"Error updating item: {ex.Message}");
           Console.WriteLine($"Stack trace: {ex.StackTrace}");
-          ModelState.AddModelError("", $"Error updating item: {ex.Message}");
-        }
+					string userFriendlyError = ExtractUserFriendlyErrorMessage(ex);
+
+					// Add the error to ModelState so it displays on the form
+					ModelState.AddModelError("", userFriendlyError);
+
+					// Log the full exception for debugging
+					_logger.LogError(ex, "Error updating item {PartNumber}: {ErrorMessage}", item.PartNumber, ex.Message);
+				}
       }
 
       // Log validation errors
@@ -894,9 +910,70 @@ namespace InventorySystem.Controllers
       await ReloadEditViewData(preferredVendorId, item.UnitOfMeasure);
       return View(item);
     }
+		private string ExtractUserFriendlyErrorMessage(Exception exception)
+		{
+			// Handle different types of exceptions and extract meaningful messages
+			return exception switch
+			{
+				Microsoft.Data.Sqlite.SqliteException sqliteEx => sqliteEx.SqliteErrorCode switch
+				{
+					19 => ExtractSqliteConstraintError(sqliteEx.Message),
+					_ => $"Database error: {sqliteEx.Message}"
+				},
 
-    // Helper method to reload view data
-    private async Task ReloadEditViewData(int? preferredVendorId, UnitOfMeasure unitOfMeasure)
+				Microsoft.EntityFrameworkCore.DbUpdateException dbEx when dbEx.InnerException != null =>
+						ExtractUserFriendlyErrorMessage(dbEx.InnerException),
+
+				System.InvalidOperationException invalidOpEx when invalidOpEx.Message.Contains("entity changes") =>
+						"Unable to save changes. Please check your data and try again.",
+
+				_ => $"An error occurred while updating the item: {exception.Message}"
+			};
+		}
+
+		// ADD THIS HELPER METHOD to parse SQLite constraint errors
+		private string ExtractSqliteConstraintError(string sqliteErrorMessage)
+		{
+			if (sqliteErrorMessage.Contains("NOT NULL constraint failed"))
+			{
+				if (sqliteErrorMessage.Contains("Items.Comments"))
+					return "The Comments field cannot be empty due to database constraints. Please enter a value or contact support.";
+
+				if (sqliteErrorMessage.Contains("Items.Description"))
+					return "The Description field cannot be empty due to database constraints. Please enter a value.";
+
+				if (sqliteErrorMessage.Contains("Items.PartNumber"))
+					return "The Part Number field is required and cannot be empty.";
+
+				// Extract the column name from the error
+				var match = System.Text.RegularExpressions.Regex.Match(
+						sqliteErrorMessage,
+						@"NOT NULL constraint failed: (\w+)\.(\w+)"
+				);
+
+				if (match.Success)
+				{
+					string tableName = match.Groups[1].Value;
+					string columnName = match.Groups[2].Value;
+					return $"The {columnName} field is required and cannot be empty.";
+				}
+			}
+
+			if (sqliteErrorMessage.Contains("UNIQUE constraint failed"))
+			{
+				return "This item conflicts with an existing record. Please check for duplicate values.";
+			}
+
+			if (sqliteErrorMessage.Contains("FOREIGN KEY constraint failed"))
+			{
+				return "There is a reference conflict with related data. Please verify your selections.";
+			}
+
+			// Default fallback
+			return $"Database constraint error: {sqliteErrorMessage}";
+		}
+		// Helper method to reload view data
+		private async Task ReloadEditViewData(int? preferredVendorId, UnitOfMeasure unitOfMeasure)
     {
       try
       {
