@@ -23,10 +23,17 @@
         }
         
         .print-header {
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             border-bottom: 3px solid #333;
             padding-bottom: 15px;
             margin-bottom: 20px;
+        }
+        
+        .print-header .header-text {
+            text-align: center;
+            flex-grow: 1;
         }
         
         .print-header h1 {
@@ -39,6 +46,17 @@
             font-size: 20px;
             margin: 0;
             color: #0066cc;
+        }
+        
+        .company-logo {
+            max-width: 150px;
+            text-align: right;
+        }
+        
+        .company-logo img {
+            max-width: 100%;
+            max-height: 80px;
+            object-fit: contain;
         }
         
         .company-vendor-section {
@@ -57,6 +75,26 @@
         
         .company-info {
             margin-right: 4%;
+        }
+        
+        .company-info-content {
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .company-info-text {
+            flex-grow: 1;
+        }
+        
+        .company-info-logo {
+            margin-right: 10px;
+            min-width: 60px;
+        }
+        
+        .company-info-logo img {
+            max-width: 60px;
+            max-height: 45px;
+            object-fit: contain;
         }
         
         .section-header {
@@ -183,24 +221,44 @@
     </style>
 </head>
 <body>
-    <!-- Print Header -->
+    <!-- Print Header with Logo -->
     <div class="print-header">
-        <h1>PURCHASE ORDER</h1>
-        <h2>PO# @Model.PurchaseOrderNumber</h2>
+        <div class="header-text">
+            <h1>PURCHASE ORDER</h1>
+            <h2>PO# @Model.PurchaseOrderNumber</h2>
+        </div>
+        @if (Model.CompanyInfo.HasLogo)
+        {
+            <div class="company-logo">
+                <img src="@Url.Action("CompanyLogo")" 
+                     alt="@Model.CompanyInfo.CompanyName Logo" />
+            </div>
+        }
     </div>
 
     <!-- Company and Vendor Information -->
     <div class="company-vendor-section">
         <div class="company-info">
             <div class="section-header">FROM:</div>
-            <address>
-                <strong>@Model.CompanyInfo.CompanyName</strong><br>
-                @Model.CompanyInfo.Address<br>
-                @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
-                Phone: @Model.CompanyInfo.Phone<br>
-                Email: @Model.CompanyInfo.Email<br>
-                Web: @Model.CompanyInfo.Website
-            </address>
+            <div class="company-info-content">
+                @if (Model.CompanyInfo.HasLogo)
+                {
+                    <div class="company-info-logo">
+                        <img src="@Url.Action("CompanyLogo")" 
+                             alt="@Model.CompanyInfo.CompanyName Logo" />
+                    </div>
+                }
+                <div class="company-info-text">
+                    <address>
+                        <strong>@Model.CompanyInfo.CompanyName</strong><br>
+                        @Model.CompanyInfo.Address<br>
+                        @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
+                        Phone: @Model.CompanyInfo.Phone<br>
+                        Email: @Model.CompanyInfo.Email<br>
+                        Web: @Model.CompanyInfo.Website
+                    </address>
+                </div>
+            </div>
         </div>
         
         <div class="vendor-info">
@@ -374,7 +432,7 @@
 
     <!-- Print Footer -->
     <div class="print-footer">
-        <p><strong>Thank you for your business!</strong></p>
+    <p><strong>Please include the purchase order number with all shipments!</strong></p>
         <p>Generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</p>
         
         <!-- Terms and Conditions (optional) -->

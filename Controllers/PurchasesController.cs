@@ -1174,7 +1174,7 @@ namespace InventorySystem.Controllers
         var companyInfoService = HttpContext.RequestServices.GetRequiredService<ICompanyInfoService>();
         var dbCompanyInfo = await companyInfoService.GetCompanyInfoAsync();
 
-        // Convert to the ViewModel CompanyInfo
+        // Convert to the ViewModel CompanyInfo with logo support
         return new Models.CompanyInfo
         {
             CompanyName = dbCompanyInfo.CompanyName,
@@ -1184,7 +1184,11 @@ namespace InventorySystem.Controllers
             ZipCode = dbCompanyInfo.ZipCode,
             Phone = dbCompanyInfo.Phone,
             Email = dbCompanyInfo.Email,
-            Website = dbCompanyInfo.Website
+            Website = dbCompanyInfo.Website,
+            // Add logo properties
+            LogoData = dbCompanyInfo.LogoData,
+            LogoContentType = dbCompanyInfo.LogoContentType,
+            LogoFileName = dbCompanyInfo.LogoFileName
         };
       }
       catch
@@ -1199,8 +1203,32 @@ namespace InventorySystem.Controllers
             ZipCode = "27101",
             Phone = "(336) 555-0123",
             Email = "purchasing@yourcompany.com",
-            Website = "www.yourcompany.com"
+            Website = "www.yourcompany.com",
         };
+      }
+    }
+
+    // Add a new action to serve the company logo for PO reports
+    [HttpGet]
+    public async Task<IActionResult> CompanyLogo()
+    {
+      try
+      {
+        var companyInfoService = HttpContext.RequestServices.GetRequiredService<ICompanyInfoService>();
+        var companyInfo = await companyInfoService.GetCompanyInfoAsync();
+        
+        if (companyInfo?.LogoData != null && companyInfo.LogoData.Length > 0)
+        {
+            return File(companyInfo.LogoData, companyInfo.LogoContentType ?? "image/png", companyInfo.LogoFileName);
+        }
+        
+        // Return a default placeholder or 404
+        return NotFound();
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error retrieving company logo: {ex.Message}");
+        return NotFound();
       }
     }
 
@@ -1287,7 +1315,7 @@ namespace InventorySystem.Controllers
             
             {(string.IsNullOrEmpty(viewModel.Notes) ? "" : $"<p><strong>Notes:</strong> {viewModel.Notes}</p>")}
             
-            <p><em>Thank you for your business!</em></p>
+            <p><em>Please include the purchase order number with all shipments</em></p>
         </body>
         </html>";
 

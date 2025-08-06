@@ -14,18 +14,18 @@ namespace InventorySystem.ViewModels
     public bool SkipHeaderRow { get; set; } = true;
 
     [Display(Name = "Validation Results")]
-    public List<ItemValidationResult>? ValidationResults { get; set; }
+    public List<ItemValidationResult> ValidationResults { get; set; } = new List<ItemValidationResult>();
 
-    [Display(Name = "Preview Items")]
-    public List<BulkItemPreview>? PreviewItems { get; set; }
+    [Display(Name = "Preview Items")]  
+    public List<BulkItemPreview> PreviewItems { get; set; } = new List<BulkItemPreview>();
 
     public string? ErrorMessage { get; set; }
     public string? SuccessMessage { get; set; }
 
     // Helper properties
-    public int ValidItemsCount => ValidationResults?.Count(vr => vr.IsValid) ?? 0;
-    public int InvalidItemsCount => ValidationResults?.Count(vr => !vr.IsValid) ?? 0;
-    public bool HasValidationResults => ValidationResults?.Any() == true;
+    public int ValidItemsCount => ValidationResults.Count(vr => vr.IsValid);
+    public int InvalidItemsCount => ValidationResults.Count(vr => !vr.IsValid);
+    public bool HasValidationResults => ValidationResults.Any();
     public bool CanProceedWithImport => ValidItemsCount > 0;
   }
 

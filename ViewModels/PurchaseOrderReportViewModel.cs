@@ -51,4 +51,5 @@ namespace InventorySystem.ViewModels
         public PurchaseStatus Status { get; set; }
     }
 
+   
 }

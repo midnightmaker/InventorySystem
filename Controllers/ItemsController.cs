@@ -1046,7 +1046,7 @@ namespace InventorySystem.Controllers
     // Add these new action methods to ItemsController
 
     [HttpGet]
-    public async Task<IActionResult> ImportVendorAssignments(string? importId)
+    public IActionResult ImportVendorAssignments(string? importId)
     {
         // In a real implementation, you might store the ImportVendorAssignmentViewModel
         // in TempData, Session, or database temporarily
@@ -1128,8 +1128,12 @@ namespace InventorySystem.Controllers
                 return View("CreateBulkPurchaseRequest", model);
             }
 
-            // NEW: Group items by vendor for consolidated purchase orders
-            var vendorGroups = selectedItems.GroupBy(i => i.VendorId.Value).ToList();
+            // FIX: Add null check before accessing .Value to prevent CS8629
+            var vendorGroups = selectedItems
+                .Where(i => i.VendorId.HasValue) // Additional safety check
+                .GroupBy(i => i.VendorId!.Value) // Use null-forgiving operator since we've verified HasValue
+                .ToList();
+            
             var createdPurchaseOrders = new List<string>();
 
             foreach (var vendorGroup in vendorGroups)
