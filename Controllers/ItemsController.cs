@@ -21,6 +21,11 @@ namespace InventorySystem.Controllers
     private readonly ILogger<ItemsController> _logger;
     private readonly IProductionService _productionService;
 
+    // Pagination constants
+    private const int DefaultPageSize = 25;
+    private const int MaxPageSize = 100;
+    private readonly int[] AllowedPageSizes = { 10, 25, 50, 100 };
+
     public ItemsController(
       IInventoryService inventoryService, 
       IPurchaseService purchaseService, 
@@ -41,11 +46,280 @@ namespace InventorySystem.Controllers
       _productionService = productionService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(
+        string search,
+        string itemTypeFilter,
+        string stockLevelFilter,
+        string vendorFilter,
+        bool? isSellable,
+        string sortOrder = "partNumber_asc",
+        int page = 1,
+        int pageSize = DefaultPageSize)
     {
-      // Use the new method to get items with vendor data included
-      var items = await _inventoryService.GetItemsForIndexAsync();
-      return View(items);
+      try
+      {
+        // Validate and constrain pagination parameters
+        page = Math.Max(1, page);
+        pageSize = AllowedPageSizes.Contains(pageSize) ? pageSize : DefaultPageSize;
+
+        _logger.LogInformation("=== ITEMS INDEX DEBUG ===");
+        _logger.LogInformation("Search: {Search}", search);
+        _logger.LogInformation("ItemType Filter: {ItemTypeFilter}", itemTypeFilter);
+        _logger.LogInformation("Stock Level Filter: {StockLevelFilter}", stockLevelFilter);
+        _logger.LogInformation("Vendor Filter: {VendorFilter}", vendorFilter);
+        _logger.LogInformation("Is Sellable: {IsSellable}", isSellable);
+        _logger.LogInformation("Sort Order: {SortOrder}", sortOrder);
+        _logger.LogInformation("Page: {Page}, PageSize: {PageSize}", page, pageSize);
+
+        // Start with base query including necessary navigation properties
+        var query = _context.Items
+            .Include(i => i.PreferredVendorItem)
+                .ThenInclude(vi => vi.Vendor)
+            .AsQueryable();
+
+        // Apply search filter with wildcard support
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+          var searchTerm = search.Trim();
+          _logger.LogInformation("Applying search filter: {SearchTerm}", searchTerm);
+
+          if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+          {
+            var likePattern = ConvertWildcardToLike(searchTerm);
+            _logger.LogInformation("Using LIKE pattern: {LikePattern}", likePattern);
+
+            query = query.Where(i =>
+              EF.Functions.Like(i.PartNumber, likePattern) ||
+              EF.Functions.Like(i.Description, likePattern) ||
+              (i.Comments != null && EF.Functions.Like(i.Comments, likePattern)) ||
+              (i.VendorPartNumber != null && EF.Functions.Like(i.VendorPartNumber, likePattern)) ||
+              EF.Functions.Like(i.Id.ToString(), likePattern)
+            );
+          }
+          else
+          {
+            query = query.Where(i =>
+              i.PartNumber.Contains(searchTerm) ||
+              i.Description.Contains(searchTerm) ||
+              (i.Comments != null && i.Comments.Contains(searchTerm)) ||
+              (i.VendorPartNumber != null && i.VendorPartNumber.Contains(searchTerm)) ||
+              i.Id.ToString().Contains(searchTerm)
+            );
+          }
+        }
+
+        // Apply item type filter
+        if (!string.IsNullOrWhiteSpace(itemTypeFilter) && Enum.TryParse<ItemType>(itemTypeFilter, out var itemType))
+        {
+          _logger.LogInformation("Applying item type filter: {ItemType}", itemType);
+          query = query.Where(i => i.ItemType == itemType);
+        }
+
+        // Apply stock level filter
+        if (!string.IsNullOrWhiteSpace(stockLevelFilter))
+        {
+          _logger.LogInformation("Applying stock level filter: {StockLevelFilter}", stockLevelFilter);
+          query = stockLevelFilter switch
+          {
+            "low" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock <= i.MinimumStock),
+            "out" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock == 0),
+            "overstock" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock > (i.MinimumStock * 2)),
+            "instock" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock > 0),
+            "tracked" => query.Where(i => i.ItemType == ItemType.Inventoried),
+            "nontracked" => query.Where(i => i.ItemType != ItemType.Inventoried),
+            _ => query
+          };
+        }
+
+        // Apply vendor filter
+        if (!string.IsNullOrWhiteSpace(vendorFilter))
+        {
+          _logger.LogInformation("Applying vendor filter: {VendorFilter}", vendorFilter);
+          if (vendorFilter.Contains('*') || vendorFilter.Contains('?'))
+          {
+            var likePattern = ConvertWildcardToLike(vendorFilter);
+            query = query.Where(i => i.PreferredVendorItem != null && 
+                                   i.PreferredVendorItem.Vendor != null && 
+                                   EF.Functions.Like(i.PreferredVendorItem.Vendor.CompanyName, likePattern));
+          }
+          else
+          {
+            query = query.Where(i => i.PreferredVendorItem != null && 
+                                   i.PreferredVendorItem.Vendor != null && 
+                                   i.PreferredVendorItem.Vendor.CompanyName.Contains(vendorFilter));
+          }
+        }
+
+        // Apply sellable filter
+        if (isSellable.HasValue)
+        {
+          _logger.LogInformation("Applying sellable filter: {IsSellable}", isSellable.Value);
+          query = query.Where(i => i.IsSellable == isSellable.Value);
+        }
+
+        // Apply sorting
+        query = sortOrder switch
+        {
+          "partNumber_asc" => query.OrderBy(i => i.PartNumber),
+          "partNumber_desc" => query.OrderByDescending(i => i.PartNumber),
+          "description_asc" => query.OrderBy(i => i.Description),
+          "description_desc" => query.OrderByDescending(i => i.Description),
+          "itemType_asc" => query.OrderBy(i => i.ItemType),
+          "itemType_desc" => query.OrderByDescending(i => i.ItemType),
+          "stock_asc" => query.OrderBy(i => i.CurrentStock),
+          "stock_desc" => query.OrderByDescending(i => i.CurrentStock),
+          "vendor_asc" => query.OrderBy(i => i.PreferredVendorItem != null ? i.PreferredVendorItem.Vendor.CompanyName : ""),
+          "vendor_desc" => query.OrderByDescending(i => i.PreferredVendorItem != null ? i.PreferredVendorItem.Vendor.CompanyName : ""),
+          "created_asc" => query.OrderBy(i => i.CreatedDate),
+          "created_desc" => query.OrderByDescending(i => i.CreatedDate),
+          _ => query.OrderBy(i => i.PartNumber)
+        };
+
+        // Get total count for pagination (before Skip/Take)
+        var totalCount = await query.CountAsync();
+        _logger.LogInformation("Total filtered records: {TotalCount}", totalCount);
+
+        // Calculate pagination values
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+        var skip = (page - 1) * pageSize;
+
+        // Get paginated results
+        var items = await query
+            .Skip(skip)
+            .Take(pageSize)
+            .ToListAsync();
+
+        _logger.LogInformation("Retrieved {ItemCount} items for page {Page}", items.Count, page);
+
+        // Get filter options for dropdowns
+        var itemTypes = Enum.GetValues<ItemType>().ToList();
+        
+        // Fix the vendor query to use the correct navigation property
+        var allVendors = await _context.Items
+            .Include(i => i.PreferredVendorItem)
+                .ThenInclude(vi => vi.Vendor)
+            .Where(i => i.PreferredVendorItem != null && i.PreferredVendorItem.Vendor != null)
+            .Select(i => i.PreferredVendorItem.Vendor.CompanyName)
+            .Distinct()
+            .OrderBy(v => v)
+            .ToListAsync();
+
+        // Prepare ViewBag data
+        ViewBag.SearchTerm = search;
+        ViewBag.ItemTypeFilter = itemTypeFilter;
+        ViewBag.StockLevelFilter = stockLevelFilter;
+        ViewBag.VendorFilter = vendorFilter;
+        ViewBag.IsSellable = isSellable;
+        ViewBag.SortOrder = sortOrder;
+
+        // Pagination data
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.HasPreviousPage = page > 1;
+        ViewBag.HasNextPage = page < totalPages;
+        ViewBag.ShowingFrom = totalCount > 0 ? skip + 1 : 0;
+        ViewBag.ShowingTo = Math.Min(skip + pageSize, totalCount);
+        ViewBag.AllowedPageSizes = AllowedPageSizes;
+
+        // Dropdown data
+        ViewBag.ItemTypeOptions = new SelectList(itemTypes.Select(t => new
+        {
+          Value = t.ToString(),
+          Text = t.ToString().Replace("_", " ")
+        }), "Value", "Text", itemTypeFilter);
+
+        ViewBag.StockLevelOptions = new SelectList(new[]
+        {
+          new { Value = "", Text = "All Stock Levels" },
+          new { Value = "low", Text = "Low Stock" },
+          new { Value = "out", Text = "Out of Stock" },
+          new { Value = "overstock", Text = "Overstocked" },
+          new { Value = "instock", Text = "In Stock" },
+          new { Value = "tracked", Text = "Tracked Items" },
+          new { Value = "nontracked", Text = "Non-Tracked Items" }
+        }, "Value", "Text", stockLevelFilter);
+
+        ViewBag.VendorOptions = new SelectList(allVendors.Select(v => new
+        {
+          Value = v,
+          Text = v
+        }), "Value", "Text", vendorFilter);
+
+        // Search statistics
+        ViewBag.IsFiltered = !string.IsNullOrWhiteSpace(search) ||
+                           !string.IsNullOrWhiteSpace(itemTypeFilter) ||
+                           !string.IsNullOrWhiteSpace(stockLevelFilter) ||
+                           !string.IsNullOrWhiteSpace(vendorFilter) ||
+                           isSellable.HasValue;
+
+        if (ViewBag.IsFiltered)
+        {
+          var totalItems = await _context.Items.CountAsync();
+          ViewBag.SearchResultsCount = totalCount;
+          ViewBag.TotalItemsCount = totalItems;
+        }
+
+        return View(items);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error in Items Index");
+
+        // Set essential ViewBag properties that the view expects
+        ViewBag.ErrorMessage = $"Error loading items: {ex.Message}";
+        ViewBag.AllowedPageSizes = AllowedPageSizes;
+
+        // Set pagination defaults to prevent null reference exceptions
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = 1;
+        ViewBag.TotalCount = 0;
+        ViewBag.HasPreviousPage = false;
+        ViewBag.HasNextPage = false;
+        ViewBag.ShowingFrom = 0;
+        ViewBag.ShowingTo = 0;
+
+        // Set filter defaults
+        ViewBag.SearchTerm = search;
+        ViewBag.ItemTypeFilter = itemTypeFilter;
+        ViewBag.StockLevelFilter = stockLevelFilter;
+        ViewBag.VendorFilter = vendorFilter;
+        ViewBag.IsSellable = isSellable;
+        ViewBag.SortOrder = sortOrder;
+        ViewBag.IsFiltered = false;
+
+        // Set empty dropdown options
+        ViewBag.ItemTypeOptions = new SelectList(new List<object>(), "Value", "Text");
+        ViewBag.StockLevelOptions = new SelectList(new List<object>(), "Value", "Text");
+        ViewBag.VendorOptions = new SelectList(new List<object>(), "Value", "Text");
+
+        return View(new List<Item>());
+      }
+    }
+
+    /// <summary>
+    /// Converts wildcard patterns (* and ?) to SQL LIKE patterns
+    /// * matches any sequence of characters -> %
+    /// ? matches any single character -> _
+    /// </summary>
+    /// <param name="wildcardPattern">The wildcard pattern to convert</param>
+    /// <returns>A SQL LIKE pattern string</returns>
+    private string ConvertWildcardToLike(string wildcardPattern)
+    {
+      // Escape existing SQL LIKE special characters first
+      var escaped = wildcardPattern
+          .Replace("%", "[%]")    // Escape existing % characters
+          .Replace("_", "[_]")    // Escape existing _ characters
+          .Replace("[", "[[]");   // Escape existing [ characters
+
+      // Convert wildcards to SQL LIKE patterns
+      escaped = escaped
+          .Replace("*", "%")      // * becomes %
+          .Replace("?", "_");     // ? becomes _
+
+      return escaped;
     }
 
     public async Task<IActionResult> Details(int id)
@@ -118,888 +392,77 @@ namespace InventorySystem.Controllers
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> BulkUpload(BulkItemUploadViewModel viewModel)
+    public async Task<IActionResult> Create(Item item)
     {
-      if (viewModel.CsvFile == null)
+      if (item == null)
       {
-        ModelState.AddModelError("CsvFile", "Please select a CSV file to upload.");
-        return View(viewModel);
-      }
-
-      // Validate file type
-      var allowedExtensions = new[] { ".csv" };
-      var fileExtension = Path.GetExtension(viewModel.CsvFile.FileName).ToLower();
-
-      if (!allowedExtensions.Contains(fileExtension))
-      {
-        ModelState.AddModelError("CsvFile", "Please upload a valid CSV file (.csv).");
-        return View(viewModel);
-      }
-
-      // Validate file size (10MB limit)
-      if (viewModel.CsvFile.Length > 10 * 1024 * 1024)
-      {
-        ModelState.AddModelError("CsvFile", "File size must be less than 10MB.");
-        return View(viewModel);
+        ModelState.AddModelError("", "Item data is missing.");
+        return View();
       }
 
       try
       {
-        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
-        viewModel.ValidationResults = await bulkUploadService.ValidateCsvFileAsync(viewModel.CsvFile, viewModel.SkipHeaderRow);
-
-        if (viewModel.ValidationResults.Any())
-        {
-          viewModel.PreviewItems = viewModel.ValidationResults
-              .Where(vr => vr.IsValid)
-              .Select(vr => vr.ItemData!)
-              .ToList();
-        }
-
-        if (viewModel.ValidItemsCount == 0)
-        {
-          viewModel.ErrorMessage = "No valid items found in the CSV file. Please check the format and data.";
-        }
-        else if (viewModel.InvalidItemsCount > 0)
-        {
-          viewModel.ErrorMessage = $"Found {viewModel.InvalidItemsCount} invalid items. Please review and correct the errors.";
-        }
-      }
-      catch (Exception ex)
-      {
-        ModelState.AddModelError("", $"Error processing file: {ex.Message}");
-      }
-
-      return View(viewModel);
-    }
-
-    [HttpPost]
-    //[ValidateAntiForgeryToken]
-    public async Task<IActionResult> ProcessBulkUpload(BulkItemUploadViewModel viewModel)
-    {
-      // Add null check and logging
-      _logger.LogInformation("ProcessBulkUpload called. ViewModel is null: {IsNull}", viewModel == null);
-      
-      if (viewModel == null)
-      {
-          _logger.LogWarning("ProcessBulkUpload received null viewModel");
-          TempData["ErrorMessage"] = "Invalid form data. Please try uploading the file again.";
-          return RedirectToAction("BulkUpload");
-      }
-
-      _logger.LogInformation("ProcessBulkUpload - PreviewItems count: {Count}", 
-          viewModel.PreviewItems?.Count ?? 0);
-
-      if (viewModel.PreviewItems == null || !viewModel.PreviewItems.Any())
-      {
-          _logger.LogWarning("ProcessBulkUpload - No preview items found");
-          TempData["ErrorMessage"] = "No items to import. Please upload and validate a file first.";
-          return RedirectToAction("BulkUpload");
-      }
-
-      try
-      {
-        var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
-        var result = await bulkUploadService.ImportValidItemsAsync(viewModel.PreviewItems);
-
-        if (result.SuccessfulImports > 0)
-        {
-          TempData["SuccessMessage"] = $"Successfully imported {result.SuccessfulImports} items.";
-
-          if (result.FailedImports > 0)
-          {
-            // NEW: Store detailed error information for display
-            if (result.DetailedErrors.Any())
-            {
-              var errorDetails = System.Text.Json.JsonSerializer.Serialize(result.DetailedErrors);
-              TempData["ImportErrors"] = errorDetails;
-            }
-            
-            TempData["WarningMessage"] = $"{result.FailedImports} items failed to import. Click 'View Error Details' to see specific issues.";
-          }
-
-          // Check if there are vendor assignments that need user review
-          if (result is IVendorAssignmentResult vendorAssignmentResult)
-          {
-            if (vendorAssignmentResult.VendorAssignments?.NewVendorRequests?.Any() == true)
-            {
-              var vendorAssignmentsJson = System.Text.Json.JsonSerializer.Serialize(vendorAssignmentResult.VendorAssignments);
-              TempData["VendorAssignments"] = vendorAssignmentsJson;
-
-              TempData["InfoMessage"] = "Items imported successfully. Please review vendor assignments.";
-              return RedirectToAction("ImportVendorAssignments");
-            }
-          }
-        }
-        else
-        {
-          // NEW: Better error handling when no items were imported
-          if (result.DetailedErrors.Any())
-          {
-            var errorDetails = System.Text.Json.JsonSerializer.Serialize(result.DetailedErrors);
-            TempData["ImportErrors"] = errorDetails;
-            TempData["ErrorMessage"] = $"No items were imported. {result.DetailedErrors.Count} items had errors. Click 'View Error Details' below.";
-          }
-          else
-          {
-            TempData["ErrorMessage"] = "No items were imported. " + string.Join("; ", result.Errors);
-          }
-        }
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, "Error during bulk import");
-        TempData["ErrorMessage"] = $"Error during import: {ex.Message}";
-      }
-
-      return RedirectToAction("Index");
-    }
-
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateItemViewModel viewModel)
-    {
-      if (viewModel == null)
-      {
-        ModelState.AddModelError("", "ViewModel is null");
-        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList();
-        await LoadRawMaterialsForView();
-        return View(new CreateItemViewModel());
-      }
-
-      try
-      {
-        // Custom validation for transformed materials
-        await ValidateTransformedMaterialAsync(viewModel);
-
-        // Remove validation for optional fields
-        ModelState.Remove("ImageFile");
-        ModelState.Remove("Manufacturer");
-        ModelState.Remove("ManufacturerPartNumber");
-
-        // Conditional validation based on item type
-        if (viewModel.ItemType != ItemType.Inventoried)
-        {
-          ModelState.Remove("MinimumStock");
-          ModelState.Remove("InitialQuantity");
-          ModelState.Remove("InitialCostPerUnit");
-          ModelState.Remove("InitialVendor");
-          ModelState.Remove("InitialPurchaseDate");
-          ModelState.Remove("InitialPurchaseOrderNumber");
-          viewModel.HasInitialPurchase = false;
-        }
-
-        // Conditional validation for initial purchase
-        if (!viewModel.HasInitialPurchase || viewModel.ItemType != ItemType.Inventoried)
-        {
-          ModelState.Remove("InitialQuantity");
-          ModelState.Remove("InitialCostPerUnit");
-          ModelState.Remove("InitialVendor");
-          ModelState.Remove("InitialPurchaseDate");
-          ModelState.Remove("InitialPurchaseOrderNumber");
-        }
-        else
-        {
-          if (viewModel.InitialQuantity <= 0)
-          {
-            ModelState.AddModelError("InitialQuantity", "Initial quantity must be greater than 0 when adding initial purchase.");
-          }
-
-          if (viewModel.InitialCostPerUnit <= 0)
-          {
-            ModelState.AddModelError("InitialCostPerUnit", "Initial cost per unit must be greater than 0 when adding initial purchase.");
-          }
-
-          if (string.IsNullOrWhiteSpace(viewModel.InitialVendor))
-          {
-            ModelState.AddModelError("InitialVendor", "Initial vendor is required when adding initial purchase.");
-          }
-        }
-
         if (ModelState.IsValid)
         {
-          // Use database transaction to ensure data consistency
-          using var transaction = await _context.Database.BeginTransactionAsync();
-          
-          try
-          {
-            var item = new Item
-            {
-              PartNumber = viewModel.PartNumber,
-              Description = viewModel.Description,
-              Comments = viewModel.Comments ?? string.Empty,
-              MinimumStock = viewModel.ItemType == ItemType.Inventoried ? viewModel.MinimumStock : 0,
-              CurrentStock = 0,
-              UnitOfMeasure = viewModel.UnitOfMeasure,
-              VendorPartNumber = viewModel.VendorPartNumber,
-              IsSellable = viewModel.IsSellable,
-              ItemType = viewModel.ItemType,
-              Version = viewModel.Version,
-              MaterialType = viewModel.MaterialType,
-              ParentRawMaterialId = viewModel.ParentRawMaterialId,
-              YieldFactor = viewModel.YieldFactor,
-              WastePercentage = viewModel.WastePercentage,
-              IsCurrentVersion = true,
-              CreatedDate = DateTime.Now
-            };
-
-            // Handle image upload with validation
-            if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
-            {
-              var imageValidation = await ValidateAndProcessImageAsync(viewModel.ImageFile);
-              if (imageValidation.IsValid)
-              {
-                item.ImageData = imageValidation.ImageData;
-                item.ImageContentType = imageValidation.ContentType;
-                item.ImageFileName = imageValidation.FileName;
-              }
-              else
-              {
-                ModelState.AddModelError("ImageFile", imageValidation.ErrorMessage);
-                ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
-                await LoadRawMaterialsForView();
-                return View(viewModel);
-              }
-            }
-
-            var createdItem = await _inventoryService.CreateItemAsync(item);
-            _logger.LogInformation("Item created successfully: {PartNumber} (ID: {ItemId})", createdItem.PartNumber, createdItem.Id);
-
-            // Create Manufacturing BOM for transformed materials
-            string bomMessage = "";
-            if (viewModel.IsTransformedMaterial && viewModel.ParentRawMaterialId.HasValue)
-            {
-              await CreateManufacturingBomAsync(createdItem, viewModel);
-              var parentName = await GetParentMaterialName(viewModel.ParentRawMaterialId.Value);
-              bomMessage = $" Manufacturing BOM '{createdItem.PartNumber}-MFG' created from {parentName}.";
-              _logger.LogInformation("Manufacturing BOM created for transformed item: {PartNumber}", createdItem.PartNumber);
-            }
-
-            // Handle vendor relationship creation
-            Vendor? vendor = null;
-            if (!string.IsNullOrWhiteSpace(viewModel.PreferredVendor))
-            {
-              vendor = await FindOrCreateVendorAsync(viewModel.PreferredVendor);
-              await CreateVendorItemRelationshipAsync(vendor, createdItem, viewModel);
-              _logger.LogInformation("Vendor relationship created: {VendorName} for item {PartNumber}", vendor.CompanyName, createdItem.PartNumber);
-            }
-
-            // Create initial purchase if specified
-            if (viewModel.HasInitialPurchase &&
-                viewModel.ItemType == ItemType.Inventoried &&
-                viewModel.InitialQuantity > 0 &&
-                viewModel.InitialCostPerUnit > 0 &&
-                !string.IsNullOrWhiteSpace(viewModel.InitialVendor))
-            {
-              if (vendor == null || vendor.CompanyName != viewModel.InitialVendor)
-              {
-                vendor = await FindOrCreateVendorAsync(viewModel.InitialVendor);
-              }
-
-              await CreateInitialPurchaseAsync(createdItem, vendor, viewModel);
-              
-              var manufacturerInfo = !string.IsNullOrWhiteSpace(viewModel.Manufacturer) ? $" (MFG: {viewModel.Manufacturer})" : "";
-              TempData["SuccessMessage"] = $"Item created successfully with initial purchase of {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)} from {vendor.CompanyName}{manufacturerInfo}!{bomMessage}";
-              _logger.LogInformation("Initial purchase created for item: {PartNumber}, Qty: {Quantity}, Vendor: {VendorName}", 
-                createdItem.PartNumber, viewModel.InitialQuantity, vendor.CompanyName);
-            }
-            else
-            {
-              var itemTypeMsg = viewModel.ItemType == ItemType.Inventoried ? "inventoried item" : $"{viewModel.ItemType.ToString().ToLower()} item";
-              var manufacturerInfo = !string.IsNullOrWhiteSpace(viewModel.Manufacturer) ? $" (MFG: {viewModel.Manufacturer})" : "";
-              TempData["SuccessMessage"] = $"New {itemTypeMsg} created successfully! Unit: {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}{manufacturerInfo}{bomMessage}";
-            }
-
-            await transaction.CommitAsync();
-            return RedirectToAction("Details", new { id = createdItem.Id });
-          }
-          catch (Exception ex)
-          {
-            await transaction.RollbackAsync();
-            _logger.LogError(ex, "Error during item creation transaction for part number: {PartNumber}", viewModel.PartNumber);
-            throw;
-          }
+          await _inventoryService.CreateItemAsync(item);
+          TempData["SuccessMessage"] = "Item created successfully!";
+          return RedirectToAction("Index");
         }
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Error creating item: {PartNumber}", viewModel.PartNumber);
+        _logger.LogError(ex, "Error creating item: {PartNumber}", item.PartNumber);
         ModelState.AddModelError("", $"Error creating item: {ex.Message}");
       }
 
-      // Reload form data if validation fails
-      ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(viewModel.UnitOfMeasure);
-      await LoadRawMaterialsForView();
-      return View(viewModel);
+      return View(item);
     }
-
-    #region Validation Methods
-
-    private async Task ValidateTransformedMaterialAsync(CreateItemViewModel viewModel)
-    {
-      if (viewModel.MaterialType == MaterialType.Transformed)
-      {
-        // Validate parent raw material is selected
-        if (!viewModel.ParentRawMaterialId.HasValue)
-        {
-          ModelState.AddModelError("ParentRawMaterialId", "Parent raw material is required for transformed materials.");
-        }
-        else
-        {
-          // Validate parent material exists and is a raw material
-          var parentMaterial = await _context.Items.FindAsync(viewModel.ParentRawMaterialId.Value);
-          if (parentMaterial == null)
-          {
-            ModelState.AddModelError("ParentRawMaterialId", "Selected parent raw material does not exist.");
-          }
-          else if (parentMaterial.MaterialType != MaterialType.RawMaterial)
-          {
-            ModelState.AddModelError("ParentRawMaterialId", "Parent material must be of type 'Raw Material'.");
-          }
-          else if (!parentMaterial.TrackInventory)
-          {
-            ModelState.AddModelError("ParentRawMaterialId", "Parent raw material must be an inventoried item.");
-          }
-        }
-
-        // Validate yield factor
-        if (!viewModel.YieldFactor.HasValue)
-        {
-          ModelState.AddModelError("YieldFactor", "Yield factor is required for transformed materials.");
-        }
-        else if (viewModel.YieldFactor <= 0 || viewModel.YieldFactor > 1)
-        {
-          ModelState.AddModelError("YieldFactor", "Yield factor must be between 0.01 and 1.0 (1% to 100%).");
-        }
-
-        // Validate waste percentage
-        if (viewModel.WastePercentage.HasValue && (viewModel.WastePercentage < 0 || viewModel.WastePercentage > 50))
-        {
-          ModelState.AddModelError("WastePercentage", "Waste percentage must be between 0 and 50%.");
-        }
-
-        // Check for circular references
-        if (viewModel.ParentRawMaterialId.HasValue)
-        {
-          var hasCircularReference = await CheckForCircularReferenceAsync(null, viewModel.ParentRawMaterialId.Value);
-          if (hasCircularReference)
-          {
-            ModelState.AddModelError("ParentRawMaterialId", "Circular reference detected. This would create an infinite loop in the material hierarchy.");
-          }
-        }
-
-        // Check for duplicate part numbers with same yield factor
-        var existingTransformedItem = await _context.Items
-          .FirstOrDefaultAsync(i => 
-            i.PartNumber != viewModel.PartNumber &&
-            i.ParentRawMaterialId == viewModel.ParentRawMaterialId &&
-            i.YieldFactor == viewModel.YieldFactor);
-        
-        if (existingTransformedItem != null)
-        {
-          ModelState.AddModelError("YieldFactor", $"A transformed material with the same parent and yield factor already exists: {existingTransformedItem.PartNumber}");
-        }
-      }
-    }
-
-    private async Task<bool> CheckForCircularReferenceAsync(int? itemId, int parentId)
-    {
-      // If we're checking the same item, we have a circular reference
-      if (itemId.HasValue && itemId.Value == parentId)
-        return true;
-
-      // Get the parent item and check its parent recursively
-      var parentItem = await _context.Items.FindAsync(parentId);
-      if (parentItem?.ParentRawMaterialId.HasValue == true)
-      {
-        return await CheckForCircularReferenceAsync(itemId, parentItem.ParentRawMaterialId.Value);
-      }
-
-      return false;
-    }
-
-    private async Task<(bool IsValid, byte[]? ImageData, string? ContentType, string? FileName, string ErrorMessage)> ValidateAndProcessImageAsync(IFormFile imageFile)
-    {
-      try
-      {
-        var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp", "image/webp" };
-        if (!allowedTypes.Contains(imageFile.ContentType.ToLower()))
-        {
-          return (false, null, null, null, "Please upload a valid image file (JPEG, PNG, GIF, BMP, WebP).");
-        }
-
-        if (imageFile.Length > 5 * 1024 * 1024) // 5MB limit
-        {
-          return (false, null, null, null, "Image file size must be less than 5MB.");
-        }
-
-        using var memoryStream = new MemoryStream();
-        await imageFile.CopyToAsync(memoryStream);
-        return (true, memoryStream.ToArray(), imageFile.ContentType, imageFile.FileName, "");
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, "Error processing image file: {FileName}", imageFile.FileName);
-        return (false, null, null, null, "Error processing image file.");
-      }
-    }
-
-    #endregion
-
-    #region Helper Methods
-
-    private async Task LoadRawMaterialsForView()
-    {
-      try
-      {
-        var rawMaterials = await _context.Items
-          .Where(i => i.MaterialType == MaterialType.RawMaterial && 
-                     i.ItemType == ItemType.Inventoried &&
-                     i.IsCurrentVersion)
-          .OrderBy(i => i.PartNumber)
-          .Select(i => new { i.Id, DisplayText = $"{i.PartNumber} - {i.Description}" })
-          .ToListAsync();
-
-        ViewBag.ParentRawMaterials = new SelectList(rawMaterials, "Id", "DisplayText");
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, "Error loading raw materials for view");
-        ViewBag.ParentRawMaterials = new SelectList(new List<object>(), "Id", "DisplayText");
-      }
-    }
-
-    private async Task<string> GetParentMaterialName(int parentRawMaterialId)
-    {
-      try
-      {
-        var parent = await _context.Items.FindAsync(parentRawMaterialId);
-        return parent?.PartNumber ?? "unknown material";
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, "Error getting parent material name for ID: {ParentId}", parentRawMaterialId);
-        return "unknown material";
-      }
-    }
-
-    private async Task<Vendor> FindOrCreateVendorAsync(string vendorName)
-    {
-      var vendor = await _context.Vendors
-        .FirstOrDefaultAsync(v => v.CompanyName.ToLower() == vendorName.ToLower());
-
-      if (vendor == null)
-      {
-        vendor = new Vendor
-        {
-          CompanyName = vendorName,
-          IsActive = true,
-          CreatedDate = DateTime.Now,
-          LastUpdated = DateTime.Now,
-          QualityRating = 3,
-          DeliveryRating = 3,
-          ServiceRating = 3
-        };
-        _context.Vendors.Add(vendor);
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("New vendor created: {VendorName}", vendorName);
-      }
-
-      return vendor;
-    }
-
-    private async Task CreateVendorItemRelationshipAsync(Vendor vendor, Item item, CreateItemViewModel viewModel)
-    {
-      var vendorItem = new VendorItem
-      {
-        VendorId = vendor.Id,
-        ItemId = item.Id,
-        VendorPartNumber = viewModel.VendorPartNumber,
-        Manufacturer = viewModel.Manufacturer,
-        ManufacturerPartNumber = viewModel.ManufacturerPartNumber,
-        IsPrimary = true,
-        IsActive = true,
-        LastUpdated = DateTime.Now
-      };
-
-      _context.VendorItems.Add(vendorItem);
-      await _context.SaveChangesAsync();
-
-      // Set as preferred vendor
-      item.PreferredVendorItemId = vendorItem.Id;
-      await _inventoryService.UpdateItemAsync(item);
-    }
-
-    private async Task CreateInitialPurchaseAsync(Item item, Vendor vendor, CreateItemViewModel viewModel)
-    {
-      var initialPurchase = new Purchase
-      {
-        ItemId = item.Id,
-        VendorId = vendor.Id,
-        PurchaseDate = viewModel.InitialPurchaseDate ?? DateTime.Today,
-        QuantityPurchased = viewModel.InitialQuantity,
-        CostPerUnit = viewModel.InitialCostPerUnit,
-        PurchaseOrderNumber = viewModel.InitialPurchaseOrderNumber,
-        Notes = $"Initial inventory entry - {viewModel.InitialQuantity} {UnitOfMeasureHelper.GetAbbreviation(viewModel.UnitOfMeasure)}",
-        Status = PurchaseStatus.Received,
-        RemainingQuantity = viewModel.InitialQuantity,
-        CreatedDate = DateTime.Now
-      };
-
-      await _purchaseService.CreatePurchaseAsync(initialPurchase);
-    }
-
-    #endregion
-
-    #region Manufacturing BOM Creation
-
-    private async Task CreateManufacturingBomAsync(Item transformedItem, CreateItemViewModel viewModel)
-    {
-      if (!viewModel.ParentRawMaterialId.HasValue || !viewModel.YieldFactor.HasValue)
-      {
-        _logger.LogWarning("CreateManufacturingBomAsync called with missing required data for item: {PartNumber}", transformedItem.PartNumber);
-        return;
-      }
-
-      try
-      {
-        // Create the manufacturing BOM using service layer
-        var manufacturingBom = new Bom
-        {
-          BomNumber = $"{transformedItem.PartNumber}-MFG",
-          Description = $"Manufacturing BOM for {transformedItem.Description}",
-          Version = "A",
-          IsCurrentVersion = true,
-          CreatedDate = DateTime.Now,
-          ModifiedDate = DateTime.Now
-        };
-
-        var createdBom = await _bomService.CreateBomAsync(manufacturingBom);
-        _logger.LogInformation("Manufacturing BOM created: {BomNumber} for item {PartNumber}", createdBom.BomNumber, transformedItem.PartNumber);
-
-        // Calculate required raw material quantity based on yield factor
-        var requiredQuantity = Math.Round(1.0m / (decimal)viewModel.YieldFactor.Value, 4);
-
-        // Add raw material requirement
-        var bomItem = new BomItem
-        {
-          BomId = createdBom.Id,
-          ItemId = viewModel.ParentRawMaterialId.Value,
-          Quantity = (int)requiredQuantity, // <-- FIX: Explicit cast from decimal to int
-          Notes = $"Raw material for {transformedItem.PartNumber}. Yield: {viewModel.YieldFactor:P2}"
-        };
-
-        await _bomService.AddBomItemAsync(bomItem);
-
-        // Log the creation details
-        var parentMaterial = await _context.Items.FindAsync(viewModel.ParentRawMaterialId.Value);
-        _logger.LogInformation("BOM item added: {ParentPartNumber} - Required quantity: {RequiredQuantity} for BOM {BomNumber}", 
-          parentMaterial?.PartNumber, requiredQuantity, createdBom.BomNumber);
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, "Error creating manufacturing BOM for item: {PartNumber}", transformedItem.PartNumber);
-        throw new InvalidOperationException($"Failed to create manufacturing BOM for {transformedItem.PartNumber}: {ex.Message}", ex);
-      }
-    }
-
-    #endregion
 
     public async Task<IActionResult> Edit(int id)
     {
-      try
-      {
-        Console.WriteLine($"=== ITEM EDIT GET DEBUG ===");
-        Console.WriteLine($"Loading item with ID: {id}");
+      var item = await _inventoryService.GetItemByIdAsync(id);
+      if (item == null) return NotFound();
 
-        var item = await _inventoryService.GetItemByIdAsync(id);
-        if (item == null)
-        {
-          Console.WriteLine("Item not found");
-          TempData["ErrorMessage"] = "Item not found.";
-          return RedirectToAction("Index");
-        }
-
-        Console.WriteLine($"Item loaded: {item.PartNumber}");
-        Console.WriteLine($"Current preferred vendor: {item.PreferredVendor}");
-
-        // Load vendors for the preferred vendor dropdown
-        var vendors = await _vendorService.GetActiveVendorsAsync();
-        Console.WriteLine($"Loaded {vendors.Count()} active vendors");
-
-        // Find the current preferred vendor ID if a preferred vendor name exists
-        int? currentPreferredVendorId = null;
-        if (!string.IsNullOrEmpty(item.PreferredVendor))
-        {
-          var currentVendor = vendors.FirstOrDefault(v =>
-            v.CompanyName.Equals(item.PreferredVendor, StringComparison.OrdinalIgnoreCase));
-          currentPreferredVendorId = currentVendor?.Id;
-          Console.WriteLine($"Current preferred vendor ID: {currentPreferredVendorId}");
-        }
-
-        // Prepare dropdown data
-        var vendorSelectList = new List<SelectListItem>
-    {
-      new SelectListItem { Value = "", Text = "-- No Preferred Vendor --", Selected = !currentPreferredVendorId.HasValue }
-    };
-
-        vendorSelectList.AddRange(vendors.Select(v => new SelectListItem
-        {
-          Value = v.Id.ToString(),
-          Text = v.CompanyName,
-          Selected = v.Id == currentPreferredVendorId
-        }));
-
-        ViewBag.PreferredVendorId = vendorSelectList;
-        ViewBag.CurrentPreferredVendorId = currentPreferredVendorId;
-
-        // Pass UOM options to the view with current selection
-        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(item.UnitOfMeasure);
-
-        Console.WriteLine("View data prepared successfully");
-        return View(item);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error in Edit GET: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-        TempData["ErrorMessage"] = $"Error loading item for editing: {ex.Message}";
-        return RedirectToAction("Index");
-      }
+      // Pass current item data to the view for editing
+      return View(item);
     }
-
-    // Controllers/ItemsController.cs - Service layer approach (RECOMMENDED)
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, Item item, IFormFile? newImageFile, int? preferredVendorId)
+    public async Task<IActionResult> Edit(int id, Item item)
     {
-      Console.WriteLine($"=== ITEM EDIT POST DEBUG ===");
-      Console.WriteLine($"Item ID: {id}");
-      Console.WriteLine($"Received Item ID: {item.Id}");
-      Console.WriteLine($"Preferred Vendor ID: {preferredVendorId}");
-      Console.WriteLine($"Part Number: {item.PartNumber}");
-
       if (id != item.Id)
       {
-        Console.WriteLine("ID mismatch - returning NotFound");
         return NotFound();
       }
 
-      // Handle preferred vendor selection
       try
       {
-        if (preferredVendorId.HasValue && preferredVendorId.Value > 0)
+        if (ModelState.IsValid)
         {
-          var selectedVendor = await _vendorService.GetVendorByIdAsync(preferredVendorId.Value);
-          if (selectedVendor != null)
-          {
-            // item.PreferredVendor = selectedVendor.CompanyName; // <-- REMOVE THIS LINE
-            item.PreferredVendorItemId = selectedVendor.Id; // <-- SET THE ID INSTEAD
-            Console.WriteLine($"Set preferred vendor to: {selectedVendor.CompanyName}");
-          }
-          else
-          {
-            Console.WriteLine($"Vendor with ID {preferredVendorId.Value} not found");
-            item.PreferredVendorItemId = null; // <-- CLEAR THE ID
-          }
+          await _inventoryService.UpdateItemAsync(item);
+          TempData["SuccessMessage"] = "Item updated successfully!";
+          return RedirectToAction("Index");
+        }
+      }
+      catch (DbUpdateConcurrencyException)
+      {
+        if (!ItemExists(item.Id))
+        {
+          return NotFound();
         }
         else
         {
-          Console.WriteLine("No preferred vendor selected - clearing field");
-          item.PreferredVendorItemId = null; // <-- CLEAR THE ID
+          throw;
         }
       }
       catch (Exception ex)
       {
-        Console.WriteLine($"Error handling preferred vendor: {ex.Message}");
+        _logger.LogError(ex, "Error updating item: {PartNumber}", item.PartNumber);
+        ModelState.AddModelError("", $"Error updating item: {ex.Message}");
       }
 
-      // Remove validation for fields we don't want to validate
-      ModelState.Remove("ImageFile");
-      ModelState.Remove("newImageFile");
-      ModelState.Remove("preferredVendorId");
-      ModelState.Remove("UnitOfMeasureDisplayName");
-      ModelState.Remove("TotalValue");
-      ModelState.Remove("IsLowStock");
-			
-			// Optional fields - remove validation if empty but keep length validation if populated
-			if (string.IsNullOrWhiteSpace(item.Description))
-				ModelState.Remove("Description");
-
-			if (string.IsNullOrWhiteSpace(item.Comments))
-      {
-				item.Comments = string.Empty;
-				ModelState.Remove("Comments");
-			}
-
-			if (ModelState.IsValid)
-      {
-        try
-        {
-          // Handle image upload if provided
-          if (newImageFile != null && newImageFile.Length > 0)
-          {
-            Console.WriteLine($"Processing image upload: {newImageFile.FileName}");
-
-            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
-            if (!allowedTypes.Contains(newImageFile.ContentType.ToLower()))
-            {
-              Console.WriteLine($"Invalid file type: {newImageFile.ContentType}");
-              ModelState.AddModelError("newImageFile", "Please upload a valid image file (JPEG, PNG, GIF, WebP).");
-            }
-            else if (newImageFile.Length > 5 * 1024 * 1024) // 5MB limit
-            {
-              Console.WriteLine($"File too large: {newImageFile.Length} bytes");
-              ModelState.AddModelError("newImageFile", "Image file size cannot exceed 5MB.");
-            }
-            else
-            {
-              using var memoryStream = new MemoryStream();
-              await newImageFile.CopyToAsync(memoryStream);
-              item.ImageData = memoryStream.ToArray();
-              item.ImageContentType = newImageFile.ContentType;
-              item.ImageFileName = newImageFile.FileName;
-              Console.WriteLine("Image uploaded successfully");
-            }
-          }
-
-          // Only proceed if no image validation errors
-          if (ModelState.IsValid)
-          {
-            Console.WriteLine("Calling UpdateItemAsync service method...");
-
-            // **USE SERVICE LAYER TO HANDLE EF TRACKING**
-            // The service layer should handle the tracking properly
-            await _inventoryService.UpdateItemAsync(item);
-
-            Console.WriteLine("Item updated successfully!");
-            TempData["SuccessMessage"] = $"Item '{item.PartNumber}' updated successfully!";
-            return RedirectToAction("Details", new { id = item.Id });
-          }
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine($"Error updating item: {ex.Message}");
-          Console.WriteLine($"Stack trace: {ex.StackTrace}");
-					string userFriendlyError = ExtractUserFriendlyErrorMessage(ex);
-
-					// Add the error to ModelState so it displays on the form
-					ModelState.AddModelError("", userFriendlyError);
-
-					// Log the full exception for debugging
-					_logger.LogError(ex, "Error updating item {PartNumber}: {ErrorMessage}", item.PartNumber, ex.Message);
-				}
-      }
-
-      // Log validation errors
-      if (!ModelState.IsValid)
-      {
-        Console.WriteLine("=== VALIDATION ERRORS ===");
-        foreach (var error in ModelState)
-        {
-          if (error.Value.Errors.Any())
-          {
-            Console.WriteLine($"{error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
-          }
-        }
-      }
-
-      // Reload dropdown data for return to view
-      await ReloadEditViewData(preferredVendorId, item.UnitOfMeasure);
       return View(item);
-    }
-		private string ExtractUserFriendlyErrorMessage(Exception exception)
-		{
-			// Handle different types of exceptions and extract meaningful messages
-			return exception switch
-			{
-				Microsoft.Data.Sqlite.SqliteException sqliteEx => sqliteEx.SqliteErrorCode switch
-				{
-					19 => ExtractSqliteConstraintError(sqliteEx.Message),
-					_ => $"Database error: {sqliteEx.Message}"
-				},
-
-				Microsoft.EntityFrameworkCore.DbUpdateException dbEx when dbEx.InnerException != null =>
-						ExtractUserFriendlyErrorMessage(dbEx.InnerException),
-
-				System.InvalidOperationException invalidOpEx when invalidOpEx.Message.Contains("entity changes") =>
-						"Unable to save changes. Please check your data and try again.",
-
-				_ => $"An error occurred while updating the item: {exception.Message}"
-			};
-		}
-
-		// ADD THIS HELPER METHOD to parse SQLite constraint errors
-		private string ExtractSqliteConstraintError(string sqliteErrorMessage)
-		{
-			if (sqliteErrorMessage.Contains("NOT NULL constraint failed"))
-			{
-				if (sqliteErrorMessage.Contains("Items.Comments"))
-					return "The Comments field cannot be empty due to database constraints. Please enter a value or contact support.";
-
-				if (sqliteErrorMessage.Contains("Items.Description"))
-					return "The Description field cannot be empty due to database constraints. Please enter a value.";
-
-				if (sqliteErrorMessage.Contains("Items.PartNumber"))
-					return "The Part Number field is required and cannot be empty.";
-
-				// Extract the column name from the error
-				var match = System.Text.RegularExpressions.Regex.Match(
-						sqliteErrorMessage,
-						@"NOT NULL constraint failed: (\w+)\.(\w+)"
-				);
-
-				if (match.Success)
-				{
-					string tableName = match.Groups[1].Value;
-					string columnName = match.Groups[2].Value;
-					return $"The {columnName} field is required and cannot be empty.";
-				}
-			}
-
-			if (sqliteErrorMessage.Contains("UNIQUE constraint failed"))
-			{
-				return "This item conflicts with an existing record. Please check for duplicate values.";
-			}
-
-			if (sqliteErrorMessage.Contains("FOREIGN KEY constraint failed"))
-			{
-				return "There is a reference conflict with related data. Please verify your selections.";
-			}
-
-			// Default fallback
-			return $"Database constraint error: {sqliteErrorMessage}";
-		}
-		// Helper method to reload view data
-		private async Task ReloadEditViewData(int? preferredVendorId, UnitOfMeasure unitOfMeasure)
-    {
-      try
-      {
-        var vendors = await _vendorService.GetActiveVendorsAsync();
-        var vendorSelectList = new List<SelectListItem>
-    {
-      new SelectListItem { Value = "", Text = "-- No Preferred Vendor --", Selected = !preferredVendorId.HasValue }
-    };
-
-        vendorSelectList.AddRange(vendors.Select(v => new SelectListItem
-        {
-          Value = v.Id.ToString(),
-          Text = v.CompanyName,
-          Selected = v.Id == preferredVendorId
-        }));
-
-        ViewBag.PreferredVendorId = vendorSelectList;
-        ViewBag.CurrentPreferredVendorId = preferredVendorId;
-        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(unitOfMeasure);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error reloading view data: {ex.Message}");
-        ViewBag.PreferredVendorId = new List<SelectListItem>();
-        ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList(unitOfMeasure);
-      }
     }
 
     public async Task<IActionResult> Delete(int id)
@@ -1323,6 +786,33 @@ namespace InventorySystem.Controllers
         
         // For now, return a default rate
         return 0.0725m; // 7.25 default tax rate for NC
+    }
+
+    // Helper methods
+    private async Task LoadRawMaterialsForView()
+    {
+      try
+      {
+        var rawMaterials = await _context.Items
+          .Where(i => i.MaterialType == MaterialType.RawMaterial && 
+                     i.ItemType == ItemType.Inventoried &&
+                     i.IsCurrentVersion)
+          .OrderBy(i => i.PartNumber)
+          .Select(i => new { i.Id, DisplayText = $"{i.PartNumber} - {i.Description}" })
+          .ToListAsync();
+
+        ViewBag.ParentRawMaterials = new SelectList(rawMaterials, "Id", "DisplayText");
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading raw materials for view");
+        ViewBag.ParentRawMaterials = new SelectList(new List<object>(), "Id", "DisplayText");
+      }
+    }
+
+    private bool ItemExists(int id)
+    {
+      return _context.Items.Any(e => e.Id == id);
     }
 
     // Helper method to reload view data for bulk purchase form

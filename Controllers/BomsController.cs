@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using InventorySystem.Data;
 
 namespace InventorySystem.Controllers
 {
@@ -15,26 +17,285 @@ namespace InventorySystem.Controllers
     private readonly IInventoryService _inventoryService;
     private readonly IProductionService _productionService;
     private readonly IVersionControlService _versionService;
-    private readonly ILogger<BomsController> _logger; 
+    private readonly ILogger<BomsController> _logger;
+    private readonly InventoryContext _context;
 
     public BomsController(
         IBomService bomService,
         IInventoryService inventoryService,
         IProductionService productionService,
         IVersionControlService versionService,
-        ILogger<BomsController> logger)
+        ILogger<BomsController> logger,
+        InventoryContext context)
     {
       _bomService = bomService;
       _inventoryService = inventoryService;
       _productionService = productionService;
       _versionService = versionService;
-      _logger = logger; // Assign logger
+      _logger = logger;
+      _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    // Enhanced BOMs Index with filtering, pagination, and search
+    public async Task<IActionResult> Index(
+        string search,
+        string bomTypeFilter,
+        string versionFilter,
+        string assemblyFilter,
+        string sortOrder = "bomNumber_asc",
+        int page = 1,
+        int pageSize = 25)
     {
-      var boms = await _bomService.GetAllBomsAsync();
-      return View(boms);
+      try
+      {
+        // Pagination constants
+        const int DefaultPageSize = 25;
+        const int MaxPageSize = 100;
+        var AllowedPageSizes = new[] { 10, 25, 50, 100 };
+
+        // Validate and constrain pagination parameters
+        page = Math.Max(1, page);
+        pageSize = AllowedPageSizes.Contains(pageSize) ? pageSize : DefaultPageSize;
+
+        _logger.LogInformation("=== BOMS INDEX DEBUG ===");
+        _logger.LogInformation("Search: {Search}", search);
+        _logger.LogInformation("BOM Type Filter: {BomTypeFilter}", bomTypeFilter);
+        _logger.LogInformation("Version Filter: {VersionFilter}", versionFilter);
+        _logger.LogInformation("Assembly Filter: {AssemblyFilter}", assemblyFilter);
+        _logger.LogInformation("Sort Order: {SortOrder}", sortOrder);
+        _logger.LogInformation("Page: {Page}, PageSize: {PageSize}", page, pageSize);
+
+        // Start with base query including necessary navigation properties
+        var query = _context.Boms
+            .Include(b => b.BomItems)
+                .ThenInclude(bi => bi.Item)
+            .Include(b => b.SubAssemblies)
+            .Include(b => b.Documents)
+            .AsQueryable();
+
+        // Apply search filter with wildcard support
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+          var searchTerm = search.Trim();
+          _logger.LogInformation("Applying search filter: {SearchTerm}", searchTerm);
+
+          if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+          {
+            var likePattern = ConvertWildcardToLike(searchTerm);
+            _logger.LogInformation("Using LIKE pattern: {LikePattern}", likePattern);
+
+            query = query.Where(b =>
+              EF.Functions.Like(b.BomNumber, likePattern) ||
+              EF.Functions.Like(b.Description, likePattern) ||
+              (b.AssemblyPartNumber != null && EF.Functions.Like(b.AssemblyPartNumber, likePattern)) ||
+              EF.Functions.Like(b.Version, likePattern) ||
+              EF.Functions.Like(b.Id.ToString(), likePattern)
+            );
+          }
+          else
+          {
+            query = query.Where(b =>
+              b.BomNumber.Contains(searchTerm) ||
+              b.Description.Contains(searchTerm) ||
+              (b.AssemblyPartNumber != null && b.AssemblyPartNumber.Contains(searchTerm)) ||
+              b.Version.Contains(searchTerm) ||
+              b.Id.ToString().Contains(searchTerm)
+            );
+          }
+        }
+
+        // Apply BOM type filter
+        if (!string.IsNullOrWhiteSpace(bomTypeFilter))
+        {
+          _logger.LogInformation("Applying BOM type filter: {BomTypeFilter}", bomTypeFilter);
+          query = bomTypeFilter switch
+          {
+            "main" => query.Where(b => b.ParentBomId == null), // Main assemblies
+            "subassembly" => query.Where(b => b.ParentBomId != null), // Sub-assemblies
+            "withitems" => query.Where(b => b.BomItems.Any()), // BOMs with items
+            "withsubs" => query.Where(b => b.SubAssemblies.Any()), // BOMs with sub-assemblies
+            "withdocs" => query.Where(b => b.Documents.Any()), // BOMs with documents
+            "empty" => query.Where(b => !b.BomItems.Any() && !b.SubAssemblies.Any()), // Empty BOMs
+            _ => query
+          };
+        }
+
+        // Apply version filter
+        if (!string.IsNullOrWhiteSpace(versionFilter))
+        {
+          _logger.LogInformation("Applying version filter: {VersionFilter}", versionFilter);
+          query = versionFilter switch
+          {
+            "current" => query.Where(b => b.IsCurrentVersion),
+            "archived" => query.Where(b => !b.IsCurrentVersion),
+            "latest" => query.Where(b => b.Version.Contains("latest") || b.Version.Contains("current")),
+            "draft" => query.Where(b => b.Version.Contains("draft") || b.Version.Contains("beta")),
+            _ => query
+          };
+        }
+
+        // Apply assembly filter
+        if (!string.IsNullOrWhiteSpace(assemblyFilter))
+        {
+          _logger.LogInformation("Applying assembly filter: {AssemblyFilter}", assemblyFilter);
+          if (assemblyFilter.Contains('*') || assemblyFilter.Contains('?'))
+          {
+            var likePattern = ConvertWildcardToLike(assemblyFilter);
+            query = query.Where(b => b.AssemblyPartNumber != null && 
+                                   EF.Functions.Like(b.AssemblyPartNumber, likePattern));
+          }
+          else
+          {
+            query = query.Where(b => b.AssemblyPartNumber != null && 
+                                   b.AssemblyPartNumber.Contains(assemblyFilter));
+          }
+        }
+
+        // Apply sorting
+        query = sortOrder switch
+        {
+          "bomNumber_asc" => query.OrderBy(b => b.BomNumber),
+          "bomNumber_desc" => query.OrderByDescending(b => b.BomNumber),
+          "description_asc" => query.OrderBy(b => b.Description),
+          "description_desc" => query.OrderByDescending(b => b.Description),
+          "assembly_asc" => query.OrderBy(b => b.AssemblyPartNumber ?? ""),
+          "assembly_desc" => query.OrderByDescending(b => b.AssemblyPartNumber ?? ""),
+          "version_asc" => query.OrderBy(b => b.Version),
+          "version_desc" => query.OrderByDescending(b => b.Version),
+          "created_asc" => query.OrderBy(b => b.CreatedDate),
+          "created_desc" => query.OrderByDescending(b => b.CreatedDate),
+          "modified_desc" => query.OrderByDescending(b => b.ModifiedDate),
+          "modified_asc" => query.OrderBy(b => b.ModifiedDate),
+          "itemcount_desc" => query.OrderByDescending(b => b.BomItems.Count()),
+          "itemcount_asc" => query.OrderBy(b => b.BomItems.Count()),
+          _ => query.OrderBy(b => b.BomNumber)
+        };
+
+        // Get total count for pagination (before Skip/Take)
+        var totalCount = await query.CountAsync();
+        _logger.LogInformation("Total filtered records: {TotalCount}", totalCount);
+
+        // Calculate pagination values
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+        var skip = (page - 1) * pageSize;
+
+        // Get paginated results
+        var boms = await query
+            .Skip(skip)
+            .Take(pageSize)
+            .ToListAsync();
+
+        _logger.LogInformation("Retrieved {BomCount} BOMs for page {Page}", boms.Count, page);
+
+        // Prepare ViewBag data
+        ViewBag.SearchTerm = search;
+        ViewBag.BomTypeFilter = bomTypeFilter;
+        ViewBag.VersionFilter = versionFilter;
+        ViewBag.AssemblyFilter = assemblyFilter;
+        ViewBag.SortOrder = sortOrder;
+
+        // Pagination data
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.HasPreviousPage = page > 1;
+        ViewBag.HasNextPage = page < totalPages;
+        ViewBag.ShowingFrom = totalCount > 0 ? skip + 1 : 0;
+        ViewBag.ShowingTo = Math.Min(skip + pageSize, totalCount);
+        ViewBag.AllowedPageSizes = AllowedPageSizes;
+
+        // Dropdown data
+        ViewBag.BomTypeOptions = new SelectList(new[]
+        {
+          new { Value = "", Text = "All BOM Types" },
+          new { Value = "main", Text = "Main Assemblies" },
+          new { Value = "subassembly", Text = "Sub-Assemblies" },
+          new { Value = "withitems", Text = "With Components" },
+          new { Value = "withsubs", Text = "With Sub-Assemblies" },
+          new { Value = "withdocs", Text = "With Documents" },
+          new { Value = "empty", Text = "Empty BOMs" }
+        }, "Value", "Text", bomTypeFilter);
+
+        ViewBag.VersionOptions = new SelectList(new[]
+        {
+          new { Value = "", Text = "All Versions" },
+          new { Value = "current", Text = "Current Versions Only" },
+          new { Value = "archived", Text = "Archived Versions" },
+          new { Value = "latest", Text = "Latest/Current" },
+          new { Value = "draft", Text = "Draft/Beta" }
+        }, "Value", "Text", versionFilter);
+
+        // Search statistics
+        ViewBag.IsFiltered = !string.IsNullOrWhiteSpace(search) ||
+                           !string.IsNullOrWhiteSpace(bomTypeFilter) ||
+                           !string.IsNullOrWhiteSpace(versionFilter) ||
+                           !string.IsNullOrWhiteSpace(assemblyFilter);
+
+        if (ViewBag.IsFiltered)
+        {
+          var totalBoms = await _bomService.GetAllBomsAsync();
+          ViewBag.SearchResultsCount = totalCount;
+          ViewBag.TotalBomsCount = totalBoms.Count();
+        }
+
+        return View(boms);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error in BOMs Index");
+
+        // Set essential ViewBag properties that the view expects
+        ViewBag.ErrorMessage = $"Error loading BOMs: {ex.Message}";
+        ViewBag.AllowedPageSizes = new[] { 10, 25, 50, 100 };
+
+        // Set pagination defaults to prevent null reference exceptions
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = 1;
+        ViewBag.TotalCount = 0;
+        ViewBag.HasPreviousPage = false;
+        ViewBag.HasNextPage = false;
+        ViewBag.ShowingFrom = 0;
+        ViewBag.ShowingTo = 0;
+
+        // Set filter defaults
+        ViewBag.SearchTerm = search;
+        ViewBag.BomTypeFilter = bomTypeFilter;
+        ViewBag.VersionFilter = versionFilter;
+        ViewBag.AssemblyFilter = assemblyFilter;
+        ViewBag.SortOrder = sortOrder;
+        ViewBag.IsFiltered = false;
+
+        // Set empty dropdown options
+        ViewBag.BomTypeOptions = new SelectList(new List<object>(), "Value", "Text");
+        ViewBag.VersionOptions = new SelectList(new List<object>(), "Value", "Text");
+
+        return View(new List<Bom>());
+      }
+    }
+
+    /// <summary>
+    /// Converts wildcard patterns (* and ?) to SQL LIKE patterns
+    /// * matches any sequence of characters -> %
+    /// ? matches any single character -> _
+    /// </summary>
+    /// <param name="wildcardPattern">The wildcard pattern to convert</param>
+    /// <returns>A SQL LIKE pattern string</returns>
+    private string ConvertWildcardToLike(string wildcardPattern)
+    {
+      // Escape existing SQL LIKE special characters first
+      var escaped = wildcardPattern
+          .Replace("%", "[%]")    // Escape existing % characters
+          .Replace("_", "[_]")    // Escape existing _ characters
+          .Replace("[", "[[]");   // Escape existing [ characters
+
+      // Convert wildcards to SQL LIKE patterns
+      escaped = escaped
+          .Replace("*", "%")      // * becomes %
+          .Replace("?", "_");     // ? becomes _
+
+      return escaped;
     }
 
     public async Task<IActionResult> Details(int id)

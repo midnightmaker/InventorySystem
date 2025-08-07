@@ -1,249 +1,615 @@
 @model IEnumerable<InventorySystem.Models.Item>
 @{
   ViewData["Title"] = "Items";
+  var searchTerm = ViewBag.SearchTerm as string;
+  var itemTypeFilter = ViewBag.ItemTypeFilter as string;
+  var stockLevelFilter = ViewBag.StockLevelFilter as string;
+  var vendorFilter = ViewBag.VendorFilter as string;
+  var isSellable = ViewBag.IsSellable as bool?;
+  var sortOrder = ViewBag.SortOrder as string ?? "partNumber_asc";
+  var isFiltered = ViewBag.IsFiltered as bool? ?? false;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-cube"></i> Items</h1>
-  <div class="btn-group">
-    <a href="/Items/Create" class="btn btn-primary">
-      <i class="fas fa-plus"></i> Create Item
-    </a>
-    <a href="/Items/BulkUpload" class="btn btn-outline-secondary">
-      <i class="fas fa-upload"></i> Bulk Upload
-    </a>
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-cube"></i> @ViewData["Title"]</h2>
+    <div class="btn-group">
+      <a href="/Items/Create" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create Item
+      </a>
+      <a href="/Items/BulkUpload" class="btn btn-outline-secondary">
+        <i class="fas fa-upload"></i> Bulk Upload
+      </a>
+      <button class="btn btn-outline-secondary" onclick="exportItems()">
+        <i class="fas fa-download"></i> Export
+      </button>
+    </div>
   </div>
-</div>
 
-@if (TempData["SuccessMessage"] != null)
-{
-  <div class="alert alert-success alert-dismissible fade show">
-    @TempData["SuccessMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
+  @if (ViewBag.ErrorMessage != null)
+  {
+    <div class="alert alert-danger">
+      <i class="fas fa-exclamation-circle"></i> @ViewBag.ErrorMessage
+    </div>
+  }
 
-@if (TempData["ErrorMessage"] != null)
-{
-  <div class="alert alert-danger alert-dismissible fade show">
-    @TempData["ErrorMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
+  @if (TempData["SuccessMessage"] != null)
+  {
+    <div class="alert alert-success alert-dismissible fade show">
+      <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
 
-@if (TempData["WarningMessage"] != null)
-{
-  <div class="alert alert-warning alert-dismissible fade show">
-    @TempData["WarningMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
+  @if (TempData["ErrorMessage"] != null)
+  {
+    <div class="alert alert-danger alert-dismissible fade show">
+      <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
 
-@if (!Model.Any())
-{
-  <div class="card">
+  @if (TempData["WarningMessage"] != null)
+  {
+    <div class="alert alert-warning alert-dismissible fade show">
+      <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
+
+  <!-- Enhanced Search Form -->
+  <div class="card mb-4">
     <div class="card-header">
-      <h5><i class="fas fa-info-circle"></i> No Items Found</h5>
+      <h6 class="mb-0">
+        <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#searchCollapse"
+                aria-expanded="@(isFiltered ? "true" : "false")"
+                aria-controls="searchCollapse">
+          <i class="fas fa-search"></i> Search & Filter Items
+          <i class="fas fa-chevron-@(isFiltered ? "up" : "down") float-end"></i>
+        </button>
+      </h6>
     </div>
-    <div class="card-body text-center">
-      <div class="py-4">
-        <i class="fas fa-cube fa-4x text-muted mb-3"></i>
-        <h4>No items in your inventory yet</h4>
-        <p class="text-muted mb-4">Get started by creating your first item or importing from a CSV file.</p>
-        <div class="d-grid gap-2 d-md-block">
-          <a href="/Items/Create" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create First Item
-          </a>
-          <a href="/Items/BulkUpload" class="btn btn-outline-secondary">
-            <i class="fas fa-upload"></i> Bulk Upload
-          </a>
+    <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
+      <div class="card-body">
+        <!-- Search Examples -->
+        <div class="row mb-4 p-3 bg-light border rounded">
+          <div class="col-12">
+            <h6><i class="fas fa-lightbulb text-info"></i> Search Examples</h6>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Wildcard Search:</h6>
+            <ul class="list-unstyled small">
+              <li><code>ABC-*</code> - Parts starting with "ABC-"</li>
+              <li><code>*resistor*</code> - Contains "resistor"</li>
+              <li><code>R?5</code> - R + any char + 5 (R15, R25, etc.)</li>
+              <li><code>CAP-10?F</code> - CAP-10[x]F patterns</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Search Fields:</h6>
+            <ul class="list-unstyled small">
+              <li><i class="fas fa-hashtag"></i> Part number</li>
+              <li><i class="fas fa-align-left"></i> Description</li>
+              <li><i class="fas fa-sticky-note"></i> Comments</li>
+              <li><i class="fas fa-barcode"></i> Vendor part number</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Quick Filters:</h6>
+            <ul class="list-unstyled small">
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('lowstock')">Low stock items</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('outofstock')">Out of stock</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('inventoried')">Inventoried only</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="clearAllFilters()">Clear all filters</button></li>
+            </ul>
+          </div>
         </div>
-        <div class="mt-4">
-          <small class="text-muted">
-            Use our <a asp-action="BulkUpload" class="text-decoration-none">bulk upload feature</a> to import from CSV files.
-          </small>
-        </div>
+
+        <!-- Search Form -->
+        <form method="get" class="row g-3">
+          <div class="col-md-4">
+            <label for="search" class="form-label">
+              <i class="fas fa-search"></i> Search Term
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="search"
+                   name="search"
+                   value="@searchTerm"
+                   placeholder="Part number, description, comments... (use * and ? for wildcards)">
+            <div class="form-text">Use * for multiple chars, ? for single char</div>
+          </div>
+
+          <div class="col-md-2">
+            <label for="itemTypeFilter" class="form-label">
+              <i class="fas fa-tag"></i> Item Type
+            </label>
+            <select class="form-select" id="itemTypeFilter" name="itemTypeFilter" asp-items="ViewBag.ItemTypeOptions">
+              <option value="">All Types</option>
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label for="stockLevelFilter" class="form-label">
+              <i class="fas fa-boxes"></i> Stock Level
+            </label>
+            <select class="form-select" id="stockLevelFilter" name="stockLevelFilter" asp-items="ViewBag.StockLevelOptions">
+              <option value="">All Levels</option>
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label for="vendorFilter" class="form-label">
+              <i class="fas fa-building"></i> Vendor
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="vendorFilter"
+                   name="vendorFilter"
+                   value="@vendorFilter"
+                   placeholder="Vendor name...">
+          </div>
+
+          <div class="col-md-2">
+            <label for="isSellable" class="form-label">
+              <i class="fas fa-cash-register"></i> Sellable
+            </label>
+            <select class="form-select" id="isSellable" name="isSellable">
+              <option value="">All Items</option>
+              <option value="true" selected="@(isSellable == true)">Sellable Only</option>
+              <option value="false" selected="@(isSellable == false)">Non-Sellable Only</option>
+            </select>
+          </div>
+
+          <div class="col-md-12">
+            <div class="btn-group">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Search
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                <i class="fas fa-times"></i> Clear
+              </button>
+              <button type="button" class="btn btn-outline-info" onclick="saveSearch()">
+                <i class="fas fa-bookmark"></i> Save Search
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   </div>
-}
-else
-{
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5><i class="fas fa-list"></i> Items List</h5>
-      <div class="d-flex align-items-center">
-        <small class="text-muted me-3">Click any row to view details</small>
-        <small class="text-muted">Total Items: <strong>@Model.Count()</strong></small>
+
+  <!-- Search Results Summary -->
+  @if (isFiltered)
+  {
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      Found <strong>@ViewBag.TotalCount</strong> item(s)
+      @if (ViewBag.SearchResultsCount != null && ViewBag.TotalItemsCount != null)
+      {
+        <span>out of @ViewBag.TotalItemsCount total items</span>
+      }
+
+      @if (!string.IsNullOrEmpty(searchTerm))
+      {
+        <span>matching "<strong>@searchTerm</strong>"</span>
+      }
+
+      <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
+        <i class="fas fa-times"></i> Clear All Filters
+      </a>
+    </div>
+  }
+
+  @if (!Model.Any())
+  {
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> @(isFiltered ? "No Items Found" : "No Items Found")</h5>
+      </div>
+      <div class="card-body text-center">
+        <div class="py-4">
+          <i class="fas fa-cube fa-4x text-muted mb-3"></i>
+          @if (isFiltered)
+          {
+            <h4>No items match your search criteria</h4>
+            <p class="text-muted mb-4">Try adjusting your search terms or clearing filters.</p>
+            <button class="btn btn-outline-secondary" onclick="clearAllFilters()">
+              <i class="fas fa-times"></i> Clear All Filters
+            </button>
+          }
+          else
+          {
+            <h4>No items in your inventory yet</h4>
+            <p class="text-muted mb-4">Get started by creating your first item or importing from a CSV file.</p>
+            <div class="d-grid gap-2 d-md-block">
+              <a href="/Items/Create" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create First Item
+              </a>
+              <a href="/Items/BulkUpload" class="btn btn-outline-secondary">
+                <i class="fas fa-upload"></i> Bulk Upload
+              </a>
+            </div>
+            <div class="mt-4">
+              <small class="text-muted">
+                Use our <a asp-action="BulkUpload" class="text-decoration-none">bulk upload feature</a> to import from CSV files.
+              </small>
+            </div>
+          }
+        </div>
       </div>
     </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-hover">
-          <thead class="table-dark">
-            <tr>
-              <th style="width: 60px;">Image</th>
-              <th>Part Number</th>
-              <th>Description</th>
-              <th>Type</th>
-              <th>Version</th>
-              <th>Stock</th>
-              <th>Vendor</th>
-              <th>Status</th>
-              <th style="width: 150px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var item in Model)
-            {
-              <tr class="clickable-row" data-item-id="@item.Id">
-                <td class="text-center">
-                  @if (item.HasImage)
-                  {
-                    <img src="/Items/GetImageThumbnail/@item.Id?size=40"
-                         alt="@item.PartNumber"
-                         class="item-thumbnail rounded"
-                         onclick="event.stopPropagation(); showImageModal('@item.PartNumber', '/Items/GetImage/@item.Id')"
-                         title="Click to view full image" />
-                  }
-                  else
-                  {
-                    <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded">
-                      <i class="fas fa-image text-muted"></i>
-                    </div>
-                  }
-                </td>
-                <td>
-                  <strong>@item.PartNumber</strong>
-                </td>
-                <td>
-                  @item.Description
-                  @if (!string.IsNullOrEmpty(item.Comments))
-                  {
-                    <br>
-                    <small class="text-muted">@(item.Comments.Length > 50 ? item.Comments.Substring(0, 50) + "..." : item.Comments)</small>
-                  }
-                </td>
-                <td>
-                  @{
-                    string badgeColor = item.ItemType switch
+  }
+  else
+  {
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-list"></i> Items List
+          <span class="badge bg-primary ms-2">@ViewBag.TotalCount records</span>
+        </h5>
+
+        <!-- Sort Options, Page Size, and Pagination Controls -->
+        <div class="d-flex align-items-center gap-3">
+          <!-- Page Size Controls -->
+          <div class="btn-group">
+            <label class="btn btn-outline-secondary btn-sm">
+              Page Size:
+              <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
+                      onchange="changePageSize(this.value)">
+                @foreach (var size in ViewBag.AllowedPageSizes)
+                {
+                  <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <!-- Sort Options -->
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-sort"></i> Sort
+            </button>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item @(sortOrder == "partNumber_asc" ? "active" : "")" href="@GetSortUrl("partNumber_asc")">
+                  <i class="fas fa-hashtag"></i> Part Number (A-Z)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "partNumber_desc" ? "active" : "")" href="@GetSortUrl("partNumber_desc")">
+                  <i class="fas fa-hashtag"></i> Part Number (Z-A)
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "description_asc" ? "active" : "")" href="@GetSortUrl("description_asc")">
+                  <i class="fas fa-align-left"></i> Description (A-Z)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "itemType_asc" ? "active" : "")" href="@GetSortUrl("itemType_asc")">
+                  <i class="fas fa-tag"></i> Item Type
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "stock_desc" ? "active" : "")" href="@GetSortUrl("stock_desc")">
+                  <i class="fas fa-boxes"></i> Stock (High-Low)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "stock_asc" ? "active" : "")" href="@GetSortUrl("stock_asc")">
+                  <i class="fas fa-boxes"></i> Stock (Low-High)
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "created_desc" ? "active" : "")" href="@GetSortUrl("created_desc")">
+                  <i class="fas fa-calendar"></i> Recently Added
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "vendor_asc" ? "active" : "")" href="@GetSortUrl("vendor_asc")">
+                  <i class="fas fa-building"></i> Vendor (A-Z)
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Pagination Navigation -->
+          <nav aria-label="Items pagination">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item @(ViewBag.HasPreviousPage ? "" : "disabled")">
+                <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage - 1)">Previous</a>
+              </li>
+              
+              @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); 
+                    i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); 
+                    i++)
+              {
+                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                  <a class="page-link" href="@GetPageUrl(i)">@i</a>
+                </li>
+              }
+              
+              <li class="page-item @(ViewBag.HasNextPage ? "" : "disabled")">
+                <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage + 1)">Next</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover" id="itemsTable">
+            <thead class="table-dark">
+              <tr>
+                <th style="width: 60px;">
+                  <i class="fas fa-image"></i> Image
+                </th>
+                <th>
+                  <a href="@GetSortUrl("partNumber_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-hashtag"></i> Part Number
+                    @if (sortOrder?.StartsWith("partNumber") == true)
                     {
-                      InventorySystem.Models.Enums.ItemType.Inventoried => "primary",
-                      InventorySystem.Models.Enums.ItemType.NonInventoried => "info",
-                      InventorySystem.Models.Enums.ItemType.Service => "success",
-                      InventorySystem.Models.Enums.ItemType.Virtual => "warning",
-                      _ => "secondary"
-                    };
-                  }
-                  <span class="badge bg-@badgeColor">@item.ItemTypeDisplayName</span>
-                </td>
-                <td>
-                  <span class="badge bg-outline-dark">@item.Version</span>
-                </td>
-                <td>
-                  @if (item.TrackInventory)
-                  {
-                    <span class="badge @(item.CurrentStock <= item.MinimumStock ? "bg-danger" : "bg-success")">
-                      @item.CurrentStock
-                    </span>
-                    @if (item.MinimumStock > 0)
-                    {
-                      <br>
-                      <small class="text-muted">Min: @item.MinimumStock</small>
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
                     }
-                  }
-                  else
-                  {
-                    <span class="text-muted">N/A</span>
-                  }
-                </td>
-                <td>
-                  @if (!string.IsNullOrEmpty(item.PreferredVendor))
-                  {
-                    <span>@item.PreferredVendor</span>
-                    @if (!string.IsNullOrEmpty(item.VendorPartNumber))
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("description_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-align-left"></i> Description
+                    @if (sortOrder?.StartsWith("description") == true)
                     {
-                      <br>
-                      <small class="text-muted">P/N: @item.VendorPartNumber</small>
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
                     }
-                  }
-                  else
-                  {
-                    <span class="text-muted">-</span>
-                  }
-                </td>
-                <td>
-                  <div class="d-flex flex-column gap-1">
-                    @if (!item.IsSellable)
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("itemType_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-tag"></i> Type
+                    @if (sortOrder?.StartsWith("itemType") == true)
                     {
-                      <span class="badge bg-warning text-dark">Not Sellable</span>
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <i class="fas fa-code-branch"></i> Version
+                </th>
+                <th>
+                  <a href="@GetSortUrl("stock_desc")" class="text-white text-decoration-none">
+                    <i class="fas fa-boxes"></i> Stock
+                    @if (sortOrder?.StartsWith("stock") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("vendor_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-building"></i> Vendor
+                    @if (sortOrder?.StartsWith("vendor") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <i class="fas fa-flag"></i> Status
+                </th>
+                <th style="width: 150px;">
+                  <i class="fas fa-cogs"></i> Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var item in Model)
+              {
+                <tr class="clickable-row" data-item-id="@item.Id">
+                  <td class="text-center">
+                    @if (item.HasImage)
+                    {
+                      <img src="/Items/GetImageThumbnail/@item.Id?size=40"
+                           alt="@item.PartNumber"
+                           class="item-thumbnail rounded"
+                           onclick="event.stopPropagation(); showImageModal('@item.PartNumber', '/Items/GetImage/@item.Id')"
+                           title="Click to view full image" />
                     }
                     else
                     {
-                      <span class="badge bg-success">Sellable</span>
+                      <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded">
+                        <i class="fas fa-image text-muted"></i>
+                      </div>
                     }
-                  </div>
-                </td>
-                <td>
-                  <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
-                    <a href="/Items/Details/@item.Id" class="btn btn-outline-primary" title="View Details">
-                      <i class="fas fa-eye"></i>
-                    </a>
-                    <a href="/Items/Edit/@item.Id" class="btn btn-outline-warning" title="Edit">
-                      <i class="fas fa-edit"></i>
-                    </a>
+                  </td>
+                  <td>
+                    <strong>@item.PartNumber</strong>
+                  </td>
+                  <td>
+                    @item.Description
+                    @if (!string.IsNullOrEmpty(item.Comments))
+                    {
+                      <br>
+                      <small class="text-muted">@(item.Comments.Length > 50 ? item.Comments.Substring(0, 50) + "..." : item.Comments)</small>
+                    }
+                  </td>
+                  <td>
+                    @{
+                      string badgeColor = item.ItemType switch
+                      {
+                        InventorySystem.Models.Enums.ItemType.Inventoried => "primary",
+                        InventorySystem.Models.Enums.ItemType.NonInventoried => "info",
+                        InventorySystem.Models.Enums.ItemType.Service => "success",
+                        InventorySystem.Models.Enums.ItemType.Virtual => "warning",
+                        _ => "secondary"
+                      };
+                    }
+                    <span class="badge bg-@badgeColor">@item.ItemTypeDisplayName</span>
+                  </td>
+                  <td>
+                    <span class="badge bg-outline-dark">@item.Version</span>
+                  </td>
+                  <td>
                     @if (item.TrackInventory)
                     {
-                      <a href="/Purchases/Create?itemId=@item.Id" class="btn btn-outline-success" title="Add Purchase">
-                        <i class="fas fa-shopping-cart"></i>
-                      </a>
+                      <span class="badge @(item.CurrentStock <= item.MinimumStock ? "bg-danger" : "bg-success")">
+                        @item.CurrentStock
+                      </span>
+                      @if (item.MinimumStock > 0)
+                      {
+                        <br>
+                        <small class="text-muted">Min: @item.MinimumStock</small>
+                      }
                     }
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+                    else
+                    {
+                      <span class="text-muted">N/A</span>
+                    }
+                  </td>
+                  <td>
+                    @if (item.PreferredVendorItem?.Vendor != null)
+                    {
+                      <span>@item.PreferredVendorItem.Vendor.CompanyName</span>
+                      @if (!string.IsNullOrEmpty(item.PreferredVendorItem.VendorPartNumber))
+                      {
+                        <br>
+                        <small class="text-muted">P/N: @item.PreferredVendorItem.VendorPartNumber</small>
+                      }
+                    }
+                    else
+                    {
+                      <span class="text-muted">-</span>
+                    }
+                  </td>
+                  <td>
+                    <div class="d-flex flex-column gap-1">
+                      @if (!item.IsSellable)
+                      {
+                        <span class="badge bg-warning text-dark">Not Sellable</span>
+                      }
+                      else
+                      {
+                        <span class="badge bg-success">Sellable</span>
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+                      <a href="/Items/Details/@item.Id" class="btn btn-outline-primary" title="View Details">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <a href="/Items/Edit/@item.Id" class="btn btn-outline-warning" title="Edit">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                      @if (item.TrackInventory)
+                      {
+                        <a href="/Purchases/Create?itemId=@item.Id" class="btn btn-outline-success" title="Add Purchase">
+                          <i class="fas fa-shopping-cart"></i>
+                        </a>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
 
-  <!-- Quick Stats Card -->
-  <div class="row mt-4">
-    <div class="col-md-3">
-      <div class="card bg-primary text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried)</h3>
-          <p class="mb-0">Inventoried Items</p>
+        <!-- Pagination Summary -->
+        <div class="row mt-3">
+          <div class="col-md-6">
+            <p class="text-muted mb-0">
+              Showing @ViewBag.ShowingFrom to @ViewBag.ShowingTo of @ViewBag.TotalCount items
+            </p>
+          </div>
+          <div class="col-md-6 text-end">
+            @if (ViewBag.TotalPages > 1)
+            {
+              <small class="text-muted">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</small>
+            }
+          </div>
+        </div>
+
+        <!-- Enhanced Summary Statistics -->
+        <div class="mt-4">
+          <div class="row">
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-primary mb-1">
+                    <i class="fas fa-cube"></i>
+                    Total Items
+                  </h6>
+                  <h4 class="text-primary mb-0">@ViewBag.TotalCount</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-success mb-1">
+                    <i class="fas fa-check-circle"></i>
+                    Inventoried
+                  </h6>
+                  <h4 class="text-success mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-info mb-1">
+                    <i class="fas fa-list"></i>
+                    Non-Inventoried
+                  </h6>
+                  <h4 class="text-info mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.NonInventoried)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-warning mb-1">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Low Stock
+                  </h6>
+                  <h4 class="text-warning mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried && i.CurrentStock <= i.MinimumStock)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-danger mb-1">
+                    <i class="fas fa-times-circle"></i>
+                    Out of Stock
+                  </h6>
+                  <h4 class="text-danger mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried && i.CurrentStock == 0)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-success mb-1">
+                    <i class="fas fa-cash-register"></i>
+                    Sellable
+                  </h6>
+                  <h4 class="text-success mb-0">@Model.Count(i => i.IsSellable)</h4>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card bg-info text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.NonInventoried)</h3>
-          <p class="mb-0">Non-Inventoried</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-success text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Service)</h3>
-          <p class="mb-0">Services</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-warning text-dark">
-        <div class="card-body text-center">
-          <h3>@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Virtual)</h3>
-          <p class="mb-0">Virtual Items</p>
-        </div>
-      </div>
-    </div>
-  </div>
-}
+  }
+</div>
 
 <!-- Image Modal -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
@@ -260,8 +626,36 @@ else
   </div>
 </div>
 
+<!-- Enhanced JavaScript for Search Functionality -->
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  $(document).ready(function() {
+      // Auto-expand search if filtered
+      @if (isFiltered)
+      {
+            <text>
+            const searchCollapse = document.getElementById('searchCollapse');
+            if (searchCollapse && !searchCollapse.classList.contains('show')) {
+                new bootstrap.Collapse(searchCollapse, { show: true });
+            }
+            </text>
+      }
+
+      // Update chevron icon
+      const collapseElement = document.getElementById('searchCollapse');
+      const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down, [data-bs-target="#searchCollapse"] .fa-chevron-up');
+
+      if (collapseElement && chevronIcon) {
+          collapseElement.addEventListener('show.bs.collapse', function () {
+              chevronIcon.classList.remove('fa-chevron-down');
+              chevronIcon.classList.add('fa-chevron-up');
+          });
+
+          collapseElement.addEventListener('hide.bs.collapse', function () {
+              chevronIcon.classList.remove('fa-chevron-up');
+              chevronIcon.classList.add('fa-chevron-down');
+          });
+      }
+
       // Make table rows clickable
       const clickableRows = document.querySelectorAll('.clickable-row');
 
@@ -301,12 +695,108 @@ else
       });
   });
 
+  // Quick filter functions
+  function quickFilter(type) {
+      switch(type) {
+          case 'lowstock':
+              document.getElementById('stockLevelFilter').value = 'low';
+              break;
+          case 'outofstock':
+              document.getElementById('stockLevelFilter').value = 'out';
+              break;
+          case 'inventoried':
+              document.getElementById('itemTypeFilter').value = 'Inventoried';
+              break;
+      }
+
+      // Submit the form
+      document.querySelector('form').submit();
+  }
+
+  function clearAllFilters() {
+      // Clear all form fields
+      document.getElementById('search').value = '';
+      document.getElementById('itemTypeFilter').value = '';
+      document.getElementById('stockLevelFilter').value = '';
+      document.getElementById('vendorFilter').value = '';
+      document.getElementById('isSellable').value = '';
+
+      // Navigate to clean URL
+      window.location.href = '@Url.Action("Index")';
+  }
+
+  function saveSearch() {
+      // In a real application, you might save this to user preferences
+      const searchData = {
+          search: document.getElementById('search').value,
+          itemTypeFilter: document.getElementById('itemTypeFilter').value,
+          stockLevelFilter: document.getElementById('stockLevelFilter').value,
+          vendorFilter: document.getElementById('vendorFilter').value,
+          isSellable: document.getElementById('isSellable').value
+      };
+
+      localStorage.setItem('savedItemSearch', JSON.stringify(searchData));
+      alert('Search criteria saved! Use the browser bookmark to return to this search.');
+  }
+
+  function exportItems() {
+      // Build export URL with current filters
+      const params = new URLSearchParams(window.location.search);
+      params.set('export', 'true');
+
+      // In a real application, this would trigger a CSV/Excel download
+      alert('Export functionality would download filtered results as CSV/Excel file.');
+  }
+
+  function changePageSize(size) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('pageSize', size);
+      params.set('page', 1); // Reset to first page on page size change
+
+      window.location.search = params.toString();
+  }
+
   // Function to show image modal (for thumbnail clicks)
   function showImageModal(partNumber, imageUrl) {
       document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
       document.getElementById('modalImage').src = imageUrl;
       var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
       imageModal.show();
+  }
+
+  @functions {
+      public string GetPageUrl(int page)
+      {
+          var query = new System.Collections.Specialized.NameValueCollection();
+          var request = Context.Request;
+          foreach (var key in request.Query.Keys)
+          {
+              var k = key.ToString();
+              if (!string.IsNullOrEmpty(k) && k != "page")
+                  query[k] = request.Query[k];
+          }
+          query["page"] = page.ToString();
+
+          var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
+          return $"{request.Path}?{queryString}";
+      }
+
+      public string GetSortUrl(string newSortOrder)
+      {
+          var query = new System.Collections.Specialized.NameValueCollection();
+          var request = Context.Request;
+          foreach (var key in request.Query.Keys)
+          {
+              var k = key.ToString();
+              if (!string.IsNullOrEmpty(k) && k != "sortOrder" && k != "page")
+                  query[k] = request.Query[k];
+          }
+          query["sortOrder"] = newSortOrder;
+          query["page"] = "1"; // Reset to first page when sorting
+
+          var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
+          return $"{request.Path}?{queryString}";
+      }
   }
 </script>
 
@@ -400,6 +890,39 @@ else
     background-color: transparent;
   }
 
+  /* Table responsive adjustments */
+  .table-responsive {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  #itemsTable tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+  }
+
+  .badge {
+    font-size: 0.75em;
+  }
+
+  .card-body.p-2 {
+    padding: 0.5rem !important;
+  }
+
+  .btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  /* Sortable column headers */
+  .table th a {
+    text-decoration: none !important;
+    color: inherit;
+  }
+
+  .table th a:hover {
+    color: #ffc107 !important;
+  }
+
   /* Responsive adjustments */
   @@media (max-width: 768px) {
     .btn-group-sm .btn {
@@ -417,8 +940,8 @@ else
       height: 32px;
     }
     /* Hide less important columns on mobile */
-    .table th:nth-child(6), /* Vendor */
-    .table td:nth-child(6) {
+    .table th:nth-child(7), /* Vendor */
+    .table td:nth-child(7) {
       display: none;
     }
   }
