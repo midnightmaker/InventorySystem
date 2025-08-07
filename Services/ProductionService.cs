@@ -342,12 +342,13 @@ namespace InventorySystem.Services
     {
       var backorders = await _context.SaleItems
           .Include(si => si.Sale)
+              .ThenInclude(s => s.Customer) // ADDED: Include Customer relationship
           .Where(si => si.FinishedGoodId == finishedGoodId && si.QuantityBackordered > 0)
           .Select(si => new BackorderInfo
           {
             SaleId = si.SaleId,
             SaleNumber = si.Sale.SaleNumber,
-            CustomerName = si.Sale.CustomerName,
+            CustomerName = si.Sale.Customer != null ? si.Sale.Customer.CustomerName : "Unknown Customer", // FIXED: Use Customer relationship
             QuantityBackordered = si.QuantityBackordered,
             SaleDate = si.Sale.SaleDate,
             DaysWaiting = (DateTime.Now - si.Sale.SaleDate).Days

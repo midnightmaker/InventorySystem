@@ -5,6 +5,7 @@ using InventorySystem.Services;
 using InventorySystem.Models;
 using InventorySystem.ViewModels;
 using InventorySystem.Models.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace InventorySystem.Controllers
 {
@@ -13,15 +14,21 @@ namespace InventorySystem.Controllers
     private readonly ISalesService _salesService;
     private readonly IInventoryService _inventoryService;
     private readonly IProductionService _productionService;
+    private readonly ICustomerService _customerService;
+    private readonly ILogger<SalesController> _logger;
 
     public SalesController(
         ISalesService salesService,
         IInventoryService inventoryService,
-        IProductionService productionService)
+        IProductionService productionService,
+        ICustomerService customerService,
+        ILogger<SalesController> logger)
     {
       _salesService = salesService;
       _inventoryService = inventoryService;
       _productionService = productionService;
+      _customerService = customerService;
+      _logger = logger;
     }
 
     // Sales Index
@@ -42,80 +49,156 @@ namespace InventorySystem.Controllers
     // Create Sale - GET
     public async Task<IActionResult> Create()
     {
-      var sale = new Sale
+      try
       {
-        SaleNumber = await _salesService.GenerateSaleNumberAsync(),
-        SaleDate = DateTime.Now,
-        PaymentStatus = PaymentStatus.Pending,
-        SaleStatus = SaleStatus.Processing
-      };
-
-      return View(sale);
-    }
-
-    // Create Sale - POST
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Sale sale)
-    {
-      // Perform additional server-side validation
-      ValidatePaymentDueDate(sale);
-
-      if (ModelState.IsValid)
-      {
-        try
+        var sale = new Sale
         {
-          // Calculate payment due date before saving
-          sale.CalculatePaymentDueDate();
+          SaleNumber = await _salesService.GenerateSaleNumberAsync(),
+          SaleDate = DateTime.Today, // Use Today instead of Now for date-only
+          PaymentStatus = PaymentStatus.Pending,
+          SaleStatus = SaleStatus.Processing
+        };
 
-          // Validate again after calculation
-          ValidatePaymentDueDate(sale);
+        // Calculate payment due date for the initial form
+        sale.CalculatePaymentDueDate();
 
-          if (ModelState.IsValid)
-          {
-            await _salesService.CreateSaleAsync(sale);
-            TempData["SuccessMessage"] = "Sale created successfully!";
-            return RedirectToAction("Details", new { id = sale.Id });
-          }
-        }
-        catch (Exception ex)
+        // Load customers for dropdown
+        var customers = await _customerService.GetActiveCustomersAsync();
+        _logger.LogInformation("Loading Create Sale page. Generated sale number: {SaleNumber}, Found {CustomerCount} active customers, PaymentDueDate: {PaymentDueDate}", 
+          sale.SaleNumber, customers.Count(), sale.PaymentDueDate);
+
+        if (!customers.Any())
         {
-          TempData["ErrorMessage"] = $"Error creating sale: {ex.Message}";
+          _logger.LogWarning("No active customers found for dropdown");
+          TempData["ErrorMessage"] = "No active customers found. Please create a customer first.";
         }
+        
+        ViewBag.Customers = new SelectList(customers, "Id", "CustomerName");
+
+        return View(sale);
       }
-
-      return View(sale);
-    }
-
-    // Replace the AddItem GET method:
-    public async Task<IActionResult> AddItem(int saleId)
-    {
-      var sale = await _salesService.GetSaleByIdAsync(saleId);
-      if (sale == null) return NotFound();
-
-      var items = await _inventoryService.GetAllItemsAsync();
-      var finishedGoods = await _productionService.GetAllFinishedGoodsAsync();
-
-      ViewBag.SaleId = saleId;
-      ViewBag.SaleNumber = sale.SaleNumber;
-      ViewBag.CustomerName = sale.CustomerName;
-
-      // NEW - Remove stock filters to allow zero-stock items
-      ViewBag.Items = new SelectList(items, "Id", "PartNumber");
-      ViewBag.FinishedGoods = new SelectList(finishedGoods, "Id", "PartNumber");
-
-      var viewModel = new AddSaleItemViewModel
+      catch (Exception ex)
       {
-        SaleId = saleId,
-        Quantity = 1,
-        ProductType = "Item"
-      };
-
-      return View(viewModel);
+        _logger.LogError(ex, "Error loading Create Sale page");
+        TempData["ErrorMessage"] = $"Error loading page: {ex.Message}";
+        return RedirectToAction("Index");
+      }
     }
 
-    // Replace the AddItem POST method:
-    [HttpPost]
+		// Create Sale - POST
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> Create(Sale sale)
+		{
+			try
+			{
+				// Debug: Log the incoming data in detail
+				_logger.LogInformation("Create Sale POST called. CustomerId: {CustomerId}, SaleDate: {SaleDate}, SaleNumber: {SaleNumber}, PaymentDueDate: {PaymentDueDate}, Terms: {Terms}", 
+					sale.CustomerId, sale.SaleDate, sale.SaleNumber, sale.PaymentDueDate, sale.Terms);
+
+				// Fix: Remove validation errors for navigation properties that aren't populated during model binding
+				ModelState.Remove("Customer");
+				
+				// Debug: Check model binding
+				if (sale.CustomerId == 0)
+				{
+					_logger.LogWarning("CustomerId is 0 - model binding issue or no customer selected");
+				}
+				
+				if (string.IsNullOrEmpty(sale.SaleNumber))
+				{
+					_logger.LogWarning("SaleNumber is empty - model binding issue");
+				}
+
+				// Validate customer exists
+				var customer = await _customerService.GetCustomerByIdAsync(sale.CustomerId);
+				if (customer == null)
+				{
+					ModelState.AddModelError(nameof(sale.CustomerId), "Please select a valid customer.");
+					_logger.LogWarning("Invalid customer selected. CustomerId: {CustomerId}", sale.CustomerId);
+				}
+
+				// Perform additional server-side validation
+				ValidatePaymentDueDate(sale);
+
+				// Debug: Log ModelState issues in detail
+				if (!ModelState.IsValid)
+				{
+					var errors = ModelState
+						.Where(ms => ms.Value.Errors.Count > 0)
+						.Select(ms => $"{ms.Key}: {string.Join(", ", ms.Value.Errors.Select(e => e.ErrorMessage))}")
+						.ToList();
+					
+					_logger.LogWarning("ModelState is invalid. Detailed errors: {Errors}", string.Join(" | ", errors));
+				}
+
+				if (ModelState.IsValid)
+				{
+					// Calculate payment due date before saving
+					sale.CalculatePaymentDueDate();
+
+					// Validate again after calculation
+					ValidatePaymentDueDate(sale);
+
+					if (ModelState.IsValid)
+					{
+						var createdSale = await _salesService.CreateSaleAsync(sale);
+						_logger.LogInformation("Sale created successfully. SaleId: {SaleId}, SaleNumber: {SaleNumber}", 
+							createdSale.Id, createdSale.SaleNumber);
+						
+						TempData["SuccessMessage"] = "Sale created successfully!";
+						return RedirectToAction("Details", new { id = createdSale.Id });
+					}
+					else
+					{
+						_logger.LogWarning("ModelState became invalid after PaymentDueDate calculation");
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating sale for CustomerId: {CustomerId}", sale.CustomerId);
+				TempData["ErrorMessage"] = $"Error creating sale: {ex.Message}";
+			}
+
+			// If we get here, there were validation errors - reload the form
+			_logger.LogInformation("Returning to Create view due to validation errors");
+			
+			// Reload customers for dropdown
+			var customers = await _customerService.GetActiveCustomersAsync();
+			ViewBag.Customers = new SelectList(customers, "Id", "CustomerName", sale.CustomerId);
+
+			return View(sale);
+		}
+
+		// AddItem GET method:
+		public async Task<IActionResult> AddItem(int saleId)
+		{
+			var sale = await _salesService.GetSaleByIdAsync(saleId);
+			if (sale == null) return NotFound();
+
+			var items = await _inventoryService.GetAllItemsAsync();
+			var finishedGoods = await _productionService.GetAllFinishedGoodsAsync();
+
+			ViewBag.SaleId = saleId;
+			ViewBag.SaleNumber = sale.SaleNumber;
+			ViewBag.CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer"; // CLEAN REFERENCE
+
+			ViewBag.Items = new SelectList(items, "Id", "PartNumber");
+			ViewBag.FinishedGoods = new SelectList(finishedGoods, "Id", "PartNumber");
+
+			var viewModel = new AddSaleItemViewModel
+			{
+				SaleId = saleId,
+				Quantity = 1,
+				ProductType = "Item"
+			};
+
+			return View(viewModel);
+		}
+
+		// Replace the AddItem POST method:
+		[HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddItem(AddSaleItemViewModel viewModel)
     {
@@ -177,26 +260,25 @@ namespace InventorySystem.Controllers
       return await ReloadAddItemView(viewModel);
     }
 
-    // Update ReloadAddItemView method:
-    private async Task<IActionResult> ReloadAddItemView(AddSaleItemViewModel viewModel)
-    {
-      var sale = await _salesService.GetSaleByIdAsync(viewModel.SaleId);
-      var items = await _inventoryService.GetAllItemsAsync();
-      var finishedGoods = await _productionService.GetAllFinishedGoodsAsync();
+		// ReloadAddItemView method:
+		private async Task<IActionResult> ReloadAddItemView(AddSaleItemViewModel viewModel)
+		{
+			var sale = await _salesService.GetSaleByIdAsync(viewModel.SaleId);
+			var items = await _inventoryService.GetAllItemsAsync();
+			var finishedGoods = await _productionService.GetAllFinishedGoodsAsync();
 
-      ViewBag.SaleId = viewModel.SaleId;
-      ViewBag.SaleNumber = sale?.SaleNumber ?? "";
-      ViewBag.CustomerName = sale?.CustomerName ?? "";
+			ViewBag.SaleId = viewModel.SaleId;
+			ViewBag.SaleNumber = sale?.SaleNumber ?? "";
+			ViewBag.CustomerName = sale?.Customer?.CustomerName ?? "Unknown Customer"; // CLEAN REFERENCE
 
-      // NEW - Remove stock filters
-      ViewBag.Items = new SelectList(items, "Id", "PartNumber", viewModel.ItemId);
-      ViewBag.FinishedGoods = new SelectList(finishedGoods, "Id", "PartNumber", viewModel.FinishedGoodId);
+			ViewBag.Items = new SelectList(items, "Id", "PartNumber", viewModel.ItemId);
+			ViewBag.FinishedGoods = new SelectList(finishedGoods, "Id", "PartNumber", viewModel.FinishedGoodId);
 
-      return View("AddItem", viewModel);
-    }
+			return View("AddItem", viewModel);
+		}
 
-    // Add new method for backorder management:
-    public async Task<IActionResult> Backorders()
+		// Add new method for backorder management:
+		public async Task<IActionResult> Backorders()
     {
       try
       {
@@ -356,123 +438,120 @@ namespace InventorySystem.Controllers
       }
     }
 
-    // Sales Reports
-    public async Task<IActionResult> Reports()
-    {
-      try
-      {
-        // Get all sales data
-        var allSales = await _salesService.GetAllSalesAsync();
-        var allSaleItems = allSales.SelectMany(s => s.SaleItems).ToList();
+		// Sales Reports
+		public async Task<IActionResult> Reports()
+		{
+			try
+			{
+				var allSales = await _salesService.GetAllSalesAsync();
+				var allSaleItems = allSales.SelectMany(s => s.SaleItems).ToList();
 
-        // Calculate top selling products
-        var topSellingItems = allSaleItems
-            .GroupBy(si => new
-            {
-              ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
-              ProductId = si.ItemId ?? si.FinishedGoodId,
-              ProductName = si.ProductName,
-              ProductPartNumber = si.ProductPartNumber
-            })
-            .Select(g => new TopSellingProduct
-            {
-              ProductType = g.Key.ProductType,
-              ProductName = g.Key.ProductName,
-              ProductPartNumber = g.Key.ProductPartNumber,
-              QuantitySold = g.Sum(si => si.QuantitySold),
-              TotalRevenue = g.Sum(si => si.TotalPrice),
-              TotalProfit = g.Sum(si => si.Profit),
-              ProfitMargin = g.Sum(si => si.TotalPrice) > 0 ? (g.Sum(si => si.Profit) / g.Sum(si => si.TotalPrice)) * 100 : 0,
-              SalesCount = g.Count()
-            })
-            .OrderByDescending(p => p.QuantitySold)
-            .Take(10)
-            .ToList();
+				// Calculate top selling products
+				var topSellingItems = allSaleItems
+						.GroupBy(si => new
+						{
+							ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
+							ProductId = si.ItemId ?? si.FinishedGoodId,
+							ProductName = si.ProductName,
+							ProductPartNumber = si.ProductPartNumber
+						})
+						.Select(g => new TopSellingProduct
+						{
+							ProductType = g.Key.ProductType,
+							ProductName = g.Key.ProductName,
+							ProductPartNumber = g.Key.ProductPartNumber,
+							QuantitySold = g.Sum(si => si.QuantitySold),
+							TotalRevenue = g.Sum(si => si.TotalPrice),
+							TotalProfit = g.Sum(si => si.Profit),
+							ProfitMargin = g.Sum(si => si.TotalPrice) > 0 ? (g.Sum(si => si.Profit) / g.Sum(si => si.TotalPrice)) * 100 : 0,
+							SalesCount = g.Count()
+						})
+						.OrderByDescending(p => p.QuantitySold)
+						.Take(10)
+						.ToList();
 
-        var topProfitableItems = allSaleItems
-            .GroupBy(si => new
-            {
-              ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
-              ProductId = si.ItemId ?? si.FinishedGoodId,
-              ProductName = si.ProductName,
-              ProductPartNumber = si.ProductPartNumber
-            })
-            .Select(g => new TopSellingProduct
-            {
-              ProductType = g.Key.ProductType,
-              ProductName = g.Key.ProductName,
-              ProductPartNumber = g.Key.ProductPartNumber,
-              QuantitySold = g.Sum(si => si.QuantitySold),
-              TotalRevenue = g.Sum(si => si.TotalPrice),
-              TotalProfit = g.Sum(si => si.Profit),
-              ProfitMargin = g.Sum(si => si.TotalPrice) > 0 ? (g.Sum(si => si.Profit) / g.Sum(si => si.TotalPrice)) * 100 : 0,
-              SalesCount = g.Count()
-            })
-            .OrderByDescending(p => p.TotalProfit)
-            .Take(10)
-            .ToList();
+				var topProfitableItems = allSaleItems
+						.GroupBy(si => new
+						{
+							ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
+							ProductId = si.ItemId ?? si.FinishedGoodId,
+							ProductName = si.ProductName,
+							ProductPartNumber = si.ProductPartNumber
+						})
+						.Select(g => new TopSellingProduct
+						{
+							ProductType = g.Key.ProductType,
+							ProductName = g.Key.ProductName,
+							ProductPartNumber = g.Key.ProductPartNumber,
+							QuantitySold = g.Sum(si => si.QuantitySold),
+							TotalRevenue = g.Sum(si => si.TotalPrice),
+							TotalProfit = g.Sum(si => si.Profit),
+							ProfitMargin = g.Sum(si => si.TotalPrice) > 0 ? (g.Sum(si => si.Profit) / g.Sum(si => si.TotalPrice)) * 100 : 0,
+							SalesCount = g.Count()
+						})
+						.OrderByDescending(p => p.TotalProfit)
+						.Take(10)
+						.ToList();
 
-        // Calculate customer summaries
-        var topCustomers = allSales
-            .Where(s => s.SaleStatus != SaleStatus.Cancelled)
-            .GroupBy(s => new { s.CustomerName, s.CustomerEmail })
-            .Select(g => new CustomerSummary
-            {
-              CustomerName = g.Key.CustomerName,
-              CustomerEmail = g.Key.CustomerEmail,
-              SalesCount = g.Count(),
-              TotalPurchases = g.Sum(s => s.TotalAmount),
-              TotalProfit = g.SelectMany(s => s.SaleItems).Sum(si => si.Profit),
-              LastPurchaseDate = g.Max(s => s.SaleDate)
-            })
-            .OrderByDescending(c => c.TotalPurchases)
-            .Take(10)
-            .ToList();
+				// Calculate customer summaries (CLEANED - using Customer entity)
+				var topCustomers = allSales
+						.Where(s => s.SaleStatus != SaleStatus.Cancelled && s.Customer != null)
+						.GroupBy(s => s.Customer)
+						.Select(g => new CustomerSummary
+						{
+							CustomerName = g.Key.CustomerName,
+							CustomerEmail = g.Key.Email,
+							SalesCount = g.Count(),
+							TotalPurchases = g.Sum(s => s.TotalAmount),
+							TotalProfit = g.SelectMany(s => s.SaleItems).Sum(si => si.Profit),
+							LastPurchaseDate = g.Max(s => s.SaleDate)
+						})
+						.OrderByDescending(c => c.TotalPurchases)
+						.Take(10)
+						.ToList();
 
-        // Calculate payment status
-        var paidSales = allSales.Where(s => s.PaymentStatus == PaymentStatus.Paid && s.SaleStatus != SaleStatus.Cancelled);
-        var pendingSales = allSales.Where(s => s.PaymentStatus == PaymentStatus.Pending && s.SaleStatus != SaleStatus.Cancelled);
+				var paidSales = allSales.Where(s => s.PaymentStatus == PaymentStatus.Paid && s.SaleStatus != SaleStatus.Cancelled);
+				var pendingSales = allSales.Where(s => s.PaymentStatus == PaymentStatus.Pending && s.SaleStatus != SaleStatus.Cancelled);
 
-        var viewModel = new SalesReportsViewModel
-        {
-          // Core metrics
-          TotalSales = await _salesService.GetTotalSalesValueAsync(),
-          TotalProfit = await _salesService.GetTotalProfitAsync(),
-          TotalSalesCount = await _salesService.GetTotalSalesCountAsync(),
-          CurrentMonthSales = await _salesService.GetTotalSalesValueByMonthAsync(DateTime.Now.Year, DateTime.Now.Month),
-          CurrentMonthProfit = await _salesService.GetTotalProfitByMonthAsync(DateTime.Now.Year, DateTime.Now.Month),
-          LastMonthSales = await _salesService.GetTotalSalesValueByMonthAsync(DateTime.Now.AddMonths(-1).Year, DateTime.Now.AddMonths(-1).Month),
-          LastMonthProfit = await _salesService.GetTotalProfitByMonthAsync(DateTime.Now.AddMonths(-1).Year, DateTime.Now.AddMonths(-1).Month),
+				var viewModel = new SalesReportsViewModel
+				{
+					// Core metrics
+					TotalSales = await _salesService.GetTotalSalesValueAsync(),
+					TotalProfit = await _salesService.GetTotalProfitAsync(),
+					TotalSalesCount = await _salesService.GetTotalSalesCountAsync(),
+					CurrentMonthSales = await _salesService.GetTotalSalesValueByMonthAsync(DateTime.Now.Year, DateTime.Now.Month),
+					CurrentMonthProfit = await _salesService.GetTotalProfitByMonthAsync(DateTime.Now.Year, DateTime.Now.Month),
+					LastMonthSales = await _salesService.GetTotalSalesValueByMonthAsync(DateTime.Now.AddMonths(-1).Year, DateTime.Now.AddMonths(-1).Month),
+					LastMonthProfit = await _salesService.GetTotalProfitByMonthAsync(DateTime.Now.AddMonths(-1).Year, DateTime.Now.AddMonths(-1).Month),
 
-          // Recent activity
-          RecentSales = allSales.OrderByDescending(s => s.SaleDate).Take(5),
-          PendingSales = allSales.Where(s => s.SaleStatus == SaleStatus.Processing).OrderByDescending(s => s.SaleDate).Take(5),
+					// Recent activity
+					RecentSales = allSales.OrderByDescending(s => s.SaleDate).Take(5),
+					PendingSales = allSales.Where(s => s.SaleStatus == SaleStatus.Processing).OrderByDescending(s => s.SaleDate).Take(5),
 
-          // Product analytics
-          TopSellingItems = topSellingItems,
-          TopProfitableItems = topProfitableItems,
+					// Product analytics
+					TopSellingItems = topSellingItems,
+					TopProfitableItems = topProfitableItems,
 
-          // Customer analytics
-          TopCustomers = topCustomers,
+					// Customer analytics
+					TopCustomers = topCustomers,
 
-          // Payment status
-          PaidSalesCount = paidSales.Count(),
-          PendingSalesCount = pendingSales.Count(),
-          PaidAmount = paidSales.Sum(s => s.TotalAmount),
-          PendingAmount = pendingSales.Sum(s => s.TotalAmount)
-        };
+					// Payment status
+					PaidSalesCount = paidSales.Count(),
+					PendingSalesCount = pendingSales.Count(),
+					PaidAmount = paidSales.Sum(s => s.TotalAmount),
+					PendingAmount = pendingSales.Sum(s => s.TotalAmount)
+				};
 
-        return View(viewModel);
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error loading sales reports: {ex.Message}";
-        return View(new SalesReportsViewModel());
-      }
-    }
-
-    // Delete Sale
-    [HttpPost]
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				TempData["ErrorMessage"] = $"Error loading sales reports: {ex.Message}";
+				return View(new SalesReportsViewModel());
+			}
+		}
+		// Delete Sale
+		[HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
@@ -492,157 +571,171 @@ namespace InventorySystem.Controllers
     // Helper method for payment due date validation
     private void ValidatePaymentDueDate(Sale sale)
     {
-      // Check if payment due date is in the past
-      if (sale.PaymentDueDate.Date < DateTime.Today)
+      try 
       {
-        ModelState.AddModelError(nameof(sale.PaymentDueDate),
-            "Payment due date cannot be in the past.");
-      }
+        _logger.LogDebug("Validating payment due date. SaleDate: {SaleDate}, PaymentDueDate: {PaymentDueDate}, Terms: {Terms}", 
+          sale.SaleDate, sale.PaymentDueDate, sale.Terms);
+          
+        // Check if payment due date is in the past (compare dates only)
+        if (sale.PaymentDueDate.Date < DateTime.Today)
+        {
+          var errorMessage = "Payment due date cannot be in the past.";
+          ModelState.AddModelError(nameof(sale.PaymentDueDate), errorMessage);
+          _logger.LogWarning("Payment due date validation failed: {Error}", errorMessage);
+        }
 
-      // Check if payment due date is before sale date
-      if (sale.PaymentDueDate.Date < sale.SaleDate.Date)
-      {
-        ModelState.AddModelError(nameof(sale.PaymentDueDate),
-            "Payment due date cannot be before the sale date.");
-      }
+        // Check if payment due date is before sale date (compare dates only)
+        if (sale.PaymentDueDate.Date < sale.SaleDate.Date)
+        {
+          var errorMessage = "Payment due date cannot be before the sale date.";
+          ModelState.AddModelError(nameof(sale.PaymentDueDate), errorMessage);
+          _logger.LogWarning("Payment due date validation failed: {Error}", errorMessage);
+        }
 
-      // Business rule: Immediate terms should have same due date as sale date
-      if (sale.Terms == PaymentTerms.Immediate && sale.PaymentDueDate.Date != sale.SaleDate.Date)
+        // Business rule: Immediate terms should have same due date as sale date (compare dates only)
+        if (sale.Terms == PaymentTerms.Immediate && sale.PaymentDueDate.Date != sale.SaleDate.Date)
+        {
+          var errorMessage = "Payment due date must be the same as sale date for Immediate terms.";
+          ModelState.AddModelError(nameof(sale.PaymentDueDate), errorMessage);
+          _logger.LogWarning("Payment due date validation failed: {Error}", errorMessage);
+        }
+      }
+      catch (Exception ex)
       {
-        ModelState.AddModelError(nameof(sale.PaymentDueDate),
-            "Payment due date must be the same as sale date for Immediate terms.");
+        _logger.LogError(ex, "Error during payment due date validation");
       }
     }
 
     // Invoice Report - View invoice for a sale
     [HttpGet]
-    public async Task<IActionResult> InvoiceReport(int saleId)
-    {
-      try
-      {
-        var sale = await _salesService.GetSaleByIdAsync(saleId);
-        if (sale == null)
-        {
-          TempData["ErrorMessage"] = "Sale not found.";
-          return RedirectToAction("Index");
-        }
+		[HttpGet]
+		public async Task<IActionResult> InvoiceReport(int saleId)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(saleId);
+				if (sale == null)
+				{
+					TempData["ErrorMessage"] = "Sale not found.";
+					return RedirectToAction("Index");
+				}
 
-        // Create customer info from sale data
-        var customer = new CustomerInfo
-        {
-          CustomerName = sale.CustomerName,
-          CustomerEmail = sale.CustomerEmail ?? string.Empty,
-          CustomerPhone = sale.CustomerPhone ?? string.Empty,
-          BillingAddress = sale.ShippingAddress ?? string.Empty,
-          ShippingAddress = sale.ShippingAddress ?? string.Empty
-        };
+				// CLEAN: Use Customer entity instead of legacy fields
+				var customer = new CustomerInfo
+				{
+					CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
+					CustomerEmail = sale.Customer?.Email ?? string.Empty,
+					CustomerPhone = sale.Customer?.Phone ?? string.Empty,
+					BillingAddress = sale.Customer?.FullBillingAddress ?? string.Empty,
+					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
+				};
 
-        var viewModel = new InvoiceReportViewModel
-        {
-          InvoiceNumber = sale.SaleNumber,
-          InvoiceDate = sale.SaleDate,
-          DueDate = sale.PaymentDueDate,
-          SaleStatus = sale.SaleStatus,
-          PaymentStatus = sale.PaymentStatus,
-          PaymentTerms = sale.Terms,
-          Notes = sale.Notes ?? string.Empty,
-          Customer = customer,
-          LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
-          {
-            ItemId = si.ItemId ?? si.FinishedGoodId ?? 0,
-            PartNumber = si.ProductPartNumber,
-            Description = si.ProductName,
-            Quantity = si.QuantitySold,
-            UnitPrice = si.UnitPrice,
-            Notes = si.Notes ?? string.Empty,
-            ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
-            QuantityBackordered = si.QuantityBackordered
-          }).ToList(),
-          CompanyInfo = await GetCompanyInfo(),
-          CustomerEmail = sale.CustomerEmail ?? string.Empty,
-          EmailSubject = $"Invoice {sale.SaleNumber}",
-          EmailMessage = $"Please find attached Invoice {sale.SaleNumber} for your recent purchase.",
-          PaymentMethod = sale.PaymentMethod ?? string.Empty,
-          IsOverdue = sale.IsOverdue,
-          DaysOverdue = sale.DaysOverdue,
-          ShippingAddress = sale.ShippingAddress ?? string.Empty,
-          OrderNumber = sale.OrderNumber ?? string.Empty,
-          TotalShipping = sale.ShippingCost,
-          TotalTax = sale.TaxAmount
-        };
+				var viewModel = new InvoiceReportViewModel
+				{
+					InvoiceNumber = sale.SaleNumber,
+					InvoiceDate = sale.SaleDate,
+					DueDate = sale.PaymentDueDate,
+					SaleStatus = sale.SaleStatus,
+					PaymentStatus = sale.PaymentStatus,
+					PaymentTerms = sale.Terms,
+					Notes = sale.Notes ?? string.Empty,
+					Customer = customer,
+					LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
+					{
+						ItemId = si.ItemId ?? si.FinishedGoodId ?? 0,
+						PartNumber = si.ProductPartNumber,
+						Description = si.ProductName,
+						Quantity = si.QuantitySold,
+						UnitPrice = si.UnitPrice,
+						Notes = si.Notes ?? string.Empty,
+						ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
+						QuantityBackordered = si.QuantityBackordered
+					}).ToList(),
+					CompanyInfo = await GetCompanyInfo(),
+					CustomerEmail = sale.Customer?.Email ?? string.Empty, // CLEAN
+					EmailSubject = $"Invoice {sale.SaleNumber}",
+					EmailMessage = $"Please find attached Invoice {sale.SaleNumber} for your recent purchase.",
+					PaymentMethod = sale.PaymentMethod ?? string.Empty,
+					IsOverdue = sale.IsOverdue,
+					DaysOverdue = sale.DaysOverdue,
+					ShippingAddress = sale.ShippingAddress ?? string.Empty,
+					OrderNumber = sale.OrderNumber ?? string.Empty,
+					TotalShipping = sale.ShippingCost,
+					TotalTax = sale.TaxAmount
+				};
 
-        return View(viewModel);
-      }
-      catch (Exception ex)
-      {
-        TempData["ErrorMessage"] = $"Error generating invoice: {ex.Message}";
-        return RedirectToAction("Index");
-      }
-    }
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				TempData["ErrorMessage"] = $"Error generating invoice: {ex.Message}";
+				return RedirectToAction("Index");
+			}
+		}
 
-    // Print-friendly version of the invoice
-    [HttpGet]
-    public async Task<IActionResult> InvoiceReportPrint(int saleId)
-    {
-      try
-      {
-        var sale = await _salesService.GetSaleByIdAsync(saleId);
-        if (sale == null)
-        {
-          return NotFound("Sale not found.");
-        }
+		// Print-friendly version of the invoice
+		[HttpGet]
+		public async Task<IActionResult> InvoiceReportPrint(int saleId)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(saleId);
+				if (sale == null)
+				{
+					return NotFound("Sale not found.");
+				}
 
-        // Create customer info from sale data
-        var customer = new CustomerInfo
-        {
-          CustomerName = sale.CustomerName,
-          CustomerEmail = sale.CustomerEmail ?? string.Empty,
-          CustomerPhone = sale.CustomerPhone ?? string.Empty,
-          BillingAddress = sale.ShippingAddress ?? string.Empty,
-          ShippingAddress = sale.ShippingAddress ?? string.Empty
-        };
+				// CLEAN: Use Customer entity instead of legacy fields
+				var customer = new CustomerInfo
+				{
+					CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
+					CustomerEmail = sale.Customer?.Email ?? string.Empty,
+					CustomerPhone = sale.Customer?.Phone ?? string.Empty,
+					BillingAddress = sale.Customer?.FullBillingAddress ?? string.Empty,
+					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
+				};
 
-        var viewModel = new InvoiceReportViewModel
-        {
-          InvoiceNumber = sale.SaleNumber,
-          InvoiceDate = sale.SaleDate,
-          DueDate = sale.PaymentDueDate,
-          SaleStatus = sale.SaleStatus,
-          PaymentStatus = sale.PaymentStatus,
-          PaymentTerms = sale.Terms,
-          Notes = sale.Notes ?? string.Empty,
-          Customer = customer,
-          LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
-          {
-            ItemId = si.ItemId ?? si.FinishedGoodId ?? 0,
-            PartNumber = si.ProductPartNumber,
-            Description = si.ProductName,
-            Quantity = si.QuantitySold,
-            UnitPrice = si.UnitPrice,
-            Notes = si.Notes ?? string.Empty,
-            ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
-            QuantityBackordered = si.QuantityBackordered
-          }).ToList(),
-          CompanyInfo = await GetCompanyInfo(),
-          PaymentMethod = sale.PaymentMethod ?? string.Empty,
-          IsOverdue = sale.IsOverdue,
-          DaysOverdue = sale.DaysOverdue,
-          ShippingAddress = sale.ShippingAddress ?? string.Empty,
-          OrderNumber = sale.OrderNumber ?? string.Empty,
-          TotalShipping = sale.ShippingCost,
-          TotalTax = sale.TaxAmount
-        };
+				var viewModel = new InvoiceReportViewModel
+				{
+					InvoiceNumber = sale.SaleNumber,
+					InvoiceDate = sale.SaleDate,
+					DueDate = sale.PaymentDueDate,
+					SaleStatus = sale.SaleStatus,
+					PaymentStatus = sale.PaymentStatus,
+					PaymentTerms = sale.Terms,
+					Notes = sale.Notes ?? string.Empty,
+					Customer = customer,
+					LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
+					{
+						ItemId = si.ItemId ?? si.FinishedGoodId ?? 0,
+						PartNumber = si.ProductPartNumber,
+						Description = si.ProductName,
+						Quantity = si.QuantitySold,
+						UnitPrice = si.UnitPrice,
+						Notes = si.Notes ?? string.Empty,
+						ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
+						QuantityBackordered = si.QuantityBackordered
+					}).ToList(),
+					CompanyInfo = await GetCompanyInfo(),
+					PaymentMethod = sale.PaymentMethod ?? string.Empty,
+					IsOverdue = sale.IsOverdue,
+					DaysOverdue = sale.DaysOverdue,
+					ShippingAddress = sale.ShippingAddress ?? string.Empty,
+					OrderNumber = sale.OrderNumber ?? string.Empty,
+					TotalShipping = sale.ShippingCost,
+					TotalTax = sale.TaxAmount
+				};
 
-        return View("InvoiceReportPrint", viewModel);
-      }
-      catch (Exception ex)
-      {
-        return BadRequest($"Error generating invoice: {ex.Message}");
-      }
-    }
+				return View("InvoiceReportPrint", viewModel);
+			}
+			catch (Exception ex)
+			{
+				return BadRequest($"Error generating invoice: {ex.Message}");
+			}
+		}
 
-    // Email Invoice to Customer
-    [HttpPost]
+		// Email Invoice to Customer
+		[HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> EmailInvoiceReport(InvoiceReportViewModel model)
     {
@@ -856,6 +949,106 @@ namespace InventorySystem.Controllers
       // This would need to be implemented based on how you store sale numbers
       // For now, return a placeholder
       return 1;
+    }
+
+    // Edit Sale - GET
+    public async Task<IActionResult> Edit(int id)
+    {
+      try
+      {
+        var sale = await _salesService.GetSaleByIdAsync(id);
+        if (sale == null)
+        {
+          TempData["ErrorMessage"] = "Sale not found.";
+          return RedirectToAction("Index");
+        }
+
+        _logger.LogInformation("Loading Edit Sale page for Sale ID: {SaleId}, SaleNumber: {SaleNumber}", id, sale.SaleNumber);
+
+        return View(sale);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading Edit Sale page for Sale ID: {SaleId}", id);
+        TempData["ErrorMessage"] = $"Error loading sale: {ex.Message}";
+        return RedirectToAction("Index");
+      }
+    }
+
+    // Edit Sale - POST
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, Sale sale)
+    {
+      if (id != sale.Id)
+      {
+        return NotFound();
+      }
+
+      try
+      {
+        // Debug: Log the incoming data
+        _logger.LogInformation("Edit Sale POST called. SaleId: {SaleId}, CustomerId: {CustomerId}, SaleDate: {SaleDate}, SaleNumber: {SaleNumber}", 
+          sale.Id, sale.CustomerId, sale.SaleDate, sale.SaleNumber);
+
+        // Fix: Remove validation errors for navigation properties that aren't populated during model binding
+        ModelState.Remove("Customer");
+        ModelState.Remove("SaleItems");
+
+        // Validate customer exists (if CustomerId was changed, which it shouldn't be in edit)
+        var customer = await _customerService.GetCustomerByIdAsync(sale.CustomerId);
+        if (customer == null)
+        {
+          ModelState.AddModelError(nameof(sale.CustomerId), "Customer is invalid.");
+          _logger.LogWarning("Invalid customer during edit. CustomerId: {CustomerId}", sale.CustomerId);
+        }
+
+        // Perform payment due date validation
+        ValidatePaymentDueDate(sale);
+
+        // Debug: Log ModelState issues
+        if (!ModelState.IsValid)
+        {
+          var errors = ModelState
+            .Where(ms => ms.Value.Errors.Count > 0)
+            .Select(ms => $"{ms.Key}: {string.Join(", ", ms.Value.Errors.Select(e => e.ErrorMessage))}")
+            .ToList();
+          
+          _logger.LogWarning("ModelState is invalid during edit. Detailed errors: {Errors}", string.Join(" | ", errors));
+        }
+
+        if (ModelState.IsValid)
+        {
+          // Calculate payment due date before saving
+          sale.CalculatePaymentDueDate();
+
+          // Validate again after calculation
+          ValidatePaymentDueDate(sale);
+
+          if (ModelState.IsValid)
+          {
+            var updatedSale = await _salesService.UpdateSaleAsync(sale);
+            _logger.LogInformation("Sale updated successfully. SaleId: {SaleId}, SaleNumber: {SaleNumber}", 
+              updatedSale.Id, updatedSale.SaleNumber);
+            
+            TempData["SuccessMessage"] = "Sale updated successfully!";
+            return RedirectToAction("Details", new { id = sale.Id });
+          }
+          else
+          {
+            _logger.LogWarning("ModelState became invalid after PaymentDueDate calculation during edit");
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error updating sale. SaleId: {SaleId}", sale.Id);
+        TempData["ErrorMessage"] = $"Error updating sale: {ex.Message}";
+      }
+
+      // If we get here, there were validation errors - return to edit form
+      _logger.LogInformation("Returning to Edit view due to validation errors for Sale ID: {SaleId}", id);
+      return View(sale);
     }
   }
 }

@@ -1,0 +1,342 @@
+@model InventorySystem.Models.Customer
+@{
+    ViewData["Title"] = $"Customer Details - {Model.CustomerName}";
+    var analytics = ViewBag.Analytics as InventorySystem.Services.CustomerAnalytics;
+    var documents = ViewBag.Documents as IEnumerable<InventorySystem.Models.CustomerDocument>;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-user"></i> @Model.CustomerName</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("Edit", new { id = Model.Id })" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="@Url.Action("Analytics", new { id = Model.Id })" class="btn btn-info">
+            <i class="fas fa-chart-line"></i> Analytics
+        </a>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+@* Customer Overview Cards *@
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">
+                    <i class="fas fa-dollar-sign"></i> Total Sales
+                </h5>
+                <h3>$@Model.TotalSales.ToString("N2")</h3>
+                <small class="text-muted">@Model.SalesCount orders</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">
+                    <i class="fas fa-exclamation-circle"></i> Outstanding
+                </h5>
+                <h3>$@Model.OutstandingBalance.ToString("N2")</h3>
+                @if (Model.CreditLimit > 0)
+                {
+                    <small class="text-muted">$@Model.CreditAvailable.ToString("N2") available</small>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">
+                    <i class="fas fa-calendar"></i> Customer Since
+                </h5>
+                <h3>@Model.CustomerSince</h3>
+                @if (Model.LastSaleDate.HasValue)
+                {
+                    <small class="text-muted">Last sale: @Model.LastSaleDate.Value.ToString("MM/dd/yyyy")</small>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">
+                    <i class="fas fa-check-circle"></i> Status
+                </h5>
+                <h3>@Model.CustomerStatus</h3>
+                <span class="badge @(Model.IsActive ? "bg-success" : "bg-secondary")">
+                    @(Model.IsActive ? "Active" : "Inactive")
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Customer Information Tabs *@
+<ul class="nav nav-tabs" id="customerTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#contact-tab">
+            <i class="fas fa-address-card"></i> Contact Info
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#sales-tab">
+            <i class="fas fa-chart-line"></i> Sales History
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#credit-tab">
+            <i class="fas fa-credit-card"></i> Credit & Billing
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#documents-tab">
+            <i class="fas fa-file-alt"></i> Documents
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content border border-top-0 p-4">
+    @* Contact Information Tab *@
+    <div class="tab-pane fade show active" id="contact-tab">
+        <div class="row">
+            <div class="col-md-6">
+                <h5><i class="fas fa-user"></i> Basic Information</h5>
+                <table class="table table-borderless">
+                    <tr><td><strong>Name:</strong></td><td>@Model.CustomerName</td></tr>
+                    <tr><td><strong>Company:</strong></td><td>@(Model.CompanyName ?? "N/A")</td></tr>
+                    <tr><td><strong>Type:</strong></td><td><span class="badge bg-info">@Model.CustomerType</span></td></tr>
+                    <tr><td><strong>Email:</strong></td><td><a href="mailto:@Model.Email">@Model.Email</a></td></tr>
+                    <tr><td><strong>Phone:</strong></td><td>@(Model.Phone ?? "N/A")</td></tr>
+                    <tr><td><strong>Mobile:</strong></td><td>@(Model.MobilePhone ?? "N/A")</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h5><i class="fas fa-map-marker-alt"></i> Addresses</h5>
+                <div class="mb-3">
+                    <strong>Billing Address:</strong><br>
+                    <address>@Html.Raw(Model.FullBillingAddress.Replace(", ", "<br>"))</address>
+                </div>
+                <div>
+                    <strong>Shipping Address:</strong><br>
+                    <address>@Html.Raw(Model.FullShippingAddress.Replace(", ", "<br>"))</address>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Sales History Tab *@
+    <div class="tab-pane fade" id="sales-tab">
+        @if (analytics != null && analytics.MonthlySalesHistory.Any())
+        {
+            <canvas id="salesChart" height="100"></canvas>
+        }
+        <div class="table-responsive mt-3">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Sale #</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sale in Model.Sales.Take(10))
+                    {
+                        <tr>
+                            <td><a href="/Sales/Details/@sale.Id">@sale.SaleNumber</a></td>
+                            <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
+                            <td>$@sale.TotalAmount.ToString("N2")</td>
+                            <td><span class="badge bg-@(sale.PaymentStatus == PaymentStatus.Paid ? "success" : "warning")">@sale.PaymentStatus</span></td>
+                            <td><a href="/Sales/Details/@sale.Id" class="btn btn-sm btn-outline-primary">View</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Credit & Billing Tab *@
+    <div class="tab-pane fade" id="credit-tab">
+        <div class="row">
+            <div class="col-md-6">
+                <h5><i class="fas fa-credit-card"></i> Credit Information</h5>
+                <table class="table table-borderless">
+                    <tr><td><strong>Credit Limit:</strong></td><td>$@Model.CreditLimit.ToString("N2")</td></tr>
+                    <tr><td><strong>Outstanding Balance:</strong></td><td>$@Model.OutstandingBalance.ToString("N2")</td></tr>
+                    <tr><td><strong>Available Credit:</strong></td><td>$@Model.CreditAvailable.ToString("N2")</td></tr>
+                    <tr><td><strong>Payment Terms:</strong></td><td>@Model.DefaultPaymentTerms</td></tr>
+                    <tr><td><strong>Tax Exempt:</strong></td><td>@(Model.IsTaxExempt ? "Yes" : "No")</td></tr>
+                    @if (Model.IsTaxExempt)
+                    {
+                        <tr><td><strong>Tax Exempt ID:</strong></td><td>@Model.TaxExemptId</td></tr>
+                    }
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h5><i class="fas fa-cog"></i> Preferences</h5>
+                <table class="table table-borderless">
+                    <tr><td><strong>Pricing Tier:</strong></td><td><span class="badge bg-secondary">@Model.PricingTier</span></td></tr>
+                    <tr><td><strong>Communication:</strong></td><td>@Model.PreferredCommunication</td></tr>
+                    <tr><td><strong>Marketing Emails:</strong></td><td>@(Model.AcceptsMarketing ? "Yes" : "No")</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* Documents Tab *@
+    <div class="tab-pane fade" id="documents-tab">
+        <div class="d-flex justify-content-between mb-3">
+            <h5><i class="fas fa-file-alt"></i> Customer Documents</h5>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-upload"></i> Upload Document
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Document</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Uploaded</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (documents != null && documents.Any())
+                    {
+                        @foreach (var doc in documents)
+                        {
+                            <tr>
+                                <td>
+                                    <i class="@doc.FileTypeIcon"></i>
+                                    @doc.DocumentName
+                                </td>
+                                <td>@doc.DocumentType</td>
+                                <td>@doc.FileSizeFormatted</td>
+                                <td>@doc.UploadedDate.ToString("MM/dd/yyyy")</td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/Customers/Document/@doc.Id" class="btn btn-outline-primary" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        <button class="btn btn-outline-danger" onclick="deleteDocument(@doc.Id)" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No documents uploaded</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@* Document Upload Modal *@
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/Customers/UploadDocument" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" name="CustomerId" value="@Model.Id" />
+                    <div class="mb-3">
+                        <label class="form-label">Document Name</label>
+                        <input type="text" name="DocumentName" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Document Type</label>
+                        <select name="DocumentType" class="form-select" required>
+                            <option value="">Select Type...</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Agreement">Agreement</option>
+                            <option value="Credit Application">Credit Application</option>
+                            <option value="Tax Certificate">Tax Certificate</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">File</label>
+                        <input type="file" name="DocumentFile" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea name="Description" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Sales chart
+    @if (analytics != null && analytics.MonthlySalesHistory.Any())
+    {
+        <text>
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [@Html.Raw(string.Join(",", analytics.MonthlySalesHistory.Select(m => $"'{m.MonthName} {m.Year}'")))],
+                datasets: [{
+                    label: 'Monthly Sales',
+                    data: [@string.Join(",", analytics.MonthlySalesHistory.Select(m => m.SalesAmount))],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        </text>
+    }
+
+    function deleteDocument(id) {
+        if (confirm('Are you sure you want to delete this document?')) {
+            fetch(`/Customers/DeleteDocument/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                }
+            }).then(() => location.reload());
+        }
+    }
+</script>
+}

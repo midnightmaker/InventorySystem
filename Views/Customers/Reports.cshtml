@@ -1,0 +1,473 @@
+﻿@model InventorySystem.ViewModels.CustomersReportViewModel
+@{
+    ViewData["Title"] = "Customer Reports & Analytics";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-bar"></i> Customer Reports & Analytics</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("Index")" class="btn btn-outline-primary">
+            <i class="fas fa-users"></i> All Customers
+        </a>
+        <button class="btn btn-outline-success" onclick="exportToExcel()">
+            <i class="fas fa-file-excel"></i> Export to Excel
+        </button>
+    </div>
+</div>
+
+@* Summary Statistics *@
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center bg-primary text-white">
+            <div class="card-body">
+                <div class="mb-2">
+                    <i class="fas fa-users fa-2x"></i>
+                </div>
+                <h3>@Model.TotalCustomers</h3>
+                <p class="mb-0">Total Customers</p>
+                <small>@Model.ActiveCustomers active</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center bg-success text-white">
+            <div class="card-body">
+                <div class="mb-2">
+                    <i class="fas fa-check-circle fa-2x"></i>
+                </div>
+                <h3>@Model.ActiveCustomers</h3>
+                <p class="mb-0">Active Customers</p>
+                <small>@((Model.ActiveCustomers / (double)Model.TotalCustomers * 100).ToString("F1"))% of total</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center bg-warning text-white">
+            <div class="card-body">
+                <div class="mb-2">
+                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                </div>
+                <h3>@Model.CustomersWithOutstandingBalance.Count</h3>
+                <p class="mb-0">Outstanding Balances</p>
+                <small>$@Model.TotalOutstandingBalance.ToString("N2") total</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center bg-danger text-white">
+            <div class="card-body">
+                <div class="mb-2">
+                    <i class="fas fa-ban fa-2x"></i>
+                </div>
+                <h3>@Model.CustomersOverCreditLimit.Count</h3>
+                <p class="mb-0">Over Credit Limit</p>
+                <small>Need immediate attention</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Top Customers -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-trophy"></i> Top Customers by Sales</h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary active" onclick="showTopCustomersChart('sales')">By Sales</button>
+                    <button class="btn btn-outline-primary" onclick="showTopCustomersChart('orders')">By Orders</button>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Model.TopCustomers.Any())
+                {
+                    <canvas id="topCustomersChart" height="100"></canvas>
+                    
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Customer</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Total Sales</th>
+                                    <th class="text-end">Orders</th>
+                                    <th class="text-end">Avg Order</th>
+                                    <th class="text-center">Last Order</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.TopCustomers.Count && i < 10; i++)
+                                {
+                                    var customer = Model.TopCustomers[i];
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-secondary">@(i + 1)</span>
+                                        </td>
+                                        <td>
+                                            <strong>@customer.CustomerName</strong><br>
+                                            <small class="text-muted">@customer.CustomerEmail</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">@customer.CustomerType</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong>$@customer.TotalSales.ToString("N2")</strong>
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="badge bg-primary">@customer.TotalOrders</span>
+                                        </td>
+                                        <td class="text-end">
+                                            $@customer.AverageOrderValue.ToString("N2")
+                                        </td>
+                                        <td class="text-center">
+                                            @if (customer.LastOrderDate.HasValue)
+                                            {
+                                                <small>@customer.LastOrderDate.Value.ToString("MM/dd/yyyy")</small>
+                                            }
+                                            else
+                                            {
+                                                <small class="text-muted">Never</small>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="@Url.Action("Details", new { id = customer.CustomerId })" class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="@Url.Action("Analytics", new { id = customer.CustomerId })" class="btn btn-outline-info btn-sm">
+                                                    <i class="fas fa-chart-line"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No customer data available</h5>
+                        <p class="text-muted">Customer analytics will appear here once sales are recorded.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Type Breakdown -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-pie-chart"></i> Customer Types</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.CustomersByType.Any())
+                {
+                    <canvas id="customerTypeChart" height="150"></canvas>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No customer type data</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Credit Management Section -->
+@if (Model.CustomersWithOutstandingBalance.Any() || Model.CustomersOverCreditLimit.Any())
+{
+    <div class="row">
+        <!-- Outstanding Balances -->
+        @if (Model.CustomersWithOutstandingBalance.Any())
+        {
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5><i class="fas fa-exclamation-circle"></i> Outstanding Balances</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th class="text-end">Outstanding</th>
+                                        <th class="text-end">Credit Limit</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var customer in Model.CustomersWithOutstandingBalance.Take(10))
+                                    {
+                                        <tr class="@(customer.OutstandingBalance > customer.CreditLimit && customer.CreditLimit > 0 ? "table-danger" : "")">
+                                            <td>
+                                                <strong>@customer.CustomerName</strong><br>
+                                                <small class="text-muted">@customer.Email</small>
+                                            </td>
+                                            <td class="text-end">
+                                                <strong class="text-warning">$@customer.OutstandingBalance.ToString("N2")</strong>
+                                            </td>
+                                            <td class="text-end">
+                                                @if (customer.CreditLimit > 0)
+                                                {
+                                                    <text>$@customer.CreditLimit.ToString("N2")</text>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">No Limit</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="@Url.Action("Details", new { id = customer.Id })" class="btn btn-outline-primary btn-sm">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="/Sales?customerId=@customer.Id" class="btn btn-outline-info btn-sm">
+                                                        <i class="fas fa-file-invoice"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (Model.CustomersWithOutstandingBalance.Count > 10)
+                        {
+                            <div class="text-center mt-2">
+                                <a href="@Url.Action("Index", new { hasOutstandingBalance = true })" class="btn btn-outline-warning btn-sm">
+                                    View All @Model.CustomersWithOutstandingBalance.Count Customers
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Over Credit Limit -->
+        @if (Model.CustomersOverCreditLimit.Any())
+        {
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5><i class="fas fa-ban"></i> Over Credit Limit</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th class="text-end">Outstanding</th>
+                                        <th class="text-end">Limit</th>
+                                        <th class="text-end">Over By</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var customer in Model.CustomersOverCreditLimit.Take(10))
+                                    {
+                                        <tr class="table-danger">
+                                            <td>
+                                                <strong>@customer.CustomerName</strong><br>
+                                                <small class="text-muted">@customer.Email</small>
+                                            </td>
+                                            <td class="text-end">
+                                                <strong>$@customer.OutstandingBalance.ToString("N2")</strong>
+                                            </td>
+                                            <td class="text-end">
+                                                $@customer.CreditLimit.ToString("N2")
+                                            </td>
+                                            <td class="text-end">
+                                                <strong class="text-danger">$@((customer.OutstandingBalance - customer.CreditLimit).ToString("N2"))</strong>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="@Url.Action("Details", new { id = customer.Id })" class="btn btn-outline-primary btn-sm">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="@Url.Action("Edit", new { id = customer.Id })" class="btn btn-outline-warning btn-sm">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (Model.CustomersOverCreditLimit.Count > 10)
+                        {
+                            <div class="text-center mt-2">
+                                <a href="@Url.Action("Index", new { overCreditLimit = true })" class="btn btn-outline-danger btn-sm">
+                                    View All @Model.CustomersOverCreditLimit.Count Customers
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts 
+{
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let topCustomersChart;
+    let customerTypeChart;
+
+    // Initialize charts when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeTopCustomersChart();
+        initializeCustomerTypeChart();
+    });
+
+    function initializeTopCustomersChart() {
+        @if (Model.TopCustomers.Any())
+        {
+            <text>
+            const ctx = document.getElementById('topCustomersChart').getContext('2d');
+            topCustomersChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.TopCustomers.Take(10).Select(c => $"'{c.CustomerName}'")))],
+                    datasets: [{
+                        label: 'Total Sales ($)',
+                        data: [@string.Join(",", Model.TopCustomers.Take(10).Select(c => c.TotalSales))],
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+            </text>
+        }
+    }
+
+    function initializeCustomerTypeChart() {
+        @if (Model.CustomersByType.Any())
+        {
+            <text>
+            const typeCtx = document.getElementById('customerTypeChart').getContext('2d');
+            customerTypeChart = new Chart(typeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.CustomersByType.Keys.Select(k => $"'{k}'")))],
+                    datasets: [{
+                        data: [@string.Join(",", Model.CustomersByType.Values)],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 205, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)',
+                            'rgba(255, 159, 64, 0.8)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            </text>
+        }
+    }
+
+    function showTopCustomersChart(type) {
+        if (!topCustomersChart) return;
+
+        // Update button states
+        document.querySelectorAll('.btn-group button').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+
+        @if (Model.TopCustomers.Any())
+        {
+            <text>
+            if (type === 'sales') {
+                topCustomersChart.data.datasets[0] = {
+                    label: 'Total Sales ($)',
+                    data: [@string.Join(",", Model.TopCustomers.Take(10).Select(c => c.TotalSales))],
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                };
+                topCustomersChart.options.scales.y.ticks.callback = function(value) {
+                    return '$' + value.toLocaleString();
+                };
+            } else {
+                topCustomersChart.data.datasets[0] = {
+                    label: 'Total Orders',
+                    data: [@string.Join(",", Model.TopCustomers.Take(10).Select(c => c.TotalOrders))],
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                };
+                topCustomersChart.options.scales.y.ticks.callback = function(value) {
+                    return value;
+                };
+            }
+            topCustomersChart.update();
+            </text>
+        }
+    }
+
+    function exportToExcel() {
+        window.location.href = '@Url.Action("ExportCustomers", "Customers")';
+    }
+
+    // Auto-refresh every 5 minutes
+    setInterval(function() {
+        if (document.hidden) return; // Don't refresh if tab is not active
+        
+        // Check if we need to refresh data
+        fetch('@Url.Action("GetReportSummary", "Customers")')
+            .then(response => response.json())
+            .then(data => {
+                // Update summary cards with new data
+                // This would be implemented based on your needs
+            })
+            .catch(error => console.log('Auto-refresh failed:', error));
+    }, 300000); // 5 minutes
+</script>
+}

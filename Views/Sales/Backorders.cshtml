@@ -98,12 +98,26 @@
                   <span class="badge bg-warning">Backordered</span>
                 </td>
                 <td>
-                  <strong>@sale.CustomerName</strong>
-                  @if (!string.IsNullOrEmpty(sale.CustomerEmail))
+                  @* FIXED: Use Customer relationship instead of legacy properties *@
+                  @if (sale.Customer != null)
                   {
-                    <br>
-              
-                    <small class="text-muted">@sale.CustomerEmail</small>
+                    <strong>
+                      <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none">
+                        @sale.Customer.CustomerName
+                      </a>
+                    </strong>
+                    @if (!string.IsNullOrEmpty(sale.Customer.CompanyName))
+                    {
+                      <br><small class="text-muted">@sale.Customer.CompanyName</small>
+                    }
+                    @if (!string.IsNullOrEmpty(sale.Customer.Email))
+                    {
+                      <br><small class="text-muted">@sale.Customer.Email</small>
+                    }
+                  }
+                  else
+                  {
+                    <span class="text-muted">Unknown Customer</span>
                   }
                 </td>
                 <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
@@ -125,6 +139,12 @@
                     <a href="/Production/BuildBom" class="btn btn-outline-success" title="Build BOM">
                       <i class="fas fa-hammer"></i>
                     </a>
+                    @if (sale.Customer != null)
+                    {
+                      <a href="/Customers/Details/@sale.Customer.Id" class="btn btn-outline-info" title="View Customer">
+                        <i class="fas fa-user"></i>
+                      </a>
+                    }
                   </div>
                 </td>
               </tr>
@@ -165,7 +185,19 @@
                     <br>
                     <small class="text-muted">@item.ProductName</small>
                   </td>
-                  <td>@sale.CustomerName</td>
+                  <td>
+                    @* FIXED: Use Customer relationship *@
+                    @if (sale.Customer != null)
+                    {
+                      <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none">
+                        @sale.Customer.CustomerName
+                      </a>
+                    }
+                    else
+                    {
+                      <span class="text-muted">Unknown Customer</span>
+                    }
+                  </td>
                   <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
                   <td>
                     <span class="badge bg-danger">@item.QuantityBackordered</span>
@@ -182,6 +214,12 @@
                       {
                         <a href="/Production/BuildBom?bomId=@(item.FinishedGood?.BomId)" class="btn btn-outline-success" title="Build BOM">
                           <i class="fas fa-hammer"></i>
+                        </a>
+                      }
+                      @if (sale.Customer != null)
+                      {
+                        <a href="/Customers/Details/@sale.Customer.Id" class="btn btn-outline-info" title="View Customer">
+                          <i class="fas fa-user"></i>
                         </a>
                       }
                     </div>

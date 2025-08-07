@@ -1,0 +1,753 @@
+@model InventorySystem.Models.Bom
+@{
+    ViewData["Title"] = $"BOM Visualization - {Model.BomNumber}";
+}
+
+<!-- DEBUG SECTION - Remove after fixing -->
+<div class="alert alert-info mt-3" id="debugInfo">
+    <h6><i class="fas fa-bug"></i> Debug Information</h6>
+    <div class="row">
+        <div class="col-md-6">
+            <strong>Model Data:</strong>
+            <ul class="small">
+                <li>BOM ID: @Model.Id</li>
+                <li>BOM Number: @Model.BomNumber</li>
+                <li>Version: @Model.Version</li>
+                <li>Components: @Model.BomItems.Count</li>
+                <li>Sub-Assemblies: @Model.SubAssemblies.Count</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <strong>ViewBag.JsonData:</strong>
+            <pre class="small bg-light p-2 rounded" style="max-height: 150px; overflow-y: auto;">@Html.Raw(ViewBag.JsonData ?? "NULL")</pre>
+        </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-warning" onclick="toggleDebugInfo()">Hide Debug Info</button>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-sitemap"></i> BOM Visualization - @Model.BomNumber</h1>
+    <div class="btn-group">
+        <a href="/Boms/Details/@Model.Id" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Details
+        </a>
+        <button onclick="exportDiagram()" class="btn btn-outline-primary">
+            <i class="fas fa-download"></i> Export PNG
+        </button>
+        <button onclick="printDiagram()" class="btn btn-outline-info">
+            <i class="fas fa-print"></i> Print
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <h5><i class="fas fa-project-diagram"></i> Interactive BOM Tree</h5>
+                <div class="btn-group btn-group-sm">
+                    <button onclick="expandAll()" class="btn btn-outline-success">
+                        <i class="fas fa-expand"></i> Expand All
+                    </button>
+                    <button onclick="collapseAll()" class="btn btn-outline-warning">
+                        <i class="fas fa-compress"></i> Collapse All
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="bomDiagram" style="width: 100%; height: 600px; border: 1px solid #ddd; overflow: auto;">
+                    <!-- BOM tree will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> BOM Summary</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-6">BOM:</dt>
+                    <dd class="col-6">@Model.BomNumber</dd>
+                    
+                    <dt class="col-6">Version:</dt>
+                    <dd class="col-6">@Model.Version</dd>
+                    
+                    <dt class="col-6">Components:</dt>
+                    <dd class="col-6">@Model.BomItems.Count</dd>
+                    
+                    <dt class="col-6">Sub-BOMs:</dt>
+                    <dd class="col-6">@Model.SubAssemblies.Count</dd>
+                </dl>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-palette"></i> Display Options</h6>
+            </div>
+            <div class="card-body">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="showQuantities" checked>
+                    <label class="form-check-label" for="showQuantities">
+                        Show Quantities
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="showPartNumbers" checked>
+                    <label class="form-check-label" for="showPartNumbers">
+                        Show Part Numbers
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="showCosts">
+                    <label class="form-check-label" for="showCosts">
+                        Show Costs
+                    </label>
+                </div>
+                <hr>
+                <label class="form-label">Zoom Level</label>
+                <input type="range" class="form-range" id="zoomRange" min="0.5" max="2" step="0.1" value="1">
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-list"></i> Component Legend</h6>
+            </div>
+            <div class="card-body">
+                <div class="legend-item mb-2">
+                    <i class="fas fa-cube text-primary"></i> <small>Assembly</small>
+                </div>
+                <div class="legend-item mb-2">
+                    <i class="fas fa-layer-group text-info"></i> <small>Sub-Assembly</small>
+                </div>
+                <div class="legend-item mb-2">
+                    <i class="fas fa-cog text-success"></i> <small>Component</small>
+                </div>
+                <div class="legend-item">
+                    <i class="fas fa-tools text-warning"></i> <small>Hardware</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .bom-node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .bom-node:hover {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .assembly-node {
+            border-left: 3px solid #007bff;
+            padding-left: 15px;
+            margin: 5px 0;
+        }
+        
+        .sub-assembly-node {
+            border-left: 3px solid #17a2b8;
+            padding-left: 15px;
+            margin: 5px 0;
+        }
+        
+        .component-node {
+            border-left: 2px solid #28a745;
+            padding-left: 15px;
+            margin: 3px 0;
+        }
+        
+        .node-content {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            background: white;
+            margin-bottom: 5px;
+        }
+        
+        .node-icon {
+            margin-right: 8px;
+            font-size: 1.1em;
+        }
+        
+        .node-details {
+            flex-grow: 1;
+        }
+        
+        .node-title {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .node-subtitle {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+        
+        .node-quantity {
+            background: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        
+        .collapsible {
+            background: none;
+            border: none;
+            outline: none;
+            color: #007bff;
+            font-size: 0.9em;
+            margin-left: 5px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #bomDiagram {
+            transform-origin: top left;
+            transition: transform 0.3s ease;
+        }
+    </style>
+}
+
+@section Scripts {
+<script type="text/javascript">
+    (function() {
+        'use strict';
+        
+        // Protect against script conflicts
+        if (window.bomVisualizationLoaded) {
+            console.log('BOM visualization already loaded, skipping...');
+            return;
+        }
+        window.bomVisualizationLoaded = true;
+        
+        // DEBUG: Log everything to console
+        console.log('=== BOM VISUALIZATION DEBUG ===');
+        console.log('ViewBag.JsonData:', '@Html.Raw(ViewBag.JsonData ?? "NULL")');
+        console.log('Model.Id:', @Model.Id);
+        console.log('Model.BomNumber:', '@Model.BomNumber');
+        
+        // Add function to toggle debug info
+        function toggleDebugInfo() {
+            const debugDiv = document.getElementById('debugInfo');
+            if (debugDiv.style.display === 'none') {
+                debugDiv.style.display = 'block';
+            } else {
+                debugDiv.style.display = 'none';
+            }
+        }
+        
+        // Make toggleDebugInfo globally available
+        window.toggleDebugInfo = toggleDebugInfo;
+        
+        // BOM data from server - safely handle potential null/undefined data
+        let bomData = {};
+        let jsonParseSuccess = false;
+        
+        try {
+            // Try parsing the JSON directly without calling Replace on HtmlString
+            bomData = @Html.Raw(ViewBag.JsonData ?? "{}");
+            jsonParseSuccess = true;
+            console.log('? JSON parsing successful');
+            console.log('Parsed BOM Data:', bomData);
+            
+            // Validate structure
+            if (bomData && typeof bomData === 'object') {
+                console.log('BOM Items count:', bomData.bomItems ? bomData.bomItems.length : 'undefined');
+                console.log('Sub-assemblies count:', bomData.subAssemblies ? bomData.subAssemblies.length : 'undefined');
+            }
+            
+        } catch (error) {
+            jsonParseSuccess = false;
+            console.error('? Error parsing BOM JSON data:', error);
+            console.error('Error details:', error.message);
+            
+            // Create fallback data
+            bomData = {
+                id: @Model.Id,
+                bomNumber: '@Html.Raw(Model.BomNumber ?? "")',
+                description: '@Html.Raw(Model.Description ?? "")',
+                version: '@Html.Raw(Model.Version ?? "")',
+                bomItems: [],
+                subAssemblies: []
+            };
+            
+            console.log('Using fallback BOM data:', bomData);
+        }
+        
+        // Add debug display function
+        function showDebugConsole() {
+            console.log('=== CURRENT STATE DEBUG ===');
+            console.log('JSON Parse Success:', jsonParseSuccess);
+            console.log('Current bomData:', bomData);
+            console.log('Document ready state:', document.readyState);
+            
+            // Check if elements exist
+            console.log('bomDiagram element exists:', !!document.getElementById('bomDiagram'));
+            console.log('showQuantities element exists:', !!document.getElementById('showQuantities'));
+            console.log('showPartNumbers element exists:', !!document.getElementById('showPartNumbers'));
+            console.log('showCosts element exists:', !!document.getElementById('showCosts'));
+            console.log('zoomRange element exists:', !!document.getElementById('zoomRange'));
+            
+            // Display in alert for user
+            alert('Debug info logged to console. Check browser developer tools (F12) for details.');
+        }
+        
+        // Make functions globally available
+        window.showDebugConsole = showDebugConsole;
+        
+        // Add debug button to page
+        function addDebugButton() {
+            // Remove existing debug button if present
+            const existingButton = document.querySelector('.debug-console-btn');
+            if (existingButton) {
+                existingButton.remove();
+            }
+            
+            const debugButton = document.createElement('button');
+            debugButton.innerHTML = '<i class="fas fa-bug"></i> Debug Console';
+            debugButton.className = 'btn btn-sm btn-danger position-fixed debug-console-btn';
+            debugButton.style.cssText = 'top: 10px; right: 10px; z-index: 9999;';
+            debugButton.onclick = showDebugConsole;
+            document.body.appendChild(debugButton);
+        }
+        
+        // Render the BOM tree
+        function renderBomTree() {
+            console.log('?? renderBomTree() called');
+            const container = document.getElementById('bomDiagram');
+            
+            if (!container) {
+                console.error('? bomDiagram container not found!');
+                return;
+            }
+            
+            console.log('Container found:', container);
+            
+            if (!bomData || (!bomData.bomItems && !bomData.subAssemblies)) {
+                console.log('?? No BOM data available for rendering');
+                container.innerHTML = `
+                    <div class="alert alert-warning text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                        <h5>No BOM Data Available</h5>
+                        <p>This BOM has no components or sub-assemblies to display.</p>
+                        <p><small>JSON Parse Success: ${jsonParseSuccess}</small></p>
+                        <a href="/Boms/Edit/@Model.Id" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Components
+                        </a>
+                        <button onclick="showDebugConsole()" class="btn btn-secondary ms-2">
+                            <i class="fas fa-bug"></i> Debug Info
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                console.log('?? Generating tree HTML...');
+                const generatedHTML = generateTreeHTML(bomData);
+                console.log('Generated HTML length:', generatedHTML.length);
+                console.log('Generated HTML preview:', generatedHTML.substring(0, 200) + '...');
+                
+                container.innerHTML = generatedHTML;
+                console.log('? Tree HTML set successfully');
+                
+                // Add click handlers for collapsible nodes
+                const collapsibleButtons = document.querySelectorAll('.collapsible');
+                console.log('Found collapsible buttons:', collapsibleButtons.length);
+                
+                collapsibleButtons.forEach((btn, index) => {
+                    console.log(`Setting up button ${index}:`, btn);
+                    btn.addEventListener('click', function() {
+                        const targetId = this.getAttribute('data-target');
+                        const target = document.getElementById(targetId);
+                        console.log(`Button clicked - Target ID: ${targetId}, Target found:`, !!target);
+                        
+                        if (target) {
+                            const isHidden = target.classList.contains('hidden');
+                            target.classList.toggle('hidden');
+                            this.innerHTML = isHidden ? 
+                                '<i class="fas fa-minus"></i>' : 
+                                '<i class="fas fa-plus"></i>';
+                            console.log(`Toggled visibility - was hidden: ${isHidden}`);
+                        }
+                    });
+                });
+                
+            } catch (error) {
+                console.error('? Error rendering BOM tree:', error);
+                container.innerHTML = `
+                    <div class="alert alert-danger text-center">
+                        <i class="fas fa-exclamation-circle fa-3x mb-3"></i>
+                        <h5>Error Loading BOM Diagram</h5>
+                        <p>There was an error loading the BOM visualization.</p>
+                        <p><small>Error: ${error.message}</small></p>
+                        <button onclick="location.reload()" class="btn btn-primary">
+                            <i class="fas fa-refresh"></i> Retry
+                        </button>
+                        <button onclick="showDebugConsole()" class="btn btn-secondary ms-2">
+                            <i class="fas fa-bug"></i> Debug Info
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        function generateTreeHTML(bom, level = 0, parentId = '') {
+            console.log(`Generating tree for level ${level}, BOM:`, bom);
+            
+            if (!bom) {
+                return '<div class="alert alert-warning">No BOM data available</div>';
+            }
+            
+            const nodeId = `node_${parentId}_${bom.id || Date.now()}`;
+            const hasChildren = (bom.bomItems && bom.bomItems.length > 0) || 
+                               (bom.subAssemblies && bom.subAssemblies.length > 0);
+            
+            console.log(`Node ID: ${nodeId}, Has children: ${hasChildren}`);
+            
+            let html = '';
+            
+            // Main assembly node
+            if (level === 0) {
+                html += `
+                    <div class="assembly-node">
+                        <div class="node-content">
+                            <i class="fas fa-cube node-icon text-primary"></i>
+                            <div class="node-details">
+                                <div class="node-title">${bom.bomNumber || 'Main Assembly'}</div>
+                                <div class="node-subtitle">${bom.description || ''}</div>
+                                ${bom.version ? `<small class="text-muted">Version: ${bom.version}</small>` : ''}
+                            </div>
+                            ${hasChildren ? `<button class="collapsible" data-target="${nodeId}_children"><i class="fas fa-minus"></i></button>` : ''}
+                        </div>
+                `;
+            }
+            
+            // Children container
+            if (hasChildren) {
+                html += `<div id="${nodeId}_children" class="ms-3">`;
+                
+                // Sub-assemblies
+                if (bom.subAssemblies && Array.isArray(bom.subAssemblies) && bom.subAssemblies.length > 0) {
+                    console.log(`Processing ${bom.subAssemblies.length} sub-assemblies`);
+                    bom.subAssemblies.forEach((subAssembly, index) => {
+                        if (subAssembly) {
+                            const subNodeId = `${nodeId}_sub_${index}`;
+                            html += `
+                                <div class="sub-assembly-node mt-2">
+                                    <div class="node-content">
+                                        <i class="fas fa-layer-group node-icon text-info"></i>
+                                        <div class="node-details">
+                                            <div class="node-title">${subAssembly.bomNumber || 'Sub-Assembly'}</div>
+                                            <div class="node-subtitle">${subAssembly.description || ''}</div>
+                                        </div>
+                                        <button class="collapsible" data-target="${subNodeId}_children"><i class="fas fa-minus"></i></button>
+                                    </div>
+                                    <div id="${subNodeId}_children" class="ms-3">
+                                        ${generateTreeHTML(subAssembly, level + 1, subNodeId)}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+                
+                // Components
+                if (bom.bomItems && Array.isArray(bom.bomItems) && bom.bomItems.length > 0) {
+                    console.log(`Processing ${bom.bomItems.length} BOM items`);
+                    bom.bomItems.forEach((item, index) => {
+                        if (item && item.item) {
+                            const iconClass = getComponentIcon(item.item?.itemType);
+                            const showQty = document.getElementById('showQuantities')?.checked !== false;
+                            const showPartNum = document.getElementById('showPartNumbers')?.checked !== false;
+                            const showCost = document.getElementById('showCosts')?.checked === true;
+                            
+                            html += `
+                                <div class="component-node">
+                                    <div class="node-content">
+                                        <i class="${iconClass} node-icon"></i>
+                                        <div class="node-details">
+                                            <div class="node-title">${item.item?.description || 'Component'}</div>
+                                            ${showPartNum && item.item?.partNumber ? `<div class="node-subtitle">PN: ${item.item.partNumber}</div>` : ''}
+                                            ${showCost && item.unitCost ? `<div class="node-subtitle">Cost: $${item.unitCost.toFixed(2)}</div>` : ''}
+                                            ${item.referenceDesignator ? `<small class="text-muted">Ref: ${item.referenceDesignator}</small>` : ''}
+                                        </div>
+                                        ${showQty ? `<span class="node-quantity">Qty: ${item.quantity || 0}</span>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+                
+                html += '</div>'; // Close children container
+            }
+            
+            if (level === 0) {
+                html += '</div>'; // Close assembly node
+            }
+            
+            return html;
+        }
+        
+        function getComponentIcon(itemType) {
+            switch (itemType?.toLowerCase()) {
+                case 'electronic': return 'fas fa-microchip text-warning';
+                case 'mechanical': return 'fas fa-cog text-success';
+                case 'hardware': return 'fas fa-tools text-secondary';
+                case 'cable': return 'fas fa-plug text-info';
+                default: return 'fas fa-cube text-muted';
+            }
+        }
+        
+        function expandAll() {
+            console.log('?? expandAll() called');
+            document.querySelectorAll('#bomDiagram .hidden').forEach(el => {
+                el.classList.remove('hidden');
+            });
+            document.querySelectorAll('.collapsible').forEach(btn => {
+                btn.innerHTML = '<i class="fas fa-minus"></i>';
+            });
+        }
+        
+        function collapseAll() {
+            console.log('?? collapseAll() called');
+            document.querySelectorAll('#bomDiagram [id$="_children"]').forEach(el => {
+                if (!el.id.includes('node__')) { // Don't collapse root
+                    el.classList.add('hidden');
+                }
+            });
+            document.querySelectorAll('.collapsible').forEach(btn => {
+                if (!btn.getAttribute('data-target').includes('node__')) {
+                    btn.innerHTML = '<i class="fas fa-plus"></i>';
+                }
+            });
+        }
+        
+        function exportDiagram() {
+            console.log('?? exportDiagram() called');
+            try {
+                const content = document.getElementById('bomDiagram').innerHTML;
+                const bomNumber = '@Html.Raw(Model.BomNumber ?? "BOM")';
+                
+                if (!content || content.trim() === '') {
+                    alert('No BOM data to export. Please ensure the diagram has loaded.');
+                    return;
+                }
+                
+                const printWindow = window.open('', '_blank');
+                if (!printWindow) {
+                    alert('Pop-up blocked. Please allow pop-ups for this site to export the diagram.');
+                    return;
+                }
+                
+                // Build HTML content in smaller chunks to avoid parsing issues
+                const htmlContent = [
+                    '<!DOCTYPE html>',
+                    '<html>',
+                    '<head>',
+                    '<title>BOM Diagram - ' + bomNumber + '</title>',
+                    '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">',
+                    '<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">',
+                    '<style>',
+                    '.assembly-node { border-left: 3px solid #007bff; padding-left: 15px; margin: 5px 0; }',
+                    '.sub-assembly-node { border-left: 3px solid #17a2b8; padding-left: 15px; margin: 5px 0; }',
+                    '.component-node { border-left: 2px solid #28a745; padding-left: 15px; margin: 3px 0; }',
+                    '.node-content { display: flex; align-items: center; padding: 8px; border: 1px solid #e9ecef; border-radius: 4px; background: white; margin-bottom: 5px; }',
+                    '.node-icon { margin-right: 8px; font-size: 1.1em; }',
+                    '.node-details { flex-grow: 1; }',
+                    '.node-title { font-weight: 600; color: #495057; }',
+                    '.node-subtitle { font-size: 0.85em; color: #6c757d; }',
+                    '.node-quantity { background: #007bff; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }',
+                    '.collapsible { display: none; }',
+                    '.hidden { display: block !important; }',
+                    '</style>',
+                    '</head>',
+                    '<body>',
+                    '<div class="container mt-4">',
+                    '<div class="text-center mb-4">',
+                    '<h2>BOM Diagram - ' + bomNumber + '</h2>',
+                    '<p class="text-muted">Generated on ' + new Date().toLocaleDateString() + '</p>',
+                    '</div>',
+                    '<div>' + content + '</div>',
+                    '<div class="mt-4 text-center">',
+                    '<small class="text-muted">Generated by Inventory Management System v2.0</small>',
+                    '</div>',
+                    '</div>',
+                    '</body>',
+                    '</html>'
+                ].join('\n');
+                
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                printWindow.focus();
+                
+            } catch (error) {
+                console.error('? Error exporting diagram:', error);
+                alert('An error occurred while exporting the diagram. Please try again.');
+            }
+        }
+        
+        function printDiagram() {
+            console.log('?? printDiagram() called');
+            try {
+                const content = document.getElementById('bomDiagram').innerHTML;
+                const bomNumber = '@Html.Raw(Model.BomNumber ?? "BOM")';
+                
+                if (!content || content.trim() === '') {
+                    alert('No BOM data to print. Please ensure the diagram has loaded.');
+                    return;
+                }
+                
+                const printWindow = window.open('', '_blank');
+                if (!printWindow) {
+                    window.print();
+                    return;
+                }
+                
+                // Build HTML content in smaller chunks for better parsing
+                const htmlContent = [
+                    '<!DOCTYPE html>',
+                    '<html>',
+                    '<head>',
+                    '<title>BOM Diagram - ' + bomNumber + '</title>',
+                    '<style>',
+                    'body { font-family: Arial, sans-serif; margin: 20px; padding: 20px; }',
+                    '.assembly-node { border-left: 3px solid #007bff; padding-left: 15px; margin: 5px 0; }',
+                    '.sub-assembly-node { border-left: 3px solid #17a2b8; padding-left: 15px; margin: 5px 0; }',
+                    '.component-node { border-left: 2px solid #28a745; padding-left: 15px; margin: 3px 0; }',
+                    '.node-content { display: flex; align-items: center; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white; margin-bottom: 5px; }',
+                    '.node-icon { margin-right: 8px; font-size: 1.1em; }',
+                    '.node-details { flex-grow: 1; }',
+                    '.node-title { font-weight: 600; color: #333; }',
+                    '.node-subtitle { font-size: 0.85em; color: #666; }',
+                    '.node-quantity { background: #007bff; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }',
+                    '.collapsible { display: none !important; }',
+                    '.hidden { display: block !important; }',
+                    '.text-center { text-align: center; }',
+                    '.mb-4 { margin-bottom: 1.5rem; }',
+                    '.mt-4 { margin-top: 1.5rem; }',
+                    '.text-muted { color: #666; }',
+                    '</style>',
+                    '</head>',
+                    '<body>',
+                    '<div class="text-center mb-4">',
+                    '<h2>BOM Diagram - ' + bomNumber + '</h2>',
+                    '<p class="text-muted">Generated on ' + new Date().toLocaleDateString() + '</p>',
+                    '</div>',
+                    '<div>' + content + '</div>',
+                    '<div class="mt-4 text-center">',
+                    '<small class="text-muted">Generated by Inventory Management System v2.0</small>',
+                    '</div>',
+                    '</body>',
+                    '</html>'
+                ].join('\n');
+                
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                
+                printWindow.onload = function() {
+                    printWindow.print();
+                    printWindow.close();
+                };
+                
+            } catch (error) {
+                console.error('? Error printing diagram:', error);
+                window.print();
+            }
+        }
+        
+        // Make functions globally available
+        window.renderBomTree = renderBomTree;
+        window.expandAll = expandAll;
+        window.collapseAll = collapseAll;
+        window.exportDiagram = exportDiagram;
+        window.printDiagram = printDiagram;
+        
+        // Display option handlers
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('?? DOMContentLoaded event fired');
+            
+            // Enhanced script conflict prevention
+            try {
+                // Check for and remove any conflicting scripts
+                const conflictingScripts = document.querySelectorAll('script[src*="aspnetcore-browser-refresh"], script[src*="_framework"]');
+                conflictingScripts.forEach(script => {
+                    console.log('Removing conflicting script:', script.src);
+                    script.remove();
+                });
+                
+                // Disable hot reload if present
+                if (window.Blazor && window.Blazor.disconnect) {
+                    window.Blazor.disconnect();
+                }
+                
+                // Disable SignalR connections that might interfere
+                if (window.signalR) {
+                    console.log('SignalR detected, ensuring no conflicts...');
+                }
+                
+            } catch (error) {
+                console.log('Script conflict prevention completed with minor errors:', error.message);
+            }
+            
+            // Add debug button
+            addDebugButton();
+            
+            // Initialize the BOM tree
+            renderBomTree();
+            
+            // Update display when options change
+            ['showQuantities', 'showPartNumbers', 'showCosts'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    console.log(`Setting up change handler for ${id}`);
+                    element.addEventListener('change', function() {
+                        console.log(`${id} changed to:`, this.checked);
+                        renderBomTree();
+                    });
+                } else {
+                    console.warn(`Element ${id} not found!`);
+                }
+            });
+            
+            // Zoom handler
+            const zoomElement = document.getElementById('zoomRange');
+            if (zoomElement) {
+                console.log('Setting up zoom handler');
+                zoomElement.addEventListener('input', function() {
+                    const zoom = this.value;
+                    console.log('Zoom changed to:', zoom);
+                    document.getElementById('bomDiagram').style.transform = `scale(${zoom})`;
+                });
+            } else {
+                console.warn('zoomRange element not found!');
+            }
+            
+            console.log('? All event handlers set up');
+        });
+        
+    })(); // End of IIFE
+</script>
+}

@@ -1,0 +1,414 @@
+﻿@model InventorySystem.Models.Customer
+@{
+    ViewData["Title"] = "Edit Customer";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-user-edit"></i> Edit Customer</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-info">
+            <i class="fas fa-eye"></i> View Details
+        </a>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Customers
+        </a>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form asp-action="Edit" method="post" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    
+    <!-- Hidden fields for tracking -->
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="CreatedDate" type="hidden" />
+
+    <div class="row">
+        <!-- Basic Information Card -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-user"></i> Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="CustomerName" class="form-label">Customer Name *</label>
+                                <input asp-for="CustomerName" class="form-control" placeholder="Enter customer name" />
+                                <span asp-validation-for="CustomerName" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="CompanyName" class="form-label">Company Name</label>
+                                <input asp-for="CompanyName" class="form-control" placeholder="Enter company name (optional)" />
+                                <span asp-validation-for="CompanyName" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Email" class="form-label">Email Address *</label>
+                                <input asp-for="Email" type="email" class="form-control" placeholder="customer@example.com" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label asp-for="Phone" class="form-label">Phone</label>
+                                <input asp-for="Phone" class="form-control" placeholder="(555) 123-4567" />
+                                <span asp-validation-for="Phone" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label asp-for="MobilePhone" class="form-label">Mobile Phone</label>
+                                <input asp-for="MobilePhone" class="form-control" placeholder="(555) 987-6543" />
+                                <span asp-validation-for="MobilePhone" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="CustomerType" class="form-label">Customer Type *</label>
+                                <select asp-for="CustomerType" asp-items="ViewBag.CustomerTypes" class="form-select">
+                                    <option value="">Select Type...</option>
+                                </select>
+                                <span asp-validation-for="CustomerType" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="DefaultPaymentTerms" class="form-label">Payment Terms</label>
+                                <select asp-for="DefaultPaymentTerms" asp-items="ViewBag.PaymentTerms" class="form-select">
+                                </select>
+                                <span asp-validation-for="DefaultPaymentTerms" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="PricingTier" class="form-label">Pricing Tier</label>
+                                <select asp-for="PricingTier" asp-items="ViewBag.PricingTiers" class="form-select">
+                                </select>
+                                <span asp-validation-for="PricingTier" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Information Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-map-marker-alt"></i> Address Information</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Billing Address -->
+                    <h6 class="text-primary mb-3"><i class="fas fa-file-invoice"></i> Billing Address</h6>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label asp-for="BillingAddress" class="form-label">Street Address</label>
+                                <input asp-for="BillingAddress" class="form-control" placeholder="123 Main Street" />
+                                <span asp-validation-for="BillingAddress" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="BillingCity" class="form-label">City</label>
+                                <input asp-for="BillingCity" class="form-control" placeholder="City" />
+                                <span asp-validation-for="BillingCity" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="BillingState" class="form-label">State</label>
+                                <input asp-for="BillingState" class="form-control" placeholder="State" />
+                                <span asp-validation-for="BillingState" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="BillingZipCode" class="form-label">Zip Code</label>
+                                <input asp-for="BillingZipCode" class="form-control" placeholder="12345" />
+                                <span asp-validation-for="BillingZipCode" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="BillingCountry" class="form-label">Country</label>
+                                <input asp-for="BillingCountry" class="form-control" />
+                                <span asp-validation-for="BillingCountry" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shipping Address -->
+                    <hr class="my-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-success mb-0"><i class="fas fa-shipping-fast"></i> Shipping Address</h6>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyBillingToShipping()">
+                            <i class="fas fa-copy"></i> Copy from Billing
+                        </button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label asp-for="ShippingAddress" class="form-label">Street Address</label>
+                                <input asp-for="ShippingAddress" class="form-control" placeholder="123 Main Street" />
+                                <span asp-validation-for="ShippingAddress" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="ShippingCity" class="form-label">City</label>
+                                <input asp-for="ShippingCity" class="form-control" placeholder="City" />
+                                <span asp-validation-for="ShippingCity" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="ShippingState" class="form-label">State</label>
+                                <input asp-for="ShippingState" class="form-control" placeholder="State" />
+                                <span asp-validation-for="ShippingState" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="ShippingZipCode" class="form-label">Zip Code</label>
+                                <input asp-for="ShippingZipCode" class="form-control" placeholder="12345" />
+                                <span asp-validation-for="ShippingZipCode" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="ShippingCountry" class="form-label">Country</label>
+                                <input asp-for="ShippingCountry" class="form-control" />
+                                <span asp-validation-for="ShippingCountry" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Sidebar -->
+        <div class="col-lg-4">
+            <!-- Customer Info Summary Card -->
+            <div class="card mb-4 bg-light">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Customer Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h6 class="text-primary">Total Sales</h6>
+                            <strong>$@Model.TotalSales.ToString("N2")</strong>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-info">Orders</h6>
+                            <strong>@Model.SalesCount</strong>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h6 class="text-warning">Outstanding</h6>
+                            <strong>$@Model.OutstandingBalance.ToString("N2")</strong>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-muted">Member Since</h6>
+                            <strong>@Model.CustomerSince</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Credit Settings Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-credit-card"></i> Credit & Billing</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="CreditLimit" class="form-label">Credit Limit</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input asp-for="CreditLimit" type="number" class="form-control" placeholder="0.00" step="0.01" />
+                        </div>
+                        <span asp-validation-for="CreditLimit" class="text-danger"></span>
+                        <div class="form-text">Set to 0 for unlimited credit</div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="IsTaxExempt" class="form-check-input" />
+                        <label asp-for="IsTaxExempt" class="form-check-label">Tax Exempt Customer</label>
+                    </div>
+
+                    <div class="mb-3" id="taxExemptId" style="display: @(Model.IsTaxExempt ? "block" : "none");">
+                        <label asp-for="TaxExemptId" class="form-label">Tax Exempt ID</label>
+                        <input asp-for="TaxExemptId" class="form-control" placeholder="Enter tax exempt ID" />
+                        <span asp-validation-for="TaxExemptId" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact & Preferences Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-cog"></i> Contact & Preferences</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="ContactPerson" class="form-label">Contact Person</label>
+                        <input asp-for="ContactPerson" class="form-control" placeholder="Primary contact name" />
+                        <span asp-validation-for="ContactPerson" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ContactTitle" class="form-label">Contact Title</label>
+                        <input asp-for="ContactTitle" class="form-control" placeholder="e.g., Purchasing Manager" />
+                        <span asp-validation-for="ContactTitle" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ContactEmail" class="form-label">Contact Email</label>
+                        <input asp-for="ContactEmail" type="email" class="form-control" placeholder="contact@company.com" />
+                        <span asp-validation-for="ContactEmail" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ContactPhone" class="form-label">Contact Phone</label>
+                        <input asp-for="ContactPhone" class="form-control" placeholder="(555) 123-4567" />
+                        <span asp-validation-for="ContactPhone" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="PreferredCommunication" class="form-label">Preferred Communication</label>
+                        <select asp-for="PreferredCommunication" asp-items="ViewBag.CommunicationPreferences" class="form-select">
+                        </select>
+                        <span asp-validation-for="PreferredCommunication" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="AcceptsMarketing" class="form-check-input" />
+                        <label asp-for="AcceptsMarketing" class="form-check-label">Send Marketing Emails</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input asp-for="IsActive" class="form-check-input" />
+                        <label asp-for="IsActive" class="form-check-label">Active Customer</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-sticky-note"></i> Notes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label">Customer Notes</label>
+                        <textarea asp-for="Notes" class="form-control" rows="4" placeholder="Add any additional notes about this customer..."></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-save"></i> Update Customer
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    // Copy billing to shipping address
+    function copyBillingToShipping() {
+        document.getElementById('ShippingAddress').value = document.getElementById('BillingAddress').value;
+        document.getElementById('ShippingCity').value = document.getElementById('BillingCity').value;
+        document.getElementById('ShippingState').value = document.getElementById('BillingState').value;
+        document.getElementById('ShippingZipCode').value = document.getElementById('BillingZipCode').value;
+        document.getElementById('ShippingCountry').value = document.getElementById('BillingCountry').value;
+    }
+
+    // Show/hide tax exempt ID field
+    document.getElementById('IsTaxExempt').addEventListener('change', function() {
+        const taxExemptDiv = document.getElementById('taxExemptId');
+        if (this.checked) {
+            taxExemptDiv.style.display = 'block';
+        } else {
+            taxExemptDiv.style.display = 'none';
+            document.getElementById('TaxExemptId').value = '';
+        }
+    });
+
+    // Form validation
+    $(document).ready(function() {
+        $('form').on('submit', function(e) {
+            let isValid = true;
+            
+            // Check required fields
+            const requiredFields = ['CustomerName', 'Email', 'CustomerType'];
+            requiredFields.forEach(field => {
+                const input = document.getElementById(field);
+                if (!input.value.trim()) {
+                    isValid = false;
+                    input.classList.add('is-invalid');
+                } else {
+                    input.classList.remove('is-invalid');
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please fill in all required fields.');
+            }
+        });
+
+        // Email validation
+        $('#Email').on('blur', function() {
+            const email = $(this).val();
+            if (email) {
+                // Use the HTML5 email validation pattern
+                const emailInput = document.getElementById('Email');
+                if (!emailInput.checkValidity()) {
+                    $(this).addClass('is-invalid');
+                    $(this).next('.text-danger').text('Please enter a valid email address.');
+                } else {
+                    $(this).removeClass('is-invalid');
+                    $(this).next('.text-danger').text('');
+                }
+            }
+        });
+    });
+</script>
+}

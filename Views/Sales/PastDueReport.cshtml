@@ -72,10 +72,30 @@
                                     <a href="/Sales/Details/@sale.Id">@sale.SaleNumber</a>
                                 </td>
                                 <td>
-                                    <strong>@sale.CustomerName</strong>
-                                    @if (!string.IsNullOrEmpty(sale.CustomerEmail))
+                                    @* FIXED: Use Customer relationship instead of legacy properties *@
+                                    @if (sale.Customer != null)
                                     {
-                                        <br><small class="text-muted">@sale.CustomerEmail</small>
+                                        <strong>
+                                            <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none">
+                                                @sale.Customer.CustomerName
+                                            </a>
+                                        </strong>
+                                        @if (!string.IsNullOrEmpty(sale.Customer.CompanyName))
+                                        {
+                                            <br><small class="text-muted">@sale.Customer.CompanyName</small>
+                                        }
+                                        @if (!string.IsNullOrEmpty(sale.Customer.Email))
+                                        {
+                                            <br><small class="text-muted"><i class="fas fa-envelope"></i> @sale.Customer.Email</small>
+                                        }
+                                        @if (!string.IsNullOrEmpty(sale.Customer.Phone))
+                                        {
+                                            <br><small class="text-muted"><i class="fas fa-phone"></i> @sale.Customer.Phone</small>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Unknown Customer</span>
                                     }
                                 </td>
                                 <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
@@ -97,12 +117,113 @@
                                         <a href="/Sales/Edit/@sale.Id" class="btn btn-outline-warning" title="Edit Sale">
                                             <i class="fas fa-edit"></i>
                                         </a>
+                                        @if (sale.Customer != null)
+                                        {
+                                            <a href="/Customers/Details/@sale.Customer.Id" class="btn btn-outline-info" title="View Customer">
+                                                <i class="fas fa-user"></i>
+                                            </a>
+                                        }
                                     </div>
                                 </td>
                             </tr>
                         }
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Analysis Section -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5><i class="fas fa-user-exclamation"></i> Customer Analysis</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Customers with Multiple Overdue Sales</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Overdue Sales</th>
+                                    <th>Total Overdue</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var customerGroups = Model
+                                        .Where(s => s.Customer != null)
+                                        .GroupBy(s => s.Customer)
+                                        .Where(g => g.Count() > 1)
+                                        .OrderByDescending(g => g.Sum(s => s.TotalAmount))
+                                        .Take(5);
+                                }
+                                @foreach (var group in customerGroups)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@group.Key.CustomerName</strong>
+                                            @if (!string.IsNullOrEmpty(group.Key.CompanyName))
+                                            {
+                                                <br><small class="text-muted">@group.Key.CompanyName</small>
+                                            }
+                                        </td>
+                                        <td><span class="badge bg-danger">@group.Count()</span></td>
+                                        <td><strong>@group.Sum(s => s.TotalAmount).ToString("C")</strong></td>
+                                        <td>
+                                            <a href="/Customers/Details/@group.Key.Id" class="btn btn-outline-info btn-sm">
+                                                <i class="fas fa-user"></i> View Customer
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Summary by Days Overdue</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Days Overdue</th>
+                                    <th>Count</th>
+                                    <th>Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var overdueRanges = new[]
+                                    {
+                                        new { Range = "1-7 days", Min = 1, Max = 7 },
+                                        new { Range = "8-30 days", Min = 8, Max = 30 },
+                                        new { Range = "31-60 days", Min = 31, Max = 60 },
+                                        new { Range = "Over 60 days", Min = 61, Max = int.MaxValue }
+                                    };
+                                }
+                                @foreach (var range in overdueRanges)
+                                {
+                                    var salesInRange = Model.Where(s => s.DaysOverdue >= range.Min && s.DaysOverdue <= range.Max);
+                                    var count = salesInRange.Count();
+                                    var total = salesInRange.Sum(s => s.TotalAmount);
+
+                                    if (count > 0)
+                                    {
+                                        <tr class="@(range.Min > 30 ? "table-danger" : range.Min > 7 ? "table-warning" : "")">
+                                            <td>@range.Range</td>
+                                            <td><span class="badge bg-secondary">@count</span></td>
+                                            <td><strong>@total.ToString("C")</strong></td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

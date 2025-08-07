@@ -22,7 +22,7 @@ namespace InventorySystem.Services
     Task<bool> ProcessSaleAsync(int saleId);
     Task<bool> CanProcessSaleAsync(int saleId);
 
-    // NEW - Backorder management methods
+    // Backorder management methods
     Task<IEnumerable<Sale>> GetBackorderedSalesAsync();
     Task<IEnumerable<SaleItem>> GetBackorderedItemsAsync();
     Task<bool> CheckAndUpdateBackorderStatusAsync(int saleId);
@@ -34,7 +34,9 @@ namespace InventorySystem.Services
     Task<decimal> GetTotalProfitAsync();
     Task<decimal> GetTotalProfitByMonthAsync(int year, int month);
     Task<int> GetTotalSalesCountAsync();
-    Task<IEnumerable<Sale>> GetSalesByCustomerAsync(string customerName);
+    
+    // FIXED: Updated to use Customer ID instead of legacy CustomerName
+    Task<IEnumerable<Sale>> GetSalesByCustomerAsync(int customerId);
     Task<IEnumerable<Sale>> GetSalesByStatusAsync(SaleStatus status);
   }
 }

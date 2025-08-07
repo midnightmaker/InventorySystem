@@ -1,0 +1,96 @@
+@model InventorySystem.Models.Customer
+@{
+    var showActions = ViewBag.ShowActions ?? true;
+    var compact = ViewBag.Compact ?? false;
+}
+
+<div class="card @(compact ? "card-sm" : "")">
+    <div class="card-body @(compact ? "p-2" : "")">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h6 class="card-title mb-1">
+                    <i class="fas fa-user text-primary"></i>
+                    @Model.CustomerName
+                </h6>
+                
+                @if (!string.IsNullOrEmpty(Model.CompanyName))
+                {
+                    <p class="text-muted mb-1"><small>@Model.CompanyName</small></p>
+                }
+                
+                <div class="mb-2">
+                    <span class="badge bg-info">@Model.CustomerType</span>
+                    <span class="badge @(Model.IsActive ? "bg-success" : "bg-secondary")">
+                        @(Model.IsActive ? "Active" : "Inactive")
+                    </span>
+                </div>
+                
+                @if (!compact)
+                {
+                    <div class="small text-muted">
+                        <i class="fas fa-envelope"></i> @Model.Email<br>
+                        @if (!string.IsNullOrEmpty(Model.Phone))
+                        {
+                            <i class="fas fa-phone"></i> @Model.Phone<br>
+                        }
+                        <i class="fas fa-calendar"></i> Customer since @Model.CustomerSince
+                    </div>
+                }
+            </div>
+            
+            <div class="col-md-4 text-end">
+                @if (!compact)
+                {
+                    <div class="mb-2">
+                        <div class="text-primary"><strong>$@Model.TotalSales.ToString("N2")</strong></div>
+                        <small class="text-muted">@Model.SalesCount orders</small>
+                    </div>
+                }
+                
+                @if (Model.OutstandingBalance > 0)
+                {
+                    <div class="mb-2">
+                        <div class="text-warning"><strong>$@Model.OutstandingBalance.ToString("N2")</strong></div>
+                        <small class="text-muted">Outstanding</small>
+                    </div>
+                }
+                
+                @if (showActions)
+                {
+                    <div class="btn-group btn-group-sm">
+                        <a href="@Url.Action("Details", "Customers", new { id = Model.Id })" class="btn btn-outline-primary" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="@Url.Action("Edit", "Customers", new { id = Model.Id })" class="btn btn-outline-warning" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="/Sales/Create?customerId=@Model.Id" class="btn btn-outline-success" title="New Sale">
+                            <i class="fas fa-plus"></i>
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        @if (Model.CreditLimit > 0)
+        {
+            <div class="mt-2">
+                @{
+                    var creditUsed = (Model.OutstandingBalance / Model.CreditLimit) * 100;
+                }
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <small class="text-muted">Credit Usage</small>
+                    <small class="text-muted">@creditUsed.ToString("F1")%</small>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar @(creditUsed > 90 ? "bg-danger" : creditUsed > 75 ? "bg-warning" : "bg-success")" 
+                         style="width: @creditUsed%"></div>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted">$@Model.OutstandingBalance.ToString("N2")</small>
+                    <small class="text-muted">$@Model.CreditLimit.ToString("N2")</small>
+                </div>
+            </div>
+        }
+    </div>
+</div>

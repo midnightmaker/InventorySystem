@@ -75,14 +75,36 @@
                                 </td>
                                 <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
                                 <td>
-                                    <strong>@sale.CustomerName</strong>
-                                    @if (!string.IsNullOrEmpty(sale.CustomerEmail))
+                                    @* FIXED: Use Customer relationship instead of legacy properties *@
+                                    @if (sale.Customer != null)
                                     {
-                                        <br><small class="text-muted">@sale.CustomerEmail</small>
+                                        <strong>
+                                            <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none">
+                                                @sale.Customer.CustomerName
+                                            </a>
+                                        </strong>
+                                        @if (!string.IsNullOrEmpty(sale.Customer.CompanyName))
+                                        {
+                                            <br><small class="text-muted">@sale.Customer.CompanyName</small>
+                                        }
+                                        @if (!string.IsNullOrEmpty(sale.Customer.Email))
+                                        {
+                                            <br><small class="text-muted">@sale.Customer.Email</small>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Unknown Customer</span>
                                     }
                                 </td>
                                 <td>
                                     <span class="badge bg-info">@sale.SaleItems.Count() items</span>
+                                    @if (sale.HasBackorders)
+                                    {
+                                        <br><span class="badge bg-warning text-dark">
+                                            <i class="fas fa-hourglass-half"></i> @sale.TotalBackorders backordered
+                                        </span>
+                                    }
                                 </td>
                                 <td>@sale.TotalAmount.ToString("C")</td>
                                 <td>
@@ -116,6 +138,10 @@
                                     {
                                         <span class="badge bg-info">Delivered</span>
                                     }
+                                    else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Backordered)
+                                    {
+                                        <span class="badge bg-warning">Backordered</span>
+                                    }
                                     else
                                     {
                                         <span class="badge bg-secondary">@sale.SaleStatus</span>
@@ -133,6 +159,12 @@
                                         <a href="/Sales/Edit/@sale.Id" class="btn btn-outline-secondary" title="Edit Sale">
                                             <i class="fas fa-edit"></i>
                                         </a>
+                                        @if (sale.Customer != null)
+                                        {
+                                            <a href="/Customers/Details/@sale.Customer.Id" class="btn btn-outline-info" title="View Customer">
+                                                <i class="fas fa-user"></i>
+                                            </a>
+                                        }
                                     </div>
                                 </td>
                             </tr>
@@ -157,6 +189,22 @@
                                 </div>
                                 <div class="col-md-3">
                                     <h6>Pending: <span class="badge bg-warning">@Model.Count(s => s.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Pending)</span></h6>
+                                </div>
+                            </div>
+                            
+                            @* Additional Statistics Row *@
+                            <div class="row text-center mt-3">
+                                <div class="col-md-3">
+                                    <h6>Shipped: <span class="badge bg-info">@Model.Count(s => s.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Shipped)</span></h6>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Backorders: <span class="badge bg-warning">@Model.Count(s => s.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Backordered)</span></h6>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Avg Sale: <span class="badge bg-secondary">@(Model.Any() ? Model.Average(s => s.TotalAmount).ToString("C") : "$0")</span></h6>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Overdue: <span class="badge bg-danger">@Model.Count(s => s.IsOverdue)</span></h6>
                                 </div>
                             </div>
                         </div>

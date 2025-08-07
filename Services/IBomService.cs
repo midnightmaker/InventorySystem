@@ -51,6 +51,7 @@ namespace InventorySystem.Services
     Task<bool> BomExistsAsync(int bomId);
     Task<bool> BomNumberExistsAsync(string bomNumber, int? excludeId = null);
     Task<string> GenerateNextBomNumberAsync(string prefix = "BOM");
+    Task<object> GetBomHierarchyAsync(int bomId);
     #endregion
 
     #region Statistics and Reporting

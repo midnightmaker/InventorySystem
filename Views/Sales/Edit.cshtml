@@ -1,4 +1,5 @@
-﻿@model InventorySystem.Models.Sale
+﻿@using InventorySystem.Models.Enums
+@model InventorySystem.Models.Sale
 @{
   ViewData["Title"] = "Edit Sale";
 }
@@ -35,6 +36,7 @@
   <input asp-for="Id" type="hidden" />
   <input asp-for="SaleNumber" type="hidden" />
   <input asp-for="CreatedDate" type="hidden" />
+  <input asp-for="CustomerId" type="hidden" />
 
   <div class="row">
     <div class="col-md-8">
@@ -43,31 +45,43 @@
           <h5><i class="fas fa-user"></i> Customer Information</h5>
         </div>
         <div class="card-body">
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="CustomerName" class="form-label">Customer Name *</label>
-                <input asp-for="CustomerName" class="form-control" />
-                <span asp-validation-for="CustomerName" class="text-danger"></span>
+          @* FIXED: Display customer information using Customer relationship *@
+          @if (Model.Customer != null)
+          {
+            <div class="alert alert-info">
+              <div class="row">
+                <div class="col-md-8">
+                  <h6><i class="fas fa-user"></i> Current Customer</h6>
+                  <strong>@Model.Customer.CustomerName</strong>
+                  @if (!string.IsNullOrEmpty(Model.Customer.CompanyName))
+                  {
+                    <br><small class="text-muted">@Model.Customer.CompanyName</small>
+                  }
+                  @if (!string.IsNullOrEmpty(Model.Customer.Email))
+                  {
+                    <br><small class="text-muted"><i class="fas fa-envelope"></i> @Model.Customer.Email</small>
+                  }
+                  @if (!string.IsNullOrEmpty(Model.Customer.Phone))
+                  {
+                    <br><small class="text-muted"><i class="fas fa-phone"></i> @Model.Customer.Phone</small>
+                  }
+                </div>
+                <div class="col-md-4 text-end">
+                  <a href="/Customers/Details/@Model.Customer.Id" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-user"></i> View Customer
+                  </a>
+                </div>
               </div>
             </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="CustomerEmail" class="form-label">Email</label>
-                <input asp-for="CustomerEmail" type="email" class="form-control" />
-                <span asp-validation-for="CustomerEmail" class="text-danger"></span>
-              </div>
+          }
+          else
+          {
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i> No customer associated with this sale.
             </div>
-          </div>
+          }
 
           <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="CustomerPhone" class="form-label">Phone</label>
-                <input asp-for="CustomerPhone" class="form-control" />
-                <span asp-validation-for="CustomerPhone" class="text-danger"></span>
-              </div>
-            </div>
             <div class="col-md-6">
               <div class="mb-3">
                 <label asp-for="OrderNumber" class="form-label">Order Number</label>
@@ -75,12 +89,35 @@
                 <span asp-validation-for="OrderNumber" class="text-danger"></span>
               </div>
             </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+                <select asp-for="PaymentMethod" class="form-select">
+                  <option value="">-- Select Payment Method --</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Check">Check</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="PayPal">PayPal</option>
+                  <option value="Other">Other</option>
+                </select>
+                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+              </div>
+            </div>
           </div>
 
           <div class="mb-3">
             <label asp-for="ShippingAddress" class="form-label">Shipping Address</label>
-            <textarea asp-for="ShippingAddress" class="form-control" rows="3"></textarea>
+            <textarea asp-for="ShippingAddress" class="form-control" rows="3" placeholder="@(Model.Customer?.FullShippingAddress ?? "Enter shipping address")"></textarea>
             <span asp-validation-for="ShippingAddress" class="text-danger"></span>
+            @if (Model.Customer?.FullShippingAddress != null)
+            {
+              <div class="form-text">
+                <button type="button" class="btn btn-link p-0" onclick="useCustomerShippingAddress()">
+                  <i class="fas fa-copy"></i> Use customer's default shipping address
+                </button>
+              </div>
+            }
           </div>
         </div>
       </div>
@@ -105,11 +142,11 @@
                   Payment Terms *
                 </label>
                 <select asp-for="Terms" class="form-select" onchange="updatePaymentDueDate()">
-                  <option value="0">Immediate</option>
-                  <option value="10">Net 10</option>
-                  <option value="30">Net 30</option>
-                  <option value="45">Net 45</option>
-                  <option value="60">Net 60</option>
+                  <option value="@((int)PaymentTerms.Immediate)">Immediate</option>
+                  <option value="@((int)PaymentTerms.Net10)">Net 10</option>
+                  <option value="@((int)PaymentTerms.Net30)">Net 30</option>
+                  <option value="@((int)PaymentTerms.Net45)">Net 45</option>
+                  <option value="@((int)PaymentTerms.Net60)">Net 60</option>
                 </select>
                 <span asp-validation-for="Terms" class="text-danger"></span>
               </div>
@@ -121,6 +158,7 @@
                   Payment Due Date
                 </label>
                 <input asp-for="PaymentDueDate" class="form-control" type="date" readonly style="background-color: #e9ecef;" />
+                <input asp-for="PaymentDueDate" type="hidden" />
                 <span asp-validation-for="PaymentDueDate" class="text-danger"></span>
                 @if (Model.IsOverdue)
                 {
@@ -143,36 +181,34 @@
           <div class="row">
             <div class="col-md-4">
               <div class="mb-3">
-                <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
-                <select asp-for="PaymentMethod" class="form-select">
-                  <option value="">-- Select Payment Method --</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="Check">Check</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="PayPal">PayPal</option>
-                  <option value="Other">Other</option>
+                <label asp-for="PaymentStatus" class="form-label">Payment Status *</label>
+                <select asp-for="PaymentStatus" class="form-select">
+                  <option value="@((int)PaymentStatus.Pending)">Pending</option>
+                  <option value="@((int)PaymentStatus.Paid)">Paid</option>
+                  <option value="@((int)PaymentStatus.PartiallyPaid)">Partially Paid</option>
+                  <option value="@((int)PaymentStatus.Overdue)">Overdue</option>
                 </select>
-                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                <span asp-validation-for="PaymentStatus" class="text-danger"></span>
               </div>
             </div>
             <div class="col-md-4">
               <div class="mb-3">
-                <label asp-for="PaymentStatus" class="form-label">Payment Status *</label>
-                <select asp-for="PaymentStatus" class="form-select">
-                  <option value="0">Pending</option>
-                  <option value="1">Paid</option>
-                  <option value="2">Partial</option>
-                  <option value="3">Overdue</option>
-                  <option value="4">Refunded</option>
+                <label asp-for="SaleStatus" class="form-label">Sale Status *</label>
+                <select asp-for="SaleStatus" class="form-select">
+                  <option value="@((int)SaleStatus.Processing)">Processing</option>
+                  <option value="@((int)SaleStatus.Backordered)">Backordered</option>
+                  <option value="@((int)SaleStatus.Shipped)">Shipped</option>
+                  <option value="@((int)SaleStatus.Delivered)">Delivered</option>
+                  <option value="@((int)SaleStatus.Returned)">Returned</option>
+                  <option value="@((int)SaleStatus.Cancelled)">Cancelled</option>
                 </select>
-                <span asp-validation-for="PaymentStatus" class="text-danger"></span>
+                <span asp-validation-for="SaleStatus" class="text-danger"></span>
               </div>
             </div>
           </div>
 
           <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <div class="mb-3">
                 <label asp-for="TaxAmount" class="form-label">Tax Amount</label>
                 <div class="input-group">
@@ -182,7 +218,7 @@
                 <span asp-validation-for="TaxAmount" class="text-danger"></span>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <div class="mb-3">
                 <label asp-for="ShippingCost" class="form-label">Shipping Cost</label>
                 <div class="input-group">
@@ -190,18 +226,6 @@
                   <input asp-for="ShippingCost" class="form-control" step="0.01" />
                 </div>
                 <span asp-validation-for="ShippingCost" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="SaleStatus" class="form-label">Sale Status *</label>
-                <select asp-for="SaleStatus" class="form-select">
-                  <option value="0">Processing</option>
-                  <option value="1">Shipped</option>
-                  <option value="2">Delivered</option>
-                  <option value="3">Cancelled</option>
-                </select>
-                <span asp-validation-for="SaleStatus" class="text-danger"></span>
               </div>
             </div>
           </div>
@@ -245,6 +269,39 @@
           }
         </div>
       </div>
+
+      @if (Model.Customer != null && Model.Customer.CreditLimit > 0)
+      {
+        <div class="card mt-3">
+          <div class="card-header">
+            <h5><i class="fas fa-credit-card"></i> Customer Credit Status</h5>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr>
+                <td>Credit Limit:</td>
+                <td class="text-end">@Model.Customer.CreditLimit.ToString("C")</td>
+              </tr>
+              <tr>
+                <td>Outstanding:</td>
+                <td class="text-end">@Model.Customer.OutstandingBalance.ToString("C")</td>
+              </tr>
+              <tr class="@(Model.Customer.CreditAvailable > 0 ? "table-success" : "table-danger")">
+                <td><strong>Available:</strong></td>
+                <td class="text-end"><strong>@Model.Customer.CreditAvailable.ToString("C")</strong></td>
+              </tr>
+            </table>
+            
+            @if (Model.Customer.OutstandingBalance > Model.Customer.CreditLimit)
+            {
+              <div class="alert alert-danger alert-sm mt-2">
+                <i class="fas fa-exclamation-triangle"></i>
+                Customer is over credit limit!
+              </div>
+            }
+          </div>
+        </div>
+      }
 
       <div class="card mt-3">
         <div class="card-header">
@@ -317,7 +374,8 @@
     function updatePaymentDueDate() {
       const saleDateInput = document.querySelector('input[name="SaleDate"]');
       const termsSelect = document.querySelector('select[name="Terms"]');
-      const dueDateInput = document.querySelector('input[name="PaymentDueDate"]');
+      const dueDateInput = document.querySelector('input[name="PaymentDueDate"]:not([type="hidden"])');
+      const hiddenDueDateInput = document.querySelector('input[name="PaymentDueDate"][type="hidden"]');
       
       if (saleDateInput.value && termsSelect.value) {
         const saleDate = new Date(saleDateInput.value);
@@ -326,7 +384,23 @@
         const dueDate = new Date(saleDate);
         dueDate.setDate(dueDate.getDate() + termsDays);
         
-        dueDateInput.value = dueDate.toISOString().split('T')[0];
+        const dueDateString = dueDate.toISOString().split('T')[0];
+        
+        if (dueDateInput) {
+          dueDateInput.value = dueDateString;
+        }
+        if (hiddenDueDateInput) {
+          hiddenDueDateInput.value = dueDateString;
+        }
+      }
+    }
+
+    function useCustomerShippingAddress() {
+      @if (Model.Customer?.FullShippingAddress != null)
+      {
+        <text>
+        document.getElementById('ShippingAddress').value = '@Html.Raw(Model.Customer.FullShippingAddress.Replace("'", "\\'"))';
+        </text>
       }
     }
     
@@ -335,4 +409,4 @@
       updatePaymentDueDate();
     });
   </script>
-}
+}}

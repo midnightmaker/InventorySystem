@@ -1,0 +1,56 @@
+@model IEnumerable<InventorySystem.Models.Customer>
+@{
+    var selectId = ViewBag.SelectId ?? "customerId";
+    var selectName = ViewBag.SelectName ?? "CustomerId";
+    var selectedValue = ViewBag.SelectedValue;
+    var includeEmpty = ViewBag.IncludeEmpty ?? true;
+    var cssClass = ViewBag.CssClass ?? "form-select";
+}
+
+<select id="@selectId" name="@selectName" class="@cssClass" data-customer-select>
+    @if (includeEmpty)
+    {
+        <option value="">Select a customer...</option>
+    }
+    
+    @if (Model != null)
+    {
+        @foreach (var customer in Model.OrderBy(c => c.CustomerName))
+        {
+            <option value="@customer.Id" 
+                    selected="@(selectedValue?.ToString() == customer.Id.ToString())"
+                    data-email="@customer.Email"
+                    data-type="@customer.CustomerType"
+                    data-credit-limit="@customer.CreditLimit"
+                    data-outstanding="@customer.OutstandingBalance">
+                @customer.CustomerName @if (!string.IsNullOrEmpty(customer.CompanyName)) { <text>(@customer.CompanyName)</text> }
+            </option>
+        }
+    }
+</select>
+
+<script>
+    // Enhanced customer select functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.querySelector('[data-customer-select]');
+        if (select) {
+            select.addEventListener('change', function() {
+                const option = this.options[this.selectedIndex];
+                if (option.value) {
+                    // Emit custom event with customer data
+                    const event = new CustomEvent('customerSelected', {
+                        detail: {
+                            customerId: option.value,
+                            customerName: option.text,
+                            email: option.dataset.email,
+                            type: option.dataset.type,
+                            creditLimit: parseFloat(option.dataset.creditLimit),
+                            outstanding: parseFloat(option.dataset.outstanding)
+                        }
+                    });
+                    document.dispatchEvent(event);
+                }
+            });
+        }
+    });
+</script>

@@ -39,10 +39,14 @@ namespace InventorySystem.Data
     public DbSet<Vendor> Vendors { get; set; }
     public DbSet<VendorItem> VendorItems { get; set; }
 
-    // Add this to your InventoryContext class
+    // Add CompanyInfo
     public DbSet<CompanyInfo> CompanyInfo { get; set; } = null!;
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+		// Add these new DbSets
+		public DbSet<Customer> Customers { get; set; }
+		public DbSet<CustomerDocument> CustomerDocuments { get; set; }
+
+		protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
       // Configure existing entities
       ConfigureExistingEntities(modelBuilder);
@@ -50,8 +54,40 @@ namespace InventorySystem.Data
       // Configure new workflow entities
       ConfigureWorkflowEntities(modelBuilder);
 
-      // NEW: Configure Item -> VendorItem preferred relationship
-      modelBuilder.Entity<Item>()
+			// Customer configuration
+			modelBuilder.Entity<Customer>(entity =>
+			{
+				entity.HasKey(c => c.Id);
+				entity.HasIndex(c => c.Email).IsUnique();
+				entity.Property(c => c.CustomerName).IsRequired().HasMaxLength(200);
+				entity.Property(c => c.Email).IsRequired().HasMaxLength(150);
+				entity.Property(c => c.CreditLimit).HasColumnType("decimal(18,2)");
+
+				// Configure relationships
+				entity.HasMany(c => c.Sales)
+							.WithOne(s => s.Customer)
+							.HasForeignKey(s => s.CustomerId)
+							.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasMany(c => c.Documents)
+							.WithOne(d => d.Customer)
+							.HasForeignKey(d => d.CustomerId)
+							.OnDelete(DeleteBehavior.Cascade);
+			});
+
+			// CustomerDocument configuration
+			modelBuilder.Entity<CustomerDocument>(entity =>
+			{
+				entity.HasKey(d => d.Id);
+				entity.Property(d => d.DocumentName).IsRequired().HasMaxLength(200);
+				entity.Property(d => d.DocumentType).IsRequired().HasMaxLength(100);
+				entity.Property(d => d.FileName).IsRequired().HasMaxLength(255);
+				entity.Property(d => d.ContentType).IsRequired().HasMaxLength(100);
+				entity.Property(d => d.DocumentData).IsRequired();
+			});
+
+			// NEW: Configure Item -> VendorItem preferred relationship
+			modelBuilder.Entity<Item>()
           .HasOne(i => i.PreferredVendorItem)
           .WithMany()
           .HasForeignKey(i => i.PreferredVendorItemId)
@@ -284,21 +320,25 @@ namespace InventorySystem.Data
               .OnDelete(DeleteBehavior.Restrict);
       });
 
-      // Sales configuration
-      modelBuilder.Entity<Sale>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.SaleNumber).IsRequired().HasMaxLength(100);
-        entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
-        entity.Property(e => e.Subtotal).HasColumnType("decimal(18,2)");
-        entity.Property(e => e.TaxAmount).HasColumnType("decimal(18,2)");
-        entity.Property(e => e.ShippingCost).HasColumnType("decimal(18,2)");
-        entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
-        entity.HasIndex(e => e.SaleNumber).IsUnique();
-      });
+			// Sales configuration
+			modelBuilder.Entity<Sale>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.SaleNumber).IsRequired().HasMaxLength(100);
+				entity.Property(e => e.CustomerId).IsRequired(); // Clean - only CustomerID required
+				entity.Property(e => e.ShippingCost).HasColumnType("decimal(18,2)");
+				entity.Property(e => e.TaxAmount).HasColumnType("decimal(18,2)");
+				entity.HasIndex(e => e.SaleNumber).IsUnique();
 
-      // Sale Item configuration
-      modelBuilder.Entity<SaleItem>(entity =>
+				// Configure relationship to Customer
+				entity.HasOne(s => s.Customer)
+							.WithMany(c => c.Sales)
+							.HasForeignKey(s => s.CustomerId)
+							.OnDelete(DeleteBehavior.Restrict);
+			});
+
+			// Sale Item configuration
+			modelBuilder.Entity<SaleItem>(entity =>
       {
         entity.HasKey(e => e.Id);
         entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");

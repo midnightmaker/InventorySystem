@@ -1,235 +1,505 @@
-﻿@model InventorySystem.Models.Sale
+﻿@using InventorySystem.Models.Enums
+@model InventorySystem.Models.Sale
 @{
-  ViewData["Title"] = "Create Sale";
+    ViewData["Title"] = "Create New Sale";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-plus-circle"></i> Create New Sale</h1>
-  <a href="/Sales" class="btn btn-outline-secondary">
-    <i class="fas fa-arrow-left"></i> Back to Sales
-  </a>
+    <h1><i class="fas fa-plus-circle"></i> Create New Sale</h1>
+    <a href="/Sales" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Sales
+    </a>
 </div>
 
 @if (TempData["ErrorMessage"] != null)
 {
-  <div class="alert alert-danger alert-dismissible fade show">
-    @TempData["ErrorMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-warning alert-dismissible fade show">
+        <h6><i class="fas fa-exclamation-triangle"></i> Please correct the following errors:</h6>
+        <ul class="mb-0">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <li>@error.ErrorMessage</li>
+            }
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 }
 
 <form asp-action="Create" method="post">
-  <div class="row">
-    <div class="col-md-8">
-      <div class="card">
-        <div class="card-header">
-          <h5><i class="fas fa-user"></i> Customer Information</h5>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="CustomerName" class="form-label">Customer Name *</label>
-                <input asp-for="CustomerName" class="form-control" />
-                <span asp-validation-for="CustomerName" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="CustomerEmail" class="form-label">Email</label>
-                <input asp-for="CustomerEmail" type="email" class="form-control" />
-                <span asp-validation-for="CustomerEmail" class="text-danger"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="CustomerPhone" class="form-label">Phone</label>
-                <input asp-for="CustomerPhone" class="form-control" />
-                <span asp-validation-for="CustomerPhone" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="OrderNumber" class="form-label">Order Number</label>
-                <input asp-for="OrderNumber" class="form-control" />
-                <span asp-validation-for="OrderNumber" class="text-danger"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label asp-for="ShippingAddress" class="form-label">Shipping Address</label>
-            <textarea asp-for="ShippingAddress" class="form-control" rows="3"></textarea>
-            <span asp-validation-for="ShippingAddress" class="text-danger"></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mt-4">
-        <div class="card-header">
-          <h5><i class="fas fa-receipt"></i> Sale Details</h5>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="SaleDate" class="form-label">Sale Date *</label>
-                <input asp-for="SaleDate" type="date" class="form-control" />
-                <span asp-validation-for="SaleDate" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="Terms" class="form-label">Payment Terms *</label>
-                <select asp-for="Terms" asp-items="Html.GetEnumSelectList<InventorySystem.Models.Enums.PaymentTerms>()" class="form-select">
-                  <option value="">-- Select Payment Terms --</option>
-                </select>
-                <span asp-validation-for="Terms" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="PaymentDueDate" class="form-label">Payment Due Date *</label>
-                <input asp-for="PaymentDueDate" type="date" class="form-control" />
-                <span asp-validation-for="PaymentDueDate" class="text-danger"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
-                <select asp-for="PaymentMethod" class="form-select">
-                  <option value="">-- Select Payment Method --</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="Check">Check</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="PayPal">PayPal</option>
-                  <option value="Other">Other</option>
-                </select>
-                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="PaymentStatus" class="form-label">Payment Status *</label>
-                <select asp-for="PaymentStatus" asp-items="Html.GetEnumSelectList<InventorySystem.Models.Enums.PaymentStatus>()" class="form-select">
-                </select>
-                <span asp-validation-for="PaymentStatus" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="SaleStatus" class="form-label">Sale Status *</label>
-                <select asp-for="SaleStatus" asp-items="Html.GetEnumSelectList<InventorySystem.Models.Enums.SaleStatus>()" class="form-select">
-                </select>
-                <span asp-validation-for="SaleStatus" class="text-danger"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="TaxAmount" class="form-label">Tax Amount</label>
-                <div class="input-group">
-                  <span class="input-group-text">$</span>
-                  <input asp-for="TaxAmount" class="form-control" step="0.01" />
+    @Html.AntiForgeryToken()
+    
+    <div asp-validation-summary="All" class="alert alert-danger"></div>
+    
+    <!-- Hidden fields to ensure proper model binding -->
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="CreatedDate" type="hidden" />
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-user"></i> Customer Information</h5>
                 </div>
-                <span asp-validation-for="TaxAmount" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label asp-for="ShippingCost" class="form-label">Shipping Cost</label>
-                <div class="input-group">
-                  <span class="input-group-text">$</span>
-                  <input asp-for="ShippingCost" class="form-control" step="0.01" />
-                </div>
-                <span asp-validation-for="ShippingCost" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <!-- Empty column for layout balance -->
-            </div>
-          </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label asp-for="CustomerId" class="form-label">Customer *</label>
+                                <div class="input-group">
+                                    <select asp-for="CustomerId" asp-items="ViewBag.Customers" class="form-select" id="customerSelect" required>
+                                        <option value="">Select a customer...</option>
+                                    </select>
+                                    <a href="@Url.Action("Create", "Customers")" class="btn btn-outline-primary" target="_blank">
+                                        <i class="fas fa-user-plus"></i> New Customer
+                                    </a>
+                                </div>
+                                <span asp-validation-for="CustomerId" class="text-danger"></span>
+                                <div class="form-text">
+                                    Can't find the customer? <a href="@Url.Action("Create", "Customers")" target="_blank">Create a new customer</a> first.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-          <div class="mb-3">
-            <label asp-for="Notes" class="form-label">Notes</label>
-            <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
-            <span asp-validation-for="Notes" class="text-danger"></span>
-          </div>
+                    <!-- Customer Preview Card (Hidden by default) -->
+                    <div id="customerPreview" class="card bg-light mt-3" style="display: none;">
+                        <div class="card-body">
+                            <h6><i class="fas fa-info-circle"></i> Customer Information</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div id="customerDetails"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div id="customerStats"></div>
+                                </div>
+                            </div>
+                            <div id="creditWarning" class="alert alert-warning mt-2" style="display: none;">
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Credit Warning:</strong> <span id="creditMessage"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="OrderNumber" class="form-label">Order Number</label>
+                                <input asp-for="OrderNumber" class="form-control" placeholder="Optional customer order reference" />
+                                <span asp-validation-for="OrderNumber" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+                                <select asp-for="PaymentMethod" class="form-select">
+                                    <option value="">Select payment method...</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Check">Check</option>
+                                    <option value="Credit Card">Credit Card</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Net Terms">Net Terms</option>
+                                </select>
+                                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ShippingAddress" class="form-label">Shipping Address</label>
+                        <textarea asp-for="ShippingAddress" class="form-control" rows="3" placeholder="Enter shipping address or leave blank to use customer default"></textarea>
+                        <span asp-validation-for="ShippingAddress" class="text-danger"></span>
+                        <div class="form-text">
+                            <button type="button" class="btn btn-link p-0" onclick="useCustomerShippingAddress()">
+                                <i class="fas fa-copy"></i> Use customer's default shipping address
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-receipt"></i> Sale Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="SaleDate" class="form-label">Sale Date *</label>
+                                <input asp-for="SaleDate" class="form-control" type="date" onchange="updatePaymentDueDate()" />
+                                <span asp-validation-for="SaleDate" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="Terms" class="form-label">
+                                    <i class="fas fa-calendar-check text-primary"></i>
+                                    Payment Terms *
+                                </label>
+                                <select asp-for="Terms" class="form-select" onchange="updatePaymentDueDate()" id="paymentTerms">
+                                    <option value="@((int)PaymentTerms.Immediate)">Immediate</option>
+                                    <option value="@((int)PaymentTerms.Net10)">Net 10</option>
+                                    <option value="@((int)PaymentTerms.Net30)" selected>Net 30</option>
+                                    <option value="@((int)PaymentTerms.Net45)">Net 45</option>
+                                    <option value="@((int)PaymentTerms.Net60)">Net 60</option>
+                                </select>
+                                <span asp-validation-for="Terms" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="PaymentDueDate" class="form-label">Payment Due Date</label>
+                                <input asp-for="PaymentDueDate" class="form-control" type="date" readonly />
+                                <input asp-for="PaymentDueDate" type="hidden" />
+                                <span asp-validation-for="PaymentDueDate" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ShippingCost" class="form-label">Shipping Cost</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="ShippingCost" type="number" class="form-control" placeholder="0.00" step="0.01" />
+                                </div>
+                                <span asp-validation-for="ShippingCost" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="TaxAmount" class="form-label">Tax Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="TaxAmount" type="number" class="form-control" placeholder="0.00" step="0.01" />
+                                    <button type="button" class="btn btn-outline-secondary" onclick="calculateTax()" title="Auto-calculate tax">
+                                        <i class="fas fa-calculator"></i>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="TaxAmount" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label">Notes</label>
+                        <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Add any additional notes for this sale..."></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Sale Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="SaleNumber" class="form-label">Sale Number</label>
+                        <input asp-for="SaleNumber" class="form-control" readonly />
+                        <div class="form-text">Auto-generated upon creation</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label asp-for="PaymentStatus" class="form-label">Payment Status</label>
+                                <select asp-for="PaymentStatus" class="form-select">
+                                    <option value="@((int)PaymentStatus.Pending)">Pending</option>
+                                    <option value="@((int)PaymentStatus.Paid)">Paid</option>
+                                    <option value="@((int)PaymentStatus.PartiallyPaid)">Partially Paid</option>
+                                    <option value="@((int)PaymentStatus.Overdue)">Overdue</option>
+                                </select>
+                                <span asp-validation-for="PaymentStatus" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label asp-for="SaleStatus" class="form-label">Sale Status</label>
+                                <select asp-for="SaleStatus" class="form-select">
+                                    <option value="@((int)SaleStatus.Processing)">Processing</option>
+                                    <option value="@((int)SaleStatus.Backordered)">Backordered</option>
+                                    <option value="@((int)SaleStatus.Shipped)">Shipped</option>
+                                    <option value="@((int)SaleStatus.Delivered)">Delivered</option>
+                                    <option value="@((int)SaleStatus.Returned)">Returned</option>
+                                </select>
+                                <span asp-validation-for="SaleStatus" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="text-center">
+                        <p class="text-muted mb-2">After creating the sale, you can:</p>
+                        <ul class="list-unstyled text-start">
+                            <li><i class="fas fa-plus text-primary"></i> Add sale items</li>
+                            <li><i class="fas fa-file-invoice text-info"></i> Generate invoice</li>
+                            <li><i class="fas fa-truck text-success"></i> Process shipment</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Credit Check Card -->
+            <div class="card mt-3" id="creditCheckCard" style="display: none;">
+                <div class="card-header">
+                    <h5><i class="fas fa-credit-card"></i> Credit Check</h5>
+                </div>
+                <div class="card-body">
+                    <div id="creditCheckContent">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">
-          <h5><i class="fas fa-info-circle"></i> Sale Information</h5>
-        </div>
+    <div class="card mt-4">
         <div class="card-body">
-          <div class="mb-3">
-            <label asp-for="SaleNumber" class="form-label">Sale Number</label>
-            <input asp-for="SaleNumber" class="form-control" readonly />
-            <small class="form-text text-muted">Auto-generated</small>
-          </div>
-
-          <div class="alert alert-info">
-            <h6><i class="fas fa-lightbulb"></i> Next Steps</h6>
-            <p class="mb-0">After creating this sale, you'll be able to add items and configure the final pricing.</p>
-          </div>
+            <div class="d-flex justify-content-between">
+                <a href="/Sales" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create Sale
+                </button>
+            </div>
         </div>
-      </div>
-
-      <div class="card mt-3">
-        <div class="card-header">
-          <h5><i class="fas fa-save"></i> Actions</h5>
-        </div>
-        <div class="card-body">
-          <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-success">
-              <i class="fas fa-plus"></i> Create Sale
-            </button>
-            <a href="/Sales" class="btn btn-outline-secondary">
-              <i class="fas fa-times"></i> Cancel
-            </a>
-          </div>
-        </div>
-      </div>
     </div>
-  </div>
 </form>
 
 @section Scripts {
-  <script>
-    // Auto-format currency inputs
-    document.querySelectorAll('input[step="0.01"]').forEach(input => {
-      input.addEventListener('blur', function () {
-        if (this.value) {
-          this.value = parseFloat(this.value).toFixed(2);
-        }
-      });
-    });
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+<script>
+    let selectedCustomer = null;
 
-    // Set default date to today if not set
-    const saleDateInput = document.querySelector('input[name="SaleDate"]');
-    if (saleDateInput && !saleDateInput.value) {
-      saleDateInput.value = new Date().toISOString().split('T')[0];
+    // Update payment due date based on terms
+    function updatePaymentDueDate() {
+        const saleDate = new Date(document.getElementById('SaleDate').value);
+        const terms = parseInt(document.getElementById('paymentTerms').value);
+        
+        if (saleDate) {
+            const dueDate = new Date(saleDate);
+            dueDate.setDate(dueDate.getDate() + terms);
+            
+            const dueDateString = dueDate.toISOString().split('T')[0];
+            
+            // Update both visible and hidden PaymentDueDate fields
+            const visibleField = document.getElementById('PaymentDueDate');
+            const hiddenFields = document.querySelectorAll('input[name="PaymentDueDate"][type="hidden"]');
+            
+            if (visibleField) {
+                visibleField.value = dueDateString;
+            }
+            
+            hiddenFields.forEach(field => {
+                field.value = dueDateString;
+            });
+            
+            console.log('Payment due date updated to:', dueDateString);
+        }
     }
 
-    // Setup payment validation using the reusable utility
-    document.addEventListener('DOMContentLoaded', function() {
-      PaymentValidation.setupPaymentValidation(
-        'input[name="SaleDate"]',
-        'select[name="Terms"]', 
-        'input[name="PaymentDueDate"]'
-      );
+    // Handle customer selection
+    document.getElementById('customerSelect').addEventListener('change', async function() {
+        const customerId = this.value;
+        const preview = document.getElementById('customerPreview');
+        const creditCard = document.getElementById('creditCheckCard');
+        
+        if (!customerId) {
+            preview.style.display = 'none';
+            creditCard.style.display = 'none';
+            selectedCustomer = null;
+            return;
+        }
+
+        try {
+            // Fetch customer details
+            const response = await fetch(`/Customers/GetCustomerDetails/${customerId}`);
+            const customer = await response.json();
+            
+            if (customer.success) {
+                selectedCustomer = customer.data;
+                displayCustomerPreview(customer.data);
+                loadCustomerPaymentTerms(customer.data);
+                preview.style.display = 'block';
+                creditCard.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error loading customer details:', error);
+        }
     });
-  </script>
+
+    function displayCustomerPreview(customer) {
+        const detailsDiv = document.getElementById('customerDetails');
+        const statsDiv = document.getElementById('customerStats');
+        const creditWarning = document.getElementById('creditWarning');
+        
+        detailsDiv.innerHTML = `
+            <strong>${customer.customerName}</strong><br>
+            <small class="text-muted">${customer.email}</small><br>
+            <small class="text-muted">${customer.phone || 'No phone'}</small><br>
+            <span class="badge bg-info">${customer.customerType}</span>
+        `;
+        
+        statsDiv.innerHTML = `
+            <small class="text-muted">Total Sales:</small> <strong>$${customer.totalSales.toLocaleString()}</strong><br>
+            <small class="text-muted">Orders:</small> <strong>${customer.salesCount}</strong><br>
+            <small class="text-muted">Outstanding:</small> <strong>$${customer.outstandingBalance.toLocaleString()}</strong><br>
+            <small class="text-muted">Credit Limit:</small> <strong>$${customer.creditLimit.toLocaleString()}</strong>
+        `;
+
+        // Show credit warning if over limit
+        if (customer.creditLimit > 0 && customer.outstandingBalance > customer.creditLimit) {
+            const overAmount = customer.outstandingBalance - customer.creditLimit;
+            document.getElementById('creditMessage').textContent = 
+                `Customer is over credit limit by $${overAmount.toLocaleString()}`;
+            creditWarning.style.display = 'block';
+        } else {
+            creditWarning.style.display = 'none';
+        }
+    }
+
+    function loadCustomerPaymentTerms(customer) {
+        const termsSelect = document.getElementById('paymentTerms');
+        
+        // Set customer's default payment terms
+        if (customer.defaultPaymentTerms !== undefined) {
+            termsSelect.value = customer.defaultPaymentTerms;
+            updatePaymentDueDate();
+        }
+    }
+
+    function useCustomerShippingAddress() {
+        if (selectedCustomer && selectedCustomer.fullShippingAddress) {
+            document.getElementById('ShippingAddress').value = selectedCustomer.fullShippingAddress;
+        } else {
+            alert('No shipping address found for selected customer.');
+        }
+    }
+
+    function calculateTax() {
+        if (selectedCustomer && selectedCustomer.isTaxExempt) {
+            document.getElementById('TaxAmount').value = '0.00';
+            alert('Customer is tax exempt.');
+            return;
+        }
+
+        // Basic tax calculation (you might want to implement more sophisticated logic)
+        const subtotal = 0; // Would calculate from line items
+        const shippingCost = parseFloat(document.getElementById('ShippingCost').value) || 0;
+        const taxRate = 0.0725; // Default tax rate, could be configurable
+        
+        const taxableAmount = subtotal + shippingCost;
+        const taxAmount = taxableAmount * taxRate;
+        
+        document.getElementById('TaxAmount').value = taxAmount.toFixed(2);
+    }
+
+    // Validate credit before form submission
+    document.querySelector('form').addEventListener('submit', function(e) {
+        console.log('Form submission started...');
+        
+        // Debug: Log all form data
+        const formData = new FormData(this);
+        console.log('Form data being submitted:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+        }
+        
+        // Check if customer is selected
+        const customerId = document.getElementById('customerSelect').value;
+        if (!customerId) {
+            alert('Please select a customer before creating the sale.');
+            e.preventDefault();
+            return false;
+        }
+        
+        console.log('Customer selected:', customerId);
+        
+        // Check if payment due date is set
+        const paymentDueDate = document.getElementById('PaymentDueDate').value;
+        if (!paymentDueDate) {
+            alert('Payment due date is required. Please select a sale date and payment terms.');
+            e.preventDefault();
+            return false;
+        }
+        
+        console.log('Payment due date:', paymentDueDate);
+        
+        if (selectedCustomer && selectedCustomer.creditLimit > 0) {
+            const totalAmount = calculateEstimatedTotal();
+            const newBalance = selectedCustomer.outstandingBalance + totalAmount;
+            
+            if (newBalance > selectedCustomer.creditLimit) {
+                const overAmount = newBalance - selectedCustomer.creditLimit;
+                if (!confirm(`This sale will put the customer $${overAmount.toLocaleString()} over their credit limit. Continue anyway?`)) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        }
+        
+        console.log('Form validation passed, submitting...');
+        return true;
+    });
+
+    function calculateEstimatedTotal() {
+        const shipping = parseFloat(document.getElementById('ShippingCost').value) || 0;
+        const tax = parseFloat(document.getElementById('TaxAmount').value) || 0;
+        // Add logic to calculate subtotal from line items when they're added
+        return shipping + tax;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page loaded, initializing...');
+        
+        updatePaymentDueDate();
+        
+        // Set today's date as default (date only, no time)
+        const today = new Date();
+        const dateString = today.toISOString().split('T')[0];
+        const saleDateInput = document.getElementById('SaleDate');
+        if (saleDateInput) {
+            saleDateInput.value = dateString;
+            updatePaymentDueDate();
+        }
+        
+        // Debug: Check if customers dropdown is populated
+        const customerSelect = document.getElementById('customerSelect');
+        if (customerSelect) {
+            console.log('Customer dropdown found with', customerSelect.options.length, 'options');
+        } else {
+            console.error('Customer dropdown not found!');
+        }
+        
+        // Debug: Check if form exists
+        const form = document.querySelector('form[action="/Sales/Create"]');
+        if (form) {
+            console.log('Create sale form found');
+        } else {
+            console.error('Create sale form not found!');
+        }
+    });
+</script>
 }

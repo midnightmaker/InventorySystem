@@ -15,7 +15,6 @@ namespace InventorySystem.Services
     private readonly IBackorderFulfillmentService _backorderService;
     private readonly ILogger<SalesService> _logger;
 
-
     public SalesService(
         InventoryContext context,
         IInventoryService inventoryService,
@@ -35,6 +34,7 @@ namespace InventorySystem.Services
     public async Task<IEnumerable<Sale>> GetAllSalesAsync()
     {
       return await _context.Sales
+          .Include(s => s.Customer) // ADDED: Include Customer for clean relationship
           .Include(s => s.SaleItems)
               .ThenInclude(si => si.Item)
           .Include(s => s.SaleItems)
@@ -46,6 +46,7 @@ namespace InventorySystem.Services
     public async Task<Sale?> GetSaleByIdAsync(int id)
     {
       return await _context.Sales
+          .Include(s => s.Customer) // ADDED: Include Customer for clean relationship
           .Include(s => s.SaleItems)
               .ThenInclude(si => si.Item)
           .Include(s => s.SaleItems)
@@ -65,16 +66,12 @@ namespace InventorySystem.Services
       return sale;
     }
 
+    // FIXED: Removed attempts to set computed properties
     public async Task<Sale> UpdateSaleAsync(Sale sale)
     {
-      // Recalculate totals based on sale items
-      var saleItems = await _context.SaleItems
-          .Where(si => si.SaleId == sale.Id)
-          .ToListAsync();
-
-      sale.Subtotal = saleItems.Sum(si => si.TotalPrice);
-      sale.TotalAmount = sale.Subtotal + sale.TaxAmount + sale.ShippingCost;
-
+      // The TotalAmount and SubtotalAmount are computed properties that calculate automatically
+      // based on SaleItems, ShippingCost, and TaxAmount. No manual calculation needed.
+      
       _context.Sales.Update(sale);
       await _context.SaveChangesAsync();
       return sale;
@@ -117,14 +114,13 @@ namespace InventorySystem.Services
       return $"{prefix}-001";
     }
 
-    
     public async Task<SaleItem> UpdateSaleItemAsync(SaleItem saleItem)
     {
       _context.SaleItems.Update(saleItem);
       await _context.SaveChangesAsync();
 
-      // Update sale totals
-      await UpdateSaleTotalsAsync(saleItem.SaleId);
+      // No need to manually update sale totals - they're computed properties
+      // The Sale.TotalAmount and Sale.SubtotalAmount will update automatically
 
       return saleItem;
     }
@@ -134,12 +130,10 @@ namespace InventorySystem.Services
       var saleItem = await _context.SaleItems.FindAsync(saleItemId);
       if (saleItem != null)
       {
-        var saleId = saleItem.SaleId;
         _context.SaleItems.Remove(saleItem);
         await _context.SaveChangesAsync();
 
-        // Update sale totals
-        await UpdateSaleTotalsAsync(saleId);
+        // No need to manually update sale totals - they're computed properties
       }
     }
 
@@ -172,7 +166,7 @@ namespace InventorySystem.Services
           }
           else if (saleItem.FinishedGoodId.HasValue)
           {
-            // CHANGE: Access finished goods directly from context
+            // Access finished goods directly from context
             var finishedGood = await _context.FinishedGoods
                 .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
             if (finishedGood != null)
@@ -196,38 +190,27 @@ namespace InventorySystem.Services
       }
     }
 
-    private async Task UpdateSaleTotalsAsync(int saleId)
-    {
-      var sale = await _context.Sales.FindAsync(saleId);
-      if (sale == null) return;
-
-      var saleItems = await _context.SaleItems
-          .Where(si => si.SaleId == saleId)
-          .ToListAsync();
-
-      sale.Subtotal = saleItems.Sum(si => si.TotalPrice);
-      sale.TotalAmount = sale.Subtotal + sale.TaxAmount + sale.ShippingCost;
-
-      await _context.SaveChangesAsync();
-    }
+    // REMOVED: UpdateSaleTotalsAsync method - no longer needed since totals are computed properties
 
     // Statistics methods
     public async Task<decimal> GetTotalSalesValueAsync()
     {
       var sales = await _context.Sales
+          .Include(s => s.SaleItems) // ADDED: Include SaleItems for computed properties
           .Where(s => s.SaleStatus != SaleStatus.Cancelled)
           .ToListAsync();
-      return sales.Sum(s => s.TotalAmount);
+      return sales.Sum(s => s.TotalAmount); // This works because TotalAmount is computed
     }
 
     public async Task<decimal> GetTotalSalesValueByMonthAsync(int year, int month)
     {
       var sales = await _context.Sales
+          .Include(s => s.SaleItems) // ADDED: Include SaleItems for computed properties
           .Where(s => s.SaleDate.Year == year &&
                      s.SaleDate.Month == month &&
                      s.SaleStatus != SaleStatus.Cancelled)
           .ToListAsync();
-      return sales.Sum(s => s.TotalAmount);
+      return sales.Sum(s => s.TotalAmount); // This works because TotalAmount is computed
     }
 
     public async Task<decimal> GetTotalProfitAsync()
@@ -256,11 +239,13 @@ namespace InventorySystem.Services
           .CountAsync(s => s.SaleStatus != SaleStatus.Cancelled);
     }
 
-    public async Task<IEnumerable<Sale>> GetSalesByCustomerAsync(string customerName)
+    // UPDATED: Clean method to use Customer relationship instead of legacy CustomerName field
+    public async Task<IEnumerable<Sale>> GetSalesByCustomerAsync(int customerId)
     {
       return await _context.Sales
+          .Include(s => s.Customer)
           .Include(s => s.SaleItems)
-          .Where(s => s.CustomerName.ToLower().Contains(customerName.ToLower()))
+          .Where(s => s.CustomerId == customerId)
           .OrderByDescending(s => s.SaleDate)
           .ToListAsync();
     }
@@ -268,11 +253,13 @@ namespace InventorySystem.Services
     public async Task<IEnumerable<Sale>> GetSalesByStatusAsync(SaleStatus status)
     {
       return await _context.Sales
+          .Include(s => s.Customer) // ADDED: Include Customer
           .Include(s => s.SaleItems)
           .Where(s => s.SaleStatus == status)
           .OrderByDescending(s => s.SaleDate)
           .ToListAsync();
     }
+
     public async Task<SaleItem> AddSaleItemAsync(SaleItem saleItem)
     {
       // Enhanced logic to handle backorders
@@ -311,9 +298,8 @@ namespace InventorySystem.Services
       _context.SaleItems.Add(saleItem);
       await _context.SaveChangesAsync();
 
-      // Update sale totals and status
-      await UpdateSaleTotalsAsync(saleItem.SaleId);
-      await _backorderService.CheckAndUpdateSaleStatusAsync(saleItem.SaleId); // Use the new service
+      // Update sale status (totals are computed automatically)
+      await _backorderService.CheckAndUpdateSaleStatusAsync(saleItem.SaleId);
 
       return saleItem;
     }
@@ -326,6 +312,7 @@ namespace InventorySystem.Services
     public async Task<IEnumerable<Sale>> GetBackorderedSalesAsync()
     {
       return await _context.Sales
+          .Include(s => s.Customer) // ADDED: Include Customer
           .Include(s => s.SaleItems)
           .ThenInclude(si => si.Item)
           .Include(s => s.SaleItems)
@@ -339,6 +326,7 @@ namespace InventorySystem.Services
     {
       return await _context.SaleItems
           .Include(si => si.Sale)
+          .ThenInclude(s => s.Customer) // ADDED: Include Customer through Sale
           .Include(si => si.Item)
           .Include(si => si.FinishedGood)
           .Where(si => si.QuantityBackordered > 0)
@@ -366,7 +354,6 @@ namespace InventorySystem.Services
         }
         else if (saleItem.FinishedGoodId.HasValue)
         {
-          // CHANGE: Access finished goods directly from context
           var finishedGood = await _context.FinishedGoods
               .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
           if (finishedGood == null || finishedGood.CurrentStock < saleItem.QuantitySold)
@@ -376,7 +363,5 @@ namespace InventorySystem.Services
 
       return true;
     }
-
-
   }
 }

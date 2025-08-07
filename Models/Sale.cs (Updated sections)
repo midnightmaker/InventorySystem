@@ -1,0 +1,30 @@
+public class Sale : IValidatableObject
+{
+    // Add this property to link to Customer
+    [Display(Name = "Customer")]
+    public int? CustomerId { get; set; }
+    public virtual Customer? Customer { get; set; }
+
+    // Keep existing CustomerName, CustomerEmail, CustomerPhone for backward compatibility
+    [Required]
+    [Display(Name = "Customer Name")]
+    public string CustomerName { get; set; } = string.Empty;
+
+    // Add computed property to get customer name from Customer entity or fallback to CustomerName
+    [NotMapped]
+    [Display(Name = "Customer")]
+    public string DisplayCustomerName => Customer?.CustomerName ?? CustomerName;
+
+    [NotMapped]
+    [Display(Name = "Customer Email")]
+    public string DisplayCustomerEmail => Customer?.Email ?? CustomerEmail ?? string.Empty;
+
+    [NotMapped]
+    [Display(Name = "Customer Phone")]
+    public string DisplayCustomerPhone => Customer?.Phone ?? CustomerPhone ?? string.Empty;
+    
+    // Add computed property for customer type
+    [NotMapped]
+    [Display(Name = "Customer Type")]
+    public string CustomerTypeDisplay => Customer?.CustomerType.ToString() ?? "One-time Customer";
+}

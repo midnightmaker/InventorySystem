@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using System.Text.Json;
 
 namespace InventorySystem.Controllers
 {
@@ -552,6 +553,44 @@ namespace InventorySystem.Controllers
 
       var importDetails = System.Text.Json.JsonSerializer.Deserialize<ImportResultsViewModel>(importDetailsJson);
       return View(importDetails);
+    }
+
+    // BOM Visualization - GET
+    public async Task<IActionResult> Visualize(int id)
+    {
+      try
+      {
+        var bom = await _bomService.GetBomByIdAsync(id);
+        if (bom == null)
+        {
+          TempData["ErrorMessage"] = "BOM not found.";
+          return RedirectToAction("Index");
+        }
+
+        // Load full hierarchy
+        var bomHierarchy = await _bomService.GetBomHierarchyAsync(id);
+        
+        ViewBag.BomHierarchy = bomHierarchy;
+        
+        // Ensure we always have valid JSON data
+        var jsonOptions = new JsonSerializerOptions
+        {
+          PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+          WriteIndented = false
+        };
+        
+        ViewBag.JsonData = System.Text.Json.JsonSerializer.Serialize(bomHierarchy ?? new { }, jsonOptions);
+        
+        _logger.LogInformation("BOM visualization loaded for BOM {BomId} ({BomNumber})", id, bom.BomNumber);
+        
+        return View(bom);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading BOM visualization for BOM {BomId}", id);
+        TempData["ErrorMessage"] = $"Error loading BOM visualization: {ex.Message}";
+        return RedirectToAction("Index");
+      }
     }
   }
 }

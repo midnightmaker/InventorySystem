@@ -138,6 +138,12 @@
                     <i class="fas fa-clock text-warning"></i> Pending Changes
                   </a>
                 </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="#" onclick="openBomVisualization()">
+                    <i class="fas fa-sitemap text-info"></i> BOM Diagrams
+                  </a>
+                </li>
               </ul>
             </li>
 
@@ -220,7 +226,81 @@
                 <li><a class="dropdown-item" href="/Sales/Reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
               </ul>
             </li>
+            <!-- Customer Management Dropdown -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-users"></i> Customers
+              </a>
+              <ul class="dropdown-menu">
+                <!-- Main Customer Actions -->
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index">
+                    <i class="fas fa-list"></i> All Customers
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Create">
+                    <i class="fas fa-user-plus"></i> Add Customer
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+
+                <!-- Customer Categories -->
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Retail">
+                    <i class="fas fa-user text-primary"></i> Retail Customers
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Corporate">
+                    <i class="fas fa-building text-info"></i> Corporate Accounts
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Wholesale">
+                    <i class="fas fa-warehouse text-success"></i> Wholesale Customers
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+
+                <!-- Credit Management -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-credit-card"></i> Credit Management
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-hasOutstandingBalance="true">
+                    <i class="fas fa-exclamation-circle text-warning"></i> Outstanding Balances
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-overCreditLimit="true">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> Over Credit Limit
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+
+                <!-- Reports & Analytics -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-chart-bar"></i> Reports & Analytics
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Reports">
+                    <i class="fas fa-chart-line"></i> Customer Reports
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-activeOnly="false">
+                    <i class="fas fa-user-slash text-muted"></i> Inactive Customers
+                  </a>
+                </li>
+              </ul>
+            </li>
           </ul>
+         
 
           <!-- Right side navbar items -->
           <ul class="navbar-nav ms-auto">
@@ -240,6 +320,18 @@
                     <i class="fas fa-cube text-primary"></i> Add New Item
                   </a>
                 </li>
+                <!-- Sales & Customer Actions -->
+                <li>
+                  <a class="dropdown-item" asp-controller="Sales" asp-action="Create">
+                    <i class="fas fa-cash-register text-success"></i> New Sale
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Create">
+                    <i class="fas fa-user-plus text-info"></i> Add Customer
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
                 <li>
                   <a class="dropdown-item" asp-controller="Purchases" asp-action="Create">
                     <i class="fas fa-shopping-cart text-info"></i> Record Purchase
@@ -248,6 +340,18 @@
                 <li>
                   <a class="dropdown-item" asp-controller="Purchases" asp-action="CreateMultiLine">
                     <i class="fas fa-list-ul text-success"></i> Multi-Line Purchase
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <!-- Alerts & Monitoring -->
+                <li>
+                  <a class="dropdown-item" asp-controller="WipDashboard" asp-action="GetOverdueProductions">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> View Overdue Items
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Sales" asp-action="PastDueReport">
+                    <i class="fas fa-clock text-warning"></i> Past Due Sales
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
@@ -421,6 +525,17 @@
             window.location.href = '/Items';
         }
     });
+
+    // BOM Visualization function
+    function openBomVisualization() {
+        // Show a simple prompt to select BOM
+        const bomId = prompt('Enter BOM ID to visualize:');
+        if (bomId && !isNaN(bomId)) {
+            window.location.href = `/Boms/Visualize/${bomId}`;
+        } else if (bomId) {
+            alert('Please enter a valid BOM ID number');
+        }
+    }
   </script>
 
   @await RenderSectionAsync("Scripts", required: false)

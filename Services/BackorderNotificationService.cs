@@ -25,30 +25,38 @@ namespace InventorySystem.Services
       _logger = logger;
     }
 
-    public async Task NotifyBackorderCreatedAsync(Sale sale, SaleItem saleItem)
+    // FIXED: Changed to non-async since no await operations
+    public Task NotifyBackorderCreatedAsync(Sale sale, SaleItem saleItem)
     {
       _logger.LogInformation(
-          "Backorder created: Sale {SaleNumber}, Product {ProductName}, Quantity {Quantity}",
-          sale.SaleNumber, saleItem.ProductName, saleItem.QuantityBackordered);
+          "Backorder created: Sale {SaleNumber}, Customer {CustomerName}, Product {ProductName}, Quantity {Quantity}",
+          sale.SaleNumber, sale.Customer?.CustomerName ?? "Unknown", saleItem.ProductName, saleItem.QuantityBackordered);
 
       // TODO: Add email notification logic here
       // TODO: Add system notification/alert creation
+      
+      return Task.CompletedTask; // Return completed task since this is synchronous
     }
 
-    public async Task NotifyBackorderFulfilledAsync(Sale sale, SaleItem saleItem)
+    // FIXED: Changed to non-async since no await operations
+    public Task NotifyBackorderFulfilledAsync(Sale sale, SaleItem saleItem)
     {
       _logger.LogInformation(
-          "Backorder fulfilled: Sale {SaleNumber}, Product {ProductName}",
-          sale.SaleNumber, saleItem.ProductName);
+          "Backorder fulfilled: Sale {SaleNumber}, Customer {CustomerName}, Product {ProductName}",
+          sale.SaleNumber, sale.Customer?.CustomerName ?? "Unknown", saleItem.ProductName);
 
       // TODO: Add email notification to customer
       // TODO: Update sale status if all backorders fulfilled
+      
+      return Task.CompletedTask; // Return completed task since this is synchronous
     }
 
+    // FIXED: Added Customer include and use Customer relationship
     public async Task<IEnumerable<BackorderAlert>> GetBackorderAlertsAsync()
     {
       var alerts = await _context.SaleItems
           .Include(si => si.Sale)
+              .ThenInclude(s => s.Customer) // ADDED: Include Customer relationship
           .Include(si => si.Item)
           .Include(si => si.FinishedGood)
           .Where(si => si.QuantityBackordered > 0)
@@ -63,7 +71,9 @@ namespace InventorySystem.Services
             ProductType = g.Key.ProductType,
             ProductName = g.Key.ProductName,
             TotalBackorderQuantity = g.Sum(si => si.QuantityBackordered),
-            CustomerCount = g.Select(si => si.Sale.CustomerName).Distinct().Count(),
+            // FIXED: Use Customer relationship instead of CustomerName
+            CustomerCount = g.Select(si => si.Sale.Customer != null ? si.Sale.Customer.CustomerName : "Unknown")
+                            .Distinct().Count(),
             OldestBackorderDate = g.Min(si => si.Sale.SaleDate),
             TotalBackorderValue = g.Sum(si => si.QuantityBackordered * si.UnitPrice)
           })
@@ -72,6 +82,4 @@ namespace InventorySystem.Services
       return alerts;
     }
   }
-
-  
 }

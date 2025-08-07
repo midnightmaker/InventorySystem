@@ -193,7 +193,15 @@
                     <td>@sale.SaleDate.ToString("MM/dd")</td>
                     <td>
                       <a href="/Sales/Details/@sale.Id" class="text-decoration-none">
-                        @sale.CustomerName
+                        @* FIXED: Use Customer relationship instead of legacy CustomerName *@
+                        @if (sale.Customer != null)
+                        {
+                          @sale.Customer.CustomerName
+                        }
+                        else
+                        {
+                          <span class="text-muted">Unknown Customer</span>
+                        }
                       </a>
                     </td>
                     <td>@sale.TotalAmount.ToString("C")</td>
@@ -240,7 +248,15 @@
                     <td>@sale.SaleDate.ToString("MM/dd")</td>
                     <td>
                       <a href="/Sales/Details/@sale.Id" class="text-decoration-none">
-                        @sale.CustomerName
+                        @* FIXED: Use Customer relationship instead of legacy CustomerName *@
+                        @if (sale.Customer != null)
+                        {
+                          @sale.Customer.CustomerName
+                        }
+                        else
+                        {
+                          <span class="text-muted">Unknown Customer</span>
+                        }
                       </a>
                     </td>
                     <td>@sale.TotalAmount.ToString("C")</td>

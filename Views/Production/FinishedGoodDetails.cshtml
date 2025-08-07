@@ -141,7 +141,23 @@
                 {
                   <tr>
                     <td>@saleItem.Sale.SaleDate.ToString("MM/dd/yyyy")</td>
-                    <td>@saleItem.Sale.CustomerName</td>
+                    @* FIXED: Use Customer relationship instead of legacy CustomerName *@
+                    <td>
+                      @if (saleItem.Sale.Customer != null)
+                      {
+                        <a href="/Customers/Details/@saleItem.Sale.Customer.Id" class="text-decoration-none">
+                          @saleItem.Sale.Customer.CustomerName
+                        </a>
+                        @if (!string.IsNullOrEmpty(saleItem.Sale.Customer.CompanyName))
+                        {
+                          <br><small class="text-muted">@saleItem.Sale.Customer.CompanyName</small>
+                        }
+                      }
+                      else
+                      {
+                        <span class="text-muted">Unknown Customer</span>
+                      }
+                    </td>
                     <td>@saleItem.QuantitySold</td>
                     <td>@saleItem.UnitPrice.ToString("C")</td>
                     <td>@saleItem.TotalPrice.ToString("C")</td>

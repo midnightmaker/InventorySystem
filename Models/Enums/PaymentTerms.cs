@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace InventorySystem.Models.Enums
 {
-    public enum PaymentTerms
+    public enum CustomerPaymentTerms
     {
         [Display(Name = "Immediate")]
         Immediate = 0,

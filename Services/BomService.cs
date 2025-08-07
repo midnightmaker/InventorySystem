@@ -574,6 +574,105 @@ namespace InventorySystem.Services
       return $"{prefix}-001";
     }
 
+    public async Task<object> GetBomHierarchyAsync(int bomId)
+    {
+      try
+      {
+        var bom = await _context.Boms
+            .Include(b => b.BomItems)
+                .ThenInclude(bi => bi.Item)
+            .Include(b => b.SubAssemblies)
+                .ThenInclude(sa => sa.BomItems)
+                    .ThenInclude(bi => bi.Item)
+            .Include(b => b.SubAssemblies)
+                .ThenInclude(sa => sa.SubAssemblies)
+                    .ThenInclude(ssa => ssa.BomItems)
+                        .ThenInclude(bi => bi.Item)
+            .FirstOrDefaultAsync(b => b.Id == bomId);
+
+        if (bom == null)
+        {
+          return new { };
+        }
+
+        return new
+        {
+          id = bom.Id,
+          bomNumber = bom.BomNumber,
+          description = bom.Description,
+          version = bom.Version,
+          assemblyPartNumber = bom.AssemblyPartNumber,
+          bomItems = bom.BomItems?.Select(bi => new
+          {
+            id = bi.Id,
+            quantity = bi.Quantity,
+            unitCost = bi.UnitCost,
+            referenceDesignator = bi.ReferenceDesignator,
+            item = new
+            {
+              id = bi.Item?.Id,
+              partNumber = bi.Item?.PartNumber,
+              description = bi.Item?.Description,
+              itemType = bi.Item?.ItemType,
+              currentStock = bi.Item?.CurrentStock ?? 0
+            }
+          }).ToList(),
+          subAssemblies = await GetSubAssemblyHierarchyAsync(bom.SubAssemblies)
+        };
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting BOM hierarchy for BOM {BomId}", bomId);
+        return new { };
+      }
+    }
+
+    private async Task<List<object>> GetSubAssemblyHierarchyAsync(IEnumerable<Bom> subAssemblies)
+    {
+      var result = new List<object>();
+
+      foreach (var subAssembly in subAssemblies)
+      {
+        // Load the full sub-assembly with its items and nested sub-assemblies
+        var fullSubAssembly = await _context.Boms
+            .Include(b => b.BomItems)
+                .ThenInclude(bi => bi.Item)
+            .Include(b => b.SubAssemblies)
+                .ThenInclude(sa => sa.BomItems)
+                    .ThenInclude(bi => bi.Item)
+            .FirstOrDefaultAsync(b => b.Id == subAssembly.Id);
+
+        if (fullSubAssembly != null)
+        {
+          result.Add(new
+          {
+            id = fullSubAssembly.Id,
+            bomNumber = fullSubAssembly.BomNumber,
+            description = fullSubAssembly.Description,
+            version = fullSubAssembly.Version,
+            assemblyPartNumber = fullSubAssembly.AssemblyPartNumber,
+            bomItems = fullSubAssembly.BomItems?.Select(bi => new
+            {
+              id = bi.Id,
+              quantity = bi.Quantity,
+              unitCost = bi.UnitCost,
+              referenceDesignator = bi.ReferenceDesignator,
+              item = new
+              {
+                id = bi.Item?.Id,
+                partNumber = bi.Item?.PartNumber,
+                description = bi.Item?.Description,
+                itemType = bi.Item?.ItemType,
+                currentStock = bi.Item?.CurrentStock ?? 0
+              }
+            }).ToList(),
+            subAssemblies = await GetSubAssemblyHierarchyAsync(fullSubAssembly.SubAssemblies)
+          });
+        }
+      }
+
+      return result;
+    }
     #endregion
 
     #region Statistics and Reporting
