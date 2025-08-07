@@ -1,27 +1,65 @@
-﻿@* Views/Vendors/Index.cshtml - Enhanced with proper search examples and collapsible search *@
-@model IEnumerable<InventorySystem.Models.Vendor>
-
+﻿@model IEnumerable<InventorySystem.Models.Vendor>
 @{
   ViewData["Title"] = "Vendors";
   var searchTerm = ViewBag.SearchTerm as string;
-  var activeOnly = ViewBag.ActiveOnly as bool? ?? true;
+  var statusFilter = ViewBag.StatusFilter as string;
+  var ratingFilter = ViewBag.RatingFilter as string;
+  var locationFilter = ViewBag.LocationFilter as string;
+  var sortOrder = ViewBag.SortOrder as string ?? "companyName_asc";
+  var isFiltered = ViewBag.IsFiltered as bool? ?? false;
 }
 
 <div class="container-fluid">
-  <!-- Add this button to the existing header section -->
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-truck"></i> Vendors</h2>
-    <div>
-        <a asp-action="BulkUpload" class="btn btn-outline-primary me-2">
-            <i class="fas fa-upload"></i> Bulk Upload
-        </a>
-        <a asp-action="Create" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Add Vendor
-        </a>
+    <h2><i class="fas fa-truck"></i> @ViewData["Title"]</h2>
+    <div class="btn-group">
+      <a asp-action="BulkUpload" class="btn btn-outline-primary">
+        <i class="fas fa-upload"></i> Bulk Upload
+      </a>
+      <a asp-action="Create" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create Vendor
+      </a>
+      <a asp-action="Reports" class="btn btn-outline-secondary">
+        <i class="fas fa-chart-bar"></i> Reports
+      </a>
+      <button class="btn btn-outline-secondary" onclick="exportVendors()">
+        <i class="fas fa-download"></i> Export
+      </button>
     </div>
   </div>
 
-  <!-- Collapsible Search Form with Examples -->
+  @if (ViewBag.ErrorMessage != null)
+  {
+    <div class="alert alert-danger">
+      <i class="fas fa-exclamation-circle"></i> @ViewBag.ErrorMessage
+    </div>
+  }
+
+  @if (TempData["SuccessMessage"] != null)
+  {
+    <div class="alert alert-success alert-dismissible fade show">
+      <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
+
+  @if (TempData["ErrorMessage"] != null)
+  {
+    <div class="alert alert-danger alert-dismissible fade show">
+      <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
+
+  @if (TempData["WarningMessage"] != null)
+  {
+    <div class="alert alert-warning alert-dismissible fade show">
+      <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
+
+  <!-- Enhanced Search Form -->
   <div class="card mb-4">
     <div class="card-header">
       <h6 class="mb-0">
@@ -29,75 +67,110 @@
                 type="button"
                 data-bs-toggle="collapse"
                 data-bs-target="#searchCollapse"
-                aria-expanded="false"
+                aria-expanded="@(isFiltered ? "true" : "false")"
                 aria-controls="searchCollapse">
-          <i class="fas fa-search"></i> Search Vendors
-          <i class="fas fa-chevron-down float-end"></i>
+          <i class="fas fa-search"></i> Search & Filter Vendors
+          <i class="fas fa-chevron-@(isFiltered ? "up" : "down") float-end"></i>
         </button>
       </h6>
     </div>
-    <div class="collapse" id="searchCollapse">
+    <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
       <div class="card-body">
-        <!-- Search Examples Section -->
+        <!-- Search Examples -->
         <div class="row mb-4 p-3 bg-light border rounded">
           <div class="col-12">
             <h6><i class="fas fa-lightbulb text-info"></i> Search Examples</h6>
           </div>
-          <div class="col-md-6">
-            <h6 class="small">Wildcard Examples:</h6>
+          <div class="col-md-4">
+            <h6 class="small">Wildcard Search:</h6>
             <ul class="list-unstyled small">
-              <li><code>crystal*</code> - Find vendors starting with "crystal"</li>
-              <li><code>*supply</code> - Find vendors ending with "supply"</li>
-              <li><code>*tech*</code> - Find vendors containing "tech"</li>
-              <li><code>?BC Corp</code> - Find "ABC Corp", "XBC Corp", etc.</li>
+              <li><code>Crystal*</code> - Vendors starting with "Crystal"</li>
+              <li><code>*Supply</code> - Vendors ending with "Supply"</li>
+              <li><code>*Tech*</code> - Contains "Tech"</li>
+              <li><code>?BC Corp</code> - ABC Corp, XBC Corp, etc.</li>
             </ul>
           </div>
-          <div class="col-md-6">
+          <div class="col-md-4">
             <h6 class="small">Search Fields:</h6>
             <ul class="list-unstyled small">
-              <li><i class="fas fa-building"></i> Company Name</li>
-              <li><i class="fas fa-user"></i> Contact Name</li>
-              <li><i class="fas fa-barcode"></i> Vendor Code</li>
-              <li><i class="fas fa-envelope"></i> Contact Email</li>
+              <li><i class="fas fa-building"></i> Company name</li>
+              <li><i class="fas fa-barcode"></i> Vendor code</li>
+              <li><i class="fas fa-user"></i> Contact name</li>
+              <li><i class="fas fa-envelope"></i> Contact email</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Quick Filters:</h6>
+            <ul class="list-unstyled small">
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('active')">Active vendors</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('preferred')">Preferred vendors</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('excellent')">Excellent rated</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="clearAllFilters()">Clear all filters</button></li>
             </ul>
           </div>
         </div>
 
         <!-- Search Form -->
         <form method="get" class="row g-3">
-          <div class="col-md-8">
-            <label for="search" class="form-label">Search Term</label>
+          <div class="col-md-3">
+            <label for="search" class="form-label">
+              <i class="fas fa-search"></i> Search Term
+            </label>
             <input type="text"
                    class="form-control"
                    id="search"
                    name="search"
                    value="@searchTerm"
-                   placeholder="Enter search term with wildcards (e.g., crystal*, *supply, ?BC Corp)">
-            <div class="form-text">
-              <strong>Wildcard Support:</strong>
-              Use <code>*</code> for multiple characters (crystal* finds "Crystal Supply", "Crystal Tech") |
-              Use <code>?</code> for single character (?BC finds "ABC", "XBC")
-            </div>
+                   placeholder="Company, code, contact... (use * and ? for wildcards)">
+            <div class="form-text">Use * for multiple chars, ? for single char</div>
           </div>
+
+          <div class="col-md-2">
+            <label for="statusFilter" class="form-label">
+              <i class="fas fa-flag"></i> Status
+            </label>
+            <select class="form-select" id="statusFilter" name="statusFilter" asp-items="ViewBag.StatusOptions">
+              <option value="">All Statuses</option>
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label for="ratingFilter" class="form-label">
+              <i class="fas fa-star"></i> Rating
+            </label>
+            <select class="form-select" id="ratingFilter" name="ratingFilter" asp-items="ViewBag.RatingOptions">
+              <option value="">All Ratings</option>
+            </select>
+          </div>
+
+          <div class="col-md-3">
+            <label for="locationFilter" class="form-label">
+              <i class="fas fa-map-marker-alt"></i> Location
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="locationFilter"
+                   name="locationFilter"
+                   value="@locationFilter"
+                   placeholder="City, state, country...">
+          </div>
+
           <div class="col-md-2">
             <label class="form-label">&nbsp;</label>
-            <div class="form-check">
-              <input class="form-check-input"
-                     type="checkbox"
-                     id="activeOnly"
-                     name="activeOnly"
-                     value="true"
-                     @(activeOnly ? "checked" : "")>
-              <label class="form-check-label" for="activeOnly">
-                Active Only
-              </label>
-            </div>
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">&nbsp;</label>
-            <div class="d-grid">
+            <div class="btn-group w-100">
               <button type="submit" class="btn btn-primary">
                 <i class="fas fa-search"></i> Search
+              </button>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="btn-group">
+              <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                <i class="fas fa-times"></i> Clear
+              </button>
+              <button type="button" class="btn btn-outline-info" onclick="saveSearch()">
+                <i class="fas fa-bookmark"></i> Save Search
               </button>
             </div>
           </div>
@@ -107,61 +180,245 @@
   </div>
 
   <!-- Search Results Summary -->
-  @if (!string.IsNullOrEmpty(searchTerm))
+  @if (isFiltered)
   {
     <div class="alert alert-info">
       <i class="fas fa-info-circle"></i>
-      Found <strong>@Model.Count()</strong> vendor(s) matching "<strong>@searchTerm</strong>"
-      @if (activeOnly)
+      Found <strong>@ViewBag.TotalCount</strong> vendor(s)
+      @if (ViewBag.SearchResultsCount != null && ViewBag.TotalVendorsCount != null)
       {
-        <span>(Active vendors only)</span>
+        <span>out of @ViewBag.TotalVendorsCount total vendors</span>
       }
+
+      @if (!string.IsNullOrEmpty(searchTerm))
+      {
+        <span>matching "<strong>@searchTerm</strong>"</span>
+      }
+
       <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
-        <i class="fas fa-times"></i> Clear Search
+        <i class="fas fa-times"></i> Clear All Filters
       </a>
     </div>
   }
 
-  <!-- Vendors Table -->
-  <div class="card">
-    <div class="card-header">
-      <h5 class="mb-0">
-        <i class="fas fa-list"></i> Vendor List
-        <span class="badge bg-primary ms-2">@Model.Count() vendors</span>
-      </h5>
+  @if (!Model.Any())
+  {
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> @(isFiltered ? "No Vendors Found" : "No Vendors Found")</h5>
+      </div>
+      <div class="card-body text-center">
+        <div class="py-4">
+          <i class="fas fa-truck fa-4x text-muted mb-3"></i>
+          @if (isFiltered)
+          {
+            <h4>No vendors match your search criteria</h4>
+            <p class="text-muted mb-4">Try adjusting your search terms or clearing filters.</p>
+            <button class="btn btn-outline-secondary" onclick="clearAllFilters()">
+              <i class="fas fa-times"></i> Clear All Filters
+            </button>
+          }
+          else
+          {
+            <h4>No vendors in your system yet</h4>
+            <p class="text-muted mb-4">Get started by creating your first vendor or importing from a CSV file.</p>
+            <div class="d-grid gap-2 d-md-block">
+              <a href="@Url.Action("Create")" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create First Vendor
+              </a>
+              <a href="@Url.Action("BulkUpload")" class="btn btn-outline-secondary">
+                <i class="fas fa-upload"></i> Bulk Upload
+              </a>
+            </div>
+            <div class="mt-4">
+              <small class="text-muted">
+                Use our <a asp-action="BulkUpload" class="text-decoration-none">bulk upload feature</a> to import vendors from CSV files.
+              </small>
+            </div>
+          }
+        </div>
+      </div>
     </div>
-    <div class="card-body">
-      @if (Model.Any())
-      {
+  }
+  else
+  {
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-list"></i> Vendors List
+          <span class="badge bg-primary ms-2">@ViewBag.TotalCount records</span>
+        </h5>
+
+        <!-- Sort Options, Page Size, and Pagination Controls -->
+        <div class="d-flex align-items-center gap-3">
+          <!-- Page Size Controls -->
+          <div class="btn-group">
+            <label class="btn btn-outline-secondary btn-sm">
+              Page Size:
+              <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
+                      onchange="changePageSize(this.value)">
+                @foreach (var size in ViewBag.AllowedPageSizes)
+                {
+                  <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <!-- Sort Options -->
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-sort"></i> Sort
+            </button>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item @(sortOrder == "companyName_asc" ? "active" : "")" href="@GetSortUrl("companyName_asc")">
+                  <i class="fas fa-building"></i> Company Name (A-Z)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "companyName_desc" ? "active" : "")" href="@GetSortUrl("companyName_desc")">
+                  <i class="fas fa-building"></i> Company Name (Z-A)
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "vendorCode_asc" ? "active" : "")" href="@GetSortUrl("vendorCode_asc")">
+                  <i class="fas fa-barcode"></i> Vendor Code (A-Z)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "contact_asc" ? "active" : "")" href="@GetSortUrl("contact_asc")">
+                  <i class="fas fa-user"></i> Contact Name (A-Z)
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "rating_desc" ? "active" : "")" href="@GetSortUrl("rating_desc")">
+                  <i class="fas fa-star"></i> Rating (High-Low)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "purchases_desc" ? "active" : "")" href="@GetSortUrl("purchases_desc")">
+                  <i class="fas fa-shopping-cart"></i> Purchase Count (High-Low)
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "created_desc" ? "active" : "")" href="@GetSortUrl("created_desc")">
+                  <i class="fas fa-calendar"></i> Recently Added
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "location_asc" ? "active" : "")" href="@GetSortUrl("location_asc")">
+                  <i class="fas fa-map-marker-alt"></i> Location (A-Z)
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Pagination Navigation -->
+          <nav aria-label="Vendors pagination">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item @(ViewBag.HasPreviousPage ? "" : "disabled")">
+                <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage - 1)">Previous</a>
+              </li>
+              
+              @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); 
+                    i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); 
+                    i++)
+              {
+                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                  <a class="page-link" href="@GetPageUrl(i)">@i</a>
+                </li>
+              }
+              
+              <li class="page-item @(ViewBag.HasNextPage ? "" : "disabled")">
+                <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage + 1)">Next</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+      <div class="card-body">
         <div class="table-responsive">
-          <table class="table table-striped table-hover">
+          <table class="table table-hover" id="vendorsTable">
             <thead class="table-dark">
               <tr>
-                <th>Company Name</th>
-                <th>Vendor Code</th>
-                <th>Contact</th>
-                <th>Status</th>
-                <th>Rating</th>
-                <th>Actions</th>
+                <th>
+                  <a href="@GetSortUrl("companyName_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-building"></i> Company Name
+                    @if (sortOrder?.StartsWith("companyName") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("vendorCode_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-barcode"></i> Vendor Code
+                    @if (sortOrder?.StartsWith("vendorCode") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("contact_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-user"></i> Contact
+                    @if (sortOrder?.StartsWith("contact") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("location_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-map-marker-alt"></i> Location
+                    @if (sortOrder?.StartsWith("location") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("rating_desc")" class="text-white text-decoration-none">
+                    <i class="fas fa-star"></i> Rating
+                    @if (sortOrder?.StartsWith("rating") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <i class="fas fa-flag"></i> Status
+                </th>
+                <th>
+                  <a href="@GetSortUrl("purchases_desc")" class="text-white text-decoration-none">
+                    <i class="fas fa-shopping-cart"></i> Purchases
+                    @if (sortOrder?.StartsWith("purchases") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th style="width: 150px;">
+                  <i class="fas fa-cogs"></i> Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               @foreach (var vendor in Model)
               {
-                <tr class="@(!vendor.IsActive ? "table-secondary" : "") vendor-row"
-                    data-vendor-id="@vendor.Id"
-                    style="cursor: pointer;">
+                <tr class="clickable-row" data-vendor-id="@vendor.Id">
                   <td>
-                    <div>
-                      <strong>@vendor.CompanyName</strong>
-                      @if (vendor.IsPreferred)
-                      {
-                        <span class="badge bg-warning text-dark ms-2">Preferred</span>
-                      }
-                    </div>
-                    @if (!string.IsNullOrEmpty(vendor.VendorCode))
+                    <strong>@vendor.CompanyName</strong>
+                    @if (vendor.IsPreferred)
                     {
-                      <small class="text-muted">Code: @vendor.VendorCode</small>
+                      <br>
+                      <span class="badge bg-warning text-dark">
+                        <i class="fas fa-star"></i> Preferred
+                      </span>
                     }
                   </td>
                   <td>
@@ -183,19 +440,31 @@
                     {
                       <small class="text-muted">@vendor.ContactEmail</small>
                     }
+                    @if (!string.IsNullOrEmpty(vendor.ContactPhone))
+                    {
+                      <br>
+                      <small class="text-muted">
+                        <i class="fas fa-phone"></i> @vendor.ContactPhone
+                      </small>
+                    }
                     @if (string.IsNullOrEmpty(vendor.ContactName) && string.IsNullOrEmpty(vendor.ContactEmail))
                     {
                       <span class="text-muted">No contact info</span>
                     }
                   </td>
                   <td>
-                    @if (vendor.IsActive)
+                    @if (!string.IsNullOrEmpty(vendor.City) || !string.IsNullOrEmpty(vendor.State))
                     {
-                      <span class="badge bg-success">Active</span>
+                      <span>@($"{vendor.City}{(!string.IsNullOrEmpty(vendor.City) && !string.IsNullOrEmpty(vendor.State) ? ", " : "")}{vendor.State}")</span>
+                      @if (!string.IsNullOrEmpty(vendor.Country) && vendor.Country != "United States")
+                      {
+                        <br>
+                        <small class="text-muted">@vendor.Country</small>
+                      }
                     }
                     else
                     {
-                      <span class="badge bg-secondary">Inactive</span>
+                      <span class="text-muted">-</span>
                     }
                   </td>
                   <td>
@@ -206,19 +475,43 @@
                         <i class="fas fa-star @(i <= vendor.OverallRating ? "text-warning" : "text-muted")"></i>
                       }
                     </div>
+                    <small class="text-muted">
+                      Q:@vendor.QualityRating D:@vendor.DeliveryRating S:@vendor.ServiceRating
+                    </small>
                   </td>
                   <td>
-                    <div class="btn-group btn-group-sm" role="group">
-                      <a href="@Url.Action("Details", new { id = vendor.Id })"
-                         class="btn btn-outline-primary" title="View Details">
+                    <div class="d-flex flex-column gap-1">
+                      @if (vendor.IsActive)
+                      {
+                        <span class="badge bg-success">Active</span>
+                      }
+                      else
+                      {
+                        <span class="badge bg-secondary">Inactive</span>
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    @if (vendor.PurchaseCount > 0)
+                    {
+                      <span class="badge bg-info">@vendor.PurchaseCount</span>
+                      <br>
+                      <small class="text-muted">@vendor.TotalPurchases.ToString("C0")</small>
+                    }
+                    else
+                    {
+                      <span class="text-muted">None</span>
+                    }
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+                      <a href="@Url.Action("Details", new { id = vendor.Id })" class="btn btn-outline-primary" title="View Details">
                         <i class="fas fa-eye"></i>
                       </a>
-                      <a href="@Url.Action("Edit", new { id = vendor.Id })"
-                         class="btn btn-outline-secondary" title="Edit">
+                      <a href="@Url.Action("Edit", new { id = vendor.Id })" class="btn btn-outline-warning" title="Edit">
                         <i class="fas fa-edit"></i>
                       </a>
-                      <a href="@Url.Action("ManageItems", new { id = vendor.Id })"
-                         class="btn btn-outline-info" title="Manage Items">
+                      <a href="@Url.Action("ManageItems", new { id = vendor.Id })" class="btn btn-outline-success" title="Manage Items">
                         <i class="fas fa-boxes"></i>
                       </a>
                     </div>
@@ -228,137 +521,351 @@
             </tbody>
           </table>
         </div>
-      }
-      else
-      {
-        <div class="text-center py-5">
-          <i class="fas fa-building fa-3x text-muted mb-3"></i>
-          <h4 class="text-muted">
-            @if (!string.IsNullOrEmpty(searchTerm))
+
+        <!-- Pagination Summary -->
+        <div class="row mt-3">
+          <div class="col-md-6">
+            <p class="text-muted mb-0">
+              Showing @ViewBag.ShowingFrom to @ViewBag.ShowingTo of @ViewBag.TotalCount vendors
+            </p>
+          </div>
+          <div class="col-md-6 text-end">
+            @if (ViewBag.TotalPages > 1)
             {
-              <span>No vendors found matching "@searchTerm"</span>
+              <small class="text-muted">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</small>
             }
-            else
-            {
-              <span>No vendors found</span>
-            }
-          </h4>
-          <p class="text-muted">
-            @if (!string.IsNullOrEmpty(searchTerm))
-            {
-              <span>Try adjusting your search terms or using wildcards like "*supply" or "crystal*"</span>
-            }
-            else
-            {
-              <span>Start by creating your first vendor.</span>
-            }
-          </p>
-          <a href="@Url.Action("Create")" class="btn btn-success">
-            <i class="fas fa-plus"></i> Create First Vendor
-          </a>
+          </div>
         </div>
-      }
+
+        <!-- Enhanced Summary Statistics -->
+        <div class="mt-4">
+          <div class="row">
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-primary mb-1">
+                    <i class="fas fa-truck"></i>
+                    Total Vendors
+                  </h6>
+                  <h4 class="text-primary mb-0">@ViewBag.TotalCount</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-success mb-1">
+                    <i class="fas fa-check-circle"></i>
+                    Active
+                  </h6>
+                  <h4 class="text-success mb-0">@Model.Count(v => v.IsActive)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-warning mb-1">
+                    <i class="fas fa-star"></i>
+                    Preferred
+                  </h6>
+                  <h4 class="text-warning mb-0">@Model.Count(v => v.IsPreferred)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-info mb-1">
+                    <i class="fas fa-shopping-cart"></i>
+                    With Purchases
+                  </h6>
+                  <h4 class="text-info mb-0">@Model.Count(v => v.PurchaseCount > 0)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-secondary mb-1">
+                    <i class="fas fa-boxes"></i>
+                    With Items
+                  </h6>
+                  <h4 class="text-secondary mb-0">@Model.Count(v => v.ItemsSuppliedCount > 0)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-danger mb-1">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Highly Rated
+                  </h6>
+                  <h4 class="text-danger mb-0">@Model.Count(v => v.OverallRating >= 4.5m)</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+  }
 </div>
 
-<style>
-  .vendor-row:hover {
-    background-color: rgba(0, 123, 255, 0.1) !important;
-    transition: background-color 0.2s ease;
-  }
-
-  .vendor-row {
-    transition: background-color 0.2s ease;
-  }
-
-  .collapse .card-body {
-    border-top: 1px solid #dee2e6;
-  }
-
-  .btn-link {
-    color: inherit !important;
-  }
-
-    .btn-link:hover {
-      color: inherit !important;
-    }
-</style>
-
+<!-- Enhanced JavaScript for Search Functionality -->
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-      // Add click functionality to vendor rows
-      const vendorRows = document.querySelectorAll('.vendor-row');
+  $(document).ready(function() {
+      // Auto-expand search if filtered
+      @if (isFiltered)
+      {
+            <text>
+            const searchCollapse = document.getElementById('searchCollapse');
+            if (searchCollapse && !searchCollapse.classList.contains('show')) {
+                new bootstrap.Collapse(searchCollapse, { show: true });
+            }
+            </text>
+      }
 
-      vendorRows.forEach(row => {
+      // Update chevron icon
+      const collapseElement = document.getElementById('searchCollapse');
+      const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down, [data-bs-target="#searchCollapse"] .fa-chevron-up');
+
+      if (collapseElement && chevronIcon) {
+          collapseElement.addEventListener('show.bs.collapse', function () {
+              chevronIcon.classList.remove('fa-chevron-down');
+              chevronIcon.classList.add('fa-chevron-up');
+          });
+
+          collapseElement.addEventListener('hide.bs.collapse', function () {
+              chevronIcon.classList.remove('fa-chevron-up');
+              chevronIcon.classList.add('fa-chevron-down');
+          });
+      }
+
+      // Make table rows clickable
+      const clickableRows = document.querySelectorAll('.clickable-row');
+
+      clickableRows.forEach(function(row) {
           row.addEventListener('click', function(e) {
-              // Don't navigate if clicking on links or buttons
-              if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' ||
-                  e.target.closest('a') || e.target.closest('button')) {
+              // Only proceed if the click wasn't on an action button or link
+              if (e.target.closest('.btn-group') || e.target.closest('a') || e.target.closest('button')) {
                   return;
               }
 
               const vendorId = this.getAttribute('data-vendor-id');
               if (vendorId) {
-                  window.location.href = '@Url.Action("Details", "Vendors")'.replace('Details', 'Details') + '/' + vendorId;
+                  window.location.href = '/Vendors/Details/' + vendorId;
               }
           });
 
-          // Add visual feedback for clickable rows
+          // Add hover effect
           row.addEventListener('mouseenter', function() {
-              this.style.transform = 'scale(1.001)';
+              if (!this.classList.contains('table-active')) {
+                  this.style.backgroundColor = '#f8f9fa';
+              }
           });
 
           row.addEventListener('mouseleave', function() {
-              this.style.transform = 'scale(1)';
-          });
-      });
-
-      // Add keyboard navigation support
-      vendorRows.forEach((row, index) => {
-          row.setAttribute('tabindex', '0');
-
-          row.addEventListener('keydown', function(e) {
-              if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  const vendorId = this.getAttribute('data-vendor-id');
-                  if (vendorId) {
-                      window.location.href = '@Url.Action("Details", "Vendors")'.replace('Details', 'Details') + '/' + vendorId;
-                  }
-              } else if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  const nextRow = vendorRows[index + 1];
-                  if (nextRow) nextRow.focus();
-              } else if (e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  const prevRow = vendorRows[index - 1];
-                  if (prevRow) prevRow.focus();
+              if (!this.classList.contains('table-active')) {
+                  this.style.backgroundColor = '';
               }
           });
       });
 
-      // Auto-expand search if there's a search term
-      @if (!string.IsNullOrEmpty(searchTerm))
-      {
-          <text>
-          var searchCollapse = new bootstrap.Collapse(document.getElementById('searchCollapse'), {
-              show: true
+      // Prevent action buttons from triggering row click
+      const actionButtons = document.querySelectorAll('.btn-group a, .btn-group button');
+      actionButtons.forEach(function(button) {
+          button.addEventListener('click', function(e) {
+              e.stopPropagation();
           });
-          </text>
-      }
-
-      // Update chevron icon when collapse state changes
-      const collapseElement = document.getElementById('searchCollapse');
-      const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down');
-
-      collapseElement.addEventListener('show.bs.collapse', function () {
-          chevronIcon.classList.remove('fa-chevron-down');
-          chevronIcon.classList.add('fa-chevron-up');
-      });
-
-      collapseElement.addEventListener('hide.bs.collapse', function () {
-          chevronIcon.classList.remove('fa-chevron-up');
-          chevronIcon.classList.add('fa-chevron-down');
       });
   });
+
+  // Quick filter functions
+  function quickFilter(type) {
+      switch(type) {
+          case 'active':
+              document.getElementById('statusFilter').value = 'active';
+              break;
+          case 'preferred':
+              document.getElementById('statusFilter').value = 'preferred';
+              break;
+          case 'excellent':
+              document.getElementById('ratingFilter').value = 'excellent';
+              break;
+      }
+
+      // Submit the form
+      document.querySelector('form').submit();
+  }
+
+  function clearAllFilters() {
+      // Clear all form fields
+      document.getElementById('search').value = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('ratingFilter').value = '';
+      document.getElementById('locationFilter').value = '';
+
+      // Navigate to clean URL
+      window.location.href = '@Url.Action("Index")';
+  }
+
+  function saveSearch() {
+      // In a real application, you might save this to user preferences
+      const searchData = {
+          search: document.getElementById('search').value,
+          statusFilter: document.getElementById('statusFilter').value,
+          ratingFilter: document.getElementById('ratingFilter').value,
+          locationFilter: document.getElementById('locationFilter').value
+      };
+
+      localStorage.setItem('savedVendorSearch', JSON.stringify(searchData));
+      alert('Search criteria saved! Use the browser bookmark to return to this search.');
+  }
+
+  function exportVendors() {
+      // Build export URL with current filters
+      const params = new URLSearchParams(window.location.search);
+      params.set('export', 'true');
+
+      // In a real application, this would trigger a CSV/Excel download
+      alert('Export functionality would download filtered results as CSV/Excel file.');
+  }
+
+  function changePageSize(size) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('pageSize', size);
+      params.set('page', 1); // Reset to first page on page size change
+
+      window.location.search = params.toString();
+  }
+
+  @functions {
+      public string GetPageUrl(int page)
+      {
+          var query = new System.Collections.Specialized.NameValueCollection();
+          var request = Context.Request;
+          foreach (var key in request.Query.Keys)
+          {
+              var k = key.ToString();
+              if (!string.IsNullOrEmpty(k) && k != "page")
+                  query[k] = request.Query[k];
+          }
+          query["page"] = page.ToString();
+
+          var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
+          return $"{request.Path}?{queryString}";
+      }
+
+      public string GetSortUrl(string newSortOrder)
+      {
+          var query = new System.Collections.Specialized.NameValueCollection();
+          var request = Context.Request;
+          foreach (var key in request.Query.Keys)
+          {
+              var k = key.ToString();
+              if (!string.IsNullOrEmpty(k) && k != "sortOrder" && k != "page")
+                  query[k] = request.Query[k];
+          }
+          query["sortOrder"] = newSortOrder;
+          query["page"] = "1"; // Reset to first page when sorting
+
+          var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
+          return $"{request.Path}?{queryString}";
+      }
+  }
 </script>
+
+<!-- Keep the existing CSS styles -->
+<style>
+  /* Clickable row styles */
+  .clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+    .clickable-row:hover {
+      background-color: #f8f9fa !important;
+    }
+
+    .clickable-row:active {
+      background-color: #e9ecef !important;
+    }
+
+    /* Ensure action buttons don't inherit pointer cursor */
+    .clickable-row .btn-group {
+      cursor: default;
+    }
+
+    /* Allow text selection in specific columns */
+    .clickable-row td:nth-child(1),
+    .clickable-row td:nth-child(2) {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
+
+  /* Table responsive adjustments */
+  .table-responsive {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  #vendorsTable tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+  }
+
+  .badge {
+    font-size: 0.75em;
+  }
+
+  .card-body.p-2 {
+    padding: 0.5rem !important;
+  }
+
+  .btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  /* Sortable column headers */
+  .table th a {
+    text-decoration: none !important;
+    color: inherit;
+  }
+
+  .table th a:hover {
+    color: #ffc107 !important;
+  }
+
+  /* Responsive adjustments */
+  @@media (max-width: 768px) {
+    .btn-group-sm .btn {
+      padding: 0.125rem 0.25rem;
+      font-size: 0.65rem;
+    }
+
+    .clickable-row td {
+      padding: 0.5rem 0.25rem;
+    }
+
+    /* Hide less important columns on mobile */
+    .table th:nth-child(4), /* Location */
+    .table td:nth-child(4) {
+      display: none;
+    }
+  }
+
+  /* Card hover effects for stats */
+  .card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+</style>

@@ -7,9 +7,11 @@ using InventorySystem.Models;
 using InventorySystem.Models.Enums;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
+using InventorySystem.Data;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 
 namespace InventorySystem.Controllers
@@ -45,32 +47,323 @@ namespace InventorySystem.Controllers
       _logger = logger;
     }
 
-    // Production Index with Workflow Status
-    public async Task<IActionResult> Index()
+    // Enhanced Production Index with filtering, pagination, and search
+    public async Task<IActionResult> Index(
+        string search,
+        string statusFilter,
+        string dateFilter,
+        string bomFilter,
+        string costFilter,
+        string sortOrder = "productionDate_desc",
+        int page = 1,
+        int pageSize = 25)
     {
       try
       {
+        // Pagination constants
+        const int DefaultPageSize = 25;
+        const int MaxPageSize = 100;
+        var AllowedPageSizes = new[] { 10, 25, 50, 100 };
+
+        // Validate and constrain pagination parameters
+        page = Math.Max(1, page);
+        pageSize = AllowedPageSizes.Contains(pageSize) ? pageSize : DefaultPageSize;
+
+        _logger.LogInformation("=== PRODUCTION INDEX DEBUG ===");
+        _logger.LogInformation("Search: {Search}", search);
+        _logger.LogInformation("Status Filter: {StatusFilter}", statusFilter);
+        _logger.LogInformation("Date Filter: {DateFilter}", dateFilter);
+        _logger.LogInformation("BOM Filter: {BomFilter}", bomFilter);
+        _logger.LogInformation("Cost Filter: {CostFilter}", costFilter);
+        _logger.LogInformation("Sort Order: {SortOrder}", sortOrder);
+        _logger.LogInformation("Page: {Page}, PageSize: {PageSize}", page, pageSize);
+
+        // Get active productions for workflow section
         var query = new GetActiveProductionsQuery();
         var activeProductions = await _orchestrator.GetActiveProductionsAsync(query);
 
-        // Get traditional production list for comparison
-        var allProductions = await _productionService.GetAllProductionsAsync();
+        // Get all productions with database context for filtering
+        var productionsQuery = HttpContext.RequestServices.GetRequiredService<InventoryContext>()
+            .Productions
+            .Include(p => p.FinishedGood)
+            .Include(p => p.Bom)
+            .Include(p => p.MaterialConsumptions)
+            .AsQueryable();
 
+        // Apply search filter with wildcard support
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+          var searchTerm = search.Trim();
+          _logger.LogInformation("Applying search filter: {SearchTerm}", searchTerm);
+
+          if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+          {
+            var likePattern = ConvertWildcardToLike(searchTerm);
+            _logger.LogInformation("Using LIKE pattern: {LikePattern}", likePattern);
+
+            productionsQuery = productionsQuery.Where(p =>
+              (p.FinishedGood != null && EF.Functions.Like(p.FinishedGood.PartNumber, likePattern)) ||
+              (p.Bom != null && EF.Functions.Like(p.Bom.BomNumber, likePattern)) ||
+              (p.Notes != null && EF.Functions.Like(p.Notes, likePattern)) ||
+              EF.Functions.Like(p.Id.ToString(), likePattern)
+            );
+          }
+          else
+          {
+            productionsQuery = productionsQuery.Where(p =>
+              (p.FinishedGood != null && p.FinishedGood.PartNumber.Contains(searchTerm)) ||
+              (p.Bom != null && p.Bom.BomNumber.Contains(searchTerm)) ||
+              (p.Notes != null && p.Notes.Contains(searchTerm)) ||
+              p.Id.ToString().Contains(searchTerm)
+            );
+          }
+        }
+
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(statusFilter))
+        {
+          _logger.LogInformation("Applying status filter: {StatusFilter}", statusFilter);
+          productionsQuery = statusFilter switch
+          {
+            "recent" => productionsQuery.Where(p => p.ProductionDate >= DateTime.Today.AddDays(-30)),
+            "thismonth" => productionsQuery.Where(p => p.ProductionDate.Month == DateTime.Now.Month && p.ProductionDate.Year == DateTime.Now.Year),
+            "lastmonth" => productionsQuery.Where(p => p.ProductionDate.Month == DateTime.Now.AddMonths(-1).Month && p.ProductionDate.Year == DateTime.Now.AddMonths(-1).Year),
+            "thisyear" => productionsQuery.Where(p => p.ProductionDate.Year == DateTime.Now.Year),
+            "highvolume" => productionsQuery.Where(p => p.QuantityProduced >= 100),
+            "lowvolume" => productionsQuery.Where(p => p.QuantityProduced < 10),
+            _ => productionsQuery
+          };
+        }
+
+        // Apply date filter
+        if (!string.IsNullOrWhiteSpace(dateFilter))
+        {
+          _logger.LogInformation("Applying date filter: {DateFilter}", dateFilter);
+          var today = DateTime.Today;
+          productionsQuery = dateFilter switch
+          {
+            "today" => productionsQuery.Where(p => p.ProductionDate.Date == today),
+            "yesterday" => productionsQuery.Where(p => p.ProductionDate.Date == today.AddDays(-1)),
+            "thisweek" => productionsQuery.Where(p => p.ProductionDate >= today.AddDays(-(int)today.DayOfWeek)),
+            "lastweek" => productionsQuery.Where(p => p.ProductionDate >= today.AddDays(-7 - (int)today.DayOfWeek) && p.ProductionDate < today.AddDays(-(int)today.DayOfWeek)),
+            "last30days" => productionsQuery.Where(p => p.ProductionDate >= today.AddDays(-30)),
+            "last90days" => productionsQuery.Where(p => p.ProductionDate >= today.AddDays(-90)),
+            _ => productionsQuery
+          };
+        }
+
+        // Apply BOM filter
+        if (!string.IsNullOrWhiteSpace(bomFilter))
+        {
+          _logger.LogInformation("Applying BOM filter: {BomFilter}", bomFilter);
+          if (bomFilter.Contains('*') || bomFilter.Contains('?'))
+          {
+            var likePattern = ConvertWildcardToLike(bomFilter);
+            productionsQuery = productionsQuery.Where(p => p.Bom != null && 
+                                                     EF.Functions.Like(p.Bom.BomNumber, likePattern));
+          }
+          else
+          {
+            productionsQuery = productionsQuery.Where(p => p.Bom != null && 
+                                                     p.Bom.BomNumber.Contains(bomFilter));
+          }
+        }
+
+        // Apply cost filter
+        if (!string.IsNullOrWhiteSpace(costFilter))
+        {
+          _logger.LogInformation("Applying cost filter: {CostFilter}", costFilter);
+          productionsQuery = costFilter switch
+          {
+            "highcost" => productionsQuery.Where(p => (p.MaterialCost + p.LaborCost + p.OverheadCost) > 1000),
+            "mediumcost" => productionsQuery.Where(p => (p.MaterialCost + p.LaborCost + p.OverheadCost) > 100 && (p.MaterialCost + p.LaborCost + p.OverheadCost) <= 1000),
+            "lowcost" => productionsQuery.Where(p => (p.MaterialCost + p.LaborCost + p.OverheadCost) <= 100),
+            "efficient" => productionsQuery.Where(p => p.QuantityProduced > 0 && (p.MaterialCost + p.LaborCost + p.OverheadCost) / p.QuantityProduced < 10),
+            "expensive" => productionsQuery.Where(p => p.QuantityProduced > 0 && (p.MaterialCost + p.LaborCost + p.OverheadCost) / p.QuantityProduced > 100),
+            "nocost" => productionsQuery.Where(p => p.MaterialCost == 0 && p.LaborCost == 0 && p.OverheadCost == 0),
+            _ => productionsQuery
+          };
+        }
+
+        // Apply sorting
+        productionsQuery = sortOrder switch
+        {
+          "productionDate_asc" => productionsQuery.OrderBy(p => p.ProductionDate),
+          "productionDate_desc" => productionsQuery.OrderByDescending(p => p.ProductionDate),
+          "finishedGood_asc" => productionsQuery.OrderBy(p => p.FinishedGood != null ? p.FinishedGood.PartNumber : ""),
+          "finishedGood_desc" => productionsQuery.OrderByDescending(p => p.FinishedGood != null ? p.FinishedGood.PartNumber : ""),
+          "bom_asc" => productionsQuery.OrderBy(p => p.Bom != null ? p.Bom.BomNumber : ""),
+          "bom_desc" => productionsQuery.OrderByDescending(p => p.Bom != null ? p.Bom.BomNumber : ""),
+          "quantity_desc" => productionsQuery.OrderByDescending(p => p.QuantityProduced),
+          "quantity_asc" => productionsQuery.OrderBy(p => p.QuantityProduced),
+          "totalCost_desc" => productionsQuery.OrderByDescending(p => p.MaterialCost + p.LaborCost + p.OverheadCost),
+          "totalCost_asc" => productionsQuery.OrderBy(p => p.MaterialCost + p.LaborCost + p.OverheadCost),
+          "unitCost_desc" => productionsQuery.OrderByDescending(p => p.QuantityProduced > 0 ? (p.MaterialCost + p.LaborCost + p.OverheadCost) / p.QuantityProduced : 0),
+          "unitCost_asc" => productionsQuery.OrderBy(p => p.QuantityProduced > 0 ? (p.MaterialCost + p.LaborCost + p.OverheadCost) / p.QuantityProduced : 0),
+          _ => productionsQuery.OrderByDescending(p => p.ProductionDate)
+        };
+
+        // Get total count for pagination (before Skip/Take)
+        var totalCount = await productionsQuery.CountAsync();
+        _logger.LogInformation("Total filtered records: {TotalCount}", totalCount);
+
+        // Calculate pagination values
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+        var skip = (page - 1) * pageSize;
+
+        // Get paginated results
+        var productions = await productionsQuery
+            .Skip(skip)
+            .Take(pageSize)
+            .ToListAsync();
+
+        _logger.LogInformation("Retrieved {ProductionCount} productions for page {Page}", productions.Count, page);
+
+        // Calculate summary statistics
+        var totalProductions = totalCount;
+        var totalUnitsProduced = productions.Sum(p => p.QuantityProduced);
+        var totalValue = productions.Sum(p => p.TotalCost);
+        var averageUnitCost = totalUnitsProduced > 0 ? totalValue / totalUnitsProduced : 0;
+
+        // Create enhanced view model
         var viewModel = new ProductionIndexViewModel
         {
           ActiveProductions = activeProductions,
-          AllProductions = allProductions.ToList(),
-          ShowWorkflowView = true
+          AllProductions = productions.ToList(),
+          ShowWorkflowView = true,
+          TotalProductions = totalProductions,
+          TotalUnitsProduced = totalUnitsProduced,
+          TotalValue = totalValue,
+          AverageUnitCost = averageUnitCost
         };
+
+        // Prepare ViewBag data
+        ViewBag.SearchTerm = search;
+        ViewBag.StatusFilter = statusFilter;
+        ViewBag.DateFilter = dateFilter;
+        ViewBag.BomFilter = bomFilter;
+        ViewBag.CostFilter = costFilter;
+        ViewBag.SortOrder = sortOrder;
+
+        // Pagination data
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.HasPreviousPage = page > 1;
+        ViewBag.HasNextPage = page < totalPages;
+        ViewBag.ShowingFrom = totalCount > 0 ? skip + 1 : 0;
+        ViewBag.ShowingTo = Math.Min(skip + pageSize, totalCount);
+        ViewBag.AllowedPageSizes = AllowedPageSizes;
+
+        // Dropdown data
+        ViewBag.StatusOptions = new SelectList(new[]
+        {
+          new { Value = "", Text = "All Periods" },
+          new { Value = "recent", Text = "Recent (30 days)" },
+          new { Value = "thismonth", Text = "This Month" },
+          new { Value = "lastmonth", Text = "Last Month" },
+          new { Value = "thisyear", Text = "This Year" },
+          new { Value = "highvolume", Text = "High Volume (100+)" },
+          new { Value = "lowvolume", Text = "Low Volume (<10)" }
+        }, "Value", "Text", statusFilter);
+
+        ViewBag.DateOptions = new SelectList(new[]
+        {
+          new { Value = "", Text = "All Dates" },
+          new { Value = "today", Text = "Today" },
+          new { Value = "yesterday", Text = "Yesterday" },
+          new { Value = "thisweek", Text = "This Week" },
+          new { Value = "lastweek", Text = "Last Week" },
+          new { Value = "last30days", Text = "Last 30 Days" },
+          new { Value = "last90days", Text = "Last 90 Days" }
+        }, "Value", "Text", dateFilter);
+
+        ViewBag.CostOptions = new SelectList(new[]
+        {
+          new { Value = "", Text = "All Cost Levels" },
+          new { Value = "highcost", Text = "High Cost ($1000+)" },
+          new { Value = "mediumcost", Text = "Medium Cost ($100-$1000)" },
+          new { Value = "lowcost", Text = "Low Cost (<$100)" },
+          new { Value = "efficient", Text = "Efficient (<$10/unit)" },
+          new { Value = "expensive", Text = "Expensive (>$100/unit)" },
+          new { Value = "nocost", Text = "No Cost Data" }
+        }, "Value", "Text", costFilter);
+
+        // Search statistics
+        ViewBag.IsFiltered = !string.IsNullOrWhiteSpace(search) ||
+                           !string.IsNullOrWhiteSpace(statusFilter) ||
+                           !string.IsNullOrWhiteSpace(dateFilter) ||
+                           !string.IsNullOrWhiteSpace(bomFilter) ||
+                           !string.IsNullOrWhiteSpace(costFilter);
+
+        if (ViewBag.IsFiltered)
+        {
+          var allProductionsCount = await HttpContext.RequestServices.GetRequiredService<InventoryContext>()
+              .Productions.CountAsync();
+          ViewBag.SearchResultsCount = totalCount;
+          ViewBag.TotalProductionsCount = allProductionsCount;
+        }
 
         return View(viewModel);
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Error loading productions");
-        TempData["ErrorMessage"] = $"Error loading productions: {ex.Message}";
+        _logger.LogError(ex, "Error in Production Index");
+
+        // Set essential ViewBag properties that the view expects
+        ViewBag.ErrorMessage = $"Error loading productions: {ex.Message}";
+        ViewBag.AllowedPageSizes = new[] { 10, 25, 50, 100 };
+
+        // Set pagination defaults to prevent null reference exceptions
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = 1;
+        ViewBag.TotalCount = 0;
+        ViewBag.HasPreviousPage = false;
+        ViewBag.HasNextPage = false;
+        ViewBag.ShowingFrom = 0;
+        ViewBag.ShowingTo = 0;
+
+        // Set filter defaults
+        ViewBag.SearchTerm = search;
+        ViewBag.StatusFilter = statusFilter;
+        ViewBag.DateFilter = dateFilter;
+        ViewBag.BomFilter = bomFilter;
+        ViewBag.CostFilter = costFilter;
+        ViewBag.SortOrder = sortOrder;
+        ViewBag.IsFiltered = false;
+
+        // Set empty dropdown options
+        ViewBag.StatusOptions = new SelectList(new List<object>(), "Value", "Text");
+        ViewBag.DateOptions = new SelectList(new List<object>(), "Value", "Text");
+        ViewBag.CostOptions = new SelectList(new List<object>(), "Value", "Text");
+
         return View(new ProductionIndexViewModel());
       }
+    }
+
+    /// <summary>
+    /// Converts wildcard patterns (* and ?) to SQL LIKE patterns
+    /// * matches any sequence of characters -> %
+    /// ? matches any single character -> _
+    /// </summary>
+    /// <param name="wildcardPattern">The wildcard pattern to convert</param>
+    /// <returns>A SQL LIKE pattern string</returns>
+    private string ConvertWildcardToLike(string wildcardPattern)
+    {
+      // Escape existing SQL LIKE special characters first
+      var escaped = wildcardPattern
+          .Replace("%", "[%]")    // Escape existing % characters
+          .Replace("_", "[_]")    // Escape existing _ characters
+          .Replace("[", "[[]");   // Escape existing [ characters
+
+      // Convert wildcards to SQL LIKE patterns
+      escaped = escaped
+          .Replace("*", "%")      // * becomes %
+          .Replace("?", "_");     // ? becomes _
+
+      return escaped;
     }
 
     // Enhanced Production Details with Workflow

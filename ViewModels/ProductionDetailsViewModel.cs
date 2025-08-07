@@ -39,11 +39,17 @@ namespace InventorySystem.ViewModels
     public WipStatistics? Statistics { get; set; }
     public ProductionIndexFilters Filters { get; set; } = new();
 
-    // Quick stats
-    public int TotalProductions => AllProductions.Count;
-    public int TotalUnitsProduced => AllProductions.Sum(p => p.QuantityProduced);
-    public decimal TotalValue => AllProductions.Sum(p => p.TotalCost);
-    public decimal AverageUnitCost => TotalUnitsProduced > 0 ? TotalValue / TotalUnitsProduced : 0;
+    // Settable summary statistics for ProductionController
+    public int TotalProductions { get; set; }
+    public int TotalUnitsProduced { get; set; }
+    public decimal TotalValue { get; set; }
+    public decimal AverageUnitCost { get; set; }
+
+    // Additional computed properties using AllProductions as fallback
+    public int ComputedTotalProductions => AllProductions.Count;
+    public int ComputedTotalUnitsProduced => AllProductions.Sum(p => p.QuantityProduced);
+    public decimal ComputedTotalValue => AllProductions.Sum(p => p.TotalCost);
+    public decimal ComputedAverageUnitCost => ComputedTotalUnitsProduced > 0 ? ComputedTotalValue / ComputedTotalUnitsProduced : 0;
   }
 
   

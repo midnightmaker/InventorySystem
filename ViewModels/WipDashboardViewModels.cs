@@ -276,4 +276,17 @@ namespace InventorySystem.ViewModels
     public string SortBy { get; set; } = "CreatedDate";
     public bool SortDescending { get; set; } = true;
   }
+
+  // Add the WorkflowEventType enum if it doesn't exist
+  public enum WorkflowEventType
+  {
+    StatusChange,
+    Assignment,
+    QualityCheck,
+    Note,
+    Hold,
+    Resume,
+    Cancel,
+    Complete
+  }
 }

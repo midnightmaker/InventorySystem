@@ -454,6 +454,268 @@ namespace InventorySystem.Services
 
       return info;
     }
+
+    // NEW: Enhanced filtering method for the index page
+    public async Task<(IEnumerable<Vendor> vendors, int totalCount)> GetFilteredVendorsAsync(
+        string? search = null,
+        string? statusFilter = null,
+        string? ratingFilter = null,
+        string? locationFilter = null,
+        string sortOrder = "companyName_asc",
+        int page = 1,
+        int pageSize = 25)
+    {
+      var query = _context.Vendors
+          .Include(v => v.Purchases)
+          .Include(v => v.VendorItems)
+          .AsQueryable();
+
+      // Apply search filter with wildcard support
+      if (!string.IsNullOrWhiteSpace(search))
+      {
+        var searchTerm = search.Trim();
+        if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+        {
+          var likePattern = ConvertWildcardToLike(searchTerm);
+          query = query.Where(v =>
+            EF.Functions.Like(v.CompanyName, likePattern) ||
+            (v.VendorCode != null && EF.Functions.Like(v.VendorCode, likePattern)) ||
+            (v.ContactName != null && EF.Functions.Like(v.ContactName, likePattern)) ||
+            (v.ContactEmail != null && EF.Functions.Like(v.ContactEmail, likePattern)) ||
+            EF.Functions.Like(v.Id.ToString(), likePattern)
+          );
+        }
+        else
+        {
+          query = query.Where(v =>
+            v.CompanyName.Contains(searchTerm) ||
+            (v.VendorCode != null && v.VendorCode.Contains(searchTerm)) ||
+            (v.ContactName != null && v.ContactName.Contains(searchTerm)) ||
+            (v.ContactEmail != null && v.ContactEmail.Contains(searchTerm)) ||
+            v.Id.ToString().Contains(searchTerm)
+          );
+        }
+      }
+
+      // Apply status filter
+      if (!string.IsNullOrWhiteSpace(statusFilter))
+      {
+        query = statusFilter switch
+        {
+          "active" => query.Where(v => v.IsActive),
+          "inactive" => query.Where(v => !v.IsActive),
+          "preferred" => query.Where(v => v.IsPreferred),
+          "nonpreferred" => query.Where(v => !v.IsPreferred),
+          "withpurchases" => query.Where(v => v.Purchases.Any()),
+          "nopurchases" => query.Where(v => !v.Purchases.Any()),
+          "withitems" => query.Where(v => v.VendorItems.Any()),
+          "noitems" => query.Where(v => !v.VendorItems.Any()),
+          _ => query
+        };
+      }
+
+      // Apply rating filter
+      if (!string.IsNullOrWhiteSpace(ratingFilter))
+      {
+        query = ratingFilter switch
+        {
+          "excellent" => query.Where(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 >= 4.5),
+          "good" => query.Where(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 >= 3.5 && (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 < 4.5),
+          "average" => query.Where(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 >= 2.5 && (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 < 3.5),
+          "poor" => query.Where(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 < 2.5),
+          "unrated" => query.Where(v => v.QualityRating == 0 || v.DeliveryRating == 0 || v.ServiceRating == 0),
+          _ => query
+        };
+      }
+
+      // Apply location filter
+      if (!string.IsNullOrWhiteSpace(locationFilter))
+      {
+        if (locationFilter.Contains('*') || locationFilter.Contains('?'))
+        {
+          var likePattern = ConvertWildcardToLike(locationFilter);
+          query = query.Where(v => 
+            (v.City != null && EF.Functions.Like(v.City, likePattern)) ||
+            (v.State != null && EF.Functions.Like(v.State, likePattern)) ||
+            (v.Country != null && EF.Functions.Like(v.Country, likePattern)));
+        }
+        else
+        {
+          query = query.Where(v => 
+            (v.City != null && v.City.Contains(locationFilter)) ||
+            (v.State != null && v.State.Contains(locationFilter)) ||
+            (v.Country != null && v.Country.Contains(locationFilter)));
+        }
+      }
+
+      // Apply sorting
+      query = sortOrder switch
+      {
+        "companyName_asc" => query.OrderBy(v => v.CompanyName),
+        "companyName_desc" => query.OrderByDescending(v => v.CompanyName),
+        "vendorCode_asc" => query.OrderBy(v => v.VendorCode ?? ""),
+        "vendorCode_desc" => query.OrderByDescending(v => v.VendorCode ?? ""),
+        "contact_asc" => query.OrderBy(v => v.ContactName ?? ""),
+        "contact_desc" => query.OrderByDescending(v => v.ContactName ?? ""),
+        "rating_desc" => query.OrderByDescending(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0),
+        "rating_asc" => query.OrderBy(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0),
+        "purchases_desc" => query.OrderByDescending(v => v.Purchases.Count()),
+        "purchases_asc" => query.OrderBy(v => v.Purchases.Count()),
+        "created_desc" => query.OrderByDescending(v => v.CreatedDate),
+        "created_asc" => query.OrderBy(v => v.CreatedDate),
+        "location_asc" => query.OrderBy(v => v.City ?? "").ThenBy(v => v.State ?? ""),
+        "location_desc" => query.OrderByDescending(v => v.City ?? "").ThenByDescending(v => v.State ?? ""),
+        _ => query.OrderBy(v => v.CompanyName)
+      };
+
+      var totalCount = await query.CountAsync();
+      var vendors = await query
+          .Skip((page - 1) * pageSize)
+          .Take(pageSize)
+          .ToListAsync();
+
+      return (vendors, totalCount);
+    }
+
+    public async Task<IEnumerable<Vendor>> GetVendorsByStatusAsync(string statusFilter)
+    {
+      var query = _context.Vendors
+          .Include(v => v.Purchases)
+          .Include(v => v.VendorItems)
+          .AsQueryable();
+
+      return statusFilter switch
+      {
+        "active" => await query.Where(v => v.IsActive).ToListAsync(),
+        "inactive" => await query.Where(v => !v.IsActive).ToListAsync(),
+        "preferred" => await query.Where(v => v.IsPreferred).ToListAsync(),
+        "withpurchases" => await query.Where(v => v.Purchases.Any()).ToListAsync(),
+        "nopurchases" => await query.Where(v => !v.Purchases.Any()).ToListAsync(),
+        "withitems" => await query.Where(v => v.VendorItems.Any()).ToListAsync(),
+        "noitems" => await query.Where(v => !v.VendorItems.Any()).ToListAsync(),
+        _ => await query.ToListAsync()
+      };
+    }
+
+    public async Task<IEnumerable<Vendor>> GetVendorsByRatingAsync(string ratingFilter)
+    {
+      var query = _context.Vendors
+          .Include(v => v.Purchases)
+          .Include(v => v.VendorItems)
+          .AsQueryable();
+
+      return ratingFilter switch
+      {
+        "excellent" => await query.Where(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 >= 4.5).ToListAsync(),
+        "good" => await query.Where(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 >= 3.5 && (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 < 4.5).ToListAsync(),
+        "average" => await query.Where(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 >= 2.5 && (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 < 3.5).ToListAsync(),
+        "poor" => await query.Where(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0 < 2.5).ToListAsync(),
+        "unrated" => await query.Where(v => v.QualityRating == 0 || v.DeliveryRating == 0 || v.ServiceRating == 0).ToListAsync(),
+        _ => await query.ToListAsync()
+      };
+    }
+
+    public async Task<IEnumerable<Vendor>> GetVendorsByLocationAsync(string locationFilter)
+    {
+      var query = _context.Vendors
+          .Include(v => v.Purchases)
+          .Include(v => v.VendorItems)
+          .AsQueryable();
+
+      if (locationFilter.Contains('*') || locationFilter.Contains('?'))
+      {
+        var likePattern = ConvertWildcardToLike(locationFilter);
+        return await query.Where(v => 
+          (v.City != null && EF.Functions.Like(v.City, likePattern)) ||
+          (v.State != null && EF.Functions.Like(v.State, likePattern)) ||
+          (v.Country != null && EF.Functions.Like(v.Country, likePattern))
+        ).ToListAsync();
+      }
+      else
+      {
+        return await query.Where(v => 
+          (v.City != null && v.City.Contains(locationFilter)) ||
+          (v.State != null && v.State.Contains(locationFilter)) ||
+          (v.Country != null && v.Country.Contains(locationFilter))
+        ).ToListAsync();
+      }
+    }
+
+    // NEW: Analytics and statistics methods
+    public async Task<VendorAnalytics> GetVendorAnalyticsAsync()
+    {
+      var vendors = await _context.Vendors
+          .Include(v => v.Purchases)
+          .Include(v => v.VendorItems)
+          .ToListAsync();
+
+      return new VendorAnalytics
+      {
+        TotalVendors = vendors.Count,
+        ActiveVendors = vendors.Count(v => v.IsActive),
+        PreferredVendors = vendors.Count(v => v.IsPreferred),
+        InactiveVendors = vendors.Count(v => !v.IsActive),
+        VendorsWithPurchases = vendors.Count(v => v.Purchases.Any()),
+        VendorsWithItems = vendors.Count(v => v.VendorItems.Any()),
+        AverageRating = vendors.Any() ? vendors.Average(v => v.OverallRating) : 0,
+        TotalPurchaseValue = vendors.Sum(v => v.TotalPurchases),
+        HighlyRatedVendors = vendors.Count(v => v.OverallRating >= 4.5m)
+      };
+    }
+
+    public async Task<IEnumerable<Vendor>> GetTopVendorsByPurchasesAsync(int count = 10)
+    {
+      return await _context.Vendors
+          .Include(v => v.Purchases)
+          .Include(v => v.VendorItems)
+          .OrderByDescending(v => v.Purchases.Sum(p => p.TotalCost))
+          .Take(count)
+          .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Vendor>> GetTopVendorsByRatingAsync(int count = 10)
+    {
+      return await _context.Vendors
+          .Include(v => v.Purchases)
+          .Include(v => v.VendorItems)
+          .Where(v => v.IsActive)
+          .OrderByDescending(v => (v.QualityRating + v.DeliveryRating + v.ServiceRating) / 3.0)
+          .Take(count)
+          .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Vendor>> GetRecentlyAddedVendorsAsync(int count = 5)
+    {
+      return await _context.Vendors
+          .Include(v => v.Purchases)
+          .Include(v => v.VendorItems)
+          .OrderByDescending(v => v.CreatedDate)
+          .Take(count)
+          .ToListAsync();
+    }
+
+    /// <summary>
+    /// Converts wildcard patterns (* and ?) to SQL LIKE patterns
+    /// * matches any sequence of characters -> %
+    /// ? matches any single character -> _
+    /// </summary>
+    /// <param name="wildcardPattern">The wildcard pattern to convert</param>
+    /// <returns>A SQL LIKE pattern string</returns>
+    private string ConvertWildcardToLike(string wildcardPattern)
+    {
+      // Escape existing SQL LIKE special characters first
+      var escaped = wildcardPattern
+          .Replace("%", "[%]")    // Escape existing % characters
+          .Replace("_", "[_]")    // Escape existing _ characters
+          .Replace("[", "[[]");   // Escape existing [ characters
+
+      // Convert wildcards to SQL LIKE patterns
+      escaped = escaped
+          .Replace("*", "%")      // * becomes %
+          .Replace("?", "_");     // ? becomes _
+
+      return escaped;
+    }
   }
 
 }

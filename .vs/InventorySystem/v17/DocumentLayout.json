@@ -153,6 +153,38 @@
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\boms\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\boms\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\vendorscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\vendorscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\vendors\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\vendors\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\productioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\productioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\production\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\production\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\ivendorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\ivendorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\vendorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\vendorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\viewmodels\\wipdashboardviewmodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:viewmodels\\wipdashboardviewmodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\viewmodels\\productiondetailsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:viewmodels\\productiondetailsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -162,7 +194,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 8,
+          "SelectedChildIndex": 16,
           "Children": [
             {
               "$type": "Bookmark",
@@ -175,6 +207,110 @@
             {
               "$type": "Bookmark",
               "Name": "ST:129:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 45,
+              "Title": "ProductionDetailsViewModel.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\ProductionDetailsViewModel.cs",
+              "RelativeDocumentMoniker": "ViewModels\\ProductionDetailsViewModel.cs",
+              "ToolTip": "C:\\InventorySystem\\ViewModels\\ProductionDetailsViewModel.cs",
+              "RelativeToolTip": "ViewModels\\ProductionDetailsViewModel.cs",
+              "ViewState": "AgIAALQAAAAAAAAAAABQwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-07T16:01:46.846Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 44,
+              "Title": "WipDashboardViewModels.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\WipDashboardViewModels.cs",
+              "RelativeDocumentMoniker": "ViewModels\\WipDashboardViewModels.cs",
+              "ToolTip": "C:\\InventorySystem\\ViewModels\\WipDashboardViewModels.cs",
+              "RelativeToolTip": "ViewModels\\WipDashboardViewModels.cs",
+              "ViewState": "AgIAACEBAAAAAAAAAABIwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-07T15:59:02.061Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 43,
+              "Title": "VendorService.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Services\\VendorService.cs",
+              "RelativeDocumentMoniker": "Services\\VendorService.cs",
+              "ToolTip": "C:\\InventorySystem\\Services\\VendorService.cs",
+              "RelativeToolTip": "Services\\VendorService.cs",
+              "ViewState": "AgIAAM4CAAAAAAAAAABQwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-07T15:42:02.916Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 42,
+              "Title": "IVendorService.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Services\\IVendorService.cs",
+              "RelativeDocumentMoniker": "Services\\IVendorService.cs",
+              "ToolTip": "C:\\InventorySystem\\Services\\IVendorService.cs",
+              "RelativeToolTip": "Services\\IVendorService.cs",
+              "ViewState": "AgIAAFwAAAAAAAAAAABIwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-07T15:41:11.571Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 41,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Production\\Index.cshtml",
+              "RelativeDocumentMoniker": "Views\\Production\\Index.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Production\\Index.cshtml",
+              "RelativeToolTip": "Views\\Production\\Index.cshtml",
+              "ViewState": "AgIAABAEAAAAAAAAAABIwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-07T15:39:42.02Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 40,
+              "Title": "ProductionController.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Controllers\\ProductionController.cs",
+              "RelativeDocumentMoniker": "Controllers\\ProductionController.cs",
+              "ToolTip": "C:\\InventorySystem\\Controllers\\ProductionController.cs",
+              "RelativeToolTip": "Controllers\\ProductionController.cs",
+              "ViewState": "AgIAAI0FAAAAAAAAAABIwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-07T15:33:24.895Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 39,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Vendors\\Index.cshtml",
+              "RelativeDocumentMoniker": "Views\\Vendors\\Index.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Vendors\\Index.cshtml",
+              "RelativeToolTip": "Views\\Vendors\\Index.cshtml",
+              "ViewState": "AgIAAGQDAAAAAAAAAABIwGYDAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-07T15:30:25.712Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 38,
+              "Title": "VendorsController.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Controllers\\VendorsController.cs",
+              "RelativeDocumentMoniker": "Controllers\\VendorsController.cs",
+              "ToolTip": "C:\\InventorySystem\\Controllers\\VendorsController.cs",
+              "RelativeToolTip": "Controllers\\VendorsController.cs",
+              "ViewState": "AgIAACoBAAAAAAAAAABIwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-07T15:27:59.654Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -248,7 +384,7 @@
               "RelativeDocumentMoniker": "Controllers\\SalesController.cs",
               "ToolTip": "C:\\InventorySystem\\Controllers\\SalesController.cs",
               "RelativeToolTip": "Controllers\\SalesController.cs",
-              "ViewState": "AgIAACQAAAAAAAAAAAAawD0AAAAIAAAAAAAAAA==",
+              "ViewState": "AgIAACQAAAAAAAAAAAAawEkAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-06T21:22:24.301Z",
               "EditorCaption": ""
@@ -472,7 +608,8 @@
               "RelativeToolTip": "Views\\Sales\\Edit.cshtml",
               "ViewState": "AgIAAIEBAAAAAAAAAAAhwJsBAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-06T20:22:25.054Z"
+              "WhenOpened": "2025-08-06T20:22:25.054Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",

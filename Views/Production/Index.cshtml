@@ -1,246 +1,1043 @@
 ﻿@using InventorySystem.ViewModels
 @model ProductionIndexViewModel
 @{
-  ViewData["Title"] = "Productions";
+  ViewData["Title"] = "Production History";
+  var searchTerm = ViewBag.SearchTerm as string;
+  var statusFilter = ViewBag.StatusFilter as string;
+  var dateFilter = ViewBag.DateFilter as string;
+  var bomFilter = ViewBag.BomFilter as string;
+  var costFilter = ViewBag.CostFilter as string;
+  var sortOrder = ViewBag.SortOrder as string ?? "productionDate_desc";
+  var isFiltered = ViewBag.IsFiltered as bool? ?? false;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-industry"></i> Production History</h1>
-  <div class="btn-group">
-    <a href="/Production/BuildBom" class="btn btn-success">
-      <i class="fas fa-hammer"></i> Build BOM
-    </a>
-    <a href="/Production/FinishedGoods" class="btn btn-outline-primary">
-      <i class="fas fa-box"></i> Finished Goods
-    </a>
-    <a href="/WipDashboard" class="btn btn-outline-info">
-      <i class="fas fa-tachometer-alt"></i> WIP Dashboard
-    </a>
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-industry"></i> @ViewData["Title"]</h1>
+    <div class="btn-group">
+      <a href="/Production/BuildBom" class="btn btn-success">
+        <i class="fas fa-hammer"></i> Build BOM
+      </a>
+      <a href="/Production/FinishedGoods" class="btn btn-outline-primary">
+        <i class="fas fa-box"></i> Finished Goods
+      </a>
+      <a href="/WipDashboard" class="btn btn-outline-info">
+        <i class="fas fa-tachometer-alt"></i> WIP Dashboard
+      </a>
+      <button class="btn btn-outline-secondary" onclick="exportProductions()">
+        <i class="fas fa-download"></i> Export
+      </button>
+    </div>
   </div>
-</div>
 
-@* Safe TempData handling *@
-@{
-  string? successMessage = null;
-  string? errorMessage = null;
+  @* Safe TempData handling *@
+  @{
+    string? successMessage = null;
+    string? errorMessage = null;
 
-  try
-  {
-    successMessage = TempData["SuccessMessage"]?.ToString();
-    errorMessage = TempData["ErrorMessage"]?.ToString();
+    try
+    {
+      successMessage = TempData["SuccessMessage"]?.ToString();
+      errorMessage = TempData["ErrorMessage"]?.ToString();
+    }
+    catch (Exception)
+    {
+      // Silently handle any TempData access issues
+    }
   }
-  catch (Exception)
+
+  @if (!string.IsNullOrEmpty(successMessage))
   {
-    // Silently handle any TempData access issues
+    <div class="alert alert-success alert-dismissible fade show">
+      <i class="fas fa-check-circle"></i> @successMessage
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
   }
-}
 
-@if (!string.IsNullOrEmpty(successMessage))
-{
-  <div class="alert alert-success alert-dismissible fade show">
-    @successMessage
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
+  @if (!string.IsNullOrEmpty(errorMessage))
+  {
+    <div class="alert alert-danger alert-dismissible fade show">
+      <i class="fas fa-exclamation-circle"></i> @errorMessage
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
 
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-  <div class="alert alert-danger alert-dismissible fade show">
-    @errorMessage
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
+  @if (ViewBag.ErrorMessage != null)
+  {
+    <div class="alert alert-danger">
+      <i class="fas fa-exclamation-circle"></i> @ViewBag.ErrorMessage
+    </div>
+  }
 
-<!-- Enhanced Statistics Cards -->
-<div class="row mb-4">
-  <div class="col-md-3">
-    <div class="card bg-primary text-white">
-      <div class="card-body text-center">
-        <h3>@Model.TotalProductions</h3>
-        <p class="mb-0">Total Productions</p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card bg-success text-white">
-      <div class="card-body text-center">
-        <h3>@Model.TotalUnitsProduced</h3>
-        <p class="mb-0">Units Produced</p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card bg-info text-white">
-      <div class="card-body text-center">
-        <h3>@Model.TotalValue.ToString("C0")</h3>
-        <p class="mb-0">Total Value</p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card bg-warning text-white">
-      <div class="card-body text-center">
-        <h3>@Model.AverageUnitCost.ToString("C6")</h3>
-        <p class="mb-0">Avg Unit Cost</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Active Productions Section (if workflow enabled) -->
-@if (Model.ShowWorkflowView && Model.ActiveProductions.Any())
-{
+  <!-- Enhanced Search Form -->
   <div class="card mb-4">
     <div class="card-header">
-      <h5><i class="fas fa-play-circle"></i> Active Productions (@Model.ActiveProductions.Count)</h5>
+      <h6 class="mb-0">
+        <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#searchCollapse"
+                aria-expanded="@(isFiltered ? "true" : "false")"
+                aria-controls="searchCollapse">
+          <i class="fas fa-search"></i> Search & Filter Productions
+          <i class="fas fa-chevron-@(isFiltered ? "up" : "down") float-end"></i>
+        </button>
+      </h6>
     </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Production ID</th>
-              <th>BOM</th>
-              <th>Status</th>
-              <th>Assigned To</th>
-              <th>Progress</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var production in Model.ActiveProductions.Take(10))
-            {
-              <tr>
-                <td>
-                  <a href="/Production/Details/@production.ProductionId" class="fw-bold">
-                    #@production.ProductionId
-                  </a>
-                </td>
-                <td>@production.BomNumber</td>
-                <td>
-                  <span class="badge bg-@GetStatusColor(production.Status)">
-                    @production.StatusDisplayName
-                  </span>
-                </td>
-                <td>@(production.AssignedTo ?? "Unassigned")</td>
-                <td>
-                  @if (production.ProgressPercentage.HasValue)
-                  {
-                    <div class="progress" style="height: 20px;">
-                      <div class="progress-bar" role="progressbar"
-                           style="width: @production.ProgressPercentage%"
-                           aria-valuenow="@production.ProgressPercentage"
-                           aria-valuemin="0" aria-valuemax="100">
-                        @production.ProgressPercentage.Value.ToString("F0")%
-                      </div>
-                    </div>
-                  }
-                  else
-                  {
-                    <span class="text-muted">N/A</span>
-                  }
-                </td>
-                <td>
-                  <a href="/Production/Details/@production.ProductionId" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-eye"></i>
-                  </a>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      @if (Model.ActiveProductions.Count > 10)
-      {
-        <div class="text-center">
-          <a href="/WipDashboard" class="btn btn-outline-primary">
-            <i class="fas fa-tachometer-alt"></i> View All Active Productions
-          </a>
+    <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
+      <div class="card-body">
+        <!-- Search Examples -->
+        <div class="row mb-4 p-3 bg-light border rounded">
+          <div class="col-12">
+            <h6><i class="fas fa-lightbulb text-info"></i> Search Examples</h6>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Wildcard Search:</h6>
+            <ul class="list-unstyled small">
+              <li><code>BOM-001*</code> - BOMs starting with "BOM-001"</li>
+              <li><code>*Widget*</code> - Contains "Widget"</li>
+              <li><code>FG-??1</code> - FG-001, FG-021, etc.</li>
+              <li><code>Production #*</code> - Search in notes</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Search Fields:</h6>
+            <ul class="list-unstyled small">
+              <li><i class="fas fa-box"></i> Finished good part number</li>
+              <li><i class="fas fa-list"></i> BOM number</li>
+              <li><i class="fas fa-sticky-note"></i> Production notes</li>
+              <li><i class="fas fa-hashtag"></i> Production ID</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Quick Filters:</h6>
+            <ul class="list-unstyled small">
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('recent')">Recent productions</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('highvolume')">High volume</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('efficient')">Efficient</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="clearAllFilters()">Clear all filters</button></li>
+            </ul>
+          </div>
         </div>
-      }
+
+        <!-- Search Form -->
+        <form method="get" class="row g-3">
+          <div class="col-md-3">
+            <label for="search" class="form-label">
+              <i class="fas fa-search"></i> Search Term
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="search"
+                   name="search"
+                   value="@searchTerm"
+                   placeholder="BOM, part number, notes... (use * and ? for wildcards)">
+            <div class="form-text">Use * for multiple chars, ? for single char</div>
+          </div>
+
+          <div class="col-md-2">
+            <label for="statusFilter" class="form-label">
+              <i class="fas fa-filter"></i> Period/Volume
+            </label>
+            <select class="form-select" id="statusFilter" name="statusFilter" asp-items="ViewBag.StatusOptions">
+              <option value="">All Periods</option>
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label for="dateFilter" class="form-label">
+              <i class="fas fa-calendar"></i> Date Range
+            </label>
+            <select class="form-select" id="dateFilter" name="dateFilter" asp-items="ViewBag.DateOptions">
+              <option value="">All Dates</option>
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label for="bomFilter" class="form-label">
+              <i class="fas fa-list"></i> BOM Filter
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="bomFilter"
+                   name="bomFilter"
+                   value="@bomFilter"
+                   placeholder="BOM number...">
+          </div>
+
+          <div class="col-md-2">
+            <label for="costFilter" class="form-label">
+              <i class="fas fa-dollar-sign"></i> Cost Level
+            </label>
+            <select class="form-select" id="costFilter" name="costFilter" asp-items="ViewBag.CostOptions">
+              <option value="">All Cost Levels</option>
+            </select>
+          </div>
+
+          <div class="col-md-1">
+            <label class="form-label">&nbsp;</label>
+            <div class="d-grid">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="btn-group">
+              <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                <i class="fas fa-times"></i> Clear
+              </button>
+              <button type="button" class="btn btn-outline-info" onclick="saveSearch()">
+                <i class="fas fa-bookmark"></i> Save Search
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
-}
 
-<!-- All Productions History -->
-<div class="card">
-  <div class="card-header">
-    <h5><i class="fas fa-history"></i> Production History</h5>
+  <!-- Search Results Summary -->
+  @if (isFiltered)
+  {
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      Found <strong>@ViewBag.TotalCount</strong> production(s)
+      @if (ViewBag.SearchResultsCount != null && ViewBag.TotalProductionsCount != null)
+      {
+        <span>out of @ViewBag.TotalProductionsCount total productions</span>
+      }
+
+      @if (!string.IsNullOrEmpty(searchTerm))
+      {
+        <span>matching "<strong>@searchTerm</strong>"</span>
+      }
+
+      <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
+        <i class="fas fa-times"></i> Clear All Filters
+      </a>
+    </div>
+  }
+
+  <!-- Enhanced Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body text-center">
+          <h3>@Model.TotalProductions</h3>
+          <p class="mb-0">
+            <i class="fas fa-industry"></i>
+            Total Productions
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body text-center">
+          <h3>@Model.TotalUnitsProduced</h3>
+          <p class="mb-0">
+            <i class="fas fa-box"></i>
+            Units Produced
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body text-center">
+          <h3>@Model.TotalValue.ToString("C0")</h3>
+          <p class="mb-0">
+            <i class="fas fa-dollar-sign"></i>
+            Total Value
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white">
+        <div class="card-body text-center">
+          <h3>@Model.AverageUnitCost.ToString("C2")</h3>
+          <p class="mb-0">
+            <i class="fas fa-calculator"></i>
+            Avg Unit Cost
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="card-body">
-    @if (Model.AllProductions?.Any() == true)
-    {
-      <div class="table-responsive">
-        <table class="table table-striped table-hover">
-          <thead class="table-dark">
-            <tr>
-              <th>Production Date</th>
-              <th>Finished Good</th>
-              <th>BOM</th>
-              <th>Quantity</th>
-              <th>Unit Cost</th>
-              <th>Total Cost</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var production in Model.AllProductions.OrderByDescending(p => p.ProductionDate))
-            {
+
+  <!-- Active Productions Section (if workflow enabled) -->
+  @if (Model.ShowWorkflowView && Model.ActiveProductions.Any())
+  {
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5><i class="fas fa-play-circle"></i> Active Productions (@Model.ActiveProductions.Count)</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead>
               <tr>
-                <td>@production.ProductionDate.ToString("MM/dd/yyyy")</td>
-                <td>
-                  <a href="/Production/FinishedGoodDetails/@production.FinishedGoodId" class="text-decoration-none">
-                    <strong>@production.FinishedGood?.PartNumber</strong>
-                  </a>
-                  <br><small class="text-muted">@production.FinishedGood?.Description</small>
-                </td>
-                <td>
-                  <a href="/Boms/Details/@production.BomId" class="text-decoration-none">
-                    @production.Bom?.BomNumber
-                  </a>
-                </td>
-                <td>
-                  <span class="badge bg-info">@production.QuantityProduced</span>
-                </td>
-                <td>@production.UnitCost.ToString("C")</td>
-                <td>@production.TotalCost.ToString("C")</td>
-                <td>
-                  <a href="/Production/Details/@production.Id" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-eye"></i> Details
-                  </a>
-                </td>
+                <th>Production ID</th>
+                <th>BOM</th>
+                <th>Status</th>
+                <th>Assigned To</th>
+                <th>Progress</th>
+                <th>Actions</th>
               </tr>
+            </thead>
+            <tbody>
+              @foreach (var production in Model.ActiveProductions.Take(10))
+              {
+                <tr>
+                  <td>
+                    <a href="/Production/Details/@production.ProductionId" class="fw-bold">
+                      #@production.ProductionId
+                    </a>
+                  </td>
+                  <td>@production.BomNumber</td>
+                  <td>
+                    <span class="badge bg-@GetStatusColor(production.Status)">
+                      @production.StatusDisplayName
+                    </span>
+                  </td>
+                  <td>@(production.AssignedTo ?? "Unassigned")</td>
+                  <td>
+                    @if (production.ProgressPercentage.HasValue)
+                    {
+                      <div class="progress" style="height: 20px;">
+                        <div class="progress-bar" role="progressbar"
+                             style="width: @production.ProgressPercentage%"
+                             aria-valuenow="@production.ProgressPercentage"
+                             aria-valuemin="0" aria-valuemax="100">
+                          @production.ProgressPercentage.Value.ToString("F0")%
+                        </div>
+                      </div>
+                    }
+                    else
+                    {
+                      <span class="text-muted">N/A</span>
+                    }
+                  </td>
+                  <td>
+                    <a href="/Production/Details/@production.ProductionId" class="btn btn-sm btn-outline-primary">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (Model.ActiveProductions.Count > 10)
+        {
+          <div class="text-center">
+            <a href="/WipDashboard" class="btn btn-outline-primary">
+              <i class="fas fa-tachometer-alt"></i> View All Active Productions
+            </a>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  @if (!Model.AllProductions?.Any() == true)
+  {
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> @(isFiltered ? "No Productions Found" : "No Production Records")</h5>
+      </div>
+      <div class="card-body text-center">
+        <div class="py-4">
+          <i class="fas fa-industry fa-4x text-muted mb-3"></i>
+          @if (isFiltered)
+          {
+            <h4>No productions match your search criteria</h4>
+            <p class="text-muted mb-4">Try adjusting your search terms or clearing filters.</p>
+            <button class="btn btn-outline-secondary" onclick="clearAllFilters()">
+              <i class="fas fa-times"></i> Clear All Filters
+            </button>
+          }
+          else
+          {
+            <h4>No Production Records</h4>
+            <p class="text-muted mb-4">Start building BOMs to create production records.</p>
+            <a href="/Production/BuildBom" class="btn btn-success">
+              <i class="fas fa-hammer"></i> Build Your First BOM
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  }
+  else
+  {
+    <!-- Production History -->
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-history"></i> Production History
+          <span class="badge bg-primary ms-2">@ViewBag.TotalCount records</span>
+        </h5>
+
+        <!-- Sort Options, Page Size, and Pagination Controls -->
+        <div class="d-flex align-items-center gap-3">
+          <!-- Page Size Controls -->
+          <div class="btn-group">
+            <label class="btn btn-outline-secondary btn-sm">
+              Page Size:
+              <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
+                      onchange="changePageSize(this.value)">
+                @foreach (var size in ViewBag.AllowedPageSizes)
+                {
+                  <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <!-- Sort Options -->
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-sort"></i> Sort
+            </button>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item @(sortOrder == "productionDate_desc" ? "active" : "")" href="@GetSortUrl("productionDate_desc")">
+                  <i class="fas fa-calendar"></i> Recent First
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "productionDate_asc" ? "active" : "")" href="@GetSortUrl("productionDate_asc")">
+                  <i class="fas fa-calendar"></i> Oldest First
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "finishedGood_asc" ? "active" : "")" href="@GetSortUrl("finishedGood_asc")">
+                  <i class="fas fa-box"></i> Finished Good (A-Z)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "bom_asc" ? "active" : "")" href="@GetSortUrl("bom_asc")">
+                  <i class="fas fa-list"></i> BOM Number (A-Z)
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "quantity_desc" ? "active" : "")" href="@GetSortUrl("quantity_desc")">
+                  <i class="fas fa-sort-numeric-down"></i> Quantity (High-Low)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "totalCost_desc" ? "active" : "")" href="@GetSortUrl("totalCost_desc")">
+                  <i class="fas fa-dollar-sign"></i> Total Cost (High-Low)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "unitCost_desc" ? "active" : "")" href="@GetSortUrl("unitCost_desc")">
+                  <i class="fas fa-calculator"></i> Unit Cost (High-Low)
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Pagination Navigation -->
+          <nav aria-label="Productions pagination">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item @(ViewBag.HasPreviousPage ? "" : "disabled")">
+                <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage - 1)">Previous</a>
+              </li>
+              
+              @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); 
+                    i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); 
+                    i++)
+              {
+                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                  <a class="page-link" href="@GetPageUrl(i)">@i</a>
+                </li>
+              }
+              
+              <li class="page-item @(ViewBag.HasNextPage ? "" : "disabled")">
+                <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage + 1)">Next</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover" id="productionsTable">
+            <thead class="table-dark">
+              <tr>
+                <th>
+                  <a href="@GetSortUrl("productionDate_desc")" class="text-white text-decoration-none">
+                    <i class="fas fa-calendar"></i> Production Date
+                    @if (sortOrder?.StartsWith("productionDate") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("finishedGood_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-box"></i> Finished Good
+                    @if (sortOrder?.StartsWith("finishedGood") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("bom_asc")" class="text-white text-decoration-none">
+                    <i class="fas fa-list"></i> BOM
+                    @if (sortOrder?.StartsWith("bom") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("quantity_desc")" class="text-white text-decoration-none">
+                    <i class="fas fa-sort-numeric-down"></i> Quantity
+                    @if (sortOrder?.StartsWith("quantity") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("unitCost_desc")" class="text-white text-decoration-none">
+                    <i class="fas fa-calculator"></i> Unit Cost
+                    @if (sortOrder?.StartsWith("unitCost") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <a href="@GetSortUrl("totalCost_desc")" class="text-white text-decoration-none">
+                    <i class="fas fa-dollar-sign"></i> Total Cost
+                    @if (sortOrder?.StartsWith("totalCost") == true)
+                    {
+                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
+                    }
+                  </a>
+                </th>
+                <th>
+                  <i class="fas fa-chart-line"></i> Efficiency
+                </th>
+                <th style="width: 120px;">
+                  <i class="fas fa-cogs"></i> Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var production in Model.AllProductions)
+              {
+                <tr class="clickable-row" data-production-id="@production.Id">
+                  <td>
+                    <div>@production.ProductionDate.ToString("MM/dd/yyyy")</div>
+                    <small class="text-muted">
+                      @production.ProductionDate.ToString("dddd")
+                    </small>
+                  </td>
+                  <td>
+                    @if (production.FinishedGood != null)
+                    {
+                      <a href="/Production/FinishedGoodDetails/@production.FinishedGoodId" class="text-decoration-none fw-bold">
+                        @production.FinishedGood.PartNumber
+                      </a>
+                      <br>
+                      <small class="text-muted">@production.FinishedGood.Description</small>
+                    }
+                    else
+                    {
+                      <span class="text-muted">Unknown finished good</span>
+                    }
+                  </td>
+                  <td>
+                    @if (production.Bom != null)
+                    {
+                      <a href="/Boms/Details/@production.BomId" class="text-decoration-none">
+                        @production.Bom.BomNumber
+                      </a>
+                    }
+                    else
+                    {
+                      <span class="text-muted">Unknown BOM</span>
+                    }
+                  </td>
+                  <td>
+                    <span class="badge bg-info fs-6">
+                      @production.QuantityProduced
+                    </span>
+                  </td>
+                  <td>
+                    <strong>@production.UnitCost.ToString("C2")</strong>
+                    @if (production.HasCostData)
+                    {
+                      <br>
+                      <small class="text-muted">
+                        M: @((production.MaterialCost / Math.Max(production.QuantityProduced, 1)).ToString("C2"))
+                        L: @((production.LaborCost / Math.Max(production.QuantityProduced, 1)).ToString("C2"))
+                        O: @((production.OverheadCost / Math.Max(production.QuantityProduced, 1)).ToString("C2"))
+                      </small>
+                    }
+                  </td>
+                  <td>
+                    <strong>@production.TotalCost.ToString("C")</strong>
+                    @if (production.HasCostData)
+                    {
+                      <br>
+                      <div class="progress" style="height: 15px;">
+                        <div class="progress-bar bg-info" style="width: @production.MaterialCostPercentage.ToString("F0")%" title="Material @production.MaterialCostPercentage.ToString("F1")%"></div>
+                        <div class="progress-bar bg-warning" style="width: @production.LaborCostPercentage.ToString("F0")%" title="Labor @production.LaborCostPercentage.ToString("F1")%"></div>
+                        <div class="progress-bar bg-danger" style="width: @production.OverheadCostPercentage.ToString("F0")%" title="Overhead @production.OverheadCostPercentage.ToString("F1")%"></div>
+                      </div>
+                    }
+                  </td>
+                  <td>
+                    <span class="badge bg-@GetEfficiencyColor(production.EfficiencyRating)">
+                      @production.EfficiencyRating
+                    </span>
+                    @if (!production.HasCostData)
+                    {
+                      <br>
+                      <small class="text-muted">No cost data</small>
+                    }
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+                      <a href="/Production/Details/@production.Id" class="btn btn-outline-primary" title="View Details">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      @if (production.FinishedGood != null)
+                      {
+                        <a href="/Production/FinishedGoodDetails/@production.FinishedGoodId" class="btn btn-outline-info" title="Finished Good">
+                          <i class="fas fa-box"></i>
+                        </a>
+                      }
+                      @if (production.Bom != null)
+                      {
+                        <a href="/Boms/Details/@production.BomId" class="btn btn-outline-secondary" title="View BOM">
+                          <i class="fas fa-list"></i>
+                        </a>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Summary -->
+        <div class="row mt-3">
+          <div class="col-md-6">
+            <p class="text-muted mb-0">
+              Showing @ViewBag.ShowingFrom to @ViewBag.ShowingTo of @ViewBag.TotalCount productions
+            </p>
+          </div>
+          <div class="col-md-6 text-end">
+            @if (ViewBag.TotalPages > 1)
+            {
+              <small class="text-muted">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</small>
             }
-          </tbody>
-        </table>
+          </div>
+        </div>
+
+        <!-- Enhanced Summary Statistics -->
+        <div class="mt-4">
+          <div class="row">
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-primary mb-1">
+                    <i class="fas fa-industry"></i>
+                    Total Productions
+                  </h6>
+                  <h4 class="text-primary mb-0">@ViewBag.TotalCount</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-success mb-1">
+                    <i class="fas fa-check-circle"></i>
+                    This Month
+                  </h6>
+                  <h4 class="text-success mb-0">@Model.AllProductions.Count(p => p.ProductionDate.Month == DateTime.Now.Month && p.ProductionDate.Year == DateTime.Now.Year)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-warning mb-1">
+                    <i class="fas fa-sort-numeric-up"></i>
+                    High Volume
+                  </h6>
+                  <h4 class="text-warning mb-0">@Model.AllProductions.Count(p => p.QuantityProduced >= 100)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-info mb-1">
+                    <i class="fas fa-dollar-sign"></i>
+                    High Cost
+                  </h6>
+                  <h4 class="text-info mb-0">@Model.AllProductions.Count(p => p.TotalCost > 1000)</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-secondary mb-1">
+                    <i class="fas fa-chart-line"></i>
+                    Efficient
+                  </h6>
+                  <h4 class="text-secondary mb-0">@Model.AllProductions.Count(p => p.EfficiencyRating == "Excellent" || p.EfficiencyRating == "Good")</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-danger mb-1">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    No Cost Data
+                  </h6>
+                  <h4 class="text-danger mb-0">@Model.AllProductions.Count(p => !p.HasCostData)</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    }
-    else
-    {
-      <div class="text-center py-5">
-        <i class="fas fa-industry fa-3x text-muted mb-3"></i>
-        <h4 class="text-muted">No Production Records</h4>
-        <p class="text-muted">Start building BOMs to create production records.</p>
-        <a href="/Production/BuildBom" class="btn btn-success">
-          <i class="fas fa-hammer"></i> Build Your First BOM
-        </a>
-      </div>
-    }
-  </div>
+    </div>
+  }
 </div>
 
-@functions {
-  string GetStatusColor(InventorySystem.Domain.Enums.ProductionStatus status)
-  {
-    return status switch
-    {
-      InventorySystem.Domain.Enums.ProductionStatus.Planned => "secondary",
-      InventorySystem.Domain.Enums.ProductionStatus.InProgress => "warning",
-      InventorySystem.Domain.Enums.ProductionStatus.QualityCheck => "info",
-      InventorySystem.Domain.Enums.ProductionStatus.Completed => "success",
-      InventorySystem.Domain.Enums.ProductionStatus.OnHold => "danger",
-      InventorySystem.Domain.Enums.ProductionStatus.Cancelled => "dark",
-      _ => "light"
-    };
+<!-- Enhanced JavaScript for Search Functionality -->
+<script>
+  $(document).ready(function() {
+      // Auto-expand search if filtered
+      @if (isFiltered)
+      {
+            <text>
+            const searchCollapse = document.getElementById('searchCollapse');
+            if (searchCollapse && !searchCollapse.classList.contains('show')) {
+                new bootstrap.Collapse(searchCollapse, { show: true });
+            }
+            </text>
+      }
+
+      // Update chevron icon
+      const collapseElement = document.getElementById('searchCollapse');
+      const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down, [data-bs-target="#searchCollapse"] .fa-chevron-up');
+
+      if (collapseElement && chevronIcon) {
+          collapseElement.addEventListener('show.bs.collapse', function () {
+              chevronIcon.classList.remove('fa-chevron-down');
+              chevronIcon.classList.add('fa-chevron-up');
+          });
+
+          collapseElement.addEventListener('hide.bs.collapse', function () {
+              chevronIcon.classList.remove('fa-chevron-up');
+              chevronIcon.classList.add('fa-chevron-down');
+          });
+      }
+
+      // Make table rows clickable
+      const clickableRows = document.querySelectorAll('.clickable-row');
+
+      clickableRows.forEach(function(row) {
+          row.addEventListener('click', function(e) {
+              // Only proceed if the click wasn't on an action button or link
+              if (e.target.closest('.btn-group') || e.target.closest('a') || e.target.closest('button')) {
+                  return;
+              }
+
+              const productionId = this.getAttribute('data-production-id');
+              if (productionId) {
+                  window.location.href = '/Production/Details/' + productionId;
+              }
+          });
+
+          // Add hover effect
+          row.addEventListener('mouseenter', function() {
+              if (!this.classList.contains('table-active')) {
+                  this.style.backgroundColor = '#f8f9fa';
+              }
+          });
+
+          row.addEventListener('mouseleave', function() {
+              if (!this.classList.contains('table-active')) {
+                  this.style.backgroundColor = '';
+              }
+          });
+      });
+
+      // Prevent action buttons from triggering row click
+      const actionButtons = document.querySelectorAll('.btn-group a, .btn-group button');
+      actionButtons.forEach(function(button) {
+          button.addEventListener('click', function(e) {
+              e.stopPropagation();
+          });
+      });
+  });
+
+  // Quick filter functions
+  function quickFilter(type) {
+      switch(type) {
+          case 'recent':
+              document.getElementById('statusFilter').value = 'recent';
+              break;
+          case 'highvolume':
+              document.getElementById('statusFilter').value = 'highvolume';
+              break;
+          case 'efficient':
+              document.getElementById('costFilter').value = 'efficient';
+              break;
+      }
+
+      // Submit the form
+      document.querySelector('form').submit();
   }
-}
+
+  function clearAllFilters() {
+      // Clear all form fields
+      document.getElementById('search').value = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('dateFilter').value = '';
+      document.getElementById('bomFilter').value = '';
+      document.getElementById('costFilter').value = '';
+
+      // Navigate to clean URL
+      window.location.href = '@Url.Action("Index")';
+  }
+
+  function saveSearch() {
+      // In a real application, you might save this to user preferences
+      const searchData = {
+          search: document.getElementById('search').value,
+          statusFilter: document.getElementById('statusFilter').value,
+          dateFilter: document.getElementById('dateFilter').value,
+          bomFilter: document.getElementById('bomFilter').value,
+          costFilter: document.getElementById('costFilter').value
+      };
+
+      localStorage.setItem('savedProductionSearch', JSON.stringify(searchData));
+      alert('Search criteria saved! Use the browser bookmark to return to this search.');
+  }
+
+  function exportProductions() {
+      // Build export URL with current filters
+      const params = new URLSearchParams(window.location.search);
+      params.set('export', 'true');
+
+      // In a real application, this would trigger a CSV/Excel download
+      alert('Export functionality would download filtered results as CSV/Excel file.');
+  }
+
+  function changePageSize(size) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('pageSize', size);
+      params.set('page', 1); // Reset to first page on page size change
+
+      window.location.search = params.toString();
+  }
+
+  @functions {
+      public string GetPageUrl(int page)
+      {
+          var query = new System.Collections.Specialized.NameValueCollection();
+          var request = Context.Request;
+          foreach (var key in request.Query.Keys)
+          {
+              var k = key.ToString();
+              if (!string.IsNullOrEmpty(k) && k != "page")
+                  query[k] = request.Query[k];
+          }
+          query["page"] = page.ToString();
+
+          var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
+          return $"{request.Path}?{queryString}";
+      }
+
+      public string GetSortUrl(string newSortOrder)
+      {
+          var query = new System.Collections.Specialized.NameValueCollection();
+          var request = Context.Request;
+          foreach (var key in request.Query.Keys)
+          {
+              var k = key.ToString();
+              if (!string.IsNullOrEmpty(k) && k != "sortOrder" && k != "page")
+                  query[k] = request.Query[k];
+          }
+          query["sortOrder"] = newSortOrder;
+          query["page"] = "1"; // Reset to first page when sorting
+
+          var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
+          return $"{request.Path}?{queryString}";
+      }
+
+      string GetStatusColor(InventorySystem.Domain.Enums.ProductionStatus status)
+      {
+        return status switch
+        {
+          InventorySystem.Domain.Enums.ProductionStatus.Planned => "secondary",
+          InventorySystem.Domain.Enums.ProductionStatus.InProgress => "warning",
+          InventorySystem.Domain.Enums.ProductionStatus.QualityCheck => "info",
+          InventorySystem.Domain.Enums.ProductionStatus.Completed => "success",
+          InventorySystem.Domain.Enums.ProductionStatus.OnHold => "danger",
+          InventorySystem.Domain.Enums.ProductionStatus.Cancelled => "dark",
+          _ => "light"
+        };
+      }
+
+      string GetEfficiencyColor(string efficiency)
+      {
+        return efficiency switch
+        {
+          "Excellent" => "success",
+          "Good" => "primary",
+          "Fair" => "warning",
+          "Poor" => "danger",
+          _ => "secondary"
+        };
+      }
+  }
+</script>
+
+<!-- Enhanced CSS styles -->
+<style>
+  /* Clickable row styles */
+  .clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+    .clickable-row:hover {
+      background-color: #f8f9fa !important;
+    }
+
+    .clickable-row:active {
+      background-color: #e9ecef !important;
+    }
+
+    /* Ensure action buttons don't inherit pointer cursor */
+    .clickable-row .btn-group {
+      cursor: default;
+    }
+
+    /* Allow text selection in specific columns */
+    .clickable-row td:nth-child(2),
+    .clickable-row td:nth-child(3) {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
+
+  /* Table responsive adjustments */
+  .table-responsive {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  #productionsTable tbody tr:hover {
+    background-color: rgba(0,123,255,0.1);
+  }
+
+  .badge {
+    font-size: 0.75em;
+  }
+
+  .card-body.p-2 {
+    padding: 0.5rem !important;
+  }
+
+  .btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  /* Sortable column headers */
+  .table th a {
+    text-decoration: none !important;
+    color: inherit;
+  }
+
+  .table th a:hover {
+    color: #ffc107 !important;
+  }
+
+  /* Progress bar styling for cost breakdown */
+  .progress {
+    height: 15px !important;
+    background-color: #e9ecef;
+    border-radius: 3px;
+  }
+
+  .progress-bar {
+    font-size: 0.6em;
+    line-height: 15px;
+  }
+
+  /* Efficiency badge styling */
+  .badge.bg-success { background-color: #198754 !important; }
+  .badge.bg-primary { background-color: #0d6efd !important; }
+  .badge.bg-warning { background-color: #ffc107 !important; color: #000 !important; }
+  .badge.bg-danger { background-color: #dc3545 !important; }
+  .badge.bg-secondary { background-color: #6c757d !important; }
+
+  /* Responsive adjustments */
+  @@media (max-width: 768px) {
+    .btn-group-sm .btn {
+      padding: 0.125rem 0.25rem;
+      font-size: 0.65rem;
+    }
+
+    .clickable-row td {
+      padding: 0.5rem 0.25rem;
+    }
+
+    /* Hide less important columns on mobile */
+    .table th:nth-child(5), /* Unit Cost */
+    .table td:nth-child(5),
+    .table th:nth-child(7), /* Efficiency */
+    .table td:nth-child(7) {
+      display: none;
+    }
+  }
+
+  /* Card hover effects for stats */
+  .card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+
+  /* Small text for cost breakdowns */
+  .text-muted {
+    font-size: 0.8em;
+  }
+
+  /* Badge sizing for quantity */
+  .badge.fs-6 {
+    font-size: 1rem !important;
+    padding: 0.5rem 0.75rem;
+  }
+</style>
