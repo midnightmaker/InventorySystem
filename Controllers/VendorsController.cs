@@ -297,5 +297,158 @@ namespace InventorySystem.Controllers
 
       return escaped;
     }
+
+    // GET: Vendors/Details/5
+    public async Task<IActionResult> Details(int id)
+    {
+      try
+      {
+        var vendor = await _vendorService.GetVendorByIdAsync(id);
+        if (vendor == null)
+        {
+          _logger.LogWarning("Vendor with ID {VendorId} not found", id);
+          TempData["ErrorMessage"] = "Vendor not found.";
+          return RedirectToAction(nameof(Index));
+        }
+
+        // Get additional data for the details view
+        var vendorItems = await _vendorService.GetVendorItemsAsync(id);
+        var purchaseHistory = await _vendorService.GetVendorPurchaseHistoryAsync(id);
+        var totalPurchases = await _vendorService.GetVendorTotalPurchasesAsync(id);
+
+        ViewBag.VendorItems = vendorItems;
+        ViewBag.PurchaseHistory = purchaseHistory;
+        ViewBag.TotalPurchases = totalPurchases;
+
+        return View(vendor);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading vendor details for ID {VendorId}", id);
+        TempData["ErrorMessage"] = $"Error loading vendor details: {ex.Message}";
+        return RedirectToAction(nameof(Index));
+      }
+    }
+
+    // GET: Vendors/Create
+    public async Task<IActionResult> Create()
+    {
+      try
+      {
+        return View();
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading vendor create form");
+        TempData["ErrorMessage"] = $"Error loading create form: {ex.Message}";
+        return RedirectToAction(nameof(Index));
+      }
+    }
+
+    // POST: Vendors/Create
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(Vendor vendor)
+    {
+      try
+      {
+        if (ModelState.IsValid)
+        {
+          await _vendorService.CreateVendorAsync(vendor);
+          TempData["SuccessMessage"] = $"Vendor '{vendor.CompanyName}' created successfully.";
+          return RedirectToAction(nameof(Details), new { id = vendor.Id });
+        }
+
+        return View(vendor);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error creating vendor");
+        TempData["ErrorMessage"] = $"Error creating vendor: {ex.Message}";
+        return View(vendor);
+      }
+    }
+
+    // GET: Vendors/Edit/5
+    public async Task<IActionResult> Edit(int id)
+    {
+      try
+      {
+        var vendor = await _vendorService.GetVendorByIdAsync(id);
+        if (vendor == null)
+        {
+          _logger.LogWarning("Vendor with ID {VendorId} not found", id);
+          TempData["ErrorMessage"] = "Vendor not found.";
+          return RedirectToAction(nameof(Index));
+        }
+
+        return View(vendor);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading vendor edit form for ID {VendorId}", id);
+        TempData["ErrorMessage"] = $"Error loading edit form: {ex.Message}";
+        return RedirectToAction(nameof(Index));
+      }
+    }
+
+    // POST: Vendors/Edit/5
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, Vendor vendor)
+    {
+      if (id != vendor.Id)
+      {
+        return NotFound();
+      }
+
+      try
+      {
+        if (ModelState.IsValid)
+        {
+          await _vendorService.UpdateVendorAsync(vendor);
+          TempData["SuccessMessage"] = $"Vendor '{vendor.CompanyName}' updated successfully.";
+          return RedirectToAction(nameof(Details), new { id = vendor.Id });
+        }
+
+        return View(vendor);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error updating vendor with ID {VendorId}", id);
+        TempData["ErrorMessage"] = $"Error updating vendor: {ex.Message}";
+        return View(vendor);
+      }
+    }
+
+    // GET: Vendors/ManageItems/5
+    public async Task<IActionResult> ManageItems(int id)
+    {
+      try
+      {
+        var vendor = await _vendorService.GetVendorByIdAsync(id);
+        if (vendor == null)
+        {
+          _logger.LogWarning("Vendor with ID {VendorId} not found", id);
+          TempData["ErrorMessage"] = "Vendor not found.";
+          return RedirectToAction(nameof(Index));
+        }
+
+        var vendorItems = await _vendorService.GetVendorItemsAsync(id);
+        var allItems = await _inventoryService.GetAllItemsAsync();
+
+        ViewBag.Vendor = vendor;
+        ViewBag.VendorItems = vendorItems;
+        ViewBag.AllItems = allItems;
+
+        return View();
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading vendor items management for ID {VendorId}", id);
+        TempData["ErrorMessage"] = $"Error loading vendor items: {ex.Message}";
+        return RedirectToAction(nameof(Index));
+      }
+    }
   }
 }

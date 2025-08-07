@@ -39,6 +39,11 @@ namespace InventorySystem.Services
     #region Cost Calculations
     Task<decimal> GetBomTotalCostAsync(int bomId);
     Task<decimal> GetBomMaterialCostAsync(int bomId, int quantity = 1);
+    
+    /// <summary>
+    /// Gets exploded BOM cost data including all sub-assembly details
+    /// </summary>
+    Task<ExplodedBomCostData> GetExplodedBomCostDataAsync(int bomId);
     #endregion
 
     #region Search and Filtering

@@ -306,6 +306,18 @@ namespace InventorySystem.Controllers
 
       ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
 
+      // Calculate individual sub-assembly costs for the Details view
+      if (bom.SubAssemblies?.Any() == true)
+      {
+        var subAssemblyCosts = new Dictionary<int, decimal>();
+        foreach (var subAssembly in bom.SubAssemblies)
+        {
+          var subAssemblyCost = await _bomService.GetBomTotalCostAsync(subAssembly.Id);
+          subAssemblyCosts[subAssembly.Id] = subAssemblyCost;
+        }
+        ViewBag.SubAssemblyCosts = subAssemblyCosts;
+      }
+
       // Check for pending change orders  
       var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("BOM", bom.BaseBomId ?? bom.Id);
       ViewBag.PendingChangeOrders = pendingChangeOrders;
@@ -550,12 +562,31 @@ namespace InventorySystem.Controllers
       return RedirectToAction("Details", new { id = bomId });
     }
 
-    public async Task<IActionResult> CostReport(int id)
+    public async Task<IActionResult> CostReport(int id, bool explodeSubAssemblies = false)
     {
       var bom = await _bomService.GetBomByIdAsync(id);
       if (bom == null) return NotFound();
 
       ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
+      ViewBag.ExplodeSubAssemblies = explodeSubAssemblies;
+      
+      // Calculate individual sub-assembly costs for the Cost Report view
+      if (bom.SubAssemblies?.Any() == true)
+      {
+        var subAssemblyCosts = new Dictionary<int, decimal>();
+        foreach (var subAssembly in bom.SubAssemblies)
+        {
+          var subAssemblyCost = await _bomService.GetBomTotalCostAsync(subAssembly.Id);
+          subAssemblyCosts[subAssembly.Id] = subAssemblyCost;
+        }
+        ViewBag.SubAssemblyCosts = subAssemblyCosts;
+      }
+      
+      if (explodeSubAssemblies)
+      {
+        ViewBag.ExplodedCostData = await _bomService.GetExplodedBomCostDataAsync(id);
+      }
+
       return View(bom);
     }
 

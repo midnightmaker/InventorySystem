@@ -466,6 +466,184 @@ namespace InventorySystem.Services
       }
     }
 
+    /// <summary>
+    /// Gets exploded BOM cost data including all sub-assembly details
+    /// </summary>
+    public async Task<ExplodedBomCostData> GetExplodedBomCostDataAsync(int bomId)
+    {
+      try
+      {
+        var bom = await GetBomByIdAsync(bomId);
+        if (bom == null)
+        {
+          return new ExplodedBomCostData();
+        }
+
+        var explodedData = new ExplodedBomCostData
+        {
+          BomId = bom.Id,
+          BomNumber = bom.BomNumber,
+          Description = bom.Description,
+          Version = bom.Version
+        };
+
+        var allComponents = new List<ExplodedCostItem>();
+        var subAssemblies = new List<ExplodedSubAssembly>();
+        decimal totalDirectCost = 0;
+        decimal totalSubAssemblyCost = 0;
+        int maxDepth = 0;
+
+        // Process direct components
+        foreach (var bomItem in bom.BomItems)
+        {
+          var explodedItem = new ExplodedCostItem
+          {
+            PartNumber = bomItem.Item?.PartNumber ?? "Unknown",
+            Description = bomItem.Item?.Description ?? "Unknown",
+            Quantity = bomItem.Quantity,
+            UnitCost = bomItem.UnitCost,
+            ExtendedCost = bomItem.ExtendedCost,
+            ReferenceDesignator = bomItem.ReferenceDesignator ?? "",
+            Notes = bomItem.Notes ?? "",
+            SourceBom = bom.BomNumber,
+            Level = 0
+          };
+
+          allComponents.Add(explodedItem);
+          totalDirectCost += explodedItem.ExtendedCost;
+        }
+
+        // Process sub-assemblies recursively
+        foreach (var subAssembly in bom.SubAssemblies)
+        {
+          var explodedSub = await GetExplodedSubAssemblyDataAsync(subAssembly.Id, 1);
+          if (explodedSub != null)
+          {
+            subAssemblies.Add(explodedSub);
+            totalSubAssemblyCost += explodedSub.SubAssemblyCost;
+            maxDepth = Math.Max(maxDepth, explodedSub.Level);
+
+            // Add all components from sub-assemblies to the flat list
+            allComponents.AddRange(GetAllComponentsFromSubAssembly(explodedSub));
+          }
+        }
+
+        explodedData.AllComponents = allComponents.OrderBy(c => c.Level)
+                                                 .ThenBy(c => c.SourceBom)
+                                                 .ThenBy(c => c.PartNumber)
+                                                 .ToList();
+        explodedData.SubAssemblies = subAssemblies;
+        explodedData.TotalCost = totalDirectCost + totalSubAssemblyCost;
+
+        explodedData.Summary = new CostSummary
+        {
+          DirectComponentsCost = totalDirectCost,
+          SubAssembliesCost = totalSubAssemblyCost,
+          TotalCost = explodedData.TotalCost,
+          TotalComponentCount = allComponents.Count,
+          TotalSubAssemblyCount = subAssemblies.Count + subAssemblies.Sum(s => CountNestedSubAssemblies(s)),
+          MaxDepthLevel = maxDepth
+        };
+
+        _logger.LogInformation("Generated exploded cost data for BOM {BomNumber} with {ComponentCount} total components",
+            bom.BomNumber, allComponents.Count);
+
+        return explodedData;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error generating exploded cost data for BOM {BomId}", bomId);
+        return new ExplodedBomCostData();
+      }
+    }
+
+    private async Task<ExplodedSubAssembly?> GetExplodedSubAssemblyDataAsync(int bomId, int level)
+    {
+      try
+      {
+        var bom = await GetBomByIdAsync(bomId);
+        if (bom == null) return null;
+
+        var explodedSub = new ExplodedSubAssembly
+        {
+          BomId = bom.Id,
+          BomNumber = bom.BomNumber,
+          Description = bom.Description,
+          Version = bom.Version,
+          AssemblyPartNumber = bom.AssemblyPartNumber ?? "",
+          Level = level,
+          ComponentCount = bom.BomItems.Count
+        };
+
+        decimal subAssemblyCost = 0;
+
+        // Process components
+        foreach (var bomItem in bom.BomItems)
+        {
+          var explodedItem = new ExplodedCostItem
+          {
+            PartNumber = bomItem.Item?.PartNumber ?? "Unknown",
+            Description = bomItem.Item?.Description ?? "Unknown",
+            Quantity = bomItem.Quantity,
+            UnitCost = bomItem.UnitCost,
+            ExtendedCost = bomItem.ExtendedCost,
+            ReferenceDesignator = bomItem.ReferenceDesignator ?? "",
+            Notes = bomItem.Notes ?? "",
+            SourceBom = bom.BomNumber,
+            Level = level
+          };
+
+          explodedSub.Components.Add(explodedItem);
+          subAssemblyCost += explodedItem.ExtendedCost;
+        }
+
+        // Process nested sub-assemblies
+        foreach (var nestedSubAssembly in bom.SubAssemblies)
+        {
+          var nestedExploded = await GetExplodedSubAssemblyDataAsync(nestedSubAssembly.Id, level + 1);
+          if (nestedExploded != null)
+          {
+            explodedSub.NestedSubAssemblies.Add(nestedExploded);
+            subAssemblyCost += nestedExploded.SubAssemblyCost;
+          }
+        }
+
+        explodedSub.SubAssemblyCost = subAssemblyCost;
+        return explodedSub;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting exploded sub-assembly data for BOM {BomId}", bomId);
+        return null;
+      }
+    }
+
+    private List<ExplodedCostItem> GetAllComponentsFromSubAssembly(ExplodedSubAssembly subAssembly)
+    {
+      var allComponents = new List<ExplodedCostItem>();
+      
+      // Add direct components
+      allComponents.AddRange(subAssembly.Components);
+      
+      // Add components from nested sub-assemblies
+      foreach (var nested in subAssembly.NestedSubAssemblies)
+      {
+        allComponents.AddRange(GetAllComponentsFromSubAssembly(nested));
+      }
+      
+      return allComponents;
+    }
+
+    private int CountNestedSubAssemblies(ExplodedSubAssembly subAssembly)
+    {
+      int count = subAssembly.NestedSubAssemblies.Count;
+      foreach (var nested in subAssembly.NestedSubAssemblies)
+      {
+        count += CountNestedSubAssemblies(nested);
+      }
+      return count;
+    }
+
     #endregion
 
     #region Search and Filtering
@@ -726,6 +904,56 @@ namespace InventorySystem.Services
     public int TotalBomItems { get; set; }
     public decimal AverageItemsPerBom { get; set; }
     public decimal TotalValue { get; set; }
+  }
+
+  public class ExplodedBomCostData
+  {
+    public int BomId { get; set; }
+    public string BomNumber { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string Version { get; set; } = "";
+    public List<ExplodedCostItem> AllComponents { get; set; } = new List<ExplodedCostItem>();
+    public List<ExplodedSubAssembly> SubAssemblies { get; set; } = new List<ExplodedSubAssembly>();
+    public decimal TotalCost { get; set; } = 0;
+
+    public CostSummary Summary { get; set; } = new CostSummary();
+  }
+
+  public class ExplodedCostItem
+  {
+    public string PartNumber { get; set; } = "";
+    public string Description { get; set; } = "";
+    public int Quantity { get; set; } = 0;
+    public decimal UnitCost { get; set; } = 0;
+    public decimal ExtendedCost { get; set; } = 0;
+    public string ReferenceDesignator { get; set; } = "";
+    public string Notes { get; set; } = "";
+    public string SourceBom { get; set; } = "";
+    public int Level { get; set; } = 0;
+  }
+
+  public class ExplodedSubAssembly
+  {
+    public int BomId { get; set; }
+    public string BomNumber { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string Version { get; set; } = "";
+    public string AssemblyPartNumber { get; set; } = "";
+    public List<ExplodedCostItem> Components { get; set; } = new List<ExplodedCostItem>();
+    public List<ExplodedSubAssembly> NestedSubAssemblies { get; set; } = new List<ExplodedSubAssembly>();
+    public decimal SubAssemblyCost { get; set; } = 0;
+    public int Level { get; set; } = 0;
+    public int ComponentCount { get; set; } = 0;
+  }
+
+  public class CostSummary
+  {
+    public decimal DirectComponentsCost { get; set; } = 0;
+    public decimal SubAssembliesCost { get; set; } = 0;
+    public decimal TotalCost { get; set; } = 0;
+    public int TotalComponentCount { get; set; } = 0;
+    public int TotalSubAssemblyCount { get; set; } = 0;
+    public int MaxDepthLevel { get; set; } = 0;
   }
 
   #endregion

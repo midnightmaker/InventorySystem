@@ -130,23 +130,27 @@
 
 @section Scripts {
     <script>
-        $(document).ready(function() {
+        document.addEventListener('DOMContentLoaded', function() {
             // Auto-populate document name based on file selection
-            $('#DocumentFile').change(function() {
-                var file = this.files[0];
-                if (file && !$('#DocumentName').val()) {
-                    var fileName = file.name;
-                    var nameWithoutExtension = fileName.substring(0, fileName.lastIndexOf('.'));
-                    $('#DocumentName').val(nameWithoutExtension);
+            const documentFileInput = document.getElementById('DocumentFile');
+            const documentNameInput = document.getElementById('DocumentName');
+            const documentTypeSelect = document.getElementById('DocumentType');
+            
+            documentFileInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file && !documentNameInput.value) {
+                    const fileName = file.name;
+                    const nameWithoutExtension = fileName.substring(0, fileName.lastIndexOf('.'));
+                    documentNameInput.value = nameWithoutExtension;
                 }
             });
 
             // Auto-select document type based on file extension
-            $('#DocumentFile').change(function() {
-                var file = this.files[0];
-                if (file && !$('#DocumentType').val()) {
-                    var extension = file.name.split('.').pop().toLowerCase();
-                    var suggestedType = '';
+            documentFileInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file && !documentTypeSelect.value) {
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    let suggestedType = '';
 
                     switch(extension) {
                         case 'pdf':
@@ -166,16 +170,16 @@
                     }
 
                     if (suggestedType) {
-                        $('#DocumentType').val(suggestedType);
+                        documentTypeSelect.value = suggestedType;
                     }
                 }
             });
 
             // Form validation
-            $('form').submit(function(e) {
-                var file = $('#DocumentFile')[0].files[0];
-                var documentName = $('#DocumentName').val();
-                var documentType = $('#DocumentType').val();
+            document.querySelector('form').addEventListener('submit', function(e) {
+                const file = documentFileInput.files[0];
+                const documentName = documentNameInput.value;
+                const documentType = documentTypeSelect.value;
 
                 if (!file) {
                     alert('Please select a file to upload.');
@@ -196,8 +200,9 @@
                 }
 
                 // Show loading state
-                $(this).find('button[type="submit"]').prop('disabled', true)
-                    .html('<i class="fas fa-spinner fa-spin"></i> Uploading...');
+                const submitButton = this.querySelector('button[type="submit"]');
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
             });
         });
     </script>

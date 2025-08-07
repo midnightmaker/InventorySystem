@@ -29,9 +29,30 @@
     <a href="/Boms/Visualize/@Model.Id" class="btn btn-outline-success">
       <i class="fas fa-sitemap"></i> View Diagram
     </a>
-    <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-info">
-      <i class="fas fa-dollar-sign"></i> Cost Report
-    </a>
+    <div class="btn-group">
+      <button type="button" class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fas fa-dollar-sign"></i> Cost Report
+      </button>
+      <ul class="dropdown-menu">
+        <li>
+          <a class="dropdown-item" href="/Boms/CostReport/@Model.Id">
+            <i class="fas fa-compress-arrows-alt me-2"></i>Standard Report
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="/Boms/CostReport/@Model.Id?explodeSubAssemblies=true">
+            <i class="fas fa-expand-arrows-alt me-2"></i>Exploded Report
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item text-muted" href="#" onclick="event.preventDefault()">
+            <small>Standard: Summary view<br>
+            Exploded: All sub-assembly details</small>
+          </a>
+        </li>
+      </ul>
+    </div>
     <!-- Create New Version Button -->
     <button type="button" class="btn btn-outline-warning" onclick="showCreateVersionModal('BOM', @(Model.BaseBomId ?? Model.Id))">
       <i class="fas fa-code-branch"></i> New Version
@@ -325,26 +346,107 @@
         </div>
         <div class="collapse show" id="subAssembliesTable">
           <div class="card-body">
-            <div class="list-group list-group-flush">
-              @foreach (var subAssembly in Model.SubAssemblies)
-              {
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                  <div>
-                    <h6 class="mb-1">
-                      <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
-                        @subAssembly.BomNumber
-                      </a>
-                    </h6>
-                    <p class="mb-1">@subAssembly.Description</p>
-                    <small class="text-muted">Version @subAssembly.Version | @subAssembly.BomItems.Count components</small>
-                  </div>
-                  <div class="btn-group btn-group-sm">
-                    <a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary">
-                      <i class="fas fa-eye"></i> View
-                    </a>
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Sub-Assembly Name</th>
+                    <th>Assembly P/N</th>
+                    <th>Version</th>
+                    <th>Components</th>
+                    <th>Sub-Assembly Cost</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @{
+                    var subAssemblyCosts = ViewBag.SubAssemblyCosts as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
+                    decimal totalSubAssemblyCost = 0;
+                  }
+                  @foreach (var subAssembly in Model.SubAssemblies)
+                  {
+                    var cost = subAssemblyCosts.ContainsKey(subAssembly.Id) ? subAssemblyCosts[subAssembly.Id] : 0;
+                    totalSubAssemblyCost += cost;
+                    
+                    <tr>
+                      <td>
+                        <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
+                          <strong>@subAssembly.BomNumber</strong>
+                        </a>
+                        <br>
+                        <small class="text-muted">@subAssembly.Description</small>
+                      </td>
+                      <td>@subAssembly.AssemblyPartNumber</td>
+                      <td>
+                        <span class="badge bg-info">@subAssembly.Version</span>
+                      </td>
+                      <td>
+                        <span class="badge bg-secondary">@subAssembly.BomItems.Count</span>
+                        <small class="text-muted">components</small>
+                      </td>
+                      <td>
+                        <strong class="text-success">@cost.ToString("C")</strong>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary" title="View Details">
+                            <i class="fas fa-eye"></i>
+                          </a>
+                          <a href="/Boms/CostReport/@subAssembly.Id" class="btn btn-outline-success" title="Cost Report">
+                            <i class="fas fa-dollar-sign"></i>
+                          </a>
+                          <a href="/Boms/Visualize/@subAssembly.Id" class="btn btn-outline-info" title="Visualize">
+                            <i class="fas fa-sitemap"></i>
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="4">Total Sub-Assembly Cost:</th>
+                    <th><strong class="text-success">@totalSubAssemblyCost.ToString("C")</strong></th>
+                    <th></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            
+            <!-- Enhanced Cost Summary -->
+            <div class="row mt-3">
+              <div class="col-md-4">
+                <div class="card bg-light">
+                  <div class="card-body text-center py-2">
+                    <h6 class="card-title text-primary mb-1">Direct Components</h6>
+                    <h5 class="text-primary mb-0">
+                      @{
+                        var directComponentsCost = Model.BomItems?.Sum(bi => bi.ExtendedCost) ?? 0;
+                      }
+                      @directComponentsCost.ToString("C")
+                    </h5>
+                    <small class="text-muted">@(Model.BomItems?.Count ?? 0) items</small>
                   </div>
                 </div>
-              }
+              </div>
+              <div class="col-md-4">
+                <div class="card bg-light">
+                  <div class="card-body text-center py-2">
+                    <h6 class="card-title text-info mb-1">Sub-Assemblies</h6>
+                    <h5 class="text-info mb-0">@totalSubAssemblyCost.ToString("C")</h5>
+                    <small class="text-muted">@Model.SubAssemblies.Count assemblies</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="card bg-success text-white">
+                  <div class="card-body text-center py-2">
+                    <h6 class="card-title mb-1">Total BOM Cost</h6>
+                    <h5 class="mb-0">@((directComponentsCost + totalSubAssemblyCost).ToString("C"))</h5>
+                    <small>Complete assembly</small>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -426,7 +528,7 @@
           </div>
           <div class="col-6">
             <h5 class="text-info">@(Model.SubAssemblies?.Count ?? 0)</h5>
-            <small class="text-muted">Sub-Assemblies</small>
+            <small class="textMuted">Sub-Assemblies</small>
           </div>
         </div>
         <hr>
