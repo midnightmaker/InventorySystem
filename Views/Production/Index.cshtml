@@ -767,11 +767,15 @@
 
               const productionId = this.getAttribute('data-production-id');
               if (productionId) {
+                  // Show loading indicator for navigation
+                  if (window.LoadingIndicator) {
+                      window.LoadingIndicator.showForOperation('loading-production');
+                  }
                   window.location.href = '/Production/Details/' + productionId;
               }
           });
 
-          // Add hover effect
+          // Add hover effect for better UX
           row.addEventListener('mouseenter', function() {
               if (!this.classList.contains('table-active')) {
                   this.style.backgroundColor = '#f8f9fa';
@@ -785,11 +789,51 @@
           });
       });
 
-      // Prevent action buttons from triggering row click
+      // Enhanced action button handlers
       const actionButtons = document.querySelectorAll('.btn-group a, .btn-group button');
       actionButtons.forEach(function(button) {
           button.addEventListener('click', function(e) {
               e.stopPropagation();
+              
+              // Add loading indicators for specific actions
+              const href = this.getAttribute('href');
+              if (href && window.LoadingIndicator) {
+                  if (href.includes('/Details/')) {
+                      window.LoadingIndicator.showForOperation('loading-production');
+                  } else if (href.includes('/Edit/')) {
+                      window.LoadingIndicator.show('Loading Production Editor...', 'Preparing production for editing');
+                  } else if (href.includes('/Complete/')) {
+                      window.LoadingIndicator.show('Completing Production...', 'Processing production completion');
+                  } else if (href.includes('/MaterialShortage/')) {
+                      window.LoadingIndicator.show('Analyzing Material Shortage...', 'Checking inventory availability');
+                  }
+              }
+          });
+      });
+
+      // Add loading to main navigation buttons
+      document.querySelectorAll('a[href*="/Production/"], a[href*="/WipDashboard/"]').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+              if (window.LoadingIndicator) {
+                  if (this.href && this.href.includes('/BuildBom')) {
+                      window.LoadingIndicator.show('Loading BOM Builder...', 'Preparing production planning');
+                  } else if (this.href && this.href.includes('/FinishedGoods')) {
+                      window.LoadingIndicator.show('Loading Finished Goods...', 'Fetching completed production data');
+                  } else if (this.href && this.href.includes('/WipDashboard')) {
+                      window.LoadingIndicator.show('Loading WIP Dashboard...', 'Fetching work-in-progress data');
+                  } else if (this.href && this.href.includes('/Kanban')) {
+                      window.LoadingIndicator.show('Loading Kanban Board...', 'Preparing workflow visualization');
+                  }
+              }
+          });
+      });
+
+      // Add loading to form submissions
+      document.querySelectorAll('form').forEach(form => {
+          form.addEventListener('submit', function(e) {
+              if (window.LoadingIndicator) {
+                  window.LoadingIndicator.show('Processing Request...', 'Submitting production data');
+              }
           });
       });
   });

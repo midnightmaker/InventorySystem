@@ -425,15 +425,443 @@
       &copy; 2025 - Inventory Management System -
       <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a> |
       <a href="#" onclick="showSystemInfo()">System Info</a> |
+      <a href="#" onclick="testLoadingIndicator()" title="Test Loading Indicator">Test Loading</a> |
+      <a href="#" onclick="diagnoseLoadingIndicator()" title="Diagnose Loading System">Diagnose</a> |
       <span class="small">v2.0 with Workflow</span>
     </div>
   </footer>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="~/js/site.js" asp-append-version="true"></script>
-
   
+  <!-- Embedded Loading Indicator System (inline for reliability) -->
+  <script>
+    // ===== EMBEDDED LOADING INDICATOR SYSTEM =====
+    const LoadingIndicator = {
+        isInitialized: false,
+        isShowing: false,
+        timeoutId: null,
+        minDisplayTime: 300,
+        showDelay: 150, // Restored 150ms delay to prevent flickering on fast operations
+
+        init: function() {
+            if (this.isInitialized) return;
+
+            console.log('Initializing embedded LoadingIndicator...');
+
+            // Create the loading overlay HTML
+            const loadingHTML = `
+                <div id="globalLoadingOverlay" style="display: none;">
+                    <div class="loading-backdrop"></div>
+                    <div class="loading-content">
+                        <div class="loading-spinner">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="loading-text">Loading...</div>
+                        <div class="loading-subtext">Please wait while the page loads</div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', loadingHTML);
+            this.addStyles();
+            this.setupNavigationListeners();
+            this.isInitialized = true;
+            console.log('Embedded LoadingIndicator initialized successfully');
+        },
+
+        addStyles: function() {
+            if (document.getElementById('loading-indicator-styles')) return;
+
+            const styles = `
+                <style id="loading-indicator-styles">
+                    #globalLoadingOverlay {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        z-index: 9999;
+                        pointer-events: none;
+                        opacity: 0;
+                        transition: opacity 0.2s ease-in-out;
+                    }
+                    
+                    #globalLoadingOverlay.show {
+                        opacity: 1;
+                    }
+
+                    .loading-backdrop {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(255, 255, 255, 0.85);
+                        backdrop-filter: blur(2px);
+                    }
+
+                    .loading-content {
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        text-align: center;
+                        background: white;
+                        padding: 2rem;
+                        border-radius: 12px;
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        min-width: 250px;
+                    }
+
+                    .loading-spinner {
+                        margin-bottom: 1rem;
+                    }
+
+                    .loading-spinner .spinner-border {
+                        width: 3rem;
+                        height: 3rem;
+                        border-width: 0.3em;
+                    }
+
+                    .loading-text {
+                        font-size: 1.1rem;
+                        font-weight: 600;
+                        color: #333;
+                        margin-bottom: 0.5rem;
+                    }
+
+                    .loading-subtext {
+                        font-size: 0.9rem;
+                        color: #6c757d;
+                    }
+
+                    body.loading {
+                        cursor: wait !important;
+                    }
+
+                    body.loading * {
+                        cursor: wait !important;
+                    }
+                </style>
+            `;
+            
+            document.head.insertAdjacentHTML('beforeend', styles);
+        },
+
+        show: function(message = 'Loading...', subtext = 'Please wait while the page loads', immediate = false) {
+            if (!this.isInitialized) {
+                console.log('LoadingIndicator not initialized, initializing now...');
+                this.init();
+            }
+
+            if (this.isShowing) return;
+
+            clearTimeout(this.timeoutId);
+            
+            // Use immediate mode or default delay  
+            const delay = immediate ? 0 : this.showDelay;
+            
+            this.timeoutId = setTimeout(() => {
+                const overlay = document.getElementById('globalLoadingOverlay');
+                if (!overlay) return;
+
+                const textElement = overlay.querySelector('.loading-text');
+                const subtextElement = overlay.querySelector('.loading-subtext');
+                
+                if (textElement) textElement.textContent = message;
+                if (subtextElement) subtextElement.textContent = subtext;
+                
+                overlay.style.display = 'block';
+                document.body.classList.add('loading');
+                
+                requestAnimationFrame(() => {
+                    overlay.classList.add('show');
+                });
+                
+                this.isShowing = true;
+                console.log('? Loading indicator displayed:', message);
+            }, delay);
+        },
+
+        hide: function(force = false) {
+            clearTimeout(this.timeoutId);
+            
+            if (!this.isShowing) return;
+
+            // Add protection against hiding too early during navigation
+            // unless explicitly forced
+            if (!force && this.timeoutId && Date.now() - this.navigationStartTime < 1000) {
+                console.log('??? Protection: Not hiding loading indicator too early during navigation');
+                return;
+            }
+
+            console.log('LoadingIndicator.hide called');
+            const overlay = document.getElementById('globalLoadingOverlay');
+            if (!overlay) return;
+            
+            setTimeout(() => {
+                overlay.classList.remove('show');
+                document.body.classList.remove('loading');
+                
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    this.isShowing = false;
+                    console.log('? Loading indicator hidden');
+                }, 200);
+            }, this.minDisplayTime);
+        },
+
+        setupNavigationListeners: function() {
+            console.log('?? Setting up navigation listeners...');
+            
+            // Navigation links - using event delegation for better performance
+            document.addEventListener('click', (e) => {
+                const link = e.target.closest('a[href]');
+                if (!link) return;
+
+                const href = link.getAttribute('href');
+                console.log('?? Link clicked:', href, 'Element:', link);
+                
+                if (!href || 
+                    href.startsWith('#') || 
+                    href.startsWith('mailto:') || 
+                    href.startsWith('tel:') ||
+                    href.includes('download') ||
+                    href.includes('javascript:') ||
+                    link.target === '_blank' ||
+                    link.hasAttribute('download') ||
+                    href === window.location.pathname + window.location.search) {
+                    console.log('?? Skipping link:', href);
+                    return;
+                }
+
+                // Enhanced message detection with specific Details page handling
+                let message = 'Loading...';
+                let subtext = 'Please wait';
+                
+                // Check for specific Details pages first
+                if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
+                    if (href.includes('/Items/Details/') || href.match(/\/Items\/\d+$/)) {
+                        message = 'Loading Item Details...';
+                        subtext = 'Fetching complete item information';
+                    } else if (href.includes('/Vendors/Details/') || href.match(/\/Vendors\/\d+$/)) {
+                        message = 'Loading Vendor Details...';
+                        subtext = 'Fetching vendor information and relationships';
+                    } else if (href.includes('/Customers/Details/') || href.match(/\/Customers\/\d+$/)) {
+                        message = 'Loading Customer Details...';
+                        subtext = 'Fetching customer profile and history';
+                    } else if (href.includes('/Sales/Details/') || href.match(/\/Sales\/\d+$/)) {
+                        message = 'Loading Sale Details...';
+                        subtext = 'Fetching order details and status';
+                    } else if (href.includes('/Production/Details/') || href.match(/\/Production\/\d+$/)) {
+                        message = 'Loading Production Details...';
+                        subtext = 'Fetching production status and progress';
+                    } else if (href.includes('/Boms/Details/') || href.match(/\/Boms\/\d+$/)) {
+                        message = 'Loading BOM Details...';
+                        subtext = 'Fetching Bill of Materials structure';
+                    } else if (href.includes('/Purchases/Details/') || href.match(/\/Purchases\/\d+$/)) {
+                        message = 'Loading Purchase Details...';
+                        subtext = 'Fetching purchase order information';
+                    } else if (href.includes('/ChangeOrders/Details/') || href.match(/\/ChangeOrders\/\d+$/)) {
+                        message = 'Loading Change Order Details...';
+                        subtext = 'Fetching change order specifications';
+                    } else {
+                        message = 'Loading Details...';
+                        subtext = 'Fetching detailed information';
+                    }
+                }
+                // Check for general section navigation
+                else if (href.includes('/Boms')) {
+                    if (href.includes('/Create')) {
+                        message = 'Loading BOM Creator...';
+                        subtext = 'Preparing new Bill of Materials form';
+                    } else if (href.includes('/Visualize/')) {
+                        message = 'Loading BOM Visualizer...';
+                        subtext = 'Generating interactive BOM diagram';
+                    } else {
+                        message = 'Loading BOMs...';
+                        subtext = 'Fetching Bill of Materials data';
+                    }
+                } else if (href.includes('/Items')) {
+                    if (href.includes('/Create')) {
+                        message = 'Loading Item Creator...';
+                        subtext = 'Preparing new item form';
+                    } else if (href.includes('/Edit/')) {
+                        message = 'Loading Item Editor...';
+                        subtext = 'Preparing item for editing';
+                    } else if (href.includes('/BulkUpload')) {
+                        message = 'Loading Bulk Upload...';
+                        subtext = 'Preparing bulk import interface';
+                    } else {
+                        message = 'Loading Items...';
+                        subtext = 'Fetching inventory data';
+                    }
+                } else if (href.includes('/Vendors')) {
+                    if (href.includes('/Create')) {
+                        message = 'Loading Vendor Creator...';
+                        subtext = 'Preparing new vendor form';
+                    } else if (href.includes('/Edit/')) {
+                        message = 'Loading Vendor Editor...';
+                        subtext = 'Preparing vendor for editing';
+                    } else if (href.includes('/Reports')) {
+                        message = 'Loading Vendor Reports...';
+                        subtext = 'Generating vendor analytics';
+                    } else {
+                        message = 'Loading Vendors...';
+                        subtext = 'Fetching vendor information';
+                    }
+                } else if (href.includes('/Customers')) {
+                    if (href.includes('/Create')) {
+                        message = 'Loading Customer Creator...';
+                        subtext = 'Preparing new customer form';
+                    } else if (href.includes('/Edit/')) {
+                        message = 'Loading Customer Editor...';
+                        subtext = 'Preparing customer for editing';
+                    } else if (href.includes('/Reports')) {
+                        message = 'Loading Customer Reports...';
+                        subtext = 'Generating customer analytics';
+                    } else {
+                        message = 'Loading Customers...';
+                        subtext = 'Fetching customer data';
+                    }
+                } else if (href.includes('/Sales')) {
+                    if (href.includes('/Create')) {
+                        message = 'Loading Sale Creator...';
+                        subtext = 'Preparing new sale form';
+                    } else if (href.includes('/Edit/')) {
+                        message = 'Loading Sale Editor...';
+                        subtext = 'Preparing sale for editing';
+                    } else if (href.includes('/Reports')) {
+                        message = 'Loading Sales Reports...';
+                        subtext = 'Generating sales analytics';
+                    } else if (href.includes('/Backorders')) {
+                        message = 'Loading Backorders...';
+                        subtext = 'Fetching pending orders';
+                    } else {
+                        message = 'Loading Sales...';
+                        subtext = 'Fetching sales information';
+                    }
+                } else if (href.includes('/Production')) {
+                    if (href.includes('/BuildBom')) {
+                        message = 'Loading Production Builder...';
+                        subtext = 'Preparing BOM production interface';
+                    } else if (href.includes('/FinishedGoods')) {
+                        message = 'Loading Finished Goods...';
+                        subtext = 'Fetching completed products';
+                    } else {
+                        message = 'Loading Production...';
+                        subtext = 'Fetching production data';
+                    }
+                } else if (href.includes('/Purchases')) {
+                    if (href.includes('/Create')) {
+                        message = 'Loading Purchase Creator...';
+                        subtext = 'Preparing new purchase order';
+                    } else if (href.includes('/CreateMultiLine')) {
+                        message = 'Loading Multi-Line Purchase...';
+                        subtext = 'Preparing bulk purchase interface';
+                    } else {
+                        message = 'Loading Purchases...';
+                        subtext = 'Fetching purchase data';
+                    }
+                } else if (href.includes('/WipDashboard')) {
+                    if (href.includes('/Kanban')) {
+                        message = 'Loading Kanban Board...';
+                        subtext = 'Fetching workflow visualization';
+                    } else {
+                        message = 'Loading WIP Dashboard...';
+                        subtext = 'Fetching work-in-progress data';
+                    }
+                } else if (href.includes('/Home')) {
+                    message = 'Loading Dashboard...';
+                    subtext = 'Fetching dashboard data';
+                } else {
+                    message = 'Navigating...';
+                    subtext = 'Loading page content';
+                }
+
+                console.log(`?? Navigation detected! Showing: "${message}"`);
+                this.show(message, subtext);
+            });
+
+            // Form submissions
+            document.addEventListener('submit', (e) => {
+                const form = e.target;
+                if (form.enctype === 'multipart/form-data') return;
+
+                this.show('Processing...', 'Submitting form data');
+            });
+
+            // Page events - remove beforeunload to prevent early hiding
+            window.addEventListener('load', () => this.hide());
+        },
+
+        showForOperation: function(operation, immediate = true) {
+            const messages = {
+                // General section loading
+                'loading-bom': { text: 'Loading BOM...', subtext: 'Fetching Bill of Materials data' },
+                'loading-items': { text: 'Loading Items...', subtext: 'Fetching inventory data' },
+                'loading-vendors': { text: 'Loading Vendors...', subtext: 'Fetching vendor information' },
+                'loading-customers': { text: 'Loading Customers...', subtext: 'Fetching customer data' },
+                'loading-sales': { text: 'Loading Sales...', subtext: 'Fetching sales information' },
+                'loading-production': { text: 'Loading Production...', subtext: 'Fetching production data' },
+                'loading-dashboard': { text: 'Loading Dashboard...', subtext: 'Fetching dashboard data' },
+                'loading-purchases': { text: 'Loading Purchases...', subtext: 'Fetching purchase data' },
+                
+                // Specific Details pages
+                'loading-item-details': { text: 'Loading Item Details...', subtext: 'Fetching complete item information' },
+                'loading-vendor-details': { text: 'Loading Vendor Details...', subtext: 'Fetching vendor information and relationships' },
+                'loading-customer-details': { text: 'Loading Customer Details...', subtext: 'Fetching customer profile and history' },
+                'loading-sale-details': { text: 'Loading Sale Details...', subtext: 'Fetching order details and status' },
+                'loading-production-details': { text: 'Loading Production Details...', subtext: 'Fetching production status and progress' },
+                'loading-bom-details': { text: 'Loading BOM Details...', subtext: 'Fetching Bill of Materials structure' },
+                'loading-purchase-details': { text: 'Loading Purchase Details...', subtext: 'Fetching purchase order information' },
+                
+                // Specific actions
+                'loading-editor': { text: 'Loading Editor...', subtext: 'Preparing form for editing' },
+                'loading-creator': { text: 'Loading Creator...', subtext: 'Preparing new item form' },
+                'loading-reports': { text: 'Loading Reports...', subtext: 'Generating analytics and reports' },
+                'loading-visualizer': { text: 'Loading Visualizer...', subtext: 'Generating interactive diagrams' },
+                
+                // Process operations
+                'generating-report': { text: 'Generating Report...', subtext: 'Processing data and calculations' },
+                'uploading': { text: 'Uploading...', subtext: 'Transferring files to server' },
+                'saving': { text: 'Saving...', subtext: 'Updating database records' }
+            };
+
+            const config = messages[operation] || { text: 'Loading...', subtext: 'Please wait' };
+            this.show(config.text, config.subtext, immediate);
+        },
+
+        test: function() {
+            console.log('?? Testing LoadingIndicator...');
+            this.show('Test Loading...', 'This is a test', true);
+            setTimeout(() => this.hide(), 3000);
+        }
+    };
+
+    // Initialize immediately when declared (not waiting for DOMContentLoaded)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('?? DOM loaded, initializing LoadingIndicator...');
+            LoadingIndicator.init();
+        });
+    } else {
+        // DOM is already loaded, initialize immediately
+        console.log('?? DOM already loaded, initializing LoadingIndicator immediately...');
+        LoadingIndicator.init();
+    }
+
+    // Make globally available immediately
+    window.LoadingIndicator = LoadingIndicator;
+  </script>
+  
+  <!-- Try to load site.js but don't depend on it -->
+  <script src="~/js/site.js" asp-append-version="true" onerror="console.log('site.js failed to load, using embedded LoadingIndicator')"></script>
+
   <!-- Global workflow JavaScript -->
   <script>
     // Global notification system
@@ -505,23 +933,134 @@
                 }
             }
         });
+
+        // Enhanced navigation with loading indicators
+        setupEnhancedNavigation();
     });
+
+    // Enhanced Navigation Setup
+    function setupEnhancedNavigation() {
+        console.log('?? Setting up enhanced navigation...');
+        
+        // Add loading indicators for specific page types
+        const navLinks = document.querySelectorAll('.navbar-nav a[href], .dropdown-item[href]');
+        console.log(`?? Found ${navLinks.length} navigation links`);
+        
+        navLinks.forEach((link, index) => {
+            const href = link.getAttribute('href');
+            console.log(`?? Setting up link ${index + 1}: ${href}`);
+            
+            link.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                
+                // Skip if it's not a navigation link
+                if (!href || href.startsWith('#') || href.startsWith('mailto:') || this.target === '_blank') {
+                    console.log('?? Enhanced nav: Skipping link:', href);
+                    return;
+                }
+
+                console.log('?? Enhanced navigation click:', href);
+
+                // Determine the operation type for custom loading messages
+                let operation = 'loading';
+                
+                // Check for specific Details pages first
+                if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
+                    if (href.includes('/Items/Details/') || href.match(/\/Items\/\d+$/)) {
+                        operation = 'loading-item-details';
+                    } else if (href.includes('/Vendors/Details/') || href.match(/\/Vendors\/\d+$/)) {
+                        operation = 'loading-vendor-details';
+                    } else if (href.includes('/Customers/Details/') || href.match(/\/Customers\/\d+$/)) {
+                        operation = 'loading-customer-details';
+                    } else if (href.includes('/Sales/Details/') || href.match(/\/Sales\/\d+$/)) {
+                        operation = 'loading-sale-details';
+                    } else if (href.includes('/Production/Details/') || href.match(/\/Production\/\d+$/)) {
+                        operation = 'loading-production-details';
+                    } else if (href.includes('/Boms/Details/') || href.match(/\/Boms\/\d+$/)) {
+                        operation = 'loading-bom-details';
+                    } else if (href.includes('/Purchases/Details/') || href.match(/\/Purchases\/\d+$/)) {
+                        operation = 'loading-purchase-details';
+                    }
+                }
+                // Check for general sections
+                else if (href.includes('/Boms')) {
+                    operation = 'loading-bom';
+                } else if (href.includes('/Items')) {
+                    operation = 'loading-items';
+                } else if (href.includes('/Vendors')) {
+                    operation = 'loading-vendors';
+                } else if (href.includes('/Customers')) {
+                    operation = 'loading-customers';
+                } else if (href.includes('/Sales')) {
+                    operation = 'loading-sales';
+                } else if (href.includes('/Production')) {
+                    operation = 'loading-production';
+                } else if (href.includes('/Purchases')) {
+                    operation = 'loading-purchases';
+                } else if (href.includes('/Home')) {
+                    operation = 'loading-dashboard';
+                }
+
+                // Show appropriate loading indicator with immediate mode
+                if (window.LoadingIndicator) {
+                    console.log(`? Enhanced nav: Showing loading for operation: ${operation}`);
+                    window.LoadingIndicator.showForOperation(operation, true); // Always immediate
+                } else {
+                    console.error('? LoadingIndicator not available in enhanced nav!');
+                }
+            });
+        });
+
+        console.log('? Enhanced navigation setup complete');
+
+        // Enhanced form submission handling
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const submitButton = this.querySelector('button[type="submit"], input[type="submit"]');
+                
+                if (submitButton && window.LoadingIndicator) {
+                    // Show appropriate loading message
+                    const action = this.getAttribute('action') || '';
+                    let operation = 'saving';
+                    
+                    if (action.includes('Upload') || this.enctype === 'multipart/form-data') {
+                        operation = 'uploading';
+                    } else if (action.includes('Report')) {
+                        operation = 'generating-report';
+                    }
+                    
+                    console.log('?? Form submission with operation:', operation);
+                    window.LoadingIndicator.showForOperation(operation, false); // Forms can have delay
+                }
+            });
+        });
+    }
 
     // Quick keyboard shortcuts
     document.addEventListener('keydown', function(e) {
         // Ctrl+Shift+P = Quick Production
         if (e.ctrlKey && e.shiftKey && e.key === 'P') {
             e.preventDefault();
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.showForOperation('loading-production');
+            }
             window.location.href = '/Production/BuildBom';
         }
         // Ctrl+Shift+D = Dashboard
         if (e.ctrlKey && e.shiftKey && e.key === 'D') {
             e.preventDefault();
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.show('Loading Dashboard...', 'Fetching dashboard data');
+            }
             window.location.href = '/WipDashboard';
         }
         // Ctrl+Shift+I = Items
         if (e.ctrlKey && e.shiftKey && e.key === 'I') {
             e.preventDefault();
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.showForOperation('loading-items');
+            }
             window.location.href = '/Items';
         }
     });
@@ -531,11 +1070,77 @@
         // Show a simple prompt to select BOM
         const bomId = prompt('Enter BOM ID to visualize:');
         if (bomId && !isNaN(bomId)) {
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.showForOperation('loading-bom');
+            }
             window.location.href = `/Boms/Visualize/${bomId}`;
         } else if (bomId) {
             alert('Please enter a valid BOM ID number');
         }
     }
+
+    // Global error handler for AJAX requests
+    window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled promise rejection:', event.reason);
+        if (window.LoadingIndicator) {
+            window.LoadingIndicator.hide();
+        }
+        showNotification('An error occurred while loading data. Please try again.', 'danger');
+    });
+
+    // Add loading indicator test functionality (for debugging)
+    window.testLoadingIndicator = function() {
+        console.log('Testing LoadingIndicator...');
+        if (window.LoadingIndicator) {
+            if (window.LoadingIndicator.isInitialized) {
+                window.LoadingIndicator.test();
+            } else {
+                console.error('LoadingIndicator not initialized!');
+                alert('LoadingIndicator not initialized! Check console for errors.');
+            }
+        } else {
+            console.error('LoadingIndicator not found!');
+            alert('LoadingIndicator not found! This should not happen with embedded system.');
+        }
+    };
+
+    // Diagnostic function
+    window.diagnoseLoadingIndicator = function() {
+        console.log('=== LoadingIndicator Diagnostics ===');
+        console.log('LoadingIndicator exists:', !!window.LoadingIndicator);
+        console.log('IsInitialized:', window.LoadingIndicator?.isInitialized);
+        console.log('IsShowing:', window.LoadingIndicator?.isShowing);
+        console.log('Overlay exists:', !!document.getElementById('globalLoadingOverlay'));
+        console.log('Styles exist:', !!document.getElementById('loading-indicator-styles'));
+        console.log('jQuery available:', !!window.jQuery);
+        console.log('External site.js PaymentValidation:', !!window.PaymentValidation);
+        
+        // Show diagnostic results
+        const results = `
+EMBEDDED LOADING SYSTEM:
+- LoadingIndicator exists: ${!!window.LoadingIndicator}
+- IsInitialized: ${window.LoadingIndicator?.isInitialized}
+- IsShowing: ${window.LoadingIndicator?.isShowing}
+- Overlay exists: ${!!document.getElementById('globalLoadingOverlay')}
+- Styles exist: ${!!document.getElementById('loading-indicator-styles')}
+
+ENVIRONMENT:
+- jQuery available: ${!!window.jQuery}
+- External site.js loaded: ${!!window.PaymentValidation}
+- DOM ready: ${document.readyState}
+        `;
+        
+        alert('LoadingIndicator Diagnostics:\n' + results);
+        
+        // Test the system
+        if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+            console.log('Running quick test...');
+            window.LoadingIndicator.show('Diagnostic Test', 'System is working!');
+            setTimeout(() => {
+                window.LoadingIndicator.hide();
+            }, 2000);
+        }
+    };
   </script>
 
   @await RenderSectionAsync("Scripts", required: false)

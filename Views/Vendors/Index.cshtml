@@ -655,6 +655,10 @@
 
               const vendorId = this.getAttribute('data-vendor-id');
               if (vendorId) {
+                  // Show loading indicator for navigation to vendor details
+                  if (window.LoadingIndicator) {
+                      window.LoadingIndicator.showForOperation('loading-vendor-details');
+                  }
                   window.location.href = '/Vendors/Details/' + vendorId;
               }
           });
@@ -678,6 +682,80 @@
       actionButtons.forEach(function(button) {
           button.addEventListener('click', function(e) {
               e.stopPropagation();
+              
+              // Add loading indicators for specific actions
+              const href = this.getAttribute('href');
+              if (href && window.LoadingIndicator) {
+                  if (href.includes('/Details/')) {
+                      window.LoadingIndicator.showForOperation('loading-vendor-details');
+                  } else if (href.includes('/Edit/')) {
+                      window.LoadingIndicator.showForOperation('loading-editor');
+                  } else if (href.includes('/ManageItems/')) {
+                      window.LoadingIndicator.show('Loading Item Manager...', 'Preparing vendor item management');
+                  }
+              }
+          });
+      });
+
+      // Add loading to main action buttons
+      document.querySelectorAll('a[asp-action], button[onclick]').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+              if (window.LoadingIndicator) {
+                  if (this.href && this.href.includes('/Create')) {
+                      window.LoadingIndicator.show('Loading Vendor Creator...', 'Preparing new vendor form');
+                  } else if (this.href && this.href.includes('/BulkUpload')) {
+                      window.LoadingIndicator.show('Loading Bulk Upload...', 'Preparing bulk vendor upload');
+                  } else if (this.href && this.href.includes('/Reports')) {
+                      window.LoadingIndicator.showForOperation('generating-report');
+                  }
+              }
+          });
+      });
+
+      // Add loading to pagination links
+      document.querySelectorAll('.pagination .page-link').forEach(link => {
+          link.addEventListener('click', function(e) {
+              if (!this.closest('.page-item').classList.contains('disabled')) {
+                  if (window.LoadingIndicator) {
+                      window.LoadingIndicator.show('Loading Page...', 'Fetching vendors for page ' + this.textContent);
+                  }
+              }
+          });
+      });
+
+      // Add loading to sort links
+      document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(link => {
+          link.addEventListener('click', function(e) {
+              if (window.LoadingIndicator) {
+                  window.LoadingIndicator.show('Sorting Vendors...', 'Applying sort: ' + this.textContent.trim());
+              }
+          });
+      });
+
+      // Add loading to search form submission
+      document.querySelector('form').addEventListener('submit', function(e) {
+          if (window.LoadingIndicator) {
+              const searchTerm = document.getElementById('search').value;
+              if (searchTerm) {
+                  window.LoadingIndicator.show('Searching Vendors...', `Looking for "${searchTerm}"`);
+              } else {
+                  window.LoadingIndicator.show('Filtering Vendors...', 'Applying filters to vendor list');
+              }
+          }
+      });
+
+      // Add loading to quick filter buttons
+      document.querySelectorAll('button[onclick*="quickFilter"]').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+              if (window.LoadingIndicator) {
+                  const filterType = this.onclick.toString().match(/quickFilter\('(.+?)'\)/)[1];
+                  const filterName = {
+                      'active': 'Active Vendors',
+                      'preferred': 'Preferred Vendors', 
+                      'excellent': 'Excellent Rated Vendors'
+                  }[filterType] || 'Vendors';
+                  window.LoadingIndicator.show('Filtering Vendors...', `Loading ${filterName}`);
+              }
           });
       });
   });
@@ -729,11 +807,25 @@
       const params = new URLSearchParams(window.location.search);
       params.set('export', 'true');
 
+      // Show loading for export operation
+      if (window.LoadingIndicator) {
+          window.LoadingIndicator.showForOperation('generating-report');
+      }
+
       // In a real application, this would trigger a CSV/Excel download
-      alert('Export functionality would download filtered results as CSV/Excel file.');
+      setTimeout(() => {
+          if (window.LoadingIndicator) {
+              window.LoadingIndicator.hide();
+          }
+          alert('Export functionality would download filtered results as CSV/Excel file.');
+      }, 2000);
   }
 
   function changePageSize(size) {
+      if (window.LoadingIndicator) {
+          window.LoadingIndicator.show('Loading Page...', `Fetching ${size} vendors per page`);
+      }
+      
       const params = new URLSearchParams(window.location.search);
       params.set('pageSize', size);
       params.set('page', 1); // Reset to first page on page size change

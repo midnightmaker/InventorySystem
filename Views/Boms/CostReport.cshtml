@@ -14,13 +14,13 @@
         </button>
         @if (!explodeSubAssemblies)
         {
-            <a href="/Boms/CostReport/@Model.Id?explodeSubAssemblies=true" class="btn btn-outline-success">
+            <a href="/Boms/CostReport/@Model.Id?explodeSubAssemblies=true" class="btn btn-outline-success" onclick="handleExplodeSubAssemblies(event, this)">
                 <i class="fas fa-expand-arrows-alt"></i> Explode Sub-Assemblies
             </a>
         }
         else
         {
-            <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-warning">
+            <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-warning" onclick="handleCollapseView(event, this)">
                 <i class="fas fa-compress-arrows-alt"></i> Collapse View
             </a>
         }
@@ -416,3 +416,110 @@ else
     .fs-4 { font-size: 1.5rem !important; }
     .table-secondary { background-color: #f8f9fa !important; }
 </style>
+
+<script>
+    // Enhanced loading handlers for BOM Cost Report operations
+    function handleExplodeSubAssemblies(event, button) {
+        event.preventDefault();
+        
+        if (window.LoadingIndicator) {
+            window.LoadingIndicator.show(
+                'Exploding Sub-Assemblies...', 
+                'Analyzing and expanding all BOM levels for detailed cost breakdown'
+            );
+            window.LoadingIndicator.setButtonLoading(button, true);
+        }
+        
+        // Navigate to the exploded view
+        setTimeout(() => {
+            window.location.href = button.getAttribute('href');
+        }, 100);
+    }
+
+    function handleCollapseView(event, button) {
+        event.preventDefault();
+        
+        if (window.LoadingIndicator) {
+            window.LoadingIndicator.show(
+                'Collapsing View...', 
+                'Returning to standard BOM cost summary view'
+            );
+            window.LoadingIndicator.setButtonLoading(button, true);
+        }
+        
+        // Navigate to the collapsed view
+        setTimeout(() => {
+            window.location.href = button.getAttribute('href');
+        }, 100);
+    }
+
+    // Enhanced handlers for sub-assembly cost report links
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add loading indicators to sub-assembly cost report links
+        const costReportLinks = document.querySelectorAll('a[href*="/Boms/CostReport/"]');
+        
+        costReportLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                // Skip if it's the current page links we already handled
+                if (this.onclick) return;
+                
+                if (window.LoadingIndicator) {
+                    if (this.href.includes('explodeSubAssemblies=true')) {
+                        window.LoadingIndicator.show(
+                            'Loading Exploded Report...', 
+                            'Generating detailed sub-assembly cost breakdown'
+                        );
+                    } else {
+                        window.LoadingIndicator.show(
+                            'Loading Cost Report...', 
+                            'Generating BOM cost analysis'
+                        );
+                    }
+                }
+            });
+        });
+
+        // Add loading indicators to navigation links
+        const navLinks = document.querySelectorAll('a[href*="/Boms/Details/"], a[href="/Boms"]');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (window.LoadingIndicator) {
+                    if (this.href.includes('/Boms/Details/')) {
+                        window.LoadingIndicator.showForOperation('loading-bom');
+                    } else {
+                        window.LoadingIndicator.show('Loading BOMs...', 'Returning to BOM list');
+                    }
+                }
+            });
+        });
+
+        // Hide loading indicator when page is fully loaded
+        window.addEventListener('load', function() {
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.hide();
+            }
+        });
+    });
+
+    // Print handler with loading indication
+    function handlePrint() {
+        if (window.LoadingIndicator) {
+            window.LoadingIndicator.show('Preparing Print...', 'Formatting report for printing');
+        }
+        
+        setTimeout(() => {
+            window.print();
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.hide();
+            }
+        }, 500);
+    }
+
+    // Update the print button to use the enhanced handler
+    document.addEventListener('DOMContentLoaded', function() {
+        const printButton = document.querySelector('button[onclick="window.print()"]');
+        if (printButton) {
+            printButton.onclick = handlePrint;
+        }
+    });
+</script>

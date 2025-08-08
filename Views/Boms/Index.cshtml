@@ -657,6 +657,10 @@
 
               const bomId = this.getAttribute('data-bom-id');
               if (bomId) {
+                  // Show loading indicator for navigation
+                  if (window.LoadingIndicator) {
+                      window.LoadingIndicator.showForOperation('loading-bom');
+                  }
                   window.location.href = '/Boms/Details/' + bomId;
               }
           });
@@ -680,6 +684,95 @@
       actionButtons.forEach(function(button) {
           button.addEventListener('click', function(e) {
               e.stopPropagation();
+              
+              // Add loading indicators for specific actions
+              const href = this.getAttribute('href');
+              if (href && window.LoadingIndicator) {
+                  if (href.includes('/Details/')) {
+                      window.LoadingIndicator.showForOperation('loading-bom');
+                  } else if (href.includes('/Edit/')) {
+                      window.LoadingIndicator.show('Loading BOM Editor...', 'Preparing BOM for editing');
+                  } else if (href.includes('/AddItem')) {
+                      window.LoadingIndicator.show('Loading Component Manager...', 'Adding components to BOM');
+                  } else if (href.includes('/Visualize/')) {
+                      window.LoadingIndicator.show('Loading BOM Visualizer...', 'Generating interactive BOM diagram');
+                  }
+              }
+          });
+      });
+
+      // Add loading to main action buttons
+      document.querySelectorAll('a[href*="/Boms/"], button[onclick]').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+              if (window.LoadingIndicator) {
+                  if (this.href && this.href.includes('/Create')) {
+                      window.LoadingIndicator.show('Loading BOM Creator...', 'Preparing new BOM form');
+                  } else if (this.href && this.href.includes('/Import')) {
+                      window.LoadingIndicator.show('Loading BOM Importer...', 'Preparing CSV import interface');
+                  } else if (this.onclick && this.onclick.toString().includes('exportBoms')) {
+                      window.LoadingIndicator.showForOperation('generating-report');
+                  }
+              }
+          });
+      });
+
+      // Add loading to pagination links
+      document.querySelectorAll('.pagination .page-link').forEach(link => {
+          link.addEventListener('click', function(e) {
+              if (!this.closest('.page-item').classList.contains('disabled')) {
+                  if (window.LoadingIndicator) {
+                      window.LoadingIndicator.show('Loading Page...', 'Fetching BOMs for page ' + this.textContent);
+                  }
+              }
+          });
+      });
+
+      // Add loading to sort links
+      document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(link => {
+          link.addEventListener('click', function(e) {
+              if (window.LoadingIndicator) {
+                  window.LoadingIndicator.show('Sorting BOMs...', 'Applying sort: ' + this.textContent.trim());
+              }
+          });
+      });
+
+      // Add loading to search form submission
+      document.querySelector('form').addEventListener('submit', function(e) {
+          if (window.LoadingIndicator) {
+              const searchTerm = document.getElementById('search').value;
+              if (searchTerm) {
+                  window.LoadingIndicator.show('Searching BOMs...', `Looking for "${searchTerm}"`);
+              } else {
+                  window.LoadingIndicator.show('Filtering BOMs...', 'Applying filters to BOM list');
+              }
+          }
+      });
+
+      // Add loading to quick filter buttons
+      document.querySelectorAll('button[onclick*="quickFilter"]').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+              if (window.LoadingIndicator) {
+                  const filterType = this.onclick.toString().match(/quickFilter\('(.+?)'\)/)[1];
+                  const filterName = {
+                      'main': 'Main Assembly BOMs',
+                      'withitems': 'BOMs with Components', 
+                      'current': 'Current Version BOMs'
+                  }[filterType] || 'BOMs';
+                  window.LoadingIndicator.show('Filtering BOMs...', `Loading ${filterName}`);
+              }
+          });
+      });
+
+      // Add loading to More Actions dropdown items
+      document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(link => {
+          link.addEventListener('click', function(e) {
+              if (window.LoadingIndicator) {
+                  if (this.href && this.href.includes('/Import')) {
+                      window.LoadingIndicator.show('Loading BOM Importer...', 'Preparing CSV import');
+                  } else if (this.href && this.href.includes('/DownloadSample')) {
+                      window.LoadingIndicator.show('Generating Sample...', 'Creating sample CSV file');
+                  }
+              }
           });
       });
   });
@@ -731,11 +824,25 @@
       const params = new URLSearchParams(window.location.search);
       params.set('export', 'true');
 
+      // Show loading for export operation
+      if (window.LoadingIndicator) {
+          window.LoadingIndicator.showForOperation('generating-report');
+      }
+
       // In a real application, this would trigger a CSV/Excel download
-      alert('Export functionality would download filtered results as CSV/Excel file.');
+      setTimeout(() => {
+          if (window.LoadingIndicator) {
+              window.LoadingIndicator.hide();
+          }
+          alert('Export functionality would download filtered results as CSV/Excel file.');
+      }, 2000);
   }
 
   function changePageSize(size) {
+      if (window.LoadingIndicator) {
+          window.LoadingIndicator.show('Loading Page...', `Fetching ${size} BOMs per page`);
+      }
+      
       const params = new URLSearchParams(window.location.search);
       params.set('pageSize', size);
       params.set('page', 1); // Reset to first page on page size change

@@ -74,40 +74,6 @@
     </div>
     <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
       <div class="card-body">
-        <!-- Search Examples -->
-        <div class="row mb-4 p-3 bg-light border rounded">
-          <div class="col-12">
-            <h6><i class="fas fa-lightbulb text-info"></i> Search Examples</h6>
-          </div>
-          <div class="col-md-4">
-            <h6 class="small">Wildcard Search:</h6>
-            <ul class="list-unstyled small">
-              <li><code>ABC-*</code> - Parts starting with "ABC-"</li>
-              <li><code>*resistor*</code> - Contains "resistor"</li>
-              <li><code>R?5</code> - R + any char + 5 (R15, R25, etc.)</li>
-              <li><code>CAP-10?F</code> - CAP-10[x]F patterns</li>
-            </ul>
-          </div>
-          <div class="col-md-4">
-            <h6 class="small">Search Fields:</h6>
-            <ul class="list-unstyled small">
-              <li><i class="fas fa-hashtag"></i> Part number</li>
-              <li><i class="fas fa-align-left"></i> Description</li>
-              <li><i class="fas fa-sticky-note"></i> Comments</li>
-              <li><i class="fas fa-barcode"></i> Vendor part number</li>
-            </ul>
-          </div>
-          <div class="col-md-4">
-            <h6 class="small">Quick Filters:</h6>
-            <ul class="list-unstyled small">
-              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('lowstock')">Low stock items</button></li>
-              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('outofstock')">Out of stock</button></li>
-              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('inventoried')">Inventoried only</button></li>
-              <li><button class="btn btn-link btn-sm p-0" onclick="clearAllFilters()">Clear all filters</button></li>
-            </ul>
-          </div>
-        </div>
-
         <!-- Search Form -->
         <form method="get" class="row g-3">
           <div class="col-md-4">
@@ -119,16 +85,19 @@
                    id="search"
                    name="search"
                    value="@searchTerm"
-                   placeholder="Part number, description, comments... (use * and ? for wildcards)">
-            <div class="form-text">Use * for multiple chars, ? for single char</div>
+                   placeholder="Part number, description, comments...">
           </div>
 
           <div class="col-md-2">
             <label for="itemTypeFilter" class="form-label">
               <i class="fas fa-tag"></i> Item Type
             </label>
-            <select class="form-select" id="itemTypeFilter" name="itemTypeFilter" asp-items="ViewBag.ItemTypeOptions">
+            <select class="form-select" id="itemTypeFilter" name="itemTypeFilter">
               <option value="">All Types</option>
+              <option value="Inventoried" selected="@(itemTypeFilter == "Inventoried")">Inventoried</option>
+              <option value="NonInventoried" selected="@(itemTypeFilter == "NonInventoried")">Non-Inventoried</option>
+              <option value="Service" selected="@(itemTypeFilter == "Service")">Service</option>
+              <option value="Virtual" selected="@(itemTypeFilter == "Virtual")">Virtual</option>
             </select>
           </div>
 
@@ -136,8 +105,11 @@
             <label for="stockLevelFilter" class="form-label">
               <i class="fas fa-boxes"></i> Stock Level
             </label>
-            <select class="form-select" id="stockLevelFilter" name="stockLevelFilter" asp-items="ViewBag.StockLevelOptions">
+            <select class="form-select" id="stockLevelFilter" name="stockLevelFilter">
               <option value="">All Levels</option>
+              <option value="low" selected="@(stockLevelFilter == "low")">Low Stock</option>
+              <option value="out" selected="@(stockLevelFilter == "out")">Out of Stock</option>
+              <option value="normal" selected="@(stockLevelFilter == "normal")">Normal Stock</option>
             </select>
           </div>
 
@@ -172,9 +144,6 @@
               <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
                 <i class="fas fa-times"></i> Clear
               </button>
-              <button type="button" class="btn btn-outline-info" onclick="saveSearch()">
-                <i class="fas fa-bookmark"></i> Save Search
-              </button>
             </div>
           </div>
         </form>
@@ -187,17 +156,11 @@
   {
     <div class="alert alert-info">
       <i class="fas fa-info-circle"></i>
-      Found <strong>@ViewBag.TotalCount</strong> item(s)
-      @if (ViewBag.SearchResultsCount != null && ViewBag.TotalItemsCount != null)
-      {
-        <span>out of @ViewBag.TotalItemsCount total items</span>
-      }
-
+      Found <strong>@(ViewBag.TotalCount ?? Model.Count())</strong> item(s)
       @if (!string.IsNullOrEmpty(searchTerm))
       {
         <span>matching "<strong>@searchTerm</strong>"</span>
       }
-
       <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
         <i class="fas fa-times"></i> Clear All Filters
       </a>
@@ -233,11 +196,6 @@
                 <i class="fas fa-upload"></i> Bulk Upload
               </a>
             </div>
-            <div class="mt-4">
-              <small class="text-muted">
-                Use our <a asp-action="BulkUpload" class="text-decoration-none">bulk upload feature</a> to import from CSV files.
-              </small>
-            </div>
           }
         </div>
       </div>
@@ -249,25 +207,11 @@
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
           <i class="fas fa-list"></i> Items List
-          <span class="badge bg-primary ms-2">@ViewBag.TotalCount records</span>
+          <span class="badge bg-primary ms-2">@(ViewBag.TotalCount ?? Model.Count()) records</span>
         </h5>
 
-        <!-- Sort Options, Page Size, and Pagination Controls -->
+        <!-- Sort and Filter Controls -->
         <div class="d-flex align-items-center gap-3">
-          <!-- Page Size Controls -->
-          <div class="btn-group">
-            <label class="btn btn-outline-secondary btn-sm">
-              Page Size:
-              <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
-                      onchange="changePageSize(this.value)">
-                @foreach (var size in ViewBag.AllowedPageSizes)
-                {
-                  <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
-                }
-              </select>
-            </label>
-          </div>
-
           <!-- Sort Options -->
           <div class="dropdown">
             <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -275,72 +219,39 @@
             </button>
             <ul class="dropdown-menu">
               <li>
-                <a class="dropdown-item @(sortOrder == "partNumber_asc" ? "active" : "")" href="@GetSortUrl("partNumber_asc")">
+                <a class="dropdown-item @(sortOrder == "partNumber_asc" ? "active" : "")" href="?sortOrder=partNumber_asc">
                   <i class="fas fa-hashtag"></i> Part Number (A-Z)
                 </a>
               </li>
               <li>
-                <a class="dropdown-item @(sortOrder == "partNumber_desc" ? "active" : "")" href="@GetSortUrl("partNumber_desc")">
+                <a class="dropdown-item @(sortOrder == "partNumber_desc" ? "active" : "")" href="?sortOrder=partNumber_desc">
                   <i class="fas fa-hashtag"></i> Part Number (Z-A)
                 </a>
               </li>
               <li><hr class="dropdown-divider"></li>
               <li>
-                <a class="dropdown-item @(sortOrder == "description_asc" ? "active" : "")" href="@GetSortUrl("description_asc")">
+                <a class="dropdown-item @(sortOrder == "description_asc" ? "active" : "")" href="?sortOrder=description_asc">
                   <i class="fas fa-align-left"></i> Description (A-Z)
                 </a>
               </li>
               <li>
-                <a class="dropdown-item @(sortOrder == "itemType_asc" ? "active" : "")" href="@GetSortUrl("itemType_asc")">
+                <a class="dropdown-item @(sortOrder == "itemType_asc" ? "active" : "")" href="?sortOrder=itemType_asc">
                   <i class="fas fa-tag"></i> Item Type
                 </a>
               </li>
               <li><hr class="dropdown-divider"></li>
               <li>
-                <a class="dropdown-item @(sortOrder == "stock_desc" ? "active" : "")" href="@GetSortUrl("stock_desc")">
+                <a class="dropdown-item @(sortOrder == "stock_desc" ? "active" : "")" href="?sortOrder=stock_desc">
                   <i class="fas fa-boxes"></i> Stock (High-Low)
                 </a>
               </li>
               <li>
-                <a class="dropdown-item @(sortOrder == "stock_asc" ? "active" : "")" href="@GetSortUrl("stock_asc")">
+                <a class="dropdown-item @(sortOrder == "stock_asc" ? "active" : "")" href="?sortOrder=stock_asc">
                   <i class="fas fa-boxes"></i> Stock (Low-High)
-                </a>
-              </li>
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <a class="dropdown-item @(sortOrder == "created_desc" ? "active" : "")" href="@GetSortUrl("created_desc")">
-                  <i class="fas fa-calendar"></i> Recently Added
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item @(sortOrder == "vendor_asc" ? "active" : "")" href="@GetSortUrl("vendor_asc")">
-                  <i class="fas fa-building"></i> Vendor (A-Z)
                 </a>
               </li>
             </ul>
           </div>
-
-          <!-- Pagination Navigation -->
-          <nav aria-label="Items pagination">
-            <ul class="pagination pagination-sm mb-0">
-              <li class="page-item @(ViewBag.HasPreviousPage ? "" : "disabled")">
-                <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage - 1)">Previous</a>
-              </li>
-              
-              @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); 
-                    i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); 
-                    i++)
-              {
-                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
-                  <a class="page-link" href="@GetPageUrl(i)">@i</a>
-                </li>
-              }
-              
-              <li class="page-item @(ViewBag.HasNextPage ? "" : "disabled")">
-                <a class="page-link" href="@GetPageUrl(ViewBag.CurrentPage + 1)">Next</a>
-              </li>
-            </ul>
-          </nav>
         </div>
       </div>
       <div class="card-body">
@@ -352,52 +263,22 @@
                   <i class="fas fa-image"></i> Image
                 </th>
                 <th>
-                  <a href="@GetSortUrl("partNumber_asc")" class="text-white text-decoration-none">
-                    <i class="fas fa-hashtag"></i> Part Number
-                    @if (sortOrder?.StartsWith("partNumber") == true)
-                    {
-                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
-                    }
-                  </a>
+                  <i class="fas fa-hashtag"></i> Part Number
                 </th>
                 <th>
-                  <a href="@GetSortUrl("description_asc")" class="text-white text-decoration-none">
-                    <i class="fas fa-align-left"></i> Description
-                    @if (sortOrder?.StartsWith("description") == true)
-                    {
-                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
-                    }
-                  </a>
+                  <i class="fas fa-align-left"></i> Description
                 </th>
                 <th>
-                  <a href="@GetSortUrl("itemType_asc")" class="text-white text-decoration-none">
-                    <i class="fas fa-tag"></i> Type
-                    @if (sortOrder?.StartsWith("itemType") == true)
-                    {
-                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
-                    }
-                  </a>
+                  <i class="fas fa-tag"></i> Type
                 </th>
                 <th>
                   <i class="fas fa-code-branch"></i> Version
                 </th>
                 <th>
-                  <a href="@GetSortUrl("stock_desc")" class="text-white text-decoration-none">
-                    <i class="fas fa-boxes"></i> Stock
-                    @if (sortOrder?.StartsWith("stock") == true)
-                    {
-                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
-                    }
-                  </a>
+                  <i class="fas fa-boxes"></i> Stock
                 </th>
                 <th>
-                  <a href="@GetSortUrl("vendor_asc")" class="text-white text-decoration-none">
-                    <i class="fas fa-building"></i> Vendor
-                    @if (sortOrder?.StartsWith("vendor") == true)
-                    {
-                      <i class="fas fa-sort-@(sortOrder.EndsWith("_asc") ? "up" : "down")"></i>
-                    }
-                  </a>
+                  <i class="fas fa-building"></i> Vendor
                 </th>
                 <th>
                   <i class="fas fa-flag"></i> Status
@@ -520,22 +401,7 @@
           </table>
         </div>
 
-        <!-- Pagination Summary -->
-        <div class="row mt-3">
-          <div class="col-md-6">
-            <p class="text-muted mb-0">
-              Showing @ViewBag.ShowingFrom to @ViewBag.ShowingTo of @ViewBag.TotalCount items
-            </p>
-          </div>
-          <div class="col-md-6 text-end">
-            @if (ViewBag.TotalPages > 1)
-            {
-              <small class="text-muted">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</small>
-            }
-          </div>
-        </div>
-
-        <!-- Enhanced Summary Statistics -->
+        <!-- Summary Statistics -->
         <div class="mt-4">
           <div class="row">
             <div class="col-md-2">
@@ -545,7 +411,7 @@
                     <i class="fas fa-cube"></i>
                     Total Items
                   </h6>
-                  <h4 class="text-primary mb-0">@ViewBag.TotalCount</h4>
+                  <h4 class="text-primary mb-0">@(ViewBag.TotalCount ?? Model.Count())</h4>
                 </div>
               </div>
             </div>
@@ -557,17 +423,6 @@
                     Inventoried
                   </h6>
                   <h4 class="text-success mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried)</h4>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-2">
-              <div class="card bg-light">
-                <div class="card-body text-center p-2">
-                  <h6 class="card-title text-info mb-1">
-                    <i class="fas fa-list"></i>
-                    Non-Inventoried
-                  </h6>
-                  <h4 class="text-info mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.NonInventoried)</h4>
                 </div>
               </div>
             </div>
@@ -604,6 +459,17 @@
                 </div>
               </div>
             </div>
+            <div class="col-md-2">
+              <div class="card bg-light">
+                <div class="card-body text-center p-2">
+                  <h6 class="card-title text-info mb-1">
+                    <i class="fas fa-list"></i>
+                    Non-Inventoried
+                  </h6>
+                  <h4 class="text-info mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.NonInventoried)</h4>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -626,134 +492,200 @@
   </div>
 </div>
 
-<!-- Enhanced JavaScript for Search Functionality -->
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-      // Auto-expand search if filtered
-      @if (isFiltered)
-      {
-            <text>
-            const searchCollapse = document.getElementById('searchCollapse');
-            if (searchCollapse && !searchCollapse.classList.contains('show')) {
-                new bootstrap.Collapse(searchCollapse, { show: true });
-            }
-            </text>
+      console.log('Items Index page loading...');
+
+      // Wait for LoadingIndicator to be available and initialized
+      function waitForLoadingIndicator(callback, maxRetries = 10) {
+          let retries = 0;
+          
+          function check() {
+              if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                  console.log('LoadingIndicator ready!');
+                  callback();
+              } else if (retries < maxRetries) {
+                  retries++;
+                  console.log(`Waiting for LoadingIndicator... (attempt ${retries}/${maxRetries})`);
+                  setTimeout(check, 100);
+              } else {
+                  console.error('LoadingIndicator failed to initialize after', maxRetries, 'attempts');
+                  // Use fallback or continue without loading indicators
+                  callback();
+              }
+          }
+          
+          check();
       }
 
-      // Update chevron icon
-      const collapseElement = document.getElementById('searchCollapse');
-      const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down, [data-bs-target="#searchCollapse"] .fa-chevron-up');
+      // Initialize page functionality
+      waitForLoadingIndicator(function() {
+          console.log('LoadingIndicator available:', !!window.LoadingIndicator);
+          console.log('LoadingIndicator initialized:', window.LoadingIndicator?.isInitialized);
 
-      if (collapseElement && chevronIcon) {
-          collapseElement.addEventListener('show.bs.collapse', function () {
-              chevronIcon.classList.remove('fa-chevron-down');
-              chevronIcon.classList.add('fa-chevron-up');
+          // Test the loading indicator
+          if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+              console.log('Items Index page loaded and LoadingIndicator ready');
+              // Remove the automatic test display since it was confusing
+              // The loading indicator should only show when user clicks navigation
+          }
+
+          // Setup page interactions
+          setupPageInteractions();
+      });
+
+      function setupPageInteractions() {
+          // Auto-expand search if filtered
+          @if (isFiltered)
+          {
+                <text>
+                const searchCollapse = document.getElementById('searchCollapse');
+                if (searchCollapse && !searchCollapse.classList.contains('show')) {
+                    new bootstrap.Collapse(searchCollapse, { show: true });
+                }
+                </text>
+          }
+
+          // Update chevron icon
+          const collapseElement = document.getElementById('searchCollapse');
+          const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down, [data-bs-target="#searchCollapse"] .fa-chevron-up');
+
+          if (collapseElement && chevronIcon) {
+              collapseElement.addEventListener('show.bs.collapse', function () {
+                  chevronIcon.classList.remove('fa-chevron-down');
+                  chevronIcon.classList.add('fa-chevron-up');
+              });
+
+              collapseElement.addEventListener('hide.bs.collapse', function () {
+                  chevronIcon.classList.remove('fa-chevron-up');
+                  chevronIcon.classList.add('fa-chevron-down');
+              });
+          }
+
+          // Make table rows clickable
+          const clickableRows = document.querySelectorAll('.clickable-row');
+          console.log('Found clickable rows:', clickableRows.length);
+
+          clickableRows.forEach(function(row) {
+              row.addEventListener('click', function(e) {
+                  // Only proceed if the click wasn't on an action button or link
+                  if (e.target.closest('.btn-group') || e.target.closest('a') || e.target.closest('button')) {
+                      return;
+                  }
+
+                  const itemId = this.getAttribute('data-item-id');
+                  if (itemId) {
+                      console.log('Row clicked, showing loading indicator for item:', itemId);
+                      // Show loading indicator for navigation to item details
+                      if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                          window.LoadingIndicator.showForOperation('loading-item-details');
+                      } else {
+                          console.warn('LoadingIndicator not available for row click');
+                      }
+                      window.location.href = '/Items/Details/' + itemId;
+                  }
+              });
+
+              // Add hover effect
+              row.addEventListener('mouseenter', function() {
+                  if (!this.classList.contains('table-active')) {
+                      this.style.backgroundColor = '#f8f9fa';
+                  }
+              });
+
+              row.addEventListener('mouseleave', function() {
+                  if (!this.classList.contains('table-active')) {
+                      this.style.backgroundColor = '';
+                  }
+              });
           });
 
-          collapseElement.addEventListener('hide.bs.collapse', function () {
-              chevronIcon.classList.remove('fa-chevron-up');
-              chevronIcon.classList.add('fa-chevron-down');
+          // Prevent action buttons from triggering row click
+          const actionButtons = document.querySelectorAll('.btn-group a, .btn-group button');
+          actionButtons.forEach(function(button) {
+              button.addEventListener('click', function(e) {
+                  e.stopPropagation();
+                  
+                  // Add loading indicators for specific actions
+                  const href = this.getAttribute('href');
+                  if (href && window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                      console.log('Action button clicked:', href);
+                      if (href.includes('/Details/')) {
+                          window.LoadingIndicator.showForOperation('loading-item-details');
+                      } else if (href.includes('/Edit/')) {
+                          window.LoadingIndicator.showForOperation('loading-editor');
+                      } else if (href.includes('/Purchases/Create')) {
+                          window.LoadingIndicator.showForOperation('loading-creator');
+                      }
+                  }
+              });
           });
+
+          // Add loading to main action buttons
+          document.querySelectorAll('a[href="/Items/Create"], a[href="/Items/BulkUpload"]').forEach(btn => {
+              btn.addEventListener('click', function(e) {
+                  console.log('Main action button clicked:', this.href);
+                  if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                      if (this.href.includes('/Create')) {
+                          window.LoadingIndicator.show('Loading Item Creator...', 'Preparing new item form');
+                      } else if (this.href.includes('/BulkUpload')) {
+                          window.LoadingIndicator.show('Loading Bulk Upload...', 'Preparing bulk upload interface');
+                      }
+                  }
+              });
+          });
+
+          // Add loading to sort links
+          document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(link => {
+              link.addEventListener('click', function(e) {
+                  if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                      console.log('Sort link clicked:', this.textContent);
+                      window.LoadingIndicator.show('Sorting Items...', 'Applying sort: ' + this.textContent.trim());
+                  }
+              });
+          });
+
+          // Add loading to search form submission
+          const searchForm = document.querySelector('form');
+          if (searchForm) {
+              searchForm.addEventListener('submit', function(e) {
+                  if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                      const searchTerm = document.getElementById('search').value;
+                      console.log('Search form submitted with term:', searchTerm);
+                      if (searchTerm) {
+                          window.LoadingIndicator.show('Searching Items...', `Looking for "${searchTerm}"`);
+                      } else {
+                          window.LoadingIndicator.show('Filtering Items...', 'Applying filters to inventory');
+                      }
+                  }
+              });
+          }
       }
-
-      // Make table rows clickable
-      const clickableRows = document.querySelectorAll('.clickable-row');
-
-      clickableRows.forEach(function(row) {
-          row.addEventListener('click', function(e) {
-              // Only proceed if the click wasn't on an action button or link
-              if (e.target.closest('.btn-group') || e.target.closest('a') || e.target.closest('button')) {
-                  return;
-              }
-
-              const itemId = this.getAttribute('data-item-id');
-              if (itemId) {
-                  window.location.href = '/Items/Details/' + itemId;
-              }
-          });
-
-          // Add hover effect
-          row.addEventListener('mouseenter', function() {
-              if (!this.classList.contains('table-active')) {
-                  this.style.backgroundColor = '#f8f9fa';
-              }
-          });
-
-          row.addEventListener('mouseleave', function() {
-              if (!this.classList.contains('table-active')) {
-                  this.style.backgroundColor = '';
-              }
-          });
-      });
-
-      // Prevent action buttons from triggering row click
-      const actionButtons = document.querySelectorAll('.btn-group a, .btn-group button');
-      actionButtons.forEach(function(button) {
-          button.addEventListener('click', function(e) {
-              e.stopPropagation();
-          });
-      });
   });
 
-  // Quick filter functions
-  function quickFilter(type) {
-      switch(type) {
-          case 'lowstock':
-              document.getElementById('stockLevelFilter').value = 'low';
-              break;
-          case 'outofstock':
-              document.getElementById('stockLevelFilter').value = 'out';
-              break;
-          case 'inventoried':
-              document.getElementById('itemTypeFilter').value = 'Inventoried';
-              break;
+  function exportItems() {
+      console.log('Export function called');
+      // Show loading for export operation
+      if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+          window.LoadingIndicator.show('Exporting Items...', 'Generating export file');
       }
 
-      // Submit the form
-      document.querySelector('form').submit();
+      // Simulate export process
+      setTimeout(() => {
+          if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+              window.LoadingIndicator.hide();
+          }
+          alert('Export functionality would download items as CSV/Excel file.');
+      }, 2000);
   }
 
   function clearAllFilters() {
-      // Clear all form fields
-      document.getElementById('search').value = '';
-      document.getElementById('itemTypeFilter').value = '';
-      document.getElementById('stockLevelFilter').value = '';
-      document.getElementById('vendorFilter').value = '';
-      document.getElementById('isSellable').value = '';
-
+      console.log('Clear filters called');
+      if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+          window.LoadingIndicator.show('Clearing Filters...', 'Resetting search criteria');
+      }
       // Navigate to clean URL
       window.location.href = '@Url.Action("Index")';
-  }
-
-  function saveSearch() {
-      // In a real application, you might save this to user preferences
-      const searchData = {
-          search: document.getElementById('search').value,
-          itemTypeFilter: document.getElementById('itemTypeFilter').value,
-          stockLevelFilter: document.getElementById('stockLevelFilter').value,
-          vendorFilter: document.getElementById('vendorFilter').value,
-          isSellable: document.getElementById('isSellable').value
-      };
-
-      localStorage.setItem('savedItemSearch', JSON.stringify(searchData));
-      alert('Search criteria saved! Use the browser bookmark to return to this search.');
-  }
-
-  function exportItems() {
-      // Build export URL with current filters
-      const params = new URLSearchParams(window.location.search);
-      params.set('export', 'true');
-
-      // In a real application, this would trigger a CSV/Excel download
-      alert('Export functionality would download filtered results as CSV/Excel file.');
-  }
-
-  function changePageSize(size) {
-      const params = new URLSearchParams(window.location.search);
-      params.set('pageSize', size);
-      params.set('page', 1); // Reset to first page on page size change
-
-      window.location.search = params.toString();
   }
 
   // Function to show image modal (for thumbnail clicks)
@@ -764,43 +696,24 @@
       imageModal.show();
   }
 
-  @functions {
-      public string GetPageUrl(int page)
-      {
-          var query = new System.Collections.Specialized.NameValueCollection();
-          var request = Context.Request;
-          foreach (var key in request.Query.Keys)
-          {
-              var k = key.ToString();
-              if (!string.IsNullOrEmpty(k) && k != "page")
-                  query[k] = request.Query[k];
-          }
-          query["page"] = page.ToString();
-
-          var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
-          return $"{request.Path}?{queryString}";
-      }
-
-      public string GetSortUrl(string newSortOrder)
-      {
-          var query = new System.Collections.Specialized.NameValueCollection();
-          var request = Context.Request;
-          foreach (var key in request.Query.Keys)
-          {
-              var k = key.ToString();
-              if (!string.IsNullOrEmpty(k) && k != "sortOrder" && k != "page")
-                  query[k] = request.Query[k];
-          }
-          query["sortOrder"] = newSortOrder;
-          query["page"] = "1"; // Reset to first page when sorting
-
-          var queryString = string.Join("&", query.AllKeys.Select(k => $"{k}={query[k]}"));
-          return $"{request.Path}?{queryString}";
+  // Debug function to test loading indicator manually
+  function testItemsLoading() {
+      console.log('Manual loading test called');
+      if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+          window.LoadingIndicator.showForOperation('loading-items');
+          setTimeout(() => {
+              window.LoadingIndicator.hide();
+          }, 3000);
+      } else {
+          console.error('LoadingIndicator not available!');
+          alert('LoadingIndicator not available. Check console for details.');
       }
   }
+
+  // Make test function globally available for debugging
+  window.testItemsLoading = testItemsLoading;
 </script>
 
-<!-- Keep the existing CSS styles -->
 <style>
   /* Item thumbnail styles */
   .item-thumbnail {
@@ -846,48 +759,24 @@
       background-color: #e9ecef !important;
     }
 
-    /* Ensure action buttons don't inherit pointer cursor */
     .clickable-row .btn-group {
       cursor: default;
     }
 
-    /* Allow text selection in specific columns */
-    .clickable-row td:nth-child(1),
-    .clickable-row td:nth-child(2) {
-      -webkit-user-select: text;
-      -moz-user-select: text;
-      -ms-user-select: text;
-      user-select: text;
-    }
-
-  /* ItemType color scheme */
-  .badge.bg-primary {
-    background-color: #0d6efd !important; /* Inventoried - Blue */
+  /* Badge styling */
+  .badge {
+    font-size: 0.75em;
   }
 
-  .badge.bg-info {
-    background-color: #0dcaf0 !important; /* Non-Inventoried - Cyan */
-  }
-
-  .badge.bg-success {
-    background-color: #198754 !important; /* Service - Green */
-  }
-
-  .badge.bg-warning {
-    background-color: #ffc107 !important; /* Virtual - Yellow */
-    color: #000 !important;
-  }
-
-  /* Stock status colors */
-  .badge.bg-danger {
-    background-color: #dc3545 !important; /* Low stock - Red */
-  }
-
-  /* Version badge */
   .badge.bg-outline-dark {
     color: #212529;
     border: 1px solid #212529;
     background-color: transparent;
+  }
+
+  .btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
   }
 
   /* Table responsive adjustments */
@@ -900,30 +789,6 @@
     background-color: rgba(0,123,255,0.1);
   }
 
-  .badge {
-    font-size: 0.75em;
-  }
-
-  .card-body.p-2 {
-    padding: 0.5rem !important;
-  }
-
-  .btn-group-sm .btn {
-    padding: 0.25rem 0.4rem;
-    font-size: 0.75rem;
-  }
-
-  /* Sortable column headers */
-  .table th a {
-    text-decoration: none !important;
-    color: inherit;
-  }
-
-  .table th a:hover {
-    color: #ffc107 !important;
-  }
-
-  /* Responsive adjustments */
   @@media (max-width: 768px) {
     .btn-group-sm .btn {
       padding: 0.125rem 0.25rem;
@@ -938,11 +803,6 @@
     .item-thumbnail-placeholder {
       width: 32px;
       height: 32px;
-    }
-    /* Hide less important columns on mobile */
-    .table th:nth-child(7), /* Vendor */
-    .table td:nth-child(7) {
-      display: none;
     }
   }
 

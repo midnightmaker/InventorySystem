@@ -1112,24 +1112,149 @@
       }
   }
 
-  // Function to refresh the current page
-  function refreshPage() {
-      location.reload();
-  }
+  // Enhanced loading indicators for Item Details page
+  document.addEventListener('DOMContentLoaded', function() {
+      console.log('Item Details page loading enhancement loaded');
+
+      // Add loading to all navigation buttons with null checks
+      const elementsWithEvents = document.querySelectorAll('a[href], button[onclick]');
+      if (elementsWithEvents && elementsWithEvents.length > 0) {
+          elementsWithEvents.forEach(element => {
+              if (element && element.addEventListener) {
+                  element.addEventListener('click', function(e) {
+                      if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                          const href = this.getAttribute('href');
+                          const onclick = this.getAttribute('onclick');
+                          
+                          if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                              if (href.includes('/Edit/')) {
+                                  window.LoadingIndicator.show('Loading Item Editor...', 'Preparing item for editing');
+                              } else if (href.includes('/Purchases/Create')) {
+                                  window.LoadingIndicator.show('Creating Purchase Order...', 'Setting up new purchase for this item');
+                              } else if (href.includes('/Documents/Upload')) {
+                                  window.LoadingIndicator.show('Loading Document Uploader...', 'Preparing document upload interface');
+                              } else if (href.includes('/Documents/Download')) {
+                                  window.LoadingIndicator.show('Downloading Document...', 'Preparing document for download');
+                              } else if (href.includes('/Vendors/Details')) {
+                                  window.LoadingIndicator.showForOperation('loading-vendors');
+                              } else if (href.includes('/Vendors/ManageItems')) {
+                                  window.LoadingIndicator.show('Loading Vendor Manager...', 'Preparing vendor relationship management');
+                              } else if (href.includes('/Items/Details')) {
+                                  window.LoadingIndicator.showForOperation('loading-items');
+                              } else if (href.includes('/Items') && !href.includes('/Details')) {
+                                  window.LoadingIndicator.show('Loading Items List...', 'Returning to items index');
+                              } else if (href.includes('/ChangeOrders/Details')) {
+                                  window.LoadingIndicator.show('Loading Change Order...', 'Fetching change order details');
+                              }
+                          } else if (onclick && onclick.includes('showCreateVersionModal')) {
+                              // Loading handled by the function itself
+                          } else if (onclick && onclick.includes('previewDocument')) {
+                              window.LoadingIndicator.show('Loading Document Preview...', 'Preparing document for preview');
+                              // Hide after a short delay as the modal will take over
+                              setTimeout(() => {
+                                  if (window.LoadingIndicator) {
+                                      window.LoadingIndicator.hide();
+                                  }
+                              }, 1000);
+                          }
+                      }
+                  });
+              }
+          });
+      }
+
+      // Add loading to version filter buttons with null checks
+      const versionFilterLinks = document.querySelectorAll('a[onclick*="filterPurchasesByVersion"]');
+      if (versionFilterLinks && versionFilterLinks.length > 0) {
+          versionFilterLinks.forEach(link => {
+              if (link && link.addEventListener) {
+                  link.addEventListener('click', function(e) {
+                      e.preventDefault(); // Prevent default link behavior
+                      if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                          try {
+                              const version = this.onclick.toString().match(/filterPurchasesByVersion\('(.*)'\)/)[1];
+                              const versionText = version === '' ? 'All Versions' : `Version ${version}`;
+                              window.LoadingIndicator.show('Filtering Purchases...', `Showing purchases for ${versionText}`);
+                              
+                              // Hide after filtering is complete
+                              setTimeout(() => {
+                                  if (window.LoadingIndicator) {
+                                      window.LoadingIndicator.hide();
+                                  }
+                              }, 500);
+                          } catch (error) {
+                              console.warn('Error parsing version filter:', error);
+                          }
+                      }
+                      
+                      // Execute the original function safely
+                      try {
+                          eval(this.getAttribute('onclick'));
+                      } catch (error) {
+                          console.warn('Error executing onclick function:', error);
+                      }
+                  });
+              }
+          });
+      }
+
+      // Add loading to external links (vendor details, etc.) with null checks
+      const externalLinks = document.querySelectorAll('a[target="_blank"]');
+      if (externalLinks && externalLinks.length > 0) {
+          externalLinks.forEach(link => {
+              if (link && link.addEventListener) {
+                  link.addEventListener('click', function(e) {
+                      if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                          window.LoadingIndicator.show('Opening External Link...', 'Loading in new tab');
+                          // Hide quickly since it opens in new tab
+                          setTimeout(() => {
+                              if (window.LoadingIndicator) {
+                                  window.LoadingIndicator.hide();
+                              }
+                          }, 1000);
+                      }
+                  });
+              }
+          });
+      }
+
+      // Hide loading indicator when page is fully loaded
+      window.addEventListener('load', function() {
+          if (window.LoadingIndicator) {
+              window.LoadingIndicator.hide();
+          }
+      });
+
+      // Handle image modal with loading - only if function exists
+      if (typeof window.showImageModal === 'function') {
+          const originalShowImageModal = window.showImageModal;
+          window.showImageModal = function(partNumber, imageUrl) {
+              if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                  window.LoadingIndicator.show('Loading Image...', 'Preparing image for display');
+                  setTimeout(() => {
+                      if (window.LoadingIndicator) {
+                          window.LoadingIndicator.hide();
+                      }
+                  }, 500);
+              }
+              originalShowImageModal(partNumber, imageUrl);
+          };
+      }
+
+      // Check for pendingChangeOrdersModal safely
+      const pendingModal = document.getElementById('pendingChangeOrdersModal');
+      if (pendingModal) {
+          console.log('pendingChangeOrdersModal found and ready');
+      } else {
+          console.warn('pendingChangeOrdersModal not found - this is normal if there are no pending change orders');
+      }
+  });
+
 
   // Clean up modal when closed to prevent duplicates
   document.addEventListener('hidden.bs.modal', function (event) {
       if (event.target.id === 'changeOrderModal') {
           event.target.remove();
-      }
-  });
-
-  // Debug helper - check if modal containers exist
-  document.addEventListener('DOMContentLoaded', function() {
-      console.log('Change order modal script loaded for Items page');
-      const pendingModal = document.getElementById('pendingChangeOrdersModal');
-      if (!pendingModal) {
-          console.warn('pendingChangeOrdersModal not found - make sure it exists in the page');
       }
   });
 </script>
