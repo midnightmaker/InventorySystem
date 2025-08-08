@@ -1,0 +1,343 @@
+@model InventorySystem.ViewModels.InvoiceReportViewModel
+@{
+    Layout = null; // No layout for print view
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice @Model.InvoiceNumber - Print</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        
+        .print-header {
+            text-align: center;
+            border-bottom: 3px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .company-info, .customer-info {
+            margin-bottom: 20px;
+        }
+        
+        .invoice-details {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 15px;
+        }
+        
+        .line-items-table {
+            margin-bottom: 20px;
+        }
+        
+        .totals-section {
+            margin-bottom: 20px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .overdue-notice {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .payment-info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        
+        @@media print {
+            .no-print {
+                display: none;
+            }
+            
+            body {
+                font-size: 11px;
+            }
+            
+            .page-break {
+                page-break-before: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Print Header -->
+        <div class="print-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    @if (Model.CompanyInfo.HasLogo)
+                    {
+                        <img src="@Url.Action("CompanyLogo", "Purchases")" 
+                             alt="@Model.CompanyInfo.CompanyName Logo" 
+                             style="max-width: 120px; max-height: 80px;" />
+                    }
+                </div>
+                <div class="text-center flex-grow-1">
+                    <h1>INVOICE</h1>
+                    <h2 class="text-primary">Invoice# @Model.InvoiceNumber</h2>
+                </div>
+                <div>
+                    <!-- Space for symmetry -->
+                </div>
+            </div>
+            
+            @if (Model.IsOverdue)
+            {
+                <div class="overdue-notice mt-3">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <strong>OVERDUE - @Model.DaysOverdue days past due</strong>
+                </div>
+            }
+        </div>
+
+        <!-- Company and Customer Information -->
+        <div class="row mb-4">
+            <div class="col-6">
+                <div class="company-info">
+                    <h5><strong>From:</strong></h5>
+                    <address>
+                        <strong>@Model.CompanyInfo.CompanyName</strong><br>
+                        @Model.CompanyInfo.Address<br>
+                        @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
+                        <i class="fas fa-phone"></i> @Model.CompanyInfo.Phone<br>
+                        <i class="fas fa-envelope"></i> @Model.CompanyInfo.Email<br>
+                        <i class="fas fa-globe"></i> @Model.CompanyInfo.Website
+                    </address>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="customer-info">
+                    <h5><strong>Bill To:</strong></h5>
+                    <address>
+                        <strong>@Model.Customer.CustomerName</strong><br>
+                        @if (!string.IsNullOrWhiteSpace(Model.Customer.BillingAddress))
+                        {
+                            @Model.Customer.BillingAddress<br>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerPhone))
+                        {
+                            <i class="fas fa-phone"></i> @Model.Customer.CustomerPhone<br>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerEmail))
+                        {
+                            <i class="fas fa-envelope"></i> @Model.Customer.CustomerEmail<br>
+                        }
+                    </address>
+                    
+                    @if (!string.IsNullOrWhiteSpace(Model.ShippingAddress) && Model.ShippingAddress != Model.Customer.BillingAddress)
+                    {
+                        <h6><strong>Ship To:</strong></h6>
+                        <address>
+                            @Model.ShippingAddress
+                        </address>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Details -->
+        <div class="invoice-details">
+            <div class="row">
+                <div class="col-3">
+                    <strong>Invoice Date:</strong><br>
+                    @Model.InvoiceDate.ToString("MMMM dd, yyyy")
+                </div>
+                <div class="col-3">
+                    <strong>Due Date:</strong><br>
+                    @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
+                </div>
+                <div class="col-3">
+                    <strong>Payment Terms:</strong><br>
+                    @Model.PaymentTerms
+                </div>
+                <div class="col-3">
+                    <strong>Status:</strong><br>
+                    <span class="badge bg-@(Model.PaymentStatus switch 
+                    {
+                        InventorySystem.Models.Enums.PaymentStatus.Pending => "warning",
+                        InventorySystem.Models.Enums.PaymentStatus.Paid => "success",
+                        InventorySystem.Models.Enums.PaymentStatus.Overdue => "danger",
+                        InventorySystem.Models.Enums.PaymentStatus.PartiallyPaid => "info",
+                        _ => "secondary"
+                    })">
+                        @Model.PaymentStatus
+                    </span>
+                </div>
+            </div>
+            
+            @if (!string.IsNullOrWhiteSpace(Model.OrderNumber))
+            {
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <strong>Order Number:</strong> @Model.OrderNumber
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Line Items -->
+        <div class="line-items-table">
+            <table class="table table-bordered table-sm">
+                <thead class="table-dark">
+                    <tr>
+                        <th width="8%">Line #</th>
+                        <th width="15%">Item Number</th>
+                        <th width="35%">Description</th>
+                        <th width="10%" class="text-center">Qty</th>
+                        <th width="15%" class="text-end">Unit Price</th>
+                        <th width="17%" class="text-end">Line Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int lineNumber = 1;
+                    }
+                    @foreach (var item in Model.LineItems)
+                    {
+                        <tr>
+                            <td class="text-center"><strong>@lineNumber</strong></td>
+                            <td><strong>@item.PartNumber</strong></td>
+                            <td>
+                                @item.Description
+                                @if (item.IsBackordered)
+                                {
+                                    <br><em class="text-warning">@item.BackorderStatus</em>
+                                }
+                            </td>
+                            <td class="text-center">@item.Quantity</td>
+                            <td class="text-end">$@item.UnitPrice.ToString("N2")</td>
+                            <td class="text-end">$@item.LineTotal.ToString("N2")</td>
+                        </tr>
+                        lineNumber++;
+                    }
+                </tbody>
+                <tfoot class="table-secondary">
+                    <tr>
+                        <th colspan="5" class="text-end">Subtotal (@Model.LineItemCount items):</th>
+                        <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
+                    </tr>
+                    @if (Model.TotalShipping > 0)
+                    {
+                        <tr>
+                            <th colspan="5" class="text-end">Shipping:</th>
+                            <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
+                        </tr>
+                    }
+                    @if (Model.TotalTax > 0)
+                    {
+                        <tr>
+                            <th colspan="5" class="text-end">Tax:</th>
+                            <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
+                        </tr>
+                    }
+                    <tr class="table-info">
+                        <th colspan="5" class="text-end"><strong>INVOICE TOTAL:</strong></th>
+                        <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+                    </tr>
+                    @if (Model.AmountPaid > 0)
+                    {
+                        <tr class="table-success">
+                            <th colspan="5" class="text-end">Amount Paid:</th>
+                            <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
+                        </tr>
+                    }
+                    <tr class="table-dark">
+                        <th colspan="5" class="text-end">
+                            <strong>
+                                @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                                {
+                                    <span>PAID IN FULL:</span>
+                                }
+                                else
+                                {
+                                    <span>AMOUNT DUE:</span>
+                                }
+                            </strong>
+                        </th>
+                        <th class="text-end">
+                            <strong>
+                                @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                                {
+                                    <span class="text-success">$0.00</span>
+                                }
+                                else
+                                {
+                                    <span>$@Model.AmountDue.ToString("N2")</span>
+                                }
+                            </strong>
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Payment Information -->
+        @if (!string.IsNullOrWhiteSpace(Model.PaymentMethod))
+        {
+            <div class="payment-info">
+                <h6><i class="fas fa-credit-card"></i> Payment Method:</h6>
+                <p class="mb-0"><strong>@Model.PaymentMethod</strong></p>
+            </div>
+        }
+
+        <!-- Notes -->
+        @if (!string.IsNullOrEmpty(Model.Notes))
+        {
+            <div class="alert alert-info">
+                <h6><i class="fas fa-sticky-note"></i> Notes:</h6>
+                <p class="mb-0">@Model.Notes</p>
+            </div>
+        }
+
+        <!-- Footer -->
+        <div class="footer">
+            <p class="mb-1"><strong>Thank you for your business!</strong></p>
+            <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
+            <p class="mb-0">
+                <small>Printed on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</small>
+            </p>
+        </div>
+    </div>
+
+    <!-- Print button (hidden when printing) -->
+    <div class="no-print text-center mt-4">
+        <button type="button" class="btn btn-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print This Invoice
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="window.close()">
+            <i class="fas fa-times"></i> Close
+        </button>
+    </div>
+
+    <script>
+        // Auto-print when page loads (optional)
+        // window.onload = function() { window.print(); }
+    </script>
+</body>
+</html>

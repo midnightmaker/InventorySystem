@@ -44,8 +44,6 @@
 <form asp-action="Create" method="post">
     @Html.AntiForgeryToken()
     
-    <div asp-validation-summary="All" class="alert alert-danger"></div>
-    
     <!-- Hidden fields to ensure proper model binding -->
     <input asp-for="Id" type="hidden" />
     <input asp-for="CreatedDate" type="hidden" />

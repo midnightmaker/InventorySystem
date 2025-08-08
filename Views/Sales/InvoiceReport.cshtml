@@ -6,7 +6,7 @@
 <div class="container-fluid">
     <!-- Header with Action Buttons -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-file-invoice-dollar"></i> Invoice Report</h2>
+        <h2><i class="fas fa-file-invoice-dollar"></i> Invoice @Model.InvoiceNumber</h2>
         <div class="btn-group">
             <a href="@Url.Action("Index")" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Sales
@@ -18,7 +18,7 @@
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#emailModal">
                 <i class="fas fa-envelope"></i> Email to Customer
             </button>
-            @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Pending)
+            @if (Model.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
             {
                 <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#paymentModal">
                     <i class="fas fa-dollar-sign"></i> Record Payment
@@ -214,9 +214,44 @@
                                 <th></th>
                             </tr>
                         }
+                        <tr class="table-info">
+                            <th colspan="5" class="text-end"><strong>INVOICE TOTAL:</strong></th>
+                            <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+                            <th></th>
+                        </tr>
+                        @if (Model.AmountPaid > 0)
+                        {
+                            <tr class="table-success">
+                                <th colspan="5" class="text-end">Amount Paid:</th>
+                                <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
+                                <th></th>
+                            </tr>
+                        }
                         <tr class="table-dark">
-                            <th colspan="5" class="text-end"><strong>AMOUNT DUE:</strong></th>
-                            <th class="text-end"><strong>$@Model.GrandTotal.ToString("N2")</strong></th>
+                            <th colspan="5" class="text-end">
+                                <strong>
+                                    @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                                    {
+                                        <span>PAID IN FULL</span>
+                                    }
+                                    else
+                                    {
+                                        <span>AMOUNT DUE:</span>
+                                    }
+                                </strong>
+                            </th>
+                            <th class="text-end">
+                                <strong>
+                                    @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                                    {
+                                        <span class="text-success">$0.00</span>
+                                    }
+                                    else
+                                    {
+                                        <span>$@Model.AmountDue.ToString("N2")</span>
+                                    }
+                                </strong>
+                            </th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -310,13 +345,25 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Invoice Amount</label>
-                        <input type="text" class="form-control" value="$@Model.GrandTotal.ToString("N2")" readonly />
+                        <label class="form-label">Invoice Total</label>
+                        <input type="text" class="form-control" value="$@Model.InvoiceTotal.ToString("N2")" readonly />
+                    </div>
+                    @if (Model.AmountPaid > 0)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Amount Already Paid</label>
+                            <input type="text" class="form-control" value="$@Model.AmountPaid.ToString("N2")" readonly />
+                        </div>
+                    }
+                    <div class="mb-3">
+                        <label class="form-label">Remaining Balance</label>
+                        <input type="text" class="form-control" value="$@Model.AmountDue.ToString("N2")" readonly />
                     </div>
                     <div class="mb-3">
                         <label for="paymentAmount" class="form-label">Payment Amount</label>
                         <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount" 
-                               value="@Model.GrandTotal" required />
+                               value="@Model.AmountDue" max="@Model.AmountDue" required />
+                        <div class="form-text">Enter the amount received from the customer</div>
                     </div>
                     <div class="mb-3">
                         <label for="paymentMethod" class="form-label">Payment Method</label>
@@ -363,11 +410,11 @@
         // Payment amount validation
         $('#paymentAmount').on('change', function() {
             var paymentAmount = parseFloat($(this).val());
-            var invoiceAmount = @Model.GrandTotal;
+            var remainingBalance = @Model.AmountDue;
             
-            if (paymentAmount > invoiceAmount) {
-                alert('Payment amount cannot exceed invoice amount of $' + invoiceAmount.toFixed(2));
-                $(this).val(invoiceAmount.toFixed(2));
+            if (paymentAmount > remainingBalance) {
+                alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
+                $(this).val(remainingBalance.toFixed(2));
             }
         });
     });

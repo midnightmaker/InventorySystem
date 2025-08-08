@@ -23,7 +23,13 @@ namespace InventorySystem.ViewModels
         public decimal SubtotalAmount => LineItems.Sum(li => li.LineTotal);
         public decimal TotalShipping { get; set; }
         public decimal TotalTax { get; set; }
-        public decimal GrandTotal => SubtotalAmount + TotalShipping + TotalTax;
+        public decimal InvoiceTotal => SubtotalAmount + TotalShipping + TotalTax;
+        
+        // Payment Information
+        public decimal AmountPaid { get; set; }
+        public decimal AmountDue => InvoiceTotal - AmountPaid;
+        public decimal GrandTotal => AmountDue; // For backward compatibility
+        
         public int TotalQuantity => LineItems.Sum(li => li.Quantity);
         public int LineItemCount => LineItems.Count;
         
