@@ -1,4 +1,5 @@
 @model IEnumerable<InventorySystem.Models.Item>
+@using Microsoft.AspNetCore.Routing
 @{
   ViewData["Title"] = "Items";
   var searchTerm = ViewBag.SearchTerm as string;
@@ -8,6 +9,29 @@
   var isSellable = ViewBag.IsSellable as bool?;
   var sortOrder = ViewBag.SortOrder as string ?? "partNumber_asc";
   var isFiltered = ViewBag.IsFiltered as bool? ?? false;
+
+  string GetPageUrl(int page)
+  {
+    var routeValues = new RouteValueDictionary();
+    
+    if (!string.IsNullOrEmpty(ViewBag.SearchTerm as string))
+      routeValues.Add("search", ViewBag.SearchTerm);
+    if (!string.IsNullOrEmpty(ViewBag.ItemTypeFilter as string))
+      routeValues.Add("itemTypeFilter", ViewBag.ItemTypeFilter);
+    if (!string.IsNullOrEmpty(ViewBag.StockLevelFilter as string))
+      routeValues.Add("stockLevelFilter", ViewBag.StockLevelFilter);
+    if (!string.IsNullOrEmpty(ViewBag.VendorFilter as string))
+      routeValues.Add("vendorFilter", ViewBag.VendorFilter);
+    if (ViewBag.IsSellable != null)
+      routeValues.Add("isSellable", ViewBag.IsSellable);
+    if (!string.IsNullOrEmpty(ViewBag.SortOrder as string) && ViewBag.SortOrder != "partNumber_asc")
+      routeValues.Add("sortOrder", ViewBag.SortOrder);
+    
+    routeValues.Add("page", page);
+    routeValues.Add("pageSize", ViewBag.PageSize ?? 25);
+    
+    return Url.Action("Index", "Items", routeValues);
+  }
 }
 
 <div class="container-fluid">
@@ -98,6 +122,11 @@
               <option value="NonInventoried" selected="@(itemTypeFilter == "NonInventoried")">Non-Inventoried</option>
               <option value="Service" selected="@(itemTypeFilter == "Service")">Service</option>
               <option value="Virtual" selected="@(itemTypeFilter == "Virtual")">Virtual</option>
+              <option value="Consumable" selected="@(itemTypeFilter == "Consumable")">Consumable</option>
+              <option value="Expense" selected="@(itemTypeFilter == "Expense")">Expense</option>
+              <option value="Subscription" selected="@(itemTypeFilter == "Subscription")">Subscription</option>
+              <option value="Utility" selected="@(itemTypeFilter == "Utility")">Utility</option>
+              <option value="RnDMaterials" selected="@(itemTypeFilter == "RnDMaterials")">R&D Materials</option>
             </select>
           </div>
 
@@ -212,6 +241,23 @@
 
         <!-- Sort and Filter Controls -->
         <div class="d-flex align-items-center gap-3">
+          <!-- Page Size Controls -->
+          @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+          {
+            <div class="btn-group">
+              <label class="btn btn-outline-secondary btn-sm">
+                Items per page:
+                <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
+                        onchange="changePageSize(this.value)">
+                  @foreach (var size in (int[])ViewBag.AllowedPageSizes)
+                  {
+                    <option value="@size" selected="@(size == (int)(ViewBag.PageSize ?? 25))">@size</option>
+                  }
+                </select>
+              </label>
+            </div>
+          }
+
           <!-- Sort Options -->
           <div class="dropdown">
             <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -327,6 +373,11 @@
                         InventorySystem.Models.Enums.ItemType.NonInventoried => "info",
                         InventorySystem.Models.Enums.ItemType.Service => "success",
                         InventorySystem.Models.Enums.ItemType.Virtual => "warning",
+                        InventorySystem.Models.Enums.ItemType.Consumable => "secondary",
+                        InventorySystem.Models.Enums.ItemType.Expense => "danger",
+                        InventorySystem.Models.Enums.ItemType.Subscription => "dark",
+                        InventorySystem.Models.Enums.ItemType.Utility => "light text-dark",
+                        InventorySystem.Models.Enums.ItemType.RnDMaterials => "success",
                         _ => "secondary"
                       };
                     }
@@ -403,6 +454,28 @@
 
         <!-- Summary Statistics -->
         <div class="mt-4">
+          <!-- Pagination Summary -->
+          @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+          {
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted">
+                Showing @ViewBag.ShowingFrom - @ViewBag.ShowingTo of @ViewBag.TotalCount items
+                @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+                {
+                  <span>(Page @ViewBag.CurrentPage of @ViewBag.TotalPages)</span>
+                }
+              </span>
+              
+              @if (ViewBag.IsFiltered == true)
+              {
+                <small class="text-info">
+                  <i class="fas fa-filter"></i> 
+                  Filtered results (@ViewBag.SearchResultsCount of @ViewBag.TotalItemsCount total)
+                </small>
+              }
+            </div>
+          }
+
           <div class="row">
             <div class="col-md-2">
               <div class="card bg-light">
@@ -433,7 +506,7 @@
                     <i class="fas fa-exclamation-triangle"></i>
                     Low Stock
                   </h6>
-                  <h4 class="text-warning mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried && i.CurrentStock <= i.MinimumStock)</h4>
+                  <h4 class="text-warning mb-0">@Model.Count(i => (i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried || i.ItemType == InventorySystem.Models.Enums.ItemType.Consumable || i.ItemType == InventorySystem.Models.Enums.ItemType.RnDMaterials) && i.CurrentStock <= i.MinimumStock)</h4>
                 </div>
               </div>
             </div>
@@ -444,7 +517,7 @@
                     <i class="fas fa-times-circle"></i>
                     Out of Stock
                   </h6>
-                  <h4 class="text-danger mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried && i.CurrentStock == 0)</h4>
+                  <h4 class="text-danger mb-0">@Model.Count(i => (i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried || i.ItemType == InventorySystem.Models.Enums.ItemType.Consumable || i.ItemType == InventorySystem.Models.Enums.ItemType.RnDMaterials) && i.CurrentStock == 0)</h4>
                 </div>
               </div>
             </div>
@@ -494,7 +567,7 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-      console.log('Items Index page loading...');
+      console.log('Items Index page loading…');
 
       // Wait for LoadingIndicator to be available and initialized
       function waitForLoadingIndicator(callback, maxRetries = 10) {
@@ -506,7 +579,7 @@
                   callback();
               } else if (retries < maxRetries) {
                   retries++;
-                  console.log(`Waiting for LoadingIndicator... (attempt ${retries}/${maxRetries})`);
+                  console.log(`Waiting for LoadingIndicator… (attempt ${retries}/${maxRetries})`);
                   setTimeout(check, 100);
               } else {
                   console.error('LoadingIndicator failed to initialize after', maxRetries, 'attempts');
@@ -583,19 +656,6 @@
                           console.warn('LoadingIndicator not available for row click');
                       }
                       window.location.href = '/Items/Details/' + itemId;
-                  }
-              });
-
-              // Add hover effect
-              row.addEventListener('mouseenter', function() {
-                  if (!this.classList.contains('table-active')) {
-                      this.style.backgroundColor = '#f8f9fa';
-                  }
-              });
-
-              row.addEventListener('mouseleave', function() {
-                  if (!this.classList.contains('table-active')) {
-                      this.style.backgroundColor = '';
                   }
               });
           });
@@ -688,6 +748,20 @@
       window.location.href = '@Url.Action("Index")';
   }
 
+  function changePageSize(newPageSize) {
+      console.log('Page size changed to:', newPageSize);
+      if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+          window.LoadingIndicator.show('Changing Page Size...', `Loading ${newPageSize} items per page`);
+      }
+      
+      // Build URL with current filters but new page size and reset to page 1
+      var url = new URL(window.location);
+      url.searchParams.set('pageSize', newPageSize);
+      url.searchParams.set('page', '1'); // Reset to first page when changing page size
+      
+      window.location.href = url.toString();
+  }
+
   // Function to show image modal (for thumbnail clicks)
   function showImageModal(partNumber, imageUrl) {
       document.getElementById('imageModalLabel').textContent = 'Item Image - ' + partNumber;
@@ -740,28 +814,6 @@
     color: #6c757d;
     font-size: 14px;
   }
-
-  /* Clickable row styles */
-  .clickable-row {
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-  }
-
-    .clickable-row:hover {
-      background-color: #f8f9fa !important;
-    }
-
-    .clickable-row:active {
-      background-color: #e9ecef !important;
-    }
-
-    .clickable-row .btn-group {
-      cursor: default;
-    }
 
   /* Badge styling */
   .badge {

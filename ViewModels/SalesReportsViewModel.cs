@@ -13,47 +13,34 @@ namespace InventorySystem.ViewModels
     public decimal CurrentMonthProfit { get; set; }
     public decimal LastMonthSales { get; set; }
     public decimal LastMonthProfit { get; set; }
+    public decimal MonthlyGrowthSales { get; set; }
+    public decimal MonthlyGrowthProfit { get; set; }
+    
+    // Calculated properties - made settable
+    public decimal AverageSaleValue { get; set; }
+    public decimal ProfitMargin { get; set; }
+    public decimal PaymentCollectionRate { get; set; }
 
     // Recent Sales
     public IEnumerable<Sale> RecentSales { get; set; } = new List<Sale>();
     public IEnumerable<Sale> PendingSales { get; set; } = new List<Sale>();
 
-    // Top Products
-    public IEnumerable<TopSellingProduct> TopSellingItems { get; set; } = new List<TopSellingProduct>();
-    public IEnumerable<TopSellingProduct> TopProfitableItems { get; set; } = new List<TopSellingProduct>();
+    // Top Products - Updated to use consistent naming
+    public IEnumerable<TopSellingItem> TopSellingItems { get; set; } = new List<TopSellingItem>();
+    public IEnumerable<TopSellingItem> TopProfitableItems { get; set; } = new List<TopSellingItem>();
 
-    // Customer Analytics
-    public IEnumerable<CustomerSummary> TopCustomers { get; set; } = new List<CustomerSummary>();
+    // Customer Analytics - Uses the unified TopCustomer from CustomerViewModels
+    public IEnumerable<TopCustomer> TopCustomers { get; set; } = new List<TopCustomer>();
 
     // Payment Status Summary
     public int PaidSalesCount { get; set; }
     public int PendingSalesCount { get; set; }
     public decimal PaidAmount { get; set; }
     public decimal PendingAmount { get; set; }
-
-    // Calculated Properties
-    public decimal MonthlyGrowthSales => LastMonthSales > 0
-        ? ((CurrentMonthSales - LastMonthSales) / LastMonthSales) * 100
-        : 0;
-
-    public decimal MonthlyGrowthProfit => LastMonthProfit > 0
-        ? ((CurrentMonthProfit - LastMonthProfit) / LastMonthProfit) * 100
-        : 0;
-
-    public decimal AverageSaleValue => TotalSalesCount > 0
-        ? TotalSales / TotalSalesCount
-        : 0;
-
-    public decimal ProfitMargin => TotalSales > 0
-        ? (TotalProfit / TotalSales) * 100
-        : 0;
-
-    public decimal PaymentCollectionRate => TotalSales > 0
-        ? (PaidAmount / TotalSales) * 100
-        : 0;
   }
 
-  public class TopSellingProduct
+  // Updated class name to match controller usage
+  public class TopSellingItem
   {
     public string ProductName { get; set; } = string.Empty;
     public string ProductPartNumber { get; set; } = string.Empty;
@@ -65,14 +52,7 @@ namespace InventorySystem.ViewModels
     public int SalesCount { get; set; }
   }
 
-  public class CustomerSummary
-  {
-    public string CustomerName { get; set; } = string.Empty;
-    public string? CustomerEmail { get; set; }
-    public int SalesCount { get; set; }
-    public decimal TotalPurchases { get; set; }
-    public decimal TotalProfit { get; set; }
-    public DateTime LastPurchaseDate { get; set; }
-    public decimal AveragePurchaseValue => SalesCount > 0 ? TotalPurchases / SalesCount : 0;
-  }
+  // Keep legacy classes for backward compatibility
+  public class TopSellingProduct : TopSellingItem { }
+  public class CustomerSummary : TopCustomer { }
 }

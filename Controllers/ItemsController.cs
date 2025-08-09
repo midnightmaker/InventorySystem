@@ -121,9 +121,9 @@ namespace InventorySystem.Controllers
           _logger.LogInformation("Applying stock level filter: {StockLevelFilter}", stockLevelFilter);
           query = stockLevelFilter switch
           {
-            "low" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock <= i.MinimumStock),
-            "out" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock == 0),
-            "overstock" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock > (i.MinimumStock * 2)),
+            "low" => query.Where(i => (i.ItemType == ItemType.Inventoried || i.ItemType == ItemType.Consumable || i.ItemType == ItemType.RnDMaterials) && i.CurrentStock <= i.MinimumStock),
+            "out" => query.Where(i => (i.ItemType == ItemType.Inventoried || i.ItemType == ItemType.Consumable || i.ItemType == ItemType.RnDMaterials) && i.CurrentStock == 0),
+            "overstock" => query.Where(i => (i.ItemType == ItemType.Inventoried || i.ItemType == ItemType.Consumable || i.ItemType == ItemType.RnDMaterials) && i.CurrentStock > (i.MinimumStock * 2)),
             "instock" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock > 0),
             "tracked" => query.Where(i => i.ItemType == ItemType.Inventoried),
             "nontracked" => query.Where(i => i.ItemType != ItemType.Inventoried),
@@ -380,6 +380,9 @@ namespace InventorySystem.Controllers
         // Load raw materials for parent selection
         await LoadRawMaterialsForView();
 
+        // Load active vendors for preferred vendor selection
+        await LoadVendorsForView();
+
         return View(viewModel);
       }
       catch (Exception ex)
@@ -392,30 +395,82 @@ namespace InventorySystem.Controllers
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Item item)
+    public async Task<IActionResult> Create(CreateItemViewModel viewModel)
     {
-      if (item == null)
+      if (viewModel == null)
       {
         ModelState.AddModelError("", "Item data is missing.");
-        return View();
+        return View(new CreateItemViewModel());
       }
 
       try
       {
+        // For non-material items, force MaterialType to Standard
+        if (!viewModel.IsMaterialItem)
+        {
+          viewModel.MaterialType = MaterialType.Standard;
+          viewModel.ParentRawMaterialId = null;
+          viewModel.YieldFactor = null;
+          viewModel.WastePercentage = null;
+        }
+
         if (ModelState.IsValid)
         {
+          // Create the Item entity from the ViewModel
+          var item = new Item
+          {
+            PartNumber = viewModel.PartNumber,
+            Description = viewModel.Description,
+            Comments = viewModel.Comments ?? string.Empty,
+            MinimumStock = viewModel.ShowStockFields ? viewModel.MinimumStock : 0,
+            CurrentStock = 0,
+            CreatedDate = DateTime.Now,
+            UnitOfMeasure = viewModel.UnitOfMeasure,
+            VendorPartNumber = viewModel.VendorPartNumber,
+            IsSellable = viewModel.IsSellable,
+            ItemType = viewModel.ItemType,
+            Version = viewModel.Version,
+            MaterialType = viewModel.MaterialType,
+            ParentRawMaterialId = viewModel.ParentRawMaterialId,
+            YieldFactor = viewModel.YieldFactor,
+            WastePercentage = viewModel.WastePercentage
+          };
+
+          // Handle image upload if provided
+          if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
+          {
+            using var memoryStream = new MemoryStream();
+            await viewModel.ImageFile.CopyToAsync(memoryStream);
+            item.ImageData = memoryStream.ToArray();
+            item.ImageContentType = viewModel.ImageFile.ContentType;
+            item.ImageFileName = viewModel.ImageFile.FileName;
+          }
+
+          // Create the item first
           await _inventoryService.CreateItemAsync(item);
+
+          // Handle preferred vendor relationship if selected
+          if (viewModel.PreferredVendorId.HasValue)
+          {
+            await CreateVendorItemRelationship(item.Id, viewModel.PreferredVendorId.Value, viewModel.VendorPartNumber);
+          }
+
           TempData["SuccessMessage"] = "Item created successfully!";
           return RedirectToAction("Index");
         }
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Error creating item: {PartNumber}", item.PartNumber);
+        _logger.LogError(ex, "Error creating item: {PartNumber}", viewModel.PartNumber);
         ModelState.AddModelError("", $"Error creating item: {ex.Message}");
       }
 
-      return View(item);
+      // Reload view data on error
+      ViewBag.UnitOfMeasureOptions = UnitOfMeasureHelper.GetGroupedUnitOfMeasureSelectList();
+      await LoadRawMaterialsForView();
+      await LoadVendorsForView();
+
+      return View(viewModel);
     }
 
     public async Task<IActionResult> Edit(int id)
@@ -807,6 +862,63 @@ namespace InventorySystem.Controllers
       {
         _logger.LogError(ex, "Error loading raw materials for view");
         ViewBag.ParentRawMaterials = new SelectList(new List<object>(), "Id", "DisplayText");
+      }
+    }
+
+    private async Task LoadVendorsForView()
+    {
+      try
+      {
+        var vendors = await _vendorService.GetActiveVendorsAsync();
+        ViewBag.PreferredVendors = new SelectList(vendors.OrderBy(v => v.CompanyName), "Id", "CompanyName");
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading vendors for view");
+        ViewBag.PreferredVendors = new SelectList(new List<object>(), "Id", "CompanyName");
+      }
+    }
+
+    private async Task CreateVendorItemRelationship(int itemId, int vendorId, string? vendorPartNumber)
+    {
+      try
+      {
+        // Check if relationship already exists
+        var existingRelationship = await _context.VendorItems
+          .FirstOrDefaultAsync(vi => vi.ItemId == itemId && vi.VendorId == vendorId);
+
+        if (existingRelationship == null)
+        {
+          // Create new VendorItem relationship
+          var vendorItem = new VendorItem
+          {
+            ItemId = itemId,
+            VendorId = vendorId,
+            VendorPartNumber = vendorPartNumber,
+            IsPrimary = true,
+            IsActive = true,
+            UnitCost = 0, // Will be updated when purchases are made
+            MinimumOrderQuantity = 1,
+            LeadTimeDays = 0,
+            LastUpdated = DateTime.Now
+          };
+
+          _context.VendorItems.Add(vendorItem);
+          await _context.SaveChangesAsync();
+
+          // Update the item's preferred vendor reference
+          var item = await _context.Items.FindAsync(itemId);
+          if (item != null)
+          {
+            item.PreferredVendorItemId = vendorItem.Id;
+            await _context.SaveChangesAsync();
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error creating vendor-item relationship for Item {ItemId} and Vendor {VendorId}", itemId, vendorId);
+        // Don't throw here as the item was already created successfully
       }
     }
 

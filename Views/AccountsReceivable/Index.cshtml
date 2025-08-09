@@ -1,0 +1,458 @@
+@model InventorySystem.ViewModels.AccountsReceivableDashboardViewModel
+@{
+    ViewData["Title"] = "Accounts Receivable Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-file-invoice-dollar"></i> Accounts Receivable</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("AgingReport")" class="btn btn-primary">
+            <i class="fas fa-chart-pie"></i> Aging Report
+        </a>
+        <a href="@Url.Action("Collections")" class="btn btn-warning">
+            <i class="fas fa-phone"></i> Collections
+        </a>
+        <a href="@Url.Action("CustomerStatements")" class="btn btn-info">
+            <i class="fas fa-file-invoice"></i> Statements
+        </a>
+        <a href="@Url.Action("Reports", "AccountsReceivable")" class="btn btn-outline-secondary">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Key Metrics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TotalAccountsReceivable.ToString("C")</h4>
+                        <p class="mb-0">Total A/R</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                </div>
+                <small>@Model.UnpaidInvoiceCount unpaid invoices</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TotalOverdue.ToString("C")</h4>
+                        <p class="mb-0">Overdue</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+                <small>@Model.OverduePercentage.ToString("F1")% of total A/R</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.OverdueInvoiceCount</h4>
+                        <p class="mb-0">Overdue Invoices</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+                <small>Require immediate attention</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.CustomersWithBalance</h4>
+                        <p class="mb-0">Customers</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+                <small>with outstanding balances</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aging Analysis -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> Accounts Receivable Aging</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="agingChart" height="120"></canvas>
+                
+                <div class="row mt-4">
+                    <div class="col text-center">
+                        <h6 class="text-success">Current</h6>
+                        <h4>@Model.CurrentAmount.ToString("C")</h4>
+                        <small class="text-muted">0-30 days</small>
+                    </div>
+                    <div class="col text-center">
+                        <h6 class="text-warning">1-30 Days</h6>
+                        <h4>@Model.Days1To30Amount.ToString("C")</h4>
+                        <small class="text-muted">31-60 days</small>
+                    </div>
+                    <div class="col text-center">
+                        <h6 class="text-orange">31-60 Days</h6>
+                        <h4>@Model.Days31To60Amount.ToString("C")</h4>
+                        <small class="text-muted">61-90 days</small>
+                    </div>
+                    <div class="col text-center">
+                        <h6 class="text-danger">61-90 Days</h6>
+                        <h4>@Model.Days61To90Amount.ToString("C")</h4>
+                        <small class="text-muted">91+ days</small>
+                    </div>
+                    <div class="col text-center">
+                        <h6 class="text-dark">90+ Days</h6>
+                        <h4>@Model.Over90DaysAmount.ToString("C")</h4>
+                        <small class="text-muted">Very overdue</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tachometer-alt"></i> Collection Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Average Collection Period</span>
+                        <strong>@Model.AverageCollectionPeriod.ToString("F0") days</strong>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-info" style="width: @(Math.Min(Model.AverageCollectionPeriod / 60 * 100, 100))%"></div>
+                    </div>
+                    <small class="text-muted">Target: 30 days</small>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Overdue Rate</span>
+                        <strong>@Model.OverduePercentage.ToString("F1")%</strong>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar @(Model.OverduePercentage > 20 ? "bg-danger" : Model.OverduePercentage > 10 ? "bg-warning" : "bg-success")" 
+                             style="width: @(Math.Min(Model.OverduePercentage, 100))%"></div>
+                    </div>
+                    <small class="text-muted">Target: < 5%</small>
+                </div>
+
+                <hr>
+                
+                <div class="text-center">
+                    <a href="@Url.Action("Collections")" class="btn btn-warning w-100">
+                        <i class="fas fa-phone"></i> Manage Collections
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity and Top Balances -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-exclamation-triangle"></i> Recent Overdue Invoices</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.RecentOverdueInvoices.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Days Overdue</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var invoice in Model.RecentOverdueInvoices)
+                                {
+                                    <tr>
+                                        <td>
+                                            <a href="/Sales/Details/@invoice.Id" class="text-decoration-none">
+                                                @invoice.SaleNumber
+                                            </a>
+                                        </td>
+                                        <td>
+                                            @if (invoice.Customer != null)
+                                            {
+                                                <a href="/Customers/Details/@invoice.Customer.Id" class="text-decoration-none">
+                                                    @invoice.Customer.CustomerName
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Unknown</span>
+                                            }
+                                        </td>
+                                        <td>@invoice.TotalAmount.ToString("C")</td>
+                                        <td>
+                                            <span class="badge bg-@(invoice.DaysOverdue > 30 ? "danger" : "warning")">
+                                                @invoice.DaysOverdue days
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="/Sales/InvoiceReport?saleId=@invoice.Id" class="btn btn-outline-primary" title="View Invoice">
+                                                    <i class="fas fa-file-invoice"></i>
+                                                </a>
+                                                @if (invoice.Customer != null)
+                                                {
+                                                    <a href="mailto:@invoice.Customer.Email?subject=Payment Reminder - Invoice @invoice.SaleNumber" 
+                                                       class="btn btn-outline-warning" title="Send Email">
+                                                        <i class="fas fa-envelope"></i>
+                                                    </a>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-3">
+                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                        <p class="text-muted">No overdue invoices!</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-users"></i> Top Customer Balances</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.TopCustomerBalances.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Outstanding</th>
+                                    <th>Credit Limit</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var customer in Model.TopCustomerBalances)
+                                {
+                                    <tr class="@(customer.OutstandingBalance > customer.CreditLimit && customer.CreditLimit > 0 ? "table-danger" : "")">
+                                        <td>
+                                            <a href="/Customers/Details/@customer.Id" class="text-decoration-none">
+                                                @customer.CustomerName
+                                            </a>
+                                            @if (customer.OutstandingBalance > customer.CreditLimit && customer.CreditLimit > 0)
+                                            {
+                                                <br><small class="text-danger">Over credit limit!</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <strong class="text-warning">@customer.OutstandingBalance.ToString("C")</strong>
+                                        </td>
+                                        <td>
+                                            @if (customer.CreditLimit > 0)
+                                            {
+                                                @customer.CreditLimit.ToString("C")
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">No limit</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="@Url.Action("CustomerStatement", new { id = customer.Id })" 
+                                                   class="btn btn-outline-info" title="View Statement">
+                                                    <i class="fas fa-file-invoice"></i>
+                                                </a>
+                                                <a href="mailto:@customer.Email?subject=Account Statement" 
+                                                   class="btn btn-outline-primary" title="Email Statement">
+                                                    <i class="fas fa-envelope"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-3">
+                        <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No customer balances to display</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <a href="@Url.Action("AgingReport")" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-chart-pie"></i><br>
+                            View Aging Report
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="@Url.Action("Collections")" class="btn btn-outline-warning w-100 mb-2">
+                            <i class="fas fa-phone"></i><br>
+                            Manage Collections
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="@Url.Action("CustomerStatements")" class="btn btn-outline-info w-100 mb-2">
+                            <i class="fas fa-file-invoice"></i><br>
+                            Customer Statements
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/Sales/PastDueReport" class="btn btn-outline-danger w-100 mb-2">
+                            <i class="fas fa-exclamation-triangle"></i><br>
+                            Past Due Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Aging Chart
+    const ctx = document.getElementById('agingChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Current', '1-30 Days', '31-60 Days', '61-90 Days', '90+ Days'],
+            datasets: [{
+                data: [
+                    @Model.CurrentAmount,
+                    @Model.Days1To30Amount,
+                    @Model.Days31To60Amount,
+                    @Model.Days61To90Amount,
+                    @Model.Over90DaysAmount
+                ],
+                backgroundColor: [
+                    '#28a745', // green - current
+                    '#ffc107', // yellow - 1-30
+                    '#fd7e14', // orange - 31-60
+                    '#dc3545', // red - 61-90
+                    '#6c757d'  // gray - 90+
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return context.label + ': $' + value.toLocaleString() + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+}
+
+<style>
+.text-orange {
+    color: #fd7e14 !important;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.progress {
+    height: 8px;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-warning:hover,
+.btn-outline-info:hover,
+.btn-outline-danger:hover {
+    transform: translateY(-1px);
+}
+</style>

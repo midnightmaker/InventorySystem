@@ -1,6 +1,7 @@
 using InventorySystem.Data;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
+using InventorySystem.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Text; // Add this for StringBuilder
@@ -105,13 +106,34 @@ namespace InventorySystem.Services
             if (string.IsNullOrWhiteSpace(searchTerm))
                 return await GetActiveCustomersAsync();
 
-            var term = searchTerm.ToLower();
-            return await _context.Customers
+            var searchTermTrimmed = searchTerm.Trim();
+            var query = _context.Customers
                 .Include(c => c.Sales)
-                .Where(c => c.CustomerName.ToLower().Contains(term) ||
-                           c.Email.ToLower().Contains(term) ||
-                           (c.CompanyName != null && c.CompanyName.ToLower().Contains(term)) ||
-                           (c.Phone != null && c.Phone.Contains(searchTerm)))
+                .AsQueryable();
+
+            if (searchTermTrimmed.Contains('*') || searchTermTrimmed.Contains('?'))
+            {
+                var likePattern = ConvertWildcardToLike(searchTermTrimmed);
+                query = query.Where(c =>
+                    EF.Functions.Like(c.CustomerName, likePattern) ||
+                    EF.Functions.Like(c.Email, likePattern) ||
+                    (c.CompanyName != null && EF.Functions.Like(c.CompanyName, likePattern)) ||
+                    (c.Phone != null && EF.Functions.Like(c.Phone, likePattern)) ||
+                    EF.Functions.Like(c.Id.ToString(), likePattern)
+                );
+            }
+            else
+            {
+                var term = searchTermTrimmed.ToLower();
+                query = query.Where(c =>
+                    c.CustomerName.ToLower().Contains(term) ||
+                    c.Email.ToLower().Contains(term) ||
+                    (c.CompanyName != null && c.CompanyName.ToLower().Contains(term)) ||
+                    (c.Phone != null && c.Phone.Contains(searchTermTrimmed))
+                );
+            }
+
+            return await query
                 .OrderBy(c => c.CustomerName)
                 .ToListAsync();
         }
@@ -207,8 +229,8 @@ namespace InventorySystem.Services
             };
         }
 
-        // FIXED: Problem 2 - Added null-conditional operator and null check
-        public async Task<IEnumerable<TopCustomer>> GetTopCustomersAsync(int count = 10)
+        // FIXED: Problem 2 - Updated to use ViewModels.TopCustomer
+        public async Task<IEnumerable<ViewModels.TopCustomer>> GetTopCustomersAsync(int count = 10)
         {
             var customers = await _context.Customers
                 .Include(c => c.Sales)
@@ -218,7 +240,7 @@ namespace InventorySystem.Services
                 
             // Then calculate and sort in memory using computed properties
             return customers
-                .Select(c => new TopCustomer
+                .Select(c => new ViewModels.TopCustomer
                 {
                     CustomerId = c.Id,
                     CustomerName = c.CustomerName,
@@ -228,7 +250,10 @@ namespace InventorySystem.Services
                     TotalOrders = c.SalesCount,
                     AverageOrderValue = c.SalesCount > 0 ? c.TotalSales / c.SalesCount : 0,
                     LastOrderDate = c.LastSaleDate,
-                    IsActive = c.IsActive
+                    IsActive = c.IsActive,
+                    // Set the compatibility properties
+                    TotalProfit = c.Sales?.Where(s => s.SaleStatus != SaleStatus.Cancelled)
+                        .SelectMany(s => s.SaleItems).Sum(si => si.Profit) ?? 0
                 })
                 .OrderByDescending(c => c.TotalSales)
                 .Take(count)
@@ -512,6 +537,29 @@ namespace InventorySystem.Services
             }
 
             return Encoding.UTF8.GetBytes(csv.ToString()); // FIXED: Added fully qualified name
+        }
+
+        /// <summary>
+        /// Converts wildcard patterns (* and ?) to SQL LIKE patterns
+        /// * matches any sequence of characters -> %
+        /// ? matches any single character ->_
+        /// </summary>
+        /// <param name="wildcardPattern">The wildcard pattern to convert</param>
+        /// <returns>A SQL LIKE pattern string</returns>
+        private string ConvertWildcardToLike(string wildcardPattern)
+        {
+            // Escape existing SQL LIKE special characters first
+            var escaped = wildcardPattern
+                .Replace("%", "[%]")    // Escape existing % characters
+                .Replace("_", "[_]")    // Escape existing _ characters
+                .Replace("[", "[[]");   // Escape existing [ characters
+
+            // Convert wildcards to SQL LIKE patterns
+            escaped = escaped
+                .Replace("*", "%")      // * becomes %
+                .Replace("?", "_");     // ? becomes _
+
+            return escaped;
         }
     }
 }

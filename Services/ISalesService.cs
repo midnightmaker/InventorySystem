@@ -35,8 +35,9 @@ namespace InventorySystem.Services
     Task<decimal> GetTotalProfitByMonthAsync(int year, int month);
     Task<int> GetTotalSalesCountAsync();
     
-    // FIXED: Updated to use Customer ID instead of legacy CustomerName
+    // Customer-specific sales
     Task<IEnumerable<Sale>> GetSalesByCustomerAsync(int customerId);
+    Task<IEnumerable<Sale>> GetCustomerSalesAsync(int customerId);
     Task<IEnumerable<Sale>> GetSalesByStatusAsync(SaleStatus status);
   }
 }

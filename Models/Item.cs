@@ -48,7 +48,7 @@ namespace InventorySystem.Models
 
     // Computed properties
     [NotMapped]
-    public bool TrackInventory => ItemType == ItemType.Inventoried;
+    public bool TrackInventory => ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials;
 
     [NotMapped]
     public string DisplayPartNumber => $"{PartNumber}-{Version}";
@@ -60,6 +60,11 @@ namespace InventorySystem.Models
       ItemType.NonInventoried => "Non-Inventoried",
       ItemType.Service => "Service",
       ItemType.Virtual => "Virtual",
+      ItemType.Consumable => "Consumable",
+      ItemType.Expense => "Expense",
+      ItemType.Subscription => "Subscription",
+      ItemType.Utility => "Utility",
+      ItemType.RnDMaterials => "R&D Materials",
       _ => "Unknown"
     };
 

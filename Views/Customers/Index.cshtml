@@ -15,17 +15,78 @@
     </div>
 </div>
 
-@* Search and Filters *@
+@* Enhanced Search and Filters *@
 <div class="card mb-4">
-    <div class="card-body">
+    <div class="card-header">
+      <h6 class="mb-0">
+        <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#searchCollapse"
+                aria-expanded="@((Model.SearchTerm != null || Model.CustomerType != null || Model.ActiveOnly != null || !string.IsNullOrEmpty(Model.CreditStatus)) ? "true" : "false")"
+                aria-controls="searchCollapse">
+          <i class="fas fa-search"></i> Search & Filter Customers
+          <i class="fas fa-chevron-@((Model.SearchTerm != null || Model.CustomerType != null || Model.ActiveOnly != null || !string.IsNullOrEmpty(Model.CreditStatus)) ? "up" : "down") float-end"></i>
+        </button>
+      </h6>
+    </div>
+    <div class="collapse @((Model.SearchTerm != null || Model.CustomerType != null || Model.ActiveOnly != null || !string.IsNullOrEmpty(Model.CreditStatus)) ? "show" : "")" id="searchCollapse">
+      <div class="card-body">
+        <!-- Search Examples -->
+        <div class="row mb-4 p-3 bg-light border rounded">
+          <div class="col-12">
+            <h6><i class="fas fa-lightbulb text-info"></i> Search Examples</h6>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Search by:</h6>
+            <ul class="list-unstyled small">
+              <li><code>John Smith</code> - Customer name</li>
+              <li><code>ABC Corp</code> - Company name</li>
+              <li><code>john@email.com</code> - Email address</li>
+              <li><code>(555) 123-4567</code> - Phone number</li>
+              <li><code>*Corp*</code> - Contains "Corp"</li>
+              <li><code>John?</code> - Johns, Johna, etc.</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Search Fields:</h6>
+            <ul class="list-unstyled small">
+              <li><i class="fas fa-user"></i> Customer name</li>
+              <li><i class="fas fa-building"></i> Company name</li>
+              <li><i class="fas fa-envelope"></i> Email address</li>
+              <li><i class="fas fa-phone"></i> Phone number</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6 class="small">Quick Filters:</h6>
+            <ul class="list-unstyled small">
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('active')">Active customers</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('retail')">Retail customers</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="quickFilter('overlimit')">Over credit limit</button></li>
+              <li><button class="btn btn-link btn-sm p-0" onclick="clearAllFilters()">Clear all filters</button></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Search Form -->
         <form method="get" class="row g-3">
             <div class="col-md-4">
-                <label class="form-label">Search Customers</label>
-                <input type="text" name="searchTerm" value="@Model.SearchTerm" class="form-control" placeholder="Name, email, or company..." />
+                <label for="searchTerm" class="form-label">
+                  <i class="fas fa-search"></i> Search Term
+                </label>
+                <input type="text" 
+                       name="searchTerm" 
+                       id="searchTerm"
+                       value="@Model.SearchTerm" 
+                       class="form-control" 
+                       placeholder="Name, email, company, phone... (use * and ? for wildcards)" />
+                <div class="form-text">Use * for multiple chars, ? for single char</div>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Customer Type</label>
-                <select name="customerType" class="form-select">
+                <label for="customerType" class="form-label">
+                  <i class="fas fa-tag"></i> Customer Type
+                </label>
+                <select name="customerType" id="customerType" class="form-select">
                     <option value="">All Types</option>
                     @foreach (CustomerType type in Model.CustomerTypes)
                     {
@@ -34,27 +95,67 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Status</label>
-                <select name="activeOnly" class="form-select">
+                <label for="activeOnly" class="form-label">
+                  <i class="fas fa-toggle-on"></i> Status
+                </label>
+                <select name="activeOnly" id="activeOnly" class="form-select">
                     <option value="">All Customers</option>
                     <option value="true" selected="@(Model.ActiveOnly == true)">Active Only</option>
                     <option value="false" selected="@(Model.ActiveOnly == false)">Inactive Only</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button type="submit" class="btn btn-outline-primary me-2">
-                    <i class="fas fa-search"></i> Search
-                </button>
-                <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
-                    <i class="fas fa-times"></i> Clear
-                </a>
+            <div class="col-md-3">
+                <label for="creditStatus" class="form-label">
+                  <i class="fas fa-credit-card"></i> Credit Status
+                </label>
+                <select name="creditStatus" id="creditStatus" class="form-select">
+                    <option value="">All Credit Status</option>
+                    <option value="good" selected="@(Model.CreditStatus == "good")">Good Standing</option>
+                    <option value="overlimit" selected="@(Model.CreditStatus == "overlimit")">Over Credit Limit</option>
+                    <option value="outstanding" selected="@(Model.CreditStatus == "outstanding")">Outstanding Balance</option>
+                    <option value="nolimit" selected="@(Model.CreditStatus == "nolimit")">No Credit Limit</option>
+                </select>
+            </div>
+            <div class="col-md-12">
+                <div class="btn-group">
+                  <button type="submit" class="btn btn-primary">
+                      <i class="fas fa-search"></i> Search
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                      <i class="fas fa-times"></i> Clear
+                  </button>
+                  <button type="button" class="btn btn-outline-info" onclick="saveSearch()">
+                      <i class="fas fa-bookmark"></i> Save Search
+                  </button>
+                </div>
             </div>
         </form>
+      </div>
     </div>
 </div>
 
+<!-- Search Results Summary -->
+@if (Model.SearchTerm != null || Model.CustomerType != null || Model.ActiveOnly != null || !string.IsNullOrEmpty(Model.CreditStatus))
+{
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      Found <strong>@Model.Customers.Count()</strong> customer(s)
+      @if (!string.IsNullOrEmpty(Model.SearchTerm))
+      {
+        <span>matching "<strong>@Model.SearchTerm</strong>"</span>
+      }
+      <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
+        <i class="fas fa-times"></i> Clear All Filters
+      </a>
+    </div>
+}
+
 @* Customer Table *@
 <div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-users"></i> Customers</h5>
+        <small class="text-muted">Click on any row to view customer details</small>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -72,7 +173,7 @@
                 <tbody>
                     @foreach (var customer in Model.Customers)
                     {
-                        <tr>
+                        <tr class="clickable-row" data-href="@Url.Action("Details", new { id = customer.Id })" style="cursor: pointer;">
                             <td>
                                 <div>
                                     <strong>@customer.CustomerName</strong>
@@ -120,7 +221,7 @@
                                     @(customer.IsActive ? "Active" : "Inactive")
                                 </span>
                             </td>
-                            <td class="text-center">
+                            <td class="text-center" onclick="event.stopPropagation();">
                                 <div class="btn-group btn-group-sm">
                                     <a href="@Url.Action("Details", new { id = customer.Id })" class="btn btn-outline-primary" title="View Details">
                                         <i class="fas fa-eye"></i>
@@ -130,6 +231,9 @@
                                     </a>
                                     <a href="@Url.Action("Analytics", new { id = customer.Id })" class="btn btn-outline-info" title="Analytics">
                                         <i class="fas fa-chart-line"></i>
+                                    </a>
+                                    <a href="/Sales/Create?customerId=@customer.Id" class="btn btn-outline-success" title="Create Sale">
+                                        <i class="fas fa-plus"></i>
                                     </a>
                                 </div>
                             </td>
@@ -185,3 +289,119 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-expand search if filtered
+    @if (Model.SearchTerm != null || Model.CustomerType != null || Model.ActiveOnly != null || !string.IsNullOrEmpty(Model.CreditStatus))
+    {
+          <text>
+          const searchCollapse = document.getElementById('searchCollapse');
+          if (searchCollapse && !searchCollapse.classList.contains('show')) {
+              new bootstrap.Collapse(searchCollapse, { show: true });
+          }
+          </text>
+    }
+
+    // Update chevron icon
+    const collapseElement = document.getElementById('searchCollapse');
+    const chevronIcon = document.querySelector('[data-bs-target="#searchCollapse"] .fa-chevron-down, [data-bs-target="#searchCollapse"] .fa-chevron-up');
+
+    if (collapseElement && chevronIcon) {
+        collapseElement.addEventListener('show.bs.collapse', function () {
+            chevronIcon.classList.remove('fa-chevron-down');
+            chevronIcon.classList.add('fa-chevron-up');
+        });
+
+        collapseElement.addEventListener('hide.bs.collapse', function () {
+            chevronIcon.classList.remove('fa-chevron-up');
+            chevronIcon.classList.add('fa-chevron-down');
+        });
+    }
+
+    // Add click handlers for table rows
+    const clickableRows = document.querySelectorAll('.clickable-row');
+    clickableRows.forEach(row => {
+        row.addEventListener('click', function() {
+            const href = this.getAttribute('data-href');
+            if (href) {
+                window.location.href = href;
+            }
+        });
+        
+        // Add hover effect
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+});
+
+// Quick filter functions
+function quickFilter(type) {
+    switch(type) {
+        case 'active':
+            document.getElementById('activeOnly').value = 'true';
+            break;
+        case 'retail':
+            document.getElementById('customerType').value = '0'; // Assuming Retail is 0
+            break;
+        case 'overlimit':
+            document.getElementById('creditStatus').value = 'overlimit';
+            break;
+    }
+
+    // Submit the form
+    document.querySelector('form').submit();
+}
+
+function clearAllFilters() {
+    // Clear all form fields
+    document.getElementById('searchTerm').value = '';
+    document.getElementById('customerType').value = '';
+    document.getElementById('activeOnly').value = '';
+    if (document.getElementById('creditStatus')) {
+        document.getElementById('creditStatus').value = '';
+    }
+
+    // Navigate to clean URL
+    window.location.href = '@Url.Action("Index")';
+}
+
+function saveSearch() {
+    // Save search criteria to localStorage for bookmarking
+    const searchData = {
+        searchTerm: document.getElementById('searchTerm').value,
+        customerType: document.getElementById('customerType').value,
+        activeOnly: document.getElementById('activeOnly').value,
+        creditStatus: document.getElementById('creditStatus') ? document.getElementById('creditStatus').value : ''
+    };
+
+    localStorage.setItem('savedCustomerSearch', JSON.stringify(searchData));
+    alert('Search criteria saved! Use the browser bookmark to return to this search.');
+}
+
+// Auto-save search in URL for bookmarking
+function updateURL() {
+    const form = document.querySelector('form');
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+
+    for (const [key, value] of formData.entries()) {
+        if (value) params.set(key, value);
+    }
+
+    const newURL = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+    window.history.replaceState({}, '', newURL);
+}
+
+// Update URL when form changes (for bookmarking)
+document.addEventListener('change', function(e) {
+    if (e.target.form) {
+        updateURL();
+    }
+});
+</script>

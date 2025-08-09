@@ -1,6 +1,15 @@
 ﻿@model IEnumerable<InventorySystem.Models.Sale>
+@using Microsoft.AspNetCore.Routing
 @{
     ViewData["Title"] = "Sales";
+    var searchTerm = ViewBag.SearchTerm as string;
+    var customerFilter = ViewBag.CustomerFilter as string;
+    var statusFilter = ViewBag.StatusFilter as string;
+    var paymentStatusFilter = ViewBag.PaymentStatusFilter as string;
+    var startDate = ViewBag.StartDate as string;
+    var endDate = ViewBag.EndDate as string;
+    var sortOrder = ViewBag.SortOrder as string ?? "date_desc";
+    var isFiltered = ViewBag.IsFiltered as bool? ?? false;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -41,9 +50,205 @@
     </div>
 }
 
+<!-- Enhanced Search Form -->
+<div class="card mb-4">
+    <div class="card-header">
+      <h6 class="mb-0">
+        <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#searchCollapse"
+                aria-expanded="@(isFiltered ? "true" : "false")"
+                aria-controls="searchCollapse">
+          <i class="fas fa-search"></i> Search & Filter Sales
+          <i class="fas fa-chevron-@(isFiltered ? "up" : "down") float-end"></i>
+        </button>
+      </h6>
+    </div>
+    <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
+      <div class="card-body">
+        <!-- Search Form -->
+        <form method="get" class="row g-3">
+          <div class="col-md-4">
+            <label for="search" class="form-label">
+              <i class="fas fa-search"></i> Search Term
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="search"
+                   name="search"
+                   value="@searchTerm"
+                   placeholder="Sale number, customer name, order number... (use * and ? for wildcards)">
+            <div class="form-text">Use * for multiple chars, ? for single char</div>
+          </div>
+
+          <div class="col-md-3">
+            <label for="customerFilter" class="form-label">
+              <i class="fas fa-user"></i> Customer
+            </label>
+            <select class="form-select" id="customerFilter" name="customerFilter" asp-items="ViewBag.CustomerOptions">
+              <option value="">All Customers</option>
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label for="statusFilter" class="form-label">
+              <i class="fas fa-flag"></i> Status
+            </label>
+            <select class="form-select" id="statusFilter" name="statusFilter" asp-items="ViewBag.StatusOptions">
+              <option value="">All Statuses</option>
+            </select>
+          </div>
+
+          <div class="col-md-3">
+            <label for="paymentStatusFilter" class="form-label">
+              <i class="fas fa-credit-card"></i> Payment Status
+            </label>
+            <select class="form-select" id="paymentStatusFilter" name="paymentStatusFilter" asp-items="ViewBag.PaymentStatusOptions">
+              <option value="">All Payment Status</option>
+            </select>
+          </div>
+
+          <div class="col-md-3">
+            <label for="startDate" class="form-label">
+              <i class="fas fa-calendar"></i> From Date
+            </label>
+            <input type="date" class="form-control" id="startDate" name="startDate" value="@startDate">
+          </div>
+
+          <div class="col-md-3">
+            <label for="endDate" class="form-label">To Date</label>
+            <input type="date" class="form-control" id="endDate" name="endDate" value="@endDate">
+          </div>
+
+          <div class="col-md-12">
+            <div class="btn-group">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Search
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                <i class="fas fa-times"></i> Clear
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+</div>
+
+<!-- Search Results Summary -->
+@if (isFiltered)
+{
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      Found <strong>@(ViewBag.TotalCount ?? Model.Count())</strong> sale(s)
+      @if (!string.IsNullOrEmpty(searchTerm))
+      {
+        <span>matching "<strong>@searchTerm</strong>"</span>
+      }
+      <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
+        <i class="fas fa-times"></i> Clear All Filters
+      </a>
+    </div>
+}
+
 <div class="card">
     <div class="card-header">
-        <h5><i class="fas fa-list"></i> Sales Records</h5>
+        <h5><i class="fas fa-list"></i> Sales Records
+            <span class="badge bg-primary ms-2">@(ViewBag.TotalCount ?? Model.Count()) records</span>
+        </h5>
+
+        <!-- Sort Options, Page Size, and Pagination Controls -->
+        <div class="d-flex align-items-center gap-3">
+          <!-- Page Size Controls -->
+          @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+          {
+            <div class="btn-group">
+              <label class="btn btn-outline-secondary btn-sm">
+                Sales per page:
+                <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
+                        onchange="changePageSize(this.value)">
+                  @{
+                    var allowedPageSizes = ViewBag.AllowedPageSizes as int[] ?? new int[] { 10, 25, 50, 100 };
+                    var currentPageSize = (int)(ViewBag.PageSize ?? 25);
+                  }
+                  @foreach (var size in allowedPageSizes)
+                  {
+                    <option value="@size" selected="@(size == currentPageSize)">@size</option>
+                  }
+                </select>
+              </label>
+            </div>
+          }
+
+          <!-- Sort Options -->
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-sort"></i> Sort
+            </button>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item @(sortOrder == "date_desc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "date_desc" })">
+                  <i class="fas fa-calendar"></i> Date (Newest First)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "date_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "date_asc" })">
+                  <i class="fas fa-calendar"></i> Date (Oldest First)
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "customer_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "customer_asc" })">
+                  <i class="fas fa-user"></i> Customer (A-Z)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "amount_desc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "amount_desc" })">
+                  <i class="fas fa-dollar-sign"></i> Amount (High-Low)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item @(sortOrder == "payment_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "payment_asc" })">
+                  <i class="fas fa-credit-card"></i> Payment Status
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Pagination Navigation -->
+          @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+          {
+            <nav aria-label="Sales pagination">
+              <ul class="pagination pagination-sm mb-0">
+                <!-- Previous Page -->
+                <li class="page-item @((bool)(ViewBag.HasPreviousPage ?? false) ? "" : "disabled")">
+                  <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = (int)(ViewBag.CurrentPage ?? 1) - 1, pageSize = ViewBag.PageSize })">Previous</a>
+                </li>
+                
+                @{
+                  int currentPage = (int)(ViewBag.CurrentPage ?? 1);
+                  int totalPages = (int)(ViewBag.TotalPages ?? 1);
+                  int startPage = Math.Max(1, currentPage - 2);
+                  int endPage = Math.Min(totalPages, currentPage + 2);
+                }
+
+                @for (int i = startPage; i <= endPage; i++)
+                {
+                  <li class="page-item @(i == currentPage ? "active" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = i, pageSize = ViewBag.PageSize })">@i</a>
+                  </li>
+                }
+                
+                <!-- Next Page -->
+                <li class="page-item @((bool)(ViewBag.HasNextPage ?? false) ? "" : "disabled")">
+                  <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = (int)(ViewBag.CurrentPage ?? 1) + 1, pageSize = ViewBag.PageSize })">Next</a>
+                </li>
+              </ul>
+            </nav>
+          }
+        </div>
+        <small class="text-muted">Click on any row to view sale details</small>
     </div>
     <div class="card-body">
         @if (Model?.Any() == true)
@@ -65,7 +270,7 @@
                     <tbody>
                         @foreach (var sale in Model.OrderByDescending(s => s.SaleDate))
                         {
-                            <tr>
+                            <tr class="clickable-row" data-href="/Sales/Details/@sale.Id" style="cursor: pointer;">
                                 <td>
                                     <strong>@sale.SaleNumber</strong>
                                     @if (!string.IsNullOrEmpty(sale.OrderNumber))
@@ -79,7 +284,7 @@
                                     @if (sale.Customer != null)
                                     {
                                         <strong>
-                                            <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none">
+                                            <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none" onclick="event.stopPropagation();">
                                                 @sale.Customer.CustomerName
                                             </a>
                                         </strong>
@@ -138,41 +343,33 @@
                                     {
                                         <span class="badge bg-info">Delivered</span>
                                     }
-                                    else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Backordered)
-                                    {
-                                        <span class="badge bg-warning">Backordered</span>
-                                    }
                                     else
                                     {
-                                        <span class="badge bg-secondary">@sale.SaleStatus</span>
+                                        <span class="badge bg-danger">@sale.SaleStatus</span>
                                     }
                                 </td>
                                 <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="/Sales/Details/@sale.Id" class="btn btn-outline-primary" title="View Details">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="@Url.Action("InvoiceReport", new { saleId = sale.Id })" 
-                                           class="btn btn-outline-success" title="View Invoice">
-                                            <i class="fas fa-file-invoice-dollar"></i>
-                                        </a>
-                                        @if (sale.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
-                                        {
-                                            <button type="button" class="btn btn-outline-warning" 
-                                                    title="Record Payment" 
-                                                    onclick="openPaymentModal(@sale.Id, '@sale.SaleNumber', @sale.TotalAmount)">
-                                                <i class="fas fa-dollar-sign"></i>
-                                            </button>
-                                        }
-                                        <a href="/Sales/Edit/@sale.Id" class="btn btn-outline-secondary" title="Edit Sale">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        @if (sale.Customer != null)
-                                        {
-                                            <a href="/Customers/Details/@sale.Customer.Id" class="btn btn-outline-info" title="View Customer">
-                                                <i class="fas fa-user"></i>
-                                            </a>
-                                        }
+                                    <!-- Action Buttons -->
+                                    <div class="btn-group">
+                                      <!-- View Details -->
+                                      <a href="/Sales/Details/@sale.Id" class="btn btn-sm btn-info" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                      </a>
+                                      <!-- Edit -->
+                                      <a href="/Sales/Edit/@sale.Id" class="btn btn-sm btn-warning" title="Edit Sale">
+                                        <i class="fas fa-pencil-alt"></i>
+                                      </a>
+                                      <!-- Delete -->
+                                      <button class="btn btn-sm btn-danger" title="Delete Sale" onclick="deleteSale(@sale.Id, '@sale.SaleNumber')">
+                                        <i class="fas fa-trash"></i>
+                                      </button>
+                                      <!-- Payment -->
+                                      @if (sale.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
+                                      {
+                                        <button class="btn btn-sm btn-success" title="Record Payment" onclick="openPaymentModal(@sale.Id, '@sale.SaleNumber', @sale.TotalAmount)">
+                                          <i class="fas fa-dollar-sign"></i>
+                                        </button>
+                                      }
                                     </div>
                                 </td>
                             </tr>
@@ -180,123 +377,118 @@
                     </tbody>
                 </table>
             </div>
-
-            <div class="row mt-4">
-                <div class="col-md-12">
-                    <div class="card bg-light">
-                        <div class="card-body">
-                            <div class="row text-center">
-                                <div class="col-md-3">
-                                    <h6>Total Sales: <span class="badge bg-primary">@Model.Count()</span></h6>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6>Total Value: <span class="badge bg-success">@Model.Sum(s => s.TotalAmount).ToString("C")</span></h6>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6>Paid: <span class="badge bg-success">@Model.Count(s => s.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)</span></h6>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6>Pending: <span class="badge bg-warning">@Model.Count(s => s.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Pending)</span></h6>
-                                </div>
-                            </div>
-                            
-                            @* Additional Statistics Row *@
-                            <div class="row text-center mt-3">
-                                <div class="col-md-3">
-                                    <h6>Shipped: <span class="badge bg-info">@Model.Count(s => s.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Shipped)</span></h6>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6>Backorders: <span class="badge bg-warning">@Model.Count(s => s.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Backordered)</span></h6>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6>Avg Sale: <span class="badge bg-secondary">@(Model.Any() ? Model.Average(s => s.TotalAmount).ToString("C") : "$0")</span></h6>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6>Overdue: <span class="badge bg-danger">@Model.Count(s => s.IsOverdue)</span></h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         }
         else
         {
-            <div class="text-center py-5">
-                <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
-                <h4 class="text-muted">No Sales Records</h4>
-                <p class="text-muted">Start creating sales to track your revenue.</p>
-                <a href="/Sales/Create" class="btn btn-success">
-                    <i class="fas fa-plus"></i> Create Your First Sale
-                </a>
+            <div class="alert alert-warning text-center">
+                <i class="fas fa-exclamation-triangle"></i> No sales records found.
             </div>
         }
     </div>
 </div>
 
-<!-- Payment Recording Modal for Sales Index -->
+<!-- MODAL: Record Payment (enhanced example) -->
 <div class="modal fade" id="recordPaymentModalIndex" tabindex="-1" aria-labelledby="recordPaymentModalIndexLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <form asp-action="RecordPayment" method="post">
-        <input type="hidden" name="saleId" id="modalSaleId" />
-        <div class="modal-header">
-          <h5 class="modal-title" id="recordPaymentModalIndexLabel">
-            <i class="fas fa-dollar-sign"></i> Record Payment
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Sale Number</label>
-            <input type="text" class="form-control" id="modalSaleNumber" readonly />
+      <div class="modal-header">
+        <h5 class="modal-title" id="recordPaymentModalIndexLabel">
+          <i class="fas fa-dollar-sign"></i> Record Payment
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="recordPaymentForm" method="post" action="/Sales/RecordPayment">
+          @* Anti-forgery token for security *@
+          <input type="hidden" name="__RequestVerificationToken" value="@Html.AntiForgeryToken().ToString()" />
+          <input type="hidden" id="modalSaleId" name="saleId" value="" />
+          
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="modalSaleNumber" class="form-label">
+                <i class="fas fa-tag"></i> Sale Number
+              </label>
+              <input type="text" class="form-control" id="modalSaleNumber" name="saleNumber" value="" readonly>
+            </div>
+            <div class="col-md-6">
+              <label for="modalSaleTotal" class="form-label">
+                <i class="fas fa-dollar-sign"></i> Sale Total
+              </label>
+              <input type="text" class="form-control" id="modalSaleTotal" name="saleTotal" value="" readonly>
+            </div>
           </div>
+
           <div class="mb-3">
-            <label class="form-label">Sale Total</label>
-            <input type="text" class="form-control" id="modalSaleTotal" readonly />
+            <label for="modalPaymentAmount" class="form-label">
+              <i class="fas fa-money-bill-wave"></i> Payment Amount
+            </label>
+            <input type="number" class="form-control" id="modalPaymentAmount" name="paymentAmount" min="0" step="0.01" value="" required>
           </div>
+
           <div class="mb-3">
-            <label for="modalPaymentAmount" class="form-label">Payment Amount *</label>
-            <input type="number" step="0.01" class="form-control" id="modalPaymentAmount" name="paymentAmount" 
-                   min="0.01" required />
-            <div class="form-text">Enter the amount received from the customer</div>
-          </div>
-          <div class="mb-3">
-            <label for="modalPaymentMethod" class="form-label">Payment Method *</label>
+            <label for="modalPaymentMethod" class="form-label">
+              <i class="fas fa-credit-card"></i> Payment Method
+            </label>
             <select class="form-select" id="modalPaymentMethod" name="paymentMethod" required>
-              <option value="">Select payment method...</option>
-              <option value="Cash">Cash</option>
-              <option value="Check">Check</option>
+              <option value="">Select Payment Method</option>
               <option value="Credit Card">Credit Card</option>
-              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Debit Card">Debit Card</option>
               <option value="PayPal">PayPal</option>
-              <option value="Other">Other</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <!-- Add more payment methods as needed -->
             </select>
           </div>
+
           <div class="mb-3">
-            <label for="modalPaymentDate" class="form-label">Payment Date *</label>
-            <input type="date" class="form-control" id="modalPaymentDate" name="paymentDate" 
-                   value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+            <label for="modalPaymentNotes" class="form-label">
+              <i class="fas fa-notes-medical"></i> Notes
+            </label>
+            <textarea class="form-control" id="modalPaymentNotes" name="paymentNotes" rows="3"></textarea>
           </div>
+
           <div class="mb-3">
-            <label for="modalPaymentNotes" class="form-label">Payment Notes</label>
-            <textarea class="form-control" id="modalPaymentNotes" name="paymentNotes" rows="2" 
-                      placeholder="Check number, transaction ID, reference number, etc."></textarea>
-            <div class="form-text">Optional notes about this payment</div>
+            <label for="modalPaymentDate" class="form-label">
+              <i class="fas fa-calendar-alt"></i> Payment Date
+            </label>
+            <input type="date" class="form-control" id="modalPaymentDate" name="paymentDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" required>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success">
-            <i class="fas fa-save"></i> Record Payment
-          </button>
-        </div>
-      </form>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-check"></i> Record Payment
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </div>
 
-<script>
+@section Scripts {
+    @* Existing scripts... *@
+    <script>
+      function setStatusFilter(status) {
+    if (status === 'Pending') {
+        document.getElementById('paymentStatusFilter').value = 'Pending';
+    } else if (status === 'Backordered') {
+        document.getElementById('statusFilter').value = 'Backordered';
+    }
+    
+    // Trigger search
+    document.querySelector('form').submit();
+}
+
+function changePageSize(size) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('pageSize', size);
+    params.set('page', 1); // Reset to first page on page size change
+
+    window.location.search = params.toString();
+}
+
 function openPaymentModal(saleId, saleNumber, saleTotal) {
     // Set the sale information in the modal
     document.getElementById('modalSaleId').value = saleId;
@@ -318,22 +510,5 @@ function openPaymentModal(saleId, saleNumber, saleTotal) {
     var modal = new bootstrap.Modal(document.getElementById('recordPaymentModalIndex'));
     modal.show();
 }
-
-// Payment amount validation
-document.addEventListener('DOMContentLoaded', function() {
-    const paymentAmountInput = document.getElementById('modalPaymentAmount');
-    const saleTotal = document.getElementById('modalSaleTotal');
-    
-    if (paymentAmountInput) {
-        paymentAmountInput.addEventListener('change', function() {
-            const paymentAmount = parseFloat(this.value);
-            const maxAmount = parseFloat(this.max);
-            
-            if (paymentAmount > maxAmount) {
-                alert('Payment amount cannot exceed sale total of $' + maxAmount.toFixed(2));
-                this.value = maxAmount.toFixed(2);
-            }
-        });
-    }
-});
-</script>
+    </script>
+}

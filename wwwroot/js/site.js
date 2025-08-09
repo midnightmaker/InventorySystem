@@ -109,6 +109,117 @@ const PaymentValidation = {
     }
 };
 
+// ===== CLICKABLE TABLE ROWS UTILITY =====
+/*
+ * Clickable Table Rows System
+ * 
+ * This system makes index view table rows clickable to navigate to detail pages
+ * while preserving action button functionality.
+ * 
+ * IMPLEMENTATION:
+ * 1. Add 'clickable-row' class to <tr> elements
+ * 2. Add 'data-href' attribute with the destination URL
+ * 3. Add 'onclick="event.stopPropagation();"' to action columns to prevent row clicks
+ * 4. Global CSS handles styling (see site.css)
+ * 
+ * EXAMPLE HTML:
+ * <tr class="clickable-row" data-href="/Items/Details/123" style="cursor: pointer;">
+ *   <td>Item Name</td>
+ *   <td onclick="event.stopPropagation();">
+ *     <div class="btn-group">
+ *       <a href="/Items/Edit/123" class="btn btn-outline-warning">Edit</a>
+ *     </div>
+ *   </td>
+ * </tr>
+ * 
+ * FEATURES:
+ * - Smooth hover animations
+ * - Loading indicators for navigation
+ * - Prevents text selection
+ * - Works with existing action buttons
+ * - Accessible keyboard navigation
+ * 
+ * USED IN:
+ * - Sales Index (/Sales)
+ * - Customers Index (/Customers)
+ * - Items Index (/Items) 
+ * - Vendors Index (/Vendors)
+ */
+const ClickableTableRows = {
+    // Initialize clickable rows for a table
+    init: function(tableSelector = '.table') {
+        const tables = document.querySelectorAll(tableSelector);
+        
+        tables.forEach(table => {
+            const clickableRows = table.querySelectorAll('.clickable-row');
+            
+            clickableRows.forEach(row => {
+                this.setupRow(row);
+            });
+        });
+    },
+
+    // Setup individual row
+    setupRow: function(row) {
+        // Add click handler
+        row.addEventListener('click', function(e) {
+            // Don't navigate if clicking on action buttons, links, or form controls
+            if (e.target.closest('.btn-group') || 
+                e.target.closest('a') || 
+                e.target.closest('button') ||
+                e.target.closest('input') ||
+                e.target.closest('select')) {
+                return;
+            }
+
+            const href = this.getAttribute('data-href');
+            if (href) {
+                // Show loading indicator if available
+                if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                    window.LoadingIndicator.showForOperation('loading-details');
+                }
+                
+                // Navigate to details page
+                window.location.href = href;
+            }
+        });
+
+        // Add keyboard navigation
+        row.setAttribute('tabindex', '0');
+        row.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.click();
+            }
+        });
+
+        // Add aria label for accessibility
+        const href = row.getAttribute('data-href');
+        if (href) {
+            row.setAttribute('aria-label', 'Click to view details');
+        }
+    },
+
+    // Add clickable behavior to dynamically created rows
+    makeRowClickable: function(row, detailsUrl) {
+        if (!row) return;
+        
+        row.classList.add('clickable-row');
+        row.setAttribute('data-href', detailsUrl);
+        row.style.cursor = 'pointer';
+        
+        this.setupRow(row);
+    }
+};
+
+// Auto-initialize clickable rows when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    ClickableTableRows.init();
+});
+
+// Make utility globally available
+window.ClickableTableRows = ClickableTableRows;
+
 // ===== GLOBAL LOADING INDICATOR SYSTEM =====
 // Only declare if it doesn't already exist (avoid conflicts with embedded version)
 if (typeof window.LoadingIndicator === 'undefined') {

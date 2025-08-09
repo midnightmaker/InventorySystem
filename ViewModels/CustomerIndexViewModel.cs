@@ -9,6 +9,7 @@ namespace InventorySystem.ViewModels
         public string? SearchTerm { get; set; }
         public CustomerType? CustomerType { get; set; }
         public bool? ActiveOnly { get; set; }
+        public string? CreditStatus { get; set; }
         public IEnumerable<CustomerType> CustomerTypes { get; set; } = Enum.GetValues<CustomerType>();
     }
 }

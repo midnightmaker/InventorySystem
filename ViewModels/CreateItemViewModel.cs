@@ -34,6 +34,9 @@ namespace InventorySystem.ViewModels
     [Display(Name = "Preferred Vendor")]
     public string? PreferredVendor { get; set; }
 
+    [Display(Name = "Preferred Vendor")]
+    public int? PreferredVendorId { get; set; }
+
     [Display(Name = "Item can be sold")]
     public bool IsSellable { get; set; } = true;
 
@@ -94,9 +97,10 @@ namespace InventorySystem.ViewModels
     public decimal? WastePercentage { get; set; }
 
     // Helper properties
-    public bool ShowStockFields => ItemType == ItemType.Inventoried;
+    public bool ShowStockFields => ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials;
+    public bool IsMaterialItem => ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials;
     public bool IsTransformedMaterial => MaterialType == MaterialType.Transformed;
-    public bool ShowYieldFields => IsTransformedMaterial;
+    public bool ShowYieldFields => IsTransformedMaterial && IsMaterialItem;
     public bool RequiresManufacturingBom => IsTransformedMaterial && ItemType == ItemType.Inventoried;
   }
 }

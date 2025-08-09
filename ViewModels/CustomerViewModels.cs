@@ -30,6 +30,65 @@ namespace InventorySystem.ViewModels
         public int CustomersNearCreditLimit { get; set; }
     }
 
+    /// <summary>
+    /// Unified TopCustomer class that consolidates all customer ranking and analytics data.
+    /// This class supports both sales reports and customer reports.
+    /// </summary>
+    public class TopCustomer
+    {
+        // Core identification
+        public int CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerEmail { get; set; } = string.Empty;
+        public CustomerType CustomerType { get; set; }
+        
+        // Sales metrics
+        public decimal TotalSales { get; set; }
+        public decimal TotalPurchases { get; set; } // Alias for TotalSales for backward compatibility
+        public int TotalOrders { get; set; }
+        public int SalesCount { get; set; } // Alias for TotalOrders for backward compatibility
+        public decimal AverageOrderValue { get; set; }
+        public decimal AveragePurchaseValue { get; set; } // Alias for AverageOrderValue for backward compatibility
+        
+        // Profit metrics
+        public decimal TotalProfit { get; set; }
+        
+        // Date tracking
+        public DateTime? LastOrderDate { get; set; }
+        public DateTime LastPurchaseDate { get; set; } // Alias for LastOrderDate for backward compatibility
+        
+        // Status
+        public bool IsActive { get; set; }
+        
+        // Computed properties for convenience
+        public decimal ProfitMargin => TotalSales > 0 ? (TotalProfit / TotalSales) * 100 : 0;
+        
+        // Backward compatibility - these properties delegate to the primary properties
+        public decimal TotalPurchasesCompat 
+        { 
+            get => TotalSales; 
+            set => TotalSales = value; 
+        }
+        
+        public int SalesCountCompat 
+        { 
+            get => TotalOrders; 
+            set => TotalOrders = value; 
+        }
+        
+        public decimal AveragePurchaseValueCompat 
+        { 
+            get => AverageOrderValue; 
+            set => AverageOrderValue = value; 
+        }
+        
+        public DateTime? LastPurchaseDateCompat 
+        { 
+            get => LastOrderDate; 
+            set => LastOrderDate = value; 
+        }
+    }
+
     public class CustomerSearchViewModel
     {
         public string SearchTerm { get; set; } = string.Empty;

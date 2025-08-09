@@ -65,19 +65,6 @@ namespace InventorySystem.Services
         public List<TopPurchasedProduct> TopPurchasedProducts { get; set; } = new();
     }
 
-    public class TopCustomer
-    {
-        public int CustomerId { get; set; }
-        public string CustomerName { get; set; } = string.Empty;
-        public string CustomerEmail { get; set; } = string.Empty;
-        public CustomerType CustomerType { get; set; }
-        public decimal TotalSales { get; set; }
-        public int TotalOrders { get; set; }
-        public decimal AverageOrderValue { get; set; }
-        public DateTime? LastOrderDate { get; set; }
-        public bool IsActive { get; set; }
-    }
-
     public class CustomerSalesReport
     {
         public Customer Customer { get; set; } = null!;

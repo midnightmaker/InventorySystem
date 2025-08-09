@@ -250,6 +250,11 @@ namespace InventorySystem.Services
           .ToListAsync();
     }
 
+    public async Task<IEnumerable<Sale>> GetCustomerSalesAsync(int customerId)
+    {
+        return await GetSalesByCustomerAsync(customerId);
+    }
+
     public async Task<IEnumerable<Sale>> GetSalesByStatusAsync(SaleStatus status)
     {
       return await _context.Sales
@@ -317,7 +322,7 @@ namespace InventorySystem.Services
           .ThenInclude(si => si.Item)
           .Include(s => s.SaleItems)
           .ThenInclude(si => si.FinishedGood)
-          .Where(s => s.SaleStatus == SaleStatus.Backordered)
+          .Where(s => s.SaleItems.Any(si => si.QuantityBackordered > 0)) // FIXED: Look for any items with backorders
           .OrderBy(s => s.SaleDate)
           .ToListAsync();
     }

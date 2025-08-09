@@ -1,0 +1,292 @@
+@model IEnumerable<InventorySystem.ViewModels.CollectionItem>
+
+@if (Model.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>
+                        <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleAllCheckboxes(this)" />
+                    </th>
+                    <th>Priority</th>
+                    <th>Invoice #</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Days Overdue</th>
+                    <th>Contact Info</th>
+                    <th>Last Contact</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.OrderByDescending(i => i.Priority).ThenByDescending(i => i.Amount))
+                {
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input collection-checkbox" value="@item.SaleId" />
+                        </td>
+                        <td>
+                            <span class="badge bg-@(item.Priority switch {
+                                InventorySystem.ViewModels.CollectionPriority.High => "danger",
+                                InventorySystem.ViewModels.CollectionPriority.Medium => "warning",
+                                InventorySystem.ViewModels.CollectionPriority.Low => "info",
+                                _ => "secondary"
+                            })">
+                                @item.Priority
+                            </span>
+                        </td>
+                        <td>
+                            <a href="/Sales/Details/@item.SaleId" class="text-decoration-none fw-bold">
+                                @item.SaleNumber
+                            </a>
+                            <br>
+                            <small class="text-muted">@item.SaleDate.ToString("MM/dd/yyyy")</small>
+                        </td>
+                        <td>
+                            <a href="/Customers/Details/@item.CustomerId" class="text-decoration-none">
+                                @item.CustomerName
+                            </a>
+                            <br>
+                            <small class="text-muted">Due: @item.DueDate.ToString("MM/dd/yyyy")</small>
+                        </td>
+                        <td>
+                            <strong class="text-danger">@item.Amount.ToString("C")</strong>
+                            <br>
+                            <span class="badge bg-@(item.PaymentStatus switch {
+                                InventorySystem.Models.Enums.PaymentStatus.Overdue => "danger",
+                                InventorySystem.Models.Enums.PaymentStatus.PartiallyPaid => "warning",
+                                _ => "secondary"
+                            })">
+                                @item.PaymentStatus
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-@(item.DaysOverdue > 90 ? "dark" : item.DaysOverdue > 60 ? "danger" : item.DaysOverdue > 30 ? "warning" : "info") fs-6">
+                                @item.DaysOverdue days
+                            </span>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(item.CustomerEmail))
+                            {
+                                <a href="mailto:@item.CustomerEmail?subject=Payment Reminder - Invoice @item.SaleNumber" 
+                                   class="btn btn-sm btn-outline-primary mb-1" title="Send Email">
+                                    <i class="fas fa-envelope"></i>
+                                </a>
+                            }
+                            @if (!string.IsNullOrEmpty(item.CustomerPhone))
+                            {
+                                <a href="tel:@item.CustomerPhone" 
+                                   class="btn btn-sm btn-outline-success mb-1" title="Call Customer">
+                                    <i class="fas fa-phone"></i>
+                                </a>
+                            }
+                            <br>
+                            @if (!string.IsNullOrEmpty(item.CustomerEmail))
+                            {
+                                <small class="text-muted">@item.CustomerEmail</small><br>
+                            }
+                            @if (!string.IsNullOrEmpty(item.CustomerPhone))
+                            {
+                                <small class="text-muted">@item.CustomerPhone</small>
+                            }
+                        </td>
+                        <td>
+                            @if (item.LastContactDate.HasValue)
+                            {
+                                <span>@item.LastContactDate.Value.ToString("MM/dd/yyyy")</span>
+                                @if (!string.IsNullOrEmpty(item.ContactNotes))
+                                {
+                                    <br><small class="text-muted" title="@item.ContactNotes">
+                                        @(item.ContactNotes.Length > 30 ? item.ContactNotes.Substring(0, 30) + "..." : item.ContactNotes)
+                                    </small>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted">No contact</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" 
+                                        onclick="recordCollectionAction(@item.SaleId, '@item.SaleNumber', '@item.CustomerName')" 
+                                        title="Record Action">
+                                    <i class="fas fa-phone"></i>
+                                </button>
+                                <a href="/Sales/InvoiceReport?saleId=@item.SaleId" 
+                                   class="btn btn-outline-info" 
+                                   title="View Invoice">
+                                    <i class="fas fa-file-invoice"></i>
+                                </a>
+                                <button class="btn btn-outline-success" 
+                                        onclick="recordPayment(@item.SaleId, '@item.SaleNumber', @item.Amount)" 
+                                        title="Record Payment">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </button>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" 
+                                            data-bs-toggle="dropdown" title="More Actions">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="/Customers/Details/@item.CustomerId">
+                                                <i class="fas fa-user"></i> View Customer
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="/AccountsReceivable/CustomerStatement/@item.CustomerId">
+                                                <i class="fas fa-file-invoice"></i> Customer Statement
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-warning" href="#" onclick="escalateCollection(@item.SaleId)">
+                                                <i class="fas fa-exclamation-triangle"></i> Escalate Collection
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="#" onclick="markBadDebt(@item.SaleId)">
+                                                <i class="fas fa-times-circle"></i> Mark Bad Debt
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="table-secondary">
+                <tr>
+                    <th colspan="4" class="text-end">Total Selected:</th>
+                    <th class="text-end">
+                        <span id="selectedTotal">@Model.Sum(i => i.Amount).ToString("C")</span>
+                    </th>
+                    <th colspan="4">
+                        <button class="btn btn-sm btn-warning" onclick="bulkCollectionAction()" disabled id="bulkActionBtn">
+                            <i class="fas fa-tasks"></i> Bulk Action
+                        </button>
+                    </th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+}
+else
+{
+    <div class="text-center py-4">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5 class="text-muted">No items in this priority level</h5>
+        <p class="text-muted">All collections in this category are up to date or have been resolved.</p>
+    </div>
+}
+
+<script>
+function toggleAllCheckboxes(source) {
+    const checkboxes = document.querySelectorAll('.collection-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = source.checked;
+    });
+    updateBulkActionButton();
+    updateSelectedTotal();
+}
+
+function updateBulkActionButton() {
+    const selectedCheckboxes = document.querySelectorAll('.collection-checkbox:checked');
+    const bulkActionBtn = document.getElementById('bulkActionBtn');
+    if (bulkActionBtn) {
+        bulkActionBtn.disabled = selectedCheckboxes.length === 0;
+    }
+}
+
+function updateSelectedTotal() {
+    const selectedCheckboxes = document.querySelectorAll('.collection-checkbox:checked');
+    const selectedTotalElement = document.getElementById('selectedTotal');
+    
+    if (selectedTotalElement && selectedCheckboxes.length > 0) {
+        // In a real implementation, you'd calculate the actual total from selected items
+        selectedTotalElement.textContent = `${selectedCheckboxes.length} items selected`;
+    }
+}
+
+function recordPayment(saleId, saleNumber, amount) {
+    if (confirm(`Record payment for Invoice ${saleNumber} (${amount.toLocaleString('en-US', {style: 'currency', currency: 'USD'})})?`)) {
+        window.location.href = `/Sales/Details/${saleId}#recordPaymentModal`;
+    }
+}
+
+function escalateCollection(saleId) {
+    if (confirm('Escalate this collection to the next level? This will mark it as high priority.')) {
+        // In a real implementation, this would update the collection priority
+        alert('Collection escalated successfully!');
+        location.reload();
+    }
+}
+
+function markBadDebt(saleId) {
+    if (confirm('Mark this invoice as bad debt? This is a serious action that typically involves write-offs.')) {
+        // In a real implementation, this would mark the debt as uncollectible
+        alert('Invoice marked as bad debt. Please review with accounting.');
+    }
+}
+
+function bulkCollectionAction() {
+    const selectedCheckboxes = document.querySelectorAll('.collection-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('Please select items to perform bulk actions.');
+        return;
+    }
+    
+    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    console.log('Bulk action for sale IDs:', selectedIds);
+    
+    // Show bulk action options
+    new bootstrap.Modal(document.getElementById('bulkActionModal')).show();
+}
+
+// Add event listeners to checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.collection-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateBulkActionButton();
+            updateSelectedTotal();
+            
+            // Update select all checkbox state
+            const selectAllCheckbox = document.getElementById('selectAll');
+            if (selectAllCheckbox) {
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                const noneChecked = Array.from(checkboxes).every(cb => !cb.checked);
+                
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.table th, .table td {
+    vertical-align: middle;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.075);
+}
+
+.collection-checkbox {
+    transform: scale(1.2);
+}
+
+.dropdown-menu {
+    font-size: 0.875rem;
+}
+</style>

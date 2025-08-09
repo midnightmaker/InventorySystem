@@ -1,0 +1,217 @@
+@model InventorySystem.ViewModels.AgingReportViewModel
+@{
+    ViewData["Title"] = "Accounts Receivable Aging Report";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-pie"></i> A/R Aging Report</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        <button class="btn btn-outline-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Report
+        </button>
+        <button class="btn btn-outline-success" onclick="exportToExcel()">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </button>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h4>@Model.CurrentTotal.ToString("C")</h4>
+                <p class="mb-0">Current</p>
+                <small>0-30 days</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h4>@Model.Days1To30Total.ToString("C")</h4>
+                <p class="mb-0">1-30 Days</p>
+                <small>@Model.Days1To30.Count items</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-orange text-white">
+            <div class="card-body text-center">
+                <h4>@Model.Days31To60Total.ToString("C")</h4>
+                <p class="mb-0">31-60 Days</p>
+                <small>@Model.Days31To60.Count items</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <h4>@Model.Days61To90Total.ToString("C")</h4>
+                <p class="mb-0">61-90 Days</p>
+                <small>@Model.Days61To90.Count items</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-dark text-white">
+            <div class="card-body text-center">
+                <h4>@Model.Over90DaysTotal.ToString("C")</h4>
+                <p class="mb-0">90+ Days</p>
+                <small>@Model.Over90Days.Count items</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h4>@Model.GrandTotal.ToString("C")</h4>
+                <p class="mb-0">Total A/R</p>
+                <small>All unpaid</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aging Buckets -->
+<div class="row">
+    <div class="col-md-12">
+        <ul class="nav nav-tabs" id="agingTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#current-tab" type="button">
+                    <i class="fas fa-check-circle text-success"></i> Current (@Model.Current.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#days1to30-tab" type="button">
+                    <i class="fas fa-clock text-warning"></i> 1-30 Days (@Model.Days1To30.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#days31to60-tab" type="button">
+                    <i class="fas fa-exclamation-triangle text-orange"></i> 31-60 Days (@Model.Days31To60.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#days61to90-tab" type="button">
+                    <i class="fas fa-exclamation-circle text-danger"></i> 61-90 Days (@Model.Days61To90.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#over90-tab" type="button">
+                    <i class="fas fa-times-circle text-dark"></i> 90+ Days (@Model.Over90Days.Count)
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content border border-top-0" id="agingTabContent">
+            <!-- Current Tab -->
+            <div class="tab-pane fade show active p-3" id="current-tab">
+                @await Html.PartialAsync("_AgingReportTable", Model.Current)
+            </div>
+            
+            <!-- 1-30 Days Tab -->
+            <div class="tab-pane fade p-3" id="days1to30-tab">
+                @await Html.PartialAsync("_AgingReportTable", Model.Days1To30)
+            </div>
+            
+            <!-- 31-60 Days Tab -->
+            <div class="tab-pane fade p-3" id="days31to60-tab">
+                @await Html.PartialAsync("_AgingReportTable", Model.Days31To60)
+            </div>
+            
+            <!-- 61-90 Days Tab -->
+            <div class="tab-pane fade p-3" id="days61to90-tab">
+                @await Html.PartialAsync("_AgingReportTable", Model.Days61To90)
+            </div>
+            
+            <!-- 90+ Days Tab -->
+            <div class="tab-pane fade p-3" id="over90-tab">
+                @await Html.PartialAsync("_AgingReportTable", Model.Over90Days)
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function exportToExcel() {
+    // Show loading indicator
+    if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+        window.LoadingIndicator.show('Exporting Report...', 'Generating Excel file');
+    }
+
+    // Simulate export process
+    setTimeout(() => {
+        if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+            window.LoadingIndicator.hide();
+        }
+        alert('Export functionality would download the aging report as an Excel file.');
+    }, 2000);
+}
+
+// Auto-switch to the tab with the most items
+document.addEventListener('DOMContentLoaded', function() {
+    const tabCounts = {
+        'current': @Model.Current.Count,
+        'days1to30': @Model.Days1To30.Count,
+        'days31to60': @Model.Days31To60.Count,
+        'days61to90': @Model.Days61To90.Count,
+        'over90': @Model.Over90Days.Count
+    };
+    
+    // Find the bucket with the most items (excluding current if it's 0)
+    let maxTab = 'current';
+    let maxCount = tabCounts.current;
+    
+    Object.keys(tabCounts).forEach(tab => {
+        if (tabCounts[tab] > maxCount && tab !== 'current') {
+            maxTab = tab;
+            maxCount = tabCounts[tab];
+        }
+    });
+    
+    // If there are no current items but other buckets have items, switch to the largest
+    if (tabCounts.current === 0 && maxCount > 0) {
+        const targetTab = document.querySelector(`[data-bs-target="#${maxTab}-tab"]`);
+        if (targetTab) {
+            targetTab.click();
+        }
+    }
+});
+</script>
+}
+
+<style>
+.bg-orange {
+    background-color: #fd7e14 !important;
+}
+
+.text-orange {
+    color: #fd7e14 !important;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+@@media print {
+    .btn-group, .nav-tabs {
+        display: none !important;
+    }
+    
+    .tab-content {
+        border: none !important;
+    }
+    
+    .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+}
+</style>

@@ -207,6 +207,18 @@ namespace InventorySystem.Models
         [NotMapped]
         [Display(Name = "Credit Available")]
         public decimal CreditAvailable => Math.Max(0, CreditLimit - OutstandingBalance);
+
+        [NotMapped]
+        [Display(Name = "Last Payment Date")]
+        public DateTime? LastPaymentDate 
+        {
+            get
+            {
+                // Get the most recent payment date from sales with Paid status
+                var paidSales = Sales?.Where(s => s.PaymentStatus == PaymentStatus.Paid);
+                return paidSales?.Any() == true ? paidSales.Max(s => s.SaleDate) : null;
+            }
+        }
     }
 
     public class CustomerDocument

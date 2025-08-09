@@ -19,7 +19,7 @@ namespace InventorySystem.Controllers
         }
 
         // GET: Customers
-        public async Task<IActionResult> Index(string searchTerm, CustomerType? customerType, bool? activeOnly)
+        public async Task<IActionResult> Index(string searchTerm, CustomerType? customerType, bool? activeOnly, string creditStatus)
         {
             try
             {
@@ -42,13 +42,38 @@ namespace InventorySystem.Controllers
                     customers = await _customerService.GetAllCustomersAsync();
                 }
 
+                // Apply additional filters
+                if (customerType.HasValue && string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    customers = customers.Where(c => c.CustomerType == customerType.Value);
+                }
+
+                if (activeOnly.HasValue)
+                {
+                    customers = customers.Where(c => c.IsActive == activeOnly.Value);
+                }
+
+                // Apply credit status filter
+                if (!string.IsNullOrWhiteSpace(creditStatus))
+                {
+                    customers = creditStatus.ToLower() switch
+                    {
+                        "good" => customers.Where(c => c.OutstandingBalance == 0 || (c.CreditLimit > 0 && c.OutstandingBalance <= c.CreditLimit)),
+                        "overlimit" => customers.Where(c => c.CreditLimit > 0 && c.OutstandingBalance > c.CreditLimit),
+                        "outstanding" => customers.Where(c => c.OutstandingBalance > 0),
+                        "nolimit" => customers.Where(c => c.CreditLimit == 0),
+                        _ => customers
+                    };
+                }
+
                 var viewModel = new CustomerIndexViewModel
                 {
                     Customers = customers,
                     SearchTerm = searchTerm,
                     CustomerType = customerType,
                     ActiveOnly = activeOnly,
-                    CustomerTypes = Enum.GetValues<CustomerType>()
+                    CustomerTypes = Enum.GetValues<CustomerType>(),
+                    CreditStatus = creditStatus
                 };
 
                 return View(viewModel);

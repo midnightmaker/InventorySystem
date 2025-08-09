@@ -980,6 +980,11 @@ namespace InventorySystem.Services
         "non-inventoried" or "noninventoried" or "1" => ItemType.NonInventoried,
         "service" or "2" => ItemType.Service,
         "virtual" or "3" => ItemType.Virtual,
+        "consumable" or "4" => ItemType.Consumable,
+        "expense" or "5" => ItemType.Expense,
+        "subscription" or "6" => ItemType.Subscription,
+        "utility" or "7" => ItemType.Utility,
+        "r&d materials" or "rnd materials" or "rd materials" or "r&d" or "rnd" or "8" => ItemType.RnDMaterials,
         _ => ItemType.Inventoried
       };
     }

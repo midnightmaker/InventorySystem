@@ -16,6 +16,44 @@
 }
 
 /* ===================================
+   CLICKABLE TABLE ROWS
+   =================================== */
+
+/* Clickable table rows for index views */
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.clickable-row:hover {
+    background-color: #f8f9fa !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Ensure action buttons don't interfere with row clicks */
+.clickable-row .btn-group {
+    z-index: 10;
+    position: relative;
+}
+
+/* Prevent text selection on clickable rows */
+.clickable-row {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Re-enable text selection for specific content */
+.clickable-row .text-selectable {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+/* ===================================
    NAVBAR STYLING IMPROVEMENTS
    =================================== */
 

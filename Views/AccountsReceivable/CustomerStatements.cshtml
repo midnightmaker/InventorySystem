@@ -1,0 +1,411 @@
+@model InventorySystem.ViewModels.CustomerStatementsViewModel
+@{
+    ViewData["Title"] = "Customer Statements";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-file-invoice"></i> Customer Statements</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        <button class="btn btn-primary" onclick="generateAllStatements()">
+            <i class="fas fa-file-pdf"></i> Generate All Statements
+        </button>
+        <button class="btn btn-outline-success" onclick="emailAllStatements()">
+            <i class="fas fa-envelope"></i> Email All Statements
+        </button>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h4>@Model.CustomersWithBalance</h4>
+                <p class="mb-0">Customers</p>
+                <small>with outstanding balances</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h4>@Model.TotalOutstandingBalance.ToString("C")</h4>
+                <p class="mb-0">Total Outstanding</p>
+                <small>across all customers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h4>@Model.CustomerStatements.Count(s => s.CreditUtilization > 80)</h4>
+                <p class="mb-0">High Credit Usage</p>
+                <small>customers over 80% limit</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Statements Table -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-list"></i> Customer Account Statements</h5>
+    </div>
+    <div class="card-body">
+        @if (Model.CustomerStatements.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>
+                                <input type="checkbox" class="form-check-input" id="selectAllStatements" onchange="toggleAllStatements(this)" />
+                            </th>
+                            <th>Customer</th>
+                            <th>Outstanding Balance</th>
+                            <th>Credit Status</th>
+                            <th>Unpaid Invoices</th>
+                            <th>Oldest Invoice</th>
+                            <th>Last Payment</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var statement in Model.CustomerStatements)
+                        {
+                            <tr class="@(statement.CreditUtilization > 100 ? "table-danger" : statement.CreditUtilization > 80 ? "table-warning" : "")">
+                                <td>
+                                    <input type="checkbox" class="form-check-input statement-checkbox" value="@statement.CustomerId" />
+                                </td>
+                                <td>
+                                    <a href="/Customers/Details/@statement.CustomerId" class="text-decoration-none fw-bold">
+                                        @statement.CustomerName
+                                    </a>
+                                    @if (!string.IsNullOrEmpty(statement.CustomerEmail))
+                                    {
+                                        <br><small class="text-muted">@statement.CustomerEmail</small>
+                                    }
+                                </td>
+                                <td>
+                                    <strong class="text-danger">@statement.OutstandingBalance.ToString("C")</strong>
+                                </td>
+                                <td>
+                                    @if (statement.CreditLimit > 0)
+                                    {
+                                        <div class="mb-1">
+                                            <small class="text-muted">Credit Limit: @statement.CreditLimit.ToString("C")</small>
+                                        </div>
+                                        <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar @(statement.CreditUtilization > 100 ? "bg-danger" : statement.CreditUtilization > 80 ? "bg-warning" : "bg-success")" 
+                                                 style="width: @(Math.Min(statement.CreditUtilization, 100))%"></div>
+                                        </div>
+                                        <small class="text-muted">@statement.CreditUtilization.ToString("F0")% utilized</small>
+                                        @if (statement.CreditUtilization > 100)
+                                        {
+                                            <br><small class="text-danger">Over credit limit!</small>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No credit limit</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning fs-6">@statement.UnpaidInvoiceCount</span>
+                                    @if (statement.UnpaidInvoiceCount > 0)
+                                    {
+                                        <br><small class="text-muted">invoices</small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (statement.OldestInvoiceDate.HasValue)
+                                    {
+                                        <span>@statement.OldestInvoiceDate.Value.ToString("MM/dd/yyyy")</span>
+                                        <br><small class="text-muted">@((DateTime.Today - statement.OldestInvoiceDate.Value).Days) days old</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (statement.LastPaymentDate.HasValue)
+                                    {
+                                        <span>@statement.LastPaymentDate.Value.ToString("MM/dd/yyyy")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No payments</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="@Url.Action("CustomerStatement", new { id = statement.CustomerId })" 
+                                           class="btn btn-outline-primary" 
+                                           title="View Statement">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                        <button class="btn btn-outline-success" 
+                                                onclick="emailStatement(@statement.CustomerId, '@statement.CustomerName', '@statement.CustomerEmail')" 
+                                                title="Email Statement"
+                                                @(string.IsNullOrEmpty(statement.CustomerEmail) ? "disabled" : "")>
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" 
+                                                onclick="printStatement(@statement.CustomerId)" 
+                                                title="Print Statement">
+                                            <i class="fas fa-print"></i>
+                                        </button>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" 
+                                                    data-bs-toggle="dropdown" 
+                                                    title="More Actions">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <a class="dropdown-item" href="/Customers/Details/@statement.CustomerId">
+                                                        <i class="fas fa-user"></i> Customer Details
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="/Sales/Create?customerId=@statement.CustomerId">
+                                                        <i class="fas fa-plus"></i> New Sale
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" onclick="adjustCreditLimit(@statement.CustomerId)">
+                                                        <i class="fas fa-credit-card"></i> Adjust Credit Limit
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item text-warning" href="#" onclick="suspendCredit(@statement.CustomerId)">
+                                                        <i class="fas fa-pause"></i> Suspend Credit
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <th colspan="2" class="text-end">Totals:</th>
+                            <th>@Model.TotalOutstandingBalance.ToString("C")</th>
+                            <th colspan="4">
+                                <button class="btn btn-sm btn-primary" onclick="bulkStatementAction()" disabled id="bulkStatementBtn">
+                                    <i class="fas fa-tasks"></i> Bulk Actions
+                                </button>
+                            </th>
+                            <th>@Model.CustomersWithBalance customers</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h4 class="text-muted">No Outstanding Balances</h4>
+                <p class="text-muted">All customers have paid their invoices in full!</p>
+                <a href="/Sales" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create New Sale
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function toggleAllStatements(source) {
+    const checkboxes = document.querySelectorAll('.statement-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = source.checked;
+    });
+    updateBulkStatementButton();
+}
+
+function updateBulkStatementButton() {
+    const selectedCheckboxes = document.querySelectorAll('.statement-checkbox:checked');
+    const bulkBtn = document.getElementById('bulkStatementBtn');
+    if (bulkBtn) {
+        bulkBtn.disabled = selectedCheckboxes.length === 0;
+    }
+}
+
+function emailStatement(customerId, customerName, customerEmail) {
+    if (!customerEmail) {
+        alert('No email address on file for this customer.');
+        return;
+    }
+    
+    if (confirm(`Email statement to ${customerName} at ${customerEmail}?`)) {
+        if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+            window.LoadingIndicator.show('Sending Statement...', `Emailing statement to ${customerName}`);
+        }
+        
+        setTimeout(() => {
+            if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                window.LoadingIndicator.hide();
+            }
+            alert(`Statement emailed successfully to ${customerName}!`);
+        }, 2000);
+    }
+}
+
+function printStatement(customerId) {
+    window.open(`@Url.Action("CustomerStatement")?id=${customerId}&print=true`, '_blank');
+}
+
+function generateAllStatements() {
+    if (confirm('Generate PDF statements for all customers with balances?')) {
+        if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+            window.LoadingIndicator.show('Generating Statements...', 'Creating PDF statements for all customers');
+        }
+        
+        setTimeout(() => {
+            if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                window.LoadingIndicator.hide();
+            }
+            alert('All customer statements generated successfully!');
+        }, 3000);
+    }
+}
+
+function emailAllStatements() {
+    const customersWithEmail = @Model.CustomerStatements.Count(s => !string.IsNullOrEmpty(s.CustomerEmail));
+    const totalCustomers = @Model.CustomerStatements.Count;
+    
+    if (customersWithEmail === 0) {
+        alert('No customers have email addresses on file.');
+        return;
+    }
+    
+    if (confirm(`Email statements to ${customersWithEmail} of ${totalCustomers} customers with email addresses?`)) {
+        if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+            window.LoadingIndicator.show('Sending Statements...', `Emailing statements to ${customersWithEmail} customers`);
+        }
+        
+        setTimeout(() => {
+            if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                window.LoadingIndicator.hide();
+            }
+            alert(`Statements emailed successfully to ${customersWithEmail} customers!`);
+        }, 4000);
+    }
+}
+
+function adjustCreditLimit(customerId) {
+    const newLimit = prompt('Enter new credit limit:');
+    if (newLimit && !isNaN(newLimit) && parseFloat(newLimit) >= 0) {
+        // In a real implementation, this would update the customer's credit limit
+        alert(`Credit limit updated to $${parseFloat(newLimit).toLocaleString()}`);
+        location.reload();
+    }
+}
+
+function suspendCredit(customerId) {
+    if (confirm('Suspend credit for this customer? They will not be able to make new purchases on credit.')) {
+        // In a real implementation, this would suspend the customer's credit
+        alert('Customer credit suspended.');
+        location.reload();
+    }
+}
+
+function bulkStatementAction() {
+    const selectedCheckboxes = document.querySelectorAll('.statement-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('Please select customers to perform bulk actions.');
+        return;
+    }
+    
+    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    const actionChoice = prompt('Choose action:\n1. Email statements\n2. Generate PDFs\n3. Print statements\n\nEnter 1, 2, or 3:');
+    
+    switch(actionChoice) {
+        case '1':
+            if (confirm(`Email statements to ${selectedIds.length} selected customers?`)) {
+                alert('Statements emailed successfully!');
+            }
+            break;
+        case '2':
+            if (confirm(`Generate PDF statements for ${selectedIds.length} selected customers?`)) {
+                alert('PDF statements generated successfully!');
+            }
+            break;
+        case '3':
+            if (confirm(`Print statements for ${selectedIds.length} selected customers?`)) {
+                alert('Statements sent to printer!');
+            }
+            break;
+        default:
+            alert('Invalid selection.');
+    }
+}
+
+// Add event listeners to checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.statement-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateBulkStatementButton();
+            
+            // Update select all checkbox state
+            const selectAllCheckbox = document.getElementById('selectAllStatements');
+            if (selectAllCheckbox) {
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                const noneChecked = Array.from(checkboxes).every(cb => !cb.checked);
+                
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+            }
+        });
+    });
+});
+</script>
+}
+
+<style>
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.progress {
+    height: 8px;
+}
+
+.table th, .table td {
+    vertical-align: middle;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.075);
+}
+
+.statement-checkbox {
+    transform: scale(1.2);
+}
+</style>

@@ -1,0 +1,349 @@
+@model InventorySystem.ViewModels.ARReportsViewModel
+@{
+    ViewData["Title"] = "Accounts Receivable Reports";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-line"></i> Accounts Receivable Reports</h1>
+    <div class="btn-group">
+        <a href="/AccountsReceivable" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to A/R Dashboard
+        </a>
+        <a href="/AccountsReceivable/AgingReport" class="btn btn-primary">
+            <i class="fas fa-chart-pie"></i> Aging Report
+        </a>
+        <a href="/AccountsReceivable/Collections" class="btn btn-warning">
+            <i class="fas fa-phone"></i> Collections
+        </a>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Key Metrics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TotalAccountsReceivable.ToString("C")</h4>
+                        <p class="mb-0">Outstanding A/R</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                    </div>
+                </div>
+                <small>Total unpaid invoices</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TotalCollected.ToString("C")</h4>
+                        <p class="mb-0">Total Collected</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-money-bill-wave fa-2x"></i>
+                    </div>
+                </div>
+                <small>All time collections</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.CollectionEfficiency.ToString("F1")%</h4>
+                        <p class="mb-0">Collection Efficiency</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-percentage fa-2x"></i>
+                    </div>
+                </div>
+                <small>Collections vs Total Sales</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.AverageDaysToCollect.ToString("F0")</h4>
+                        <p class="mb-0">Avg Collection Days</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-day fa-2x"></i>
+                    </div>
+                </div>
+                <small>Average time to collect</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Collection Performance Summary -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar"></i> Collection Performance Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-success">@Model.CollectionRate.ToString("F1")%</h4>
+                        <small class="text-muted">Collection Rate</small>
+                        <br>
+                        <strong>@Model.TotalCollected.ToString("C")</strong> of <strong>@Model.TotalSales.ToString("C")</strong>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-info">@Model.BadDebtPercentage.ToString("F1")%</h4>
+                        <small class="text-muted">Bad Debt Rate</small>
+                        <br>
+                        <small class="text-muted">Write-offs as % of sales</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="progress">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                         style="width: @Model.CollectionRate.ToString("F0")%">
+                        @Model.CollectionRate.ToString("F1")% Collected
+                    </div>
+                    <div class="progress-bar bg-danger" role="progressbar" 
+                         style="width: @Model.BadDebtPercentage.ToString("F0")%">
+                        @Model.BadDebtPercentage.ToString("F1")% Bad Debt
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Collection Timing Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">@Model.AverageDaysToCollect.ToString("F0")</h4>
+                        <small class="text-muted">Average Days to Collect</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-warning">@((Model.AverageDaysToCollect / 30).ToString("F1"))</h4>
+                        <small class="text-muted">Average Months to Collect</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-12">
+                        <p class="mb-0">
+                            <strong>Collection Efficiency:</strong> 
+                            @if (Model.CollectionEfficiency >= 90)
+                            {
+                                <span class="badge bg-success">Excellent</span>
+                            }
+                            else if (Model.CollectionEfficiency >= 80)
+                            {
+                                <span class="badge bg-primary">Good</span>
+                            }
+                            else if (Model.CollectionEfficiency >= 70)
+                            {
+                                <span class="badge bg-warning">Fair</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Needs Improvement</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Collection Trend -->
+@if (Model.MonthlyCollectionTrend?.Any() == true)
+{
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line"></i> Monthly Collection Trend</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Amount Collected</th>
+                                    <th>Invoice Count</th>
+                                    <th>Average Invoice Value</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var previousAmount = 0m;
+                                }
+                                @foreach (var month in Model.MonthlyCollectionTrend.OrderByDescending(m => m.Year).ThenByDescending(m => m.Month).Take(12))
+                                {
+                                    var trend = previousAmount > 0 ? ((month.AmountCollected - previousAmount) / previousAmount) * 100 : 0;
+                                    previousAmount = month.AmountCollected;
+                                    
+                                    <tr>
+                                        <td><strong>@month.MonthName</strong></td>
+                                        <td>@month.AmountCollected.ToString("C")</td>
+                                        <td>@month.InvoiceCount</td>
+                                        <td>@month.AverageInvoiceValue.ToString("C")</td>
+                                        <td>
+                                            @if (trend > 0)
+                                            {
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-arrow-up"></i> +@trend.ToString("F1")%
+                                                </span>
+                                            }
+                                            else if (trend < 0)
+                                            {
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-arrow-down"></i> @trend.ToString("F1")%
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-minus"></i> 0%
+                                                </span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Key Performance Indicators -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tachometer-alt"></i> Key Performance Indicators</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <h6 class="text-muted">Days Sales Outstanding (DSO)</h6>
+                        <h4 class="text-primary">@Model.AverageDaysToCollect.ToString("F0") days</h4>
+                        <small class="text-muted">Industry average: 30-45 days</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h6 class="text-muted">Collection Effectiveness</h6>
+                        <h4 class="text-success">@Model.CollectionEfficiency.ToString("F1")%</h4>
+                        <small class="text-muted">Target: >90%</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h6 class="text-muted">Bad Debt Ratio</h6>
+                        <h4 class="text-danger">@Model.BadDebtPercentage.ToString("F1")%</h4>
+                        <small class="text-muted">Target: <2%</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h6 class="text-muted">Collection Rate</h6>
+                        <h4 class="text-info">@Model.CollectionRate.ToString("F1")%</h4>
+                        <small class="text-muted">Total collected vs sales</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Items and Recommendations -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-lightbulb"></i> Recommendations & Action Items</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Process Improvements</h6>
+                        <ul class="list-unstyled">
+                            @if (Model.AverageDaysToCollect > 45)
+                            {
+                                <li><i class="fas fa-exclamation-triangle text-warning"></i> Consider tightening payment terms - DSO is high</li>
+                            }
+                            @if (Model.CollectionEfficiency < 90)
+                            {
+                                <li><i class="fas fa-exclamation-triangle text-warning"></i> Improve collection procedures - efficiency below target</li>
+                            }
+                            @if (Model.BadDebtPercentage > 2)
+                            {
+                                <li><i class="fas fa-exclamation-triangle text-danger"></i> Review credit approval process - bad debt rate high</li>
+                            }
+                            @if (Model.AverageDaysToCollect <= 30 && Model.CollectionEfficiency >= 95)
+                            {
+                                <li><i class="fas fa-check-circle text-success"></i> Collection performance is excellent!</li>
+                            }
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Suggested Actions</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-info"></i> <a href="/AccountsReceivable/AgingReport">Review aging report</a> for overdue accounts</li>
+                            <li><i class="fas fa-arrow-right text-info"></i> <a href="/AccountsReceivable/Collections">Follow up on collections</a></li>
+                            <li><i class="fas fa-arrow-right text-info"></i> <a href="/AccountsReceivable/CustomerStatements">Send customer statements</a></li>
+                            <li><i class="fas fa-arrow-right text-info"></i> Consider offering early payment discounts</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.MonthlyCollectionTrend?.Any() == true)
+{
+    <div class="text-center py-5">
+        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">No Collection Data Available</h4>
+        <p class="text-muted">Start recording payments to see collection trends and analytics here.</p>
+        <a href="/AccountsReceivable" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to A/R Dashboard
+        </a>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // Add any specific JavaScript for charts or interactive elements here
+        console.log('A/R Reports page loaded');
+    </script>
+}

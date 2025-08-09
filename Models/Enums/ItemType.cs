@@ -14,6 +14,21 @@ namespace InventorySystem.Models.Enums
     Service = 2,
 
     [Display(Name = "Virtual", Description = "Licenses, digital assets, or virtual items")]
-    Virtual = 3
+    Virtual = 3,
+
+    [Display(Name = "Consumable", Description = "Items used up in operations (office supplies, consumables)")]
+    Consumable = 4,
+
+    [Display(Name = "Expense", Description = "Direct expense items (utilities, rent, one-time expenses)")]
+    Expense = 5,
+
+    [Display(Name = "Subscription", Description = "Recurring subscription services (software licenses, cloud services)")]
+    Subscription = 6,
+
+    [Display(Name = "Utility", Description = "Utility expenses (electricity, water, internet)")]
+    Utility = 7,
+
+    [Display(Name = "R&D Materials", Description = "Research and development specific materials")]
+    RnDMaterials = 8
   }
 }
