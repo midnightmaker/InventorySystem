@@ -7,8 +7,95 @@
   var stockLevelFilter = ViewBag.StockLevelFilter as string;
   var vendorFilter = ViewBag.VendorFilter as string;
   var isSellable = ViewBag.IsSellable as bool?;
+  var isExpense = ViewBag.IsExpense as bool?;
   var sortOrder = ViewBag.SortOrder as string ?? "partNumber_asc";
   var isFiltered = ViewBag.IsFiltered as bool? ?? false;
+  
+  // Determine if we're in an expense-focused view
+  var isExpenseView = isExpense == true || 
+    (!string.IsNullOrEmpty(itemTypeFilter) && 
+     itemTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries)
+       .All(t => t == "Expense" || t == "Utility" || t == "Subscription" || t == "Service" || t == "Virtual"));
+  
+  // Determine if we're in an inventory-focused view
+  var isInventoryView = isExpense == false || 
+    (!string.IsNullOrEmpty(itemTypeFilter) && 
+     itemTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries)
+       .All(t => t == "Inventoried" || t == "Consumable" || t == "RnDMaterials"));
+  
+  // Determine context-aware title based on filters
+  var displayTitle = "Items";
+  if (isExpense == true)
+  {
+    displayTitle = "Expense Items";
+    if (!string.IsNullOrEmpty(itemTypeFilter))
+    {
+      var filterTypes = itemTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries);
+      if (filterTypes.Length == 1)
+      {
+        displayTitle = filterTypes[0] switch
+        {
+          "Service" => "Service Expenses",
+          "Virtual" => "Virtual Expenses", 
+          "Expense" => "Operating Expenses",
+          "Utility" => "Utility Expenses",
+          "Subscription" => "Subscription Expenses",
+          _ => "Expense Items"
+        };
+      }
+    }
+  }
+  else if (isExpense == false)
+  {
+    displayTitle = "Inventory & Sellable Items";
+    if (!string.IsNullOrEmpty(itemTypeFilter))
+    {
+      var filterTypes = itemTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries);
+      if (filterTypes.Length == 1)
+      {
+        displayTitle = filterTypes[0] switch
+        {
+          "Inventoried" => "Physical Inventory",
+          "Consumable" => "Consumables",
+          "Service" => "Sellable Services",
+          "Virtual" => "Digital Assets",
+          "RnDMaterials" => "R&D Materials",
+          _ => "Inventory Items"
+        };
+      }
+    }
+  }
+  else if (!string.IsNullOrEmpty(itemTypeFilter))
+  {
+    var filterTypes = itemTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries);
+    if (filterTypes.Length == 1)
+    {
+      displayTitle = filterTypes[0] switch
+      {
+        "Inventoried" => "Physical Inventory",
+        "Consumable" => "Physical Inventory",
+        "Service" => "Services",
+        "Virtual" => "Services",
+        "Expense" => "Operating Expenses",
+        "Utility" => "Utilities",
+        "Subscription" => "Subscriptions",
+        "RnDMaterials" => "R&D Materials",
+        _ => "Items"
+      };
+    }
+    else if (filterTypes.Contains("Inventoried") && filterTypes.Contains("Consumable"))
+    {
+      displayTitle = "Physical Inventory";
+    }
+    else if (filterTypes.Contains("Service") && filterTypes.Contains("Virtual"))
+    {
+      displayTitle = "Services";
+    }
+    else
+    {
+      displayTitle = "Filtered Items";
+    }
+  }
 
   string GetPageUrl(int page)
   {
@@ -24,6 +111,8 @@
       routeValues.Add("vendorFilter", ViewBag.VendorFilter);
     if (ViewBag.IsSellable != null)
       routeValues.Add("isSellable", ViewBag.IsSellable);
+    if (ViewBag.IsExpense != null)
+      routeValues.Add("isExpense", ViewBag.IsExpense);
     if (!string.IsNullOrEmpty(ViewBag.SortOrder as string) && ViewBag.SortOrder != "partNumber_asc")
       routeValues.Add("sortOrder", ViewBag.SortOrder);
     
@@ -36,11 +125,78 @@
 
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-cube"></i> @ViewData["Title"]</h2>
+    <div>
+      <h2><i class="fas fa-cube"></i> @displayTitle</h2>
+      @if (isFiltered && displayTitle != "Items")
+      {
+        <small class="text-muted">
+          <i class="fas fa-filter"></i> Filtered view
+          @if (!string.IsNullOrEmpty(searchTerm))
+          {
+            <span>• Search: "@searchTerm"</span>
+          }
+        </small>
+      }
+    </div>
     <div class="btn-group">
-      <a href="/Items/Create" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Create Item
-      </a>
+      @* Context-aware "Add" button *@
+      @if (isExpense == true)
+      {
+        @if (!string.IsNullOrEmpty(itemTypeFilter) && itemTypeFilter.Split(',').Length == 1)
+        {
+          var singleType = itemTypeFilter.Split(',')[0];
+          <a href="/Items/CreateExpense?itemType=@singleType" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add @(singleType switch {
+              "Expense" => "Expense",
+              "Utility" => "Utility",
+              "Subscription" => "Subscription",
+              "Service" => "Service",
+              "Virtual" => "Virtual Asset", 
+              _ => "Expense"
+            })
+          </a>
+        }
+        else
+        {
+          <a href="/Items/CreateExpense" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Expense
+          </a>
+        }
+      }
+      else if (isExpense == false || (!string.IsNullOrEmpty(itemTypeFilter) && itemTypeFilter.Split(',').Length == 1))
+      {
+        var singleType = itemTypeFilter?.Split(',')[0];
+        var isInventoryType = singleType == "Inventoried" || singleType == "Consumable" || singleType == "RnDMaterials" || singleType == null;
+        
+        if (isInventoryType)
+        {
+          <a href="/Items/Create?itemType=@singleType" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add @(singleType switch {
+              "Inventoried" => "Item",
+              "Consumable" => "Consumable",
+              "RnDMaterials" => "R&D Material",
+              _ => "Item"
+            })
+          </a>
+        }
+        else
+        {
+          <a href="/Items/Create?itemType=@singleType" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add @(singleType switch {
+              "Service" => "Service",
+              "Virtual" => "Digital Asset",
+              _ => "Item"
+            })
+          </a>
+        }
+      }
+      else
+      {
+        <a href="/Items/Create" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Create Item
+        </a>
+      }
+      
       <a href="/Items/BulkUpload" class="btn btn-outline-secondary">
         <i class="fas fa-upload"></i> Bulk Upload
       </a>
@@ -130,17 +286,21 @@
             </select>
           </div>
 
-          <div class="col-md-2">
-            <label for="stockLevelFilter" class="form-label">
-              <i class="fas fa-boxes"></i> Stock Level
-            </label>
-            <select class="form-select" id="stockLevelFilter" name="stockLevelFilter">
-              <option value="">All Levels</option>
-              <option value="low" selected="@(stockLevelFilter == "low")">Low Stock</option>
-              <option value="out" selected="@(stockLevelFilter == "out")">Out of Stock</option>
-              <option value="normal" selected="@(stockLevelFilter == "normal")">Normal Stock</option>
-            </select>
-          </div>
+          @* Only show stock level filter for inventory-focused views *@
+          @if (!isExpenseView)
+          {
+            <div class="col-md-2">
+              <label for="stockLevelFilter" class="form-label">
+                <i class="fas fa-boxes"></i> Stock Level
+              </label>
+              <select class="form-select" id="stockLevelFilter" name="stockLevelFilter">
+                <option value="">All Levels</option>
+                <option value="low" selected="@(stockLevelFilter == "low")">Low Stock</option>
+                <option value="out" selected="@(stockLevelFilter == "out")">Out of Stock</option>
+                <option value="normal" selected="@(stockLevelFilter == "normal")">Normal Stock</option>
+              </select>
+            </div>
+          }
 
           <div class="col-md-2">
             <label for="vendorFilter" class="form-label">
@@ -154,14 +314,29 @@
                    placeholder="Vendor name...">
           </div>
 
+          @* Only show sellable filter for non-expense views *@
+          @if (!isExpenseView)
+          {
+            <div class="col-md-2">
+              <label for="isSellable" class="form-label">
+                <i class="fas fa-cash-register"></i> Sellable
+              </label>
+              <select class="form-select" id="isSellable" name="isSellable">
+                <option value="">All Items</option>
+                <option value="true" selected="@(isSellable == true)">Sellable Only</option>
+                <option value="false" selected="@(isSellable == false)">Non-Sellable Only</option>
+              </select>
+            </div>
+          }
+
           <div class="col-md-2">
-            <label for="isSellable" class="form-label">
-              <i class="fas fa-cash-register"></i> Sellable
+            <label for="isExpense" class="form-label">
+              <i class="fas fa-file-invoice-dollar"></i> Purpose
             </label>
-            <select class="form-select" id="isSellable" name="isSellable">
+            <select class="form-select" id="isExpense" name="isExpense">
               <option value="">All Items</option>
-              <option value="true" selected="@(isSellable == true)">Sellable Only</option>
-              <option value="false" selected="@(isSellable == false)">Non-Sellable Only</option>
+              <option value="false" selected="@(isExpense == false)">Inventory/Sellable</option>
+              <option value="true" selected="@(isExpense == true)">Expense Items</option>
             </select>
           </div>
 
@@ -285,17 +460,20 @@
                   <i class="fas fa-tag"></i> Item Type
                 </a>
               </li>
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <a class="dropdown-item @(sortOrder == "stock_desc" ? "active" : "")" href="?sortOrder=stock_desc">
-                  <i class="fas fa-boxes"></i> Stock (High-Low)
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item @(sortOrder == "stock_asc" ? "active" : "")" href="?sortOrder=stock_asc">
-                  <i class="fas fa-boxes"></i> Stock (Low-High)
-                </a>
-              </li>
+              @if (!isExpenseView)
+              {
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item @(sortOrder == "stock_desc" ? "active" : "")" href="?sortOrder=stock_desc">
+                    <i class="fas fa-boxes"></i> Stock (High-Low)
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item @(sortOrder == "stock_asc" ? "active" : "")" href="?sortOrder=stock_asc">
+                    <i class="fas fa-boxes"></i> Stock (Low-High)
+                  </a>
+                </li>
+              }
             </ul>
           </div>
         </div>
@@ -320,15 +498,23 @@
                 <th>
                   <i class="fas fa-code-branch"></i> Version
                 </th>
-                <th>
-                  <i class="fas fa-boxes"></i> Stock
-                </th>
+                @* Only show stock column for non-expense views *@
+                @if (!isExpenseView)
+                {
+                  <th>
+                    <i class="fas fa-boxes"></i> Stock
+                  </th>
+                }
                 <th>
                   <i class="fas fa-building"></i> Vendor
                 </th>
-                <th>
-                  <i class="fas fa-flag"></i> Status
-                </th>
+                @* Only show sellable status for non-expense views *@
+                @if (!isExpenseView)
+                {
+                  <th>
+                    <i class="fas fa-flag"></i> Status
+                  </th>
+                }
                 <th style="width: 150px;">
                   <i class="fas fa-cogs"></i> Actions
                 </th>
@@ -386,23 +572,27 @@
                   <td>
                     <span class="badge bg-outline-dark">@item.Version</span>
                   </td>
-                  <td>
-                    @if (item.TrackInventory)
-                    {
-                      <span class="badge @(item.CurrentStock <= item.MinimumStock ? "bg-danger" : "bg-success")">
-                        @item.CurrentStock
-                      </span>
-                      @if (item.MinimumStock > 0)
+                  @* Only show stock column for non-expense views *@
+                  @if (!isExpenseView)
+                  {
+                    <td>
+                      @if (item.TrackInventory)
                       {
-                        <br>
-                        <small class="text-muted">Min: @item.MinimumStock</small>
+                        <span class="badge @(item.CurrentStock <= item.MinimumStock ? "bg-danger" : "bg-success")">
+                          @item.CurrentStock
+                        </span>
+                        @if (item.MinimumStock > 0)
+                        {
+                          <br>
+                          <small class="text-muted">Min: @item.MinimumStock</small>
+                        }
                       }
-                    }
-                    else
-                    {
-                      <span class="text-muted">N/A</span>
-                    }
-                  </td>
+                      else
+                      {
+                        <span class="text-muted">N/A</span>
+                      }
+                    </td>
+                  }
                   <td>
                     @if (item.PreferredVendorItem?.Vendor != null)
                     {
@@ -418,18 +608,22 @@
                       <span class="text-muted">-</span>
                     }
                   </td>
-                  <td>
-                    <div class="d-flex flex-column gap-1">
-                      @if (!item.IsSellable)
-                      {
-                        <span class="badge bg-warning text-dark">Not Sellable</span>
-                      }
-                      else
-                      {
-                        <span class="badge bg-success">Sellable</span>
-                      }
-                    </div>
-                  </td>
+                  @* Only show sellable status for non-expense views *@
+                  @if (!isExpenseView)
+                  {
+                    <td>
+                      <div class="d-flex flex-column gap-1">
+                        @if (!item.IsSellable)
+                        {
+                          <span class="badge bg-warning text-dark">Not Sellable</span>
+                        }
+                        else
+                        {
+                          <span class="badge bg-success">Sellable</span>
+                        }
+                      </div>
+                    </td>
+                  }
                   <td>
                     <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
                       <a href="/Items/Details/@item.Id" class="btn btn-outline-primary" title="View Details">
@@ -438,7 +632,7 @@
                       <a href="/Items/Edit/@item.Id" class="btn btn-outline-warning" title="Edit">
                         <i class="fas fa-edit"></i>
                       </a>
-                      @if (item.TrackInventory)
+                      @if (item.TrackInventory && !isExpenseView)
                       {
                         <a href="/Purchases/Create?itemId=@item.Id" class="btn btn-outline-success" title="Add Purchase">
                           <i class="fas fa-shopping-cart"></i>
@@ -476,6 +670,7 @@
             </div>
           }
 
+          @* Context-aware summary widgets *@
           <div class="row">
             <div class="col-md-2">
               <div class="card bg-light">
@@ -488,61 +683,125 @@
                 </div>
               </div>
             </div>
-            <div class="col-md-2">
-              <div class="card bg-light">
-                <div class="card-body text-center p-2">
-                  <h6 class="card-title text-success mb-1">
-                    <i class="fas fa-check-circle"></i>
-                    Inventoried
-                  </h6>
-                  <h4 class="text-success mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried)</h4>
+
+            @if (isExpenseView)
+            {
+              @* Expense-specific widgets *@
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-danger mb-1">
+                      <i class="fas fa-file-invoice-dollar"></i>
+                      Expenses
+                    </h6>
+                    <h4 class="text-danger mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Expense)</h4>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="col-md-2">
-              <div class="card bg-light">
-                <div class="card-body text-center p-2">
-                  <h6 class="card-title text-warning mb-1">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Low Stock
-                  </h6>
-                  <h4 class="text-warning mb-0">@Model.Count(i => (i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried || i.ItemType == InventorySystem.Models.Enums.ItemType.Consumable || i.ItemType == InventorySystem.Models.Enums.ItemType.RnDMaterials) && i.CurrentStock <= i.MinimumStock)</h4>
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-warning mb-1">
+                      <i class="fas fa-bolt"></i>
+                      Utilities
+                    </h6>
+                    <h4 class="text-warning mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Utility)</h4>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="col-md-2">
-              <div class="card bg-light">
-                <div class="card-body text-center p-2">
-                  <h6 class="card-title text-danger mb-1">
-                    <i class="fas fa-times-circle"></i>
-                    Out of Stock
-                  </h6>
-                  <h4 class="text-danger mb-0">@Model.Count(i => (i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried || i.ItemType == InventorySystem.Models.Enums.ItemType.Consumable || i.ItemType == InventorySystem.Models.Enums.ItemType.RnDMaterials) && i.CurrentStock == 0)</h4>
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-dark mb-1">
+                      <i class="fas fa-calendar-alt"></i>
+                      Subscriptions
+                    </h6>
+                    <h4 class="text-dark mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Subscription)</h4>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="col-md-2">
-              <div class="card bg-light">
-                <div class="card-body text-center p-2">
-                  <h6 class="card-title text-success mb-1">
-                    <i class="fas fa-cash-register"></i>
-                    Sellable
-                  </h6>
-                  <h4 class="text-success mb-0">@Model.Count(i => i.IsSellable)</h4>
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-success mb-1">
+                      <i class="fas fa-hands-helping"></i>
+                      Services
+                    </h6>
+                    <h4 class="text-success mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Service && i.IsExpense)</h4>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="col-md-2">
-              <div class="card bg-light">
-                <div class="card-body text-center p-2">
-                  <h6 class="card-title text-info mb-1">
-                    <i class="fas fa-list"></i>
-                    Non-Inventoried
-                  </h6>
-                  <h4 class="text-info mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.NonInventoried)</h4>
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-info mb-1">
+                      <i class="fas fa-cloud"></i>
+                      Virtual Assets
+                    </h6>
+                    <h4 class="text-info mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Virtual && i.IsExpense)</h4>
+                  </div>
                 </div>
               </div>
-            </div>
+            }
+            else
+            {
+              @* Inventory-specific widgets *@
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-success mb-1">
+                      <i class="fas fa-check-circle"></i>
+                      Inventoried
+                    </h6>
+                    <h4 class="text-success mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried)</h4>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-warning mb-1">
+                      <i class="fas fa-exclamation-triangle"></i>
+                      Low Stock
+                    </h6>
+                    <h4 class="text-warning mb-0">@Model.Count(i => (i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried || i.ItemType == InventorySystem.Models.Enums.ItemType.Consumable || i.ItemType == InventorySystem.Models.Enums.ItemType.RnDMaterials) && i.CurrentStock <= i.MinimumStock)</h4>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-danger mb-1">
+                      <i class="fas fa-times-circle"></i>
+                      Out of Stock
+                    </h6>
+                    <h4 class="text-danger mb-0">@Model.Count(i => (i.ItemType == InventorySystem.Models.Enums.ItemType.Inventoried || i.ItemType == InventorySystem.Models.Enums.ItemType.Consumable || i.ItemType == InventorySystem.Models.Enums.ItemType.RnDMaterials) && i.CurrentStock == 0)</h4>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-success mb-1">
+                      <i class="fas fa-cash-register"></i>
+                      Sellable
+                    </h6>
+                    <h4 class="text-success mb-0">@Model.Count(i => i.IsSellable)</h4>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="card bg-light">
+                  <div class="card-body text-center p-2">
+                    <h6 class="card-title text-info mb-1">
+                      <i class="fas fa-list"></i>
+                      Non-Inventoried
+                    </h6>
+                    <h4 class="text-info mb-0">@Model.Count(i => i.ItemType == InventorySystem.Models.Enums.ItemType.NonInventoried)</h4>
+                  </div>
+                </div>
+              </div>
+            }
           </div>
         </div>
       </div>

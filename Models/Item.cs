@@ -38,6 +38,9 @@ namespace InventorySystem.Models
     [Display(Name = "Sellable")]
     public bool IsSellable { get; set; } = true;
 
+    [Display(Name = "Expense Item")]
+    public bool IsExpense { get; set; } = false;
+
     [Display(Name = "Item Type")]
     public ItemType ItemType { get; set; } = ItemType.Inventoried;
 
@@ -48,7 +51,7 @@ namespace InventorySystem.Models
 
     // Computed properties
     [NotMapped]
-    public bool TrackInventory => ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials;
+    public bool TrackInventory => !IsExpense && (ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials);
 
     [NotMapped]
     public string DisplayPartNumber => $"{PartNumber}-{Version}";
@@ -68,6 +71,12 @@ namespace InventorySystem.Models
       _ => "Unknown"
     };
 
+    [NotMapped]
+    public string BusinessPurpose => IsExpense ? "Expense" : (IsSellable ? "Sellable" : "Internal Use");
+
+    [NotMapped]
+    public string FullDisplayName => $"{ItemTypeDisplayName} ({BusinessPurpose})";
+
     // NEW: Computed property for backward compatibility and display
     [NotMapped]
     [Display(Name = "Preferred Vendor")]
@@ -75,73 +84,13 @@ namespace InventorySystem.Models
 
     [NotMapped]
     [Display(Name = "Has Preferred Vendor")]
-    public bool HasPreferredVendor => PreferredVendorItemId.HasValue;
-
-    // UNIT OF MEASURE DISPLAY PROPERTIES
-    [NotMapped]
-    [Display(Name = "Unit of Measure")]
-    public string UnitOfMeasureDisplayName => UnitOfMeasure switch
-    {
-      UnitOfMeasure.Each => "EA",
-      UnitOfMeasure.Gram => "g",
-      UnitOfMeasure.Kilogram => "kg",
-      UnitOfMeasure.Ounce => "oz",
-      UnitOfMeasure.Pound => "lb",
-      UnitOfMeasure.Millimeter => "mm",
-      UnitOfMeasure.Centimeter => "cm",
-      UnitOfMeasure.Meter => "m",
-      UnitOfMeasure.Inch => "in",
-      UnitOfMeasure.Foot => "ft",
-      UnitOfMeasure.Yard => "yd",
-      UnitOfMeasure.Milliliter => "ml",
-      UnitOfMeasure.Liter => "L",
-      UnitOfMeasure.FluidOunce => "fl oz",
-      UnitOfMeasure.Pint => "pt",
-      UnitOfMeasure.Quart => "qt",
-      UnitOfMeasure.Gallon => "gal",
-      UnitOfMeasure.SquareCentimeter => "cm²",
-      UnitOfMeasure.SquareMeter => "m²",
-      UnitOfMeasure.SquareInch => "in²",
-      UnitOfMeasure.SquareFoot => "ft²",
-      UnitOfMeasure.Box => "BOX",
-      UnitOfMeasure.Case => "CASE",
-      UnitOfMeasure.Dozen => "DOZ",
-      UnitOfMeasure.Pair => "PR",
-      UnitOfMeasure.Set => "SET",
-      UnitOfMeasure.Roll => "ROLL",
-      UnitOfMeasure.Sheet => "SHT",
-      UnitOfMeasure.Hour => "hr",
-      UnitOfMeasure.Day => "day",
-      UnitOfMeasure.Month => "mo",
-      _ => "EA"
-    };
-
-    [NotMapped]
-    [Display(Name = "UOM Category")]
-    public string UnitOfMeasureCategory => UnitOfMeasure switch
-    {
-      UnitOfMeasure.Each => "Count",
-      UnitOfMeasure.Gram or UnitOfMeasure.Kilogram or UnitOfMeasure.Ounce or UnitOfMeasure.Pound => "Weight",
-      UnitOfMeasure.Millimeter or UnitOfMeasure.Centimeter or UnitOfMeasure.Meter or UnitOfMeasure.Inch or UnitOfMeasure.Foot or UnitOfMeasure.Yard => "Length",
-      UnitOfMeasure.Milliliter or UnitOfMeasure.Liter or UnitOfMeasure.FluidOunce or UnitOfMeasure.Pint or UnitOfMeasure.Quart or UnitOfMeasure.Gallon => "Volume",
-      UnitOfMeasure.SquareCentimeter or UnitOfMeasure.SquareMeter or UnitOfMeasure.SquareInch or UnitOfMeasure.SquareFoot => "Area",
-      UnitOfMeasure.Box or UnitOfMeasure.Case or UnitOfMeasure.Dozen or UnitOfMeasure.Pair or UnitOfMeasure.Set or UnitOfMeasure.Roll or UnitOfMeasure.Sheet => "Packaging",
-      UnitOfMeasure.Hour or UnitOfMeasure.Day or UnitOfMeasure.Month => "Time",
-      _ => "Other"
-    };
-
-    // Existing navigation properties
-    public List<Purchase> Purchases { get; set; } = new List<Purchase>();
-    public List<BomItem> BomItems { get; set; } = new List<BomItem>();
-    public List<ItemDocument> DesignDocuments { get; set; } = new List<ItemDocument>();
-
-    // NEW: All vendor relationships for this item
-    public virtual ICollection<VendorItem> VendorItems { get; set; } = new List<VendorItem>();
+    public bool HasPreferredVendor => PreferredVendorItem != null;
 
     // Image properties
     public byte[]? ImageData { get; set; }
     public string? ImageContentType { get; set; }
     public string? ImageFileName { get; set; }
+
     [NotMapped]
     public bool HasImage => ImageData != null && ImageData.Length > 0;
 
@@ -177,6 +126,9 @@ namespace InventorySystem.Models
 
     // Navigation properties
     public virtual ICollection<Item> TransformedItems { get; set; } = new List<Item>();
+    public virtual ICollection<ItemDocument> DesignDocuments { get; set; } = new List<ItemDocument>();
+    public virtual ICollection<Purchase> Purchases { get; set; } = new List<Purchase>();
+    public virtual ICollection<VendorItem> VendorItems { get; set; } = new List<VendorItem>();
 
     // Computed properties
     [NotMapped]
@@ -187,5 +139,21 @@ namespace InventorySystem.Models
 
     [NotMapped]
     public decimal EffectiveYield => YieldFactor ?? 1.0m;
+
+    // Unit of Measure display properties
+    [NotMapped]
+    public string UnitOfMeasureDisplayName => UnitOfMeasure.ToString();
+
+    [NotMapped]
+    public string UnitOfMeasureCategory => UnitOfMeasure switch
+    {
+      UnitOfMeasure.Each or UnitOfMeasure.Box or UnitOfMeasure.Case or UnitOfMeasure.Dozen or UnitOfMeasure.Pair or UnitOfMeasure.Set => "Count",
+      UnitOfMeasure.Gram or UnitOfMeasure.Kilogram or UnitOfMeasure.Ounce or UnitOfMeasure.Pound => "Weight",
+      UnitOfMeasure.Millimeter or UnitOfMeasure.Centimeter or UnitOfMeasure.Meter or UnitOfMeasure.Inch or UnitOfMeasure.Foot or UnitOfMeasure.Yard => "Length",
+      UnitOfMeasure.Milliliter or UnitOfMeasure.Liter or UnitOfMeasure.FluidOunce or UnitOfMeasure.Pint or UnitOfMeasure.Quart or UnitOfMeasure.Gallon => "Volume",
+      UnitOfMeasure.SquareCentimeter or UnitOfMeasure.SquareMeter or UnitOfMeasure.SquareInch or UnitOfMeasure.SquareFoot => "Area",
+      UnitOfMeasure.Roll or UnitOfMeasure.Sheet => "Material",
+      _ => "Other"
+    };
   }
 }

@@ -413,9 +413,15 @@
         document.getElementById('TaxAmount').value = taxAmount.toFixed(2);
     }
 
-    // Validate credit before form submission
+    // Enhanced form submission handling with loading indicator management
     document.querySelector('form').addEventListener('submit', function(e) {
         console.log('Form submission started...');
+        
+        // Hide any loading indicator that might be showing from navigation
+        if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+            console.log('Hiding navigation loading indicator before form submission');
+            window.LoadingIndicator.hide(true); // Force hide
+        }
         
         // Debug: Log all form data
         const formData = new FormData(this);
@@ -458,6 +464,13 @@
         }
         
         console.log('Form validation passed, submitting...');
+        
+        // Show form submission loading indicator
+        if (window.LoadingIndicator) {
+            console.log('Showing form submission loading indicator');
+            window.LoadingIndicator.show('Creating Sale...', 'Processing sale information', true);
+        }
+        
         return true;
     });
 
@@ -471,6 +484,25 @@
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Page loaded, initializing...');
+        
+        // Check if there are validation errors and hide loading indicator if so
+        const hasValidationErrors = document.querySelectorAll('.text-danger, .alert-warning, .alert-danger').length > 0;
+        if (hasValidationErrors) {
+            console.log('Validation errors detected on page load, ensuring loading indicator is hidden');
+            if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+                window.LoadingIndicator.hide(true); // Force hide
+            }
+            
+            // Focus on the first error field
+            const firstErrorField = document.querySelector('.is-invalid, .text-danger');
+            if (firstErrorField) {
+                const relatedInput = firstErrorField.previousElementSibling || 
+                                   firstErrorField.parentElement.querySelector('input, select, textarea');
+                if (relatedInput) {
+                    relatedInput.focus();
+                }
+            }
+        }
         
         updatePaymentDueDate();
         
@@ -497,6 +529,22 @@
             console.log('Create sale form found');
         } else {
             console.error('Create sale form not found!');
+        }
+    });
+
+    // Ensure loading indicator is hidden when page visibility changes (handles browser back/forward)
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible' && window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+            console.log('Page became visible with loading indicator showing, hiding it');
+            window.LoadingIndicator.hide(true);
+        }
+    });
+
+    // Add page unload handler to cleanup loading indicator
+    window.addEventListener('beforeunload', function() {
+        if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+            console.log('Page unloading, hiding loading indicator');
+            window.LoadingIndicator.hide(true);
         }
     });
 </script>

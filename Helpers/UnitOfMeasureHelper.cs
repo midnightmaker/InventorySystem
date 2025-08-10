@@ -272,6 +272,88 @@ namespace InventorySystem.Helpers
     }
 
     /// <summary>
+    /// Gets a simplified SelectList of Unit of Measure options specifically for expense items
+    /// </summary>
+    /// <param name="selectedValue">Currently selected value</param>
+    /// <returns>SelectList with common expense units</returns>
+    public static IEnumerable<SelectListItem> GetExpenseUnitOfMeasureSelectList(UnitOfMeasure? selectedValue = null)
+    {
+      var groups = new List<SelectListGroup>
+      {
+        new SelectListGroup { Name = "Common" },
+        new SelectListGroup { Name = "Time-based" },
+        new SelectListGroup { Name = "Usage-based" }
+      };
+
+      var items = new List<SelectListItem>
+      {
+        // Common
+        new SelectListItem
+        {
+          Value = ((int)UnitOfMeasure.Each).ToString(),
+          Text = "Each (per item/service)",
+          Selected = selectedValue == UnitOfMeasure.Each,
+          Group = groups[0]
+        },
+        new SelectListItem
+        {
+          Value = ((int)UnitOfMeasure.Set).ToString(),
+          Text = "Set (bundled services)",
+          Selected = selectedValue == UnitOfMeasure.Set,
+          Group = groups[0]
+        },
+
+        // Time-based
+        new SelectListItem
+        {
+          Value = ((int)UnitOfMeasure.Hour).ToString(),
+          Text = "Hour (hourly charges)",
+          Selected = selectedValue == UnitOfMeasure.Hour,
+          Group = groups[1]
+        },
+        new SelectListItem
+        {
+          Value = ((int)UnitOfMeasure.Day).ToString(),
+          Text = "Day (daily charges)",
+          Selected = selectedValue == UnitOfMeasure.Day,
+          Group = groups[1]
+        },
+        new SelectListItem
+        {
+          Value = ((int)UnitOfMeasure.Month).ToString(),
+          Text = "Month (monthly charges)",
+          Selected = selectedValue == UnitOfMeasure.Month,
+          Group = groups[1]
+        },
+
+        // Usage-based
+        new SelectListItem
+        {
+          Value = ((int)UnitOfMeasure.Kilogram).ToString(),
+          Text = "Kilogram (usage by weight)",
+          Selected = selectedValue == UnitOfMeasure.Kilogram,
+          Group = groups[2]
+        },
+        new SelectListItem
+        {
+          Value = ((int)UnitOfMeasure.Liter).ToString(),
+          Text = "Liter (usage by volume)",
+          Selected = selectedValue == UnitOfMeasure.Liter,
+          Group = groups[2]
+        },
+        new SelectListItem
+        {
+          Value = ((int)UnitOfMeasure.SquareMeter).ToString(),
+          Text = "Square Meter (area-based)",
+          Selected = selectedValue == UnitOfMeasure.SquareMeter,
+          Group = groups[2]
+        }
+      };
+
+      return items;
+    }
+
+    /// <summary>
     /// Gets the abbreviation for a Unit of Measure
     /// </summary>
     /// <param name="uom">Unit of Measure</param>

@@ -1,0 +1,490 @@
+@model InventorySystem.ViewModels.EditExpenseItemViewModel
+@using InventorySystem.Helpers
+@using InventorySystem.Models.Enums
+@{
+    ViewData["Title"] = "Edit Expense Item";
+    var expenseTypeDisplay = Model.ItemType switch
+    {
+        ItemType.Expense => "Operating Expense",
+        ItemType.Utility => "Utility Expense", 
+        ItemType.Subscription => "Subscription",
+        ItemType.Service => "Service Expense",
+        ItemType.Virtual => "Virtual Asset",
+        _ => "Expense Item"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-edit"></i> Edit @expenseTypeDisplay</h1>
+        <small class="text-muted">Modify @expenseTypeDisplay.ToLower() information for expense tracking and financial reporting</small>
+    </div>
+    <div class="btn-group">
+        <a href="/Items/Details/@Model.Id" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Details
+        </a>
+        <a href="/Items?itemTypeFilter=@Model.ItemType" class="btn btn-outline-info">
+            <i class="fas fa-list"></i> Back to @Model.ItemType.ToString()s
+        </a>
+        <a href="/Expenses/Reports" class="btn btn-outline-success">
+            <i class="fas fa-chart-bar"></i> Expense Reports
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <form asp-action="EditExpense" asp-controller="Items" enctype="multipart/form-data" method="post" id="editExpenseForm">
+            @Html.HiddenFor(model => model.Id)
+            @Html.HiddenFor(model => model.Version)
+            @Html.HiddenFor(model => model.CreatedDate)
+            @Html.HiddenFor(model => model.HasImage)
+            @Html.HiddenFor(model => model.ImageFileName)
+
+            <!-- Basic Information Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="PartNumber" class="form-label">
+                                    <i class="fas fa-hashtag text-primary"></i>
+                                    Expense Code <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="PartNumber" class="form-control" required placeholder="e.g., EXP-001, UTIL-001" />
+                                <span asp-validation-for="PartNumber" class="text-danger"></span>
+                                <div class="form-text">Unique identifier for this expense item</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Version" class="form-label">
+                                    <i class="fas fa-code-branch text-info"></i>
+                                    Version
+                                </label>
+                                <input asp-for="Version" class="form-control" readonly />
+                                <div class="form-text">Version cannot be changed for existing items</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">
+                            <i class="fas fa-file-text text-success"></i>
+                            Description <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="Description" class="form-control" required placeholder="Brief description of the expense" />
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Comments" class="form-label">
+                            <i class="fas fa-comment text-muted"></i>
+                            Additional Notes
+                        </label>
+                        <textarea asp-for="Comments" class="form-control" rows="3" placeholder="Additional details, account codes, or expense policies"></textarea>
+                        <span asp-validation-for="Comments" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expense Properties Card -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-cog"></i> Expense Properties</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ItemType" class="form-label">
+                                    <i class="fas fa-tags text-warning"></i>
+                                    Expense Type <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="ItemType" class="form-select" id="expenseTypeSelect">
+                                    <option value="@((int)ItemType.Expense)">Operating Expense - General business expenses</option>
+                                    <option value="@((int)ItemType.Utility)">Utility - Power, water, internet, phone</option>
+                                    <option value="@((int)ItemType.Subscription)">Subscription - Software licenses, services</option>
+                                    <option value="@((int)ItemType.Service)">Service Expense - Consulting, maintenance</option>
+                                    <option value="@((int)ItemType.Virtual)">Virtual Asset - Digital assets, licenses</option>
+                                </select>
+                                <span asp-validation-for="ItemType" class="text-danger"></span>
+                                <div class="form-text">Categorizes this expense for reporting and tax purposes</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="UnitOfMeasure" class="form-label">
+                                    <i class="fas fa-ruler-combined text-info"></i>
+                                    Unit of Measure <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="UnitOfMeasure" class="form-select" 
+                                        asp-items="@UnitOfMeasureHelper.GetExpenseUnitOfMeasureSelectList(Model.UnitOfMeasure)">
+                                </select>
+                                <span asp-validation-for="UnitOfMeasure" class="text-danger"></span>
+                                <div class="form-text">How this expense is measured (monthly, annually, per use, etc.)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vendor Information Card -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-building"></i> Vendor Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label asp-for="PreferredVendorId" class="form-label">
+                                    <i class="fas fa-star text-warning"></i>
+                                    Preferred Vendor
+                                </label>
+                                <div class="input-group">
+                                    <select asp-for="PreferredVendorId" class="form-select" asp-items="ViewBag.PreferredVendors">
+                                        <option value="">-- No Preferred Vendor --</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-info" onclick="window.open('/Vendors/Create', '_blank')" title="Add New Vendor">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle"></i>
+                                    The primary supplier/provider for this expense category
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <!-- Vendor Quick Actions -->
+                            <div class="vendor-actions">
+                                <h6 class="text-muted">Quick Actions</h6>
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="viewVendorDetailsBtn" disabled>
+                                        <i class="fas fa-eye"></i> View Vendor
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="window.open('/Purchases/Create?itemId=@Model.Id', '_blank')">
+                                        <i class="fas fa-receipt"></i> Record Expense
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="VendorPartNumber" class="form-label">
+                                    <i class="fas fa-barcode text-info"></i>
+                                    Vendor Reference/Account Number
+                                </label>
+                                <input asp-for="VendorPartNumber" class="form-control" placeholder="Account number, service ID, or vendor reference" />
+                                <span asp-validation-for="VendorPartNumber" class="text-danger"></span>
+                                <div class="form-text">Reference number used by the vendor for this expense</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Management Card -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-image"></i> Expense Documentation</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.HasImage)
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Current Image:</label>
+                                <div>
+                                    <img src="/Items/GetImageThumbnail/@Model.Id?size=150"
+                                         alt="Expense Documentation"
+                                         style="max-width: 150px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" />
+                                    <div class="mt-2">
+                                        <small class="text-muted">@Model.ImageFileName</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="ImageFile" class="form-label">
+                                        <i class="fas fa-upload text-primary"></i>
+                                        Replace Documentation
+                                    </label>
+                                    <input asp-for="ImageFile" class="form-control" type="file" accept="image/*" id="imageFileInput" />
+                                    <div class="form-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        Leave empty to keep current image. Upload new documentation (JPG, PNG, PDF - Max 5MB)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label for="ImageFile" class="form-label">
+                                <i class="fas fa-upload text-primary"></i>
+                                Upload Documentation
+                            </label>
+                            <input asp-for="ImageFile" class="form-control" type="file" accept="image/*" id="imageFileInput" />
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i>
+                                Upload expense documentation (JPG, PNG, PDF - Max 5MB)
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Image preview -->
+                    <div id="imagePreview" style="display: none;">
+                        <label class="form-label">New Image Preview:</label>
+                        <div>
+                            <img id="previewImg" src="#" alt="New image preview"
+                                 style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="card mt-3">
+                <div class="card-body text-center">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-save"></i> Update @Model.ItemTypeDisplayName
+                    </button>
+                    <a href="/Items/Details/@Model.Id" class="btn btn-outline-secondary btn-lg ms-2">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Right Column - Info and Help -->
+    <div class="col-md-4">
+        <!-- Current Expense Information -->
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Expense Information</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-6">Type:</dt>
+                    <dd class="col-sm-6">
+                        <span class="badge bg-primary">@Model.ItemTypeDisplayName</span>
+                    </dd>
+
+                    <dt class="col-sm-6">Version:</dt>
+                    <dd class="col-sm-6">
+                        <span class="badge bg-secondary">@Model.Version</span>
+                    </dd>
+
+                    <dt class="col-sm-6">Created:</dt>
+                    <dd class="col-sm-6">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
+
+                    <dt class="col-sm-6">Status:</dt>
+                    <dd class="col-sm-6">
+                        <span class="badge bg-warning text-dark">Expense Item</span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Expense Categories Help -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-tags"></i> Expense Categories</h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item border-0 px-0">
+                        <strong>Operating Expense:</strong>
+                        <small class="text-muted d-block">General business expenses, office supplies, travel</small>
+                    </div>
+                    <div class="list-group-item border-0 px-0">
+                        <strong>Utility:</strong>
+                        <small class="text-muted d-block">Power, water, internet, phone services</small>
+                    </div>
+                    <div class="list-group-item border-0 px-0">
+                        <strong>Subscription:</strong>
+                        <small class="text-muted d-block">Software licenses, cloud services, recurring fees</small>
+                    </div>
+                    <div class="list-group-item border-0 px-0">
+                        <strong>Service Expense:</strong>
+                        <small class="text-muted d-block">Consulting, maintenance, professional services</small>
+                    </div>
+                    <div class="list-group-item border-0 px-0">
+                        <strong>Virtual Asset:</strong>
+                        <small class="text-muted d-block">Digital assets, intellectual property licenses</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-lightning-bolt"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/Purchases/Create?itemId=@Model.Id" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-receipt"></i> Record Expense
+                    </a>
+                    <a href="/Expenses/Reports" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-chart-line"></i> Expense Reports
+                    </a>
+                    <a href="/Items?itemTypeFilter=@Model.ItemType" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-list"></i> View All @Model.ItemType.ToString()s
+                    </a>
+                    @if (Model.HasImage)
+                    {
+                        <form asp-controller="Items" asp-action="RemoveImage" method="post" class="d-grid">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('Remove the current image? This action cannot be undone.');">
+                                <i class="fas fa-trash"></i> Remove Image
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('Edit Expense Item page loaded');
+
+            // Handle image preview
+            const imageFileInput = document.getElementById('imageFileInput');
+            const imagePreview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+
+            if (imageFileInput && imagePreview && previewImg) {
+                imageFileInput.addEventListener('change', function (e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        // Validate file size (5MB limit)
+                        if (file.size > 5 * 1024 * 1024) {
+                            alert('Image file size must be less than 5MB.');
+                            this.value = '';
+                            imagePreview.style.display = 'none';
+                            return;
+                        }
+
+                        // Validate file type
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp'];
+                        if (!allowedTypes.includes(file.type.toLowerCase())) {
+                            alert('Please upload a valid image file (JPG, PNG, GIF, BMP).');
+                            this.value = '';
+                            imagePreview.style.display = 'none';
+                            return;
+                        }
+
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            previewImg.src = e.target.result;
+                            imagePreview.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        imagePreview.style.display = 'none';
+                    }
+                });
+            }
+
+            // Handle vendor dropdown change
+            const vendorSelect = document.querySelector('select[name="PreferredVendorId"]');
+            const viewVendorBtn = document.getElementById('viewVendorDetailsBtn');
+
+            if (vendorSelect && viewVendorBtn) {
+                vendorSelect.addEventListener('change', function() {
+                    const selectedVendorId = this.value;
+                    
+                    if (selectedVendorId) {
+                        viewVendorBtn.disabled = false;
+                        viewVendorBtn.onclick = function() {
+                            window.open(`/Vendors/Details/${selectedVendorId}`, '_blank');
+                        };
+                    } else {
+                        viewVendorBtn.disabled = true;
+                        viewVendorBtn.onclick = null;
+                    }
+                });
+
+                // Initialize on page load
+                if (vendorSelect.value) {
+                    viewVendorBtn.disabled = false;
+                    viewVendorBtn.onclick = function() {
+                        window.open(`/Vendors/Details/${vendorSelect.value}`, '_blank');
+                    };
+                }
+            }
+
+            // Form submission validation
+            const form = document.getElementById('editExpenseForm');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    console.log('Form submission started');
+
+                    // Check required fields
+                    const partNumber = document.querySelector('input[name="PartNumber"]').value.trim();
+                    const description = document.querySelector('input[name="Description"]').value.trim();
+
+                    if (!partNumber || !description) {
+                        e.preventDefault();
+                        alert('Please fill in the required fields: Expense Code and Description');
+                        return false;
+                    }
+
+                    console.log('Form validation passed, submitting...');
+                    return true;
+                });
+            }
+        });
+    </script>
+
+    <style>
+        .btn-group-sm .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+
+        .card {
+            margin-bottom: 1rem;
+        }
+
+        .form-text {
+            font-size: 0.875rem;
+        }
+    </style>
+}

@@ -37,20 +37,42 @@
               </a>
             </li>
 
-            <!-- Inventory Management Dropdown -->
+            <!-- Items Management Dropdown (renamed from Inventory) -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-cube"></i> Inventory
+                <i class="fas fa-cube"></i> Items
               </a>
               <ul class="dropdown-menu">
+                <!-- Physical Inventory Section -->
                 <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="Index">
-                    <i class="fas fa-list"></i> All Items
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-boxes"></i> Physical Inventory
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-itemTypeFilter="Inventoried,Consumable">
+                    <i class="fas fa-warehouse text-primary"></i> Physical Inventory
                   </a>
                 </li>
                 <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-itemTypeFilter="RnDMaterials">
+                    <i class="fas fa-flask text-success"></i> R&D Materials
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- All Items -->
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index">
+                    <i class="fas fa-list text-secondary"></i> View All Items
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Item Management -->
+                <li>
                   <a class="dropdown-item" asp-controller="Items" asp-action="Create">
-                    <i class="fas fa-plus"></i> Add Item
+                    <i class="fas fa-plus text-success"></i> Add Item
                   </a>
                 </li>
                 <li>
@@ -62,6 +84,105 @@
                 <li>
                   <a class="dropdown-item" asp-controller="Items" asp-action="LowStock">
                     <i class="fas fa-exclamation-triangle text-warning"></i> Low Stock Items
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            <!-- NEW: Expenses Management Dropdown -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-file-invoice-dollar"></i> Expenses
+              </a>
+              <ul class="dropdown-menu">
+                <!-- All Expenses -->
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true">
+                    <i class="fas fa-list text-primary"></i> All Expenses
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Expense Categories -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-building"></i> By Category
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Expense">
+                    <i class="fas fa-receipt text-danger"></i> Operating Expenses
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Utility">
+                    <i class="fas fa-bolt text-warning"></i> Utilities
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Subscription">
+                    <i class="fas fa-sync-alt text-info"></i> Subscriptions
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Service">
+                    <i class="fas fa-tools text-success"></i> Services
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Virtual">
+                    <i class="fas fa-cloud text-info"></i> Digital & Virtual
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Financial Reports -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-chart-line"></i> Financial Reports
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Expenses" asp-action="Reports">
+                    <i class="fas fa-chart-bar text-success"></i> Expense Reports
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Expenses" asp-action="IncomeStatement">
+                    <i class="fas fa-file-invoice text-primary"></i> Income Statement
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Expenses" asp-action="TaxReports">
+                    <i class="fas fa-calculator text-secondary"></i> Tax Reports
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Expense Management -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-plus"></i> Add Expense Items
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="CreateExpense" asp-route-itemType="Expense">
+                    <i class="fas fa-receipt text-danger"></i> Add Operating Expense
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="CreateExpense" asp-route-itemType="Utility">
+                    <i class="fas fa-bolt text-warning"></i> Add Utility Expense
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="CreateExpense" asp-route-itemType="Subscription">
+                    <i class="fas fa-sync-alt text-info"></i> Add Subscription
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Items" asp-action="CreateExpense" asp-route-itemType="Service">
+                    <i class="fas fa-tools text-success"></i> Add Service
                   </a>
                 </li>
               </ul>
@@ -184,14 +305,20 @@
                 <i class="fas fa-shopping-cart"></i> Purchasing
               </a>
               <ul class="dropdown-menu">
+                <!-- Production Purchase Orders -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-industry"></i> Production Purchasing
+                  </h6>
+                </li>
                 <li>
                   <a class="dropdown-item" asp-controller="Purchases" asp-action="Index">
-                    <i class="fas fa-list"></i> All Purchases
+                    <i class="fas fa-list"></i> All Purchase Orders
                   </a>
                 </li>
                 <li>
                   <a class="dropdown-item" asp-controller="Purchases" asp-action="Create">
-                    <i class="fas fa-plus"></i> New Purchase
+                    <i class="fas fa-plus"></i> New Purchase Order
                   </a>
                 </li>
                 <li>
@@ -200,6 +327,26 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
+                
+                <!-- NEW: Expense Payments Section -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-file-invoice-dollar"></i> Expense Payments
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="PayExpense">
+                    <i class="fas fa-credit-card text-danger"></i> Pay Expense
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="ExpensePayments">
+                    <i class="fas fa-file-invoice text-warning"></i> Expense Payments
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- General Purchasing -->
                 <li>
                   <a class="dropdown-item" asp-controller="Purchases" asp-action="Vendors">
                     <i class="fas fa-building"></i> Vendors
@@ -602,9 +749,23 @@
                 return;
             }
 
-            console.log('LoadingIndicator.hide called');
+            console.log('LoadingIndicator.hide called, force:', force);
             const overlay = document.getElementById('globalLoadingOverlay');
-            if (!overlay) return;
+            if (!overlay) {
+                console.log('? No overlay found, marking as not showing');
+                this.isShowing = false;
+                return;
+            }
+            
+            // Add immediate cleanup for forced hide (like validation errors)
+            if (force) {
+                overlay.classList.remove('show');
+                document.body.classList.remove('loading');
+                overlay.style.display = 'none';
+                this.isShowing = false;
+                console.log('? Loading indicator force hidden immediately');
+                return;
+            }
             
             setTimeout(() => {
                 overlay.classList.remove('show');
@@ -939,6 +1100,11 @@
 
         // Enhanced navigation with loading indicators
         setupEnhancedNavigation();
+
+        // Global validation error detection and cleanup (run after a short delay to ensure DOM is fully loaded)
+        setTimeout(() => {
+            checkForValidationErrorsAndCleanup();
+        }, 250);
     });
 
     // Enhanced Navigation Setup
@@ -1040,47 +1206,91 @@
         });
     }
 
-    // Quick keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        // Ctrl+Shift+P = Quick Production
-        if (e.ctrlKey && e.shiftKey && e.key === 'P') {
-            e.preventDefault();
-            if (window.LoadingIndicator) {
-                window.LoadingIndicator.showForOperation('loading-production');
+    // Global validation error detection and loading indicator cleanup
+    function checkForValidationErrorsAndCleanup() {
+        // Check for various validation error indicators
+        const validationErrors = document.querySelectorAll(
+            '.text-danger:not(:empty), ' +
+            '.alert-danger, ' +
+            '.alert-warning, ' +
+            '.validation-summary-errors, ' +
+            '.field-validation-error:not(:empty), ' +
+            '.is-invalid, ' +
+            'span[data-valmsg-for]:not(:empty)'
+        );
+
+        const hasValidationErrors = validationErrors.length > 0;
+
+        if (hasValidationErrors) {
+            console.log('? Global validation error detection: Found', validationErrors.length, 'validation errors');
+            
+            // Force hide any loading indicator that might be showing
+            if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+                console.log('? Hiding loading indicator due to validation errors');
+                window.LoadingIndicator.hide(true); // Force hide
             }
-            window.location.href = '/Production/BuildBom';
+
+            // Add a small delay to ensure the page is fully rendered
+            setTimeout(() => {
+                // Find and focus on the first error field for better UX
+                const firstErrorField = document.querySelector(
+                    'input.is-invalid, ' +
+                    'select.is-invalid, ' +
+                    'textarea.is-invalid, ' +
+                    '.text-danger:not(:empty)'
+                );
+
+                if (firstErrorField) {
+                    let targetElement = firstErrorField;
+                    
+                    // If it's an error message, try to find the related input
+                    if (firstErrorField.classList.contains('text-danger') || firstErrorField.tagName === 'SPAN') {
+                        const forAttribute = firstErrorField.getAttribute('data-valmsg-for');
+                        if (forAttribute) {
+                            const relatedInput = document.querySelector(`[name="${forAttribute}"], #${forAttribute}`);
+                            if (relatedInput) {
+                                targetElement = relatedInput;
+                            }
+                        } else {
+                            // Try to find a nearby input
+                            const nearbyInput = firstErrorField.parentElement?.querySelector('input, select, textarea');
+                            if (nearbyInput) {
+                                targetElement = nearbyInput;
+                            }
+                        }
+                    }
+
+                    console.log('? Focusing on error field:', targetElement);
+                    targetElement.focus();
+
+                    // Scroll to the error if it's not visible
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                }
+            }, 100);
         }
-        // Ctrl+Shift+D = Dashboard
-        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-            e.preventDefault();
-            if (window.LoadingIndicator) {
-                window.LoadingIndicator.show('Loading Dashboard...', 'Fetching dashboard data');
-            }
-            window.location.href = '/WipDashboard';
-        }
-        // Ctrl+Shift+I = Items
-        if (e.ctrlKey && e.shiftKey && e.key === 'I') {
-            e.preventDefault();
-            if (window.LoadingIndicator) {
-                window.LoadingIndicator.showForOperation('loading-items');
-            }
-            window.location.href = '/Items';
-        }
+
+        return hasValidationErrors;
+    }
+
+    // Monitor for validation errors and cleanup on important events
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initial check on page load
+        checkForValidationErrorsAndCleanup();
     });
 
-    // BOM Visualization function
-    function openBomVisualization() {
-        // Show a simple prompt to select BOM
-        const bomId = prompt('Enter BOM ID to visualize:');
-        if (bomId && !isNaN(bomId)) {
-            if (window.LoadingIndicator) {
-                window.LoadingIndicator.showForOperation('loading-bom');
-            }
-            window.location.href = `/Boms/Visualize/${bomId}`;
-        } else if (bomId) {
-            alert('Please enter a valid BOM ID number');
+    // Reapply check on AJAX form submits (for partial updates)
+    document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form.hasAttribute('data-ajax-form')) {
+            // Use a slight delay to allow AJAX call to settle
+            setTimeout(() => {
+                checkForValidationErrorsAndCleanup();
+            }, 300);
         }
-    }
+    });
 
     // Global error handler for AJAX requests
     window.addEventListener('unhandledrejection', function(event) {
@@ -1144,6 +1354,26 @@ ENVIRONMENT:
             }, 2000);
         }
     };
+
+    // Add page visibility change handler for cleanup
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            console.log('? Page became visible, checking for validation errors and cleaning up loading indicators');
+            
+            // Run cleanup after a small delay to ensure page is fully rendered
+            setTimeout(() => {
+                checkForValidationErrorsAndCleanup();
+            }, 100);
+        }
+    });
+
+    // Add beforeunload handler to ensure cleanup
+    window.addEventListener('beforeunload', function() {
+        if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+            console.log('? Page unloading, hiding loading indicator');
+            window.LoadingIndicator.hide(true);
+        }
+    });
   </script>
 
   @await RenderSectionAsync("Scripts", required: false)

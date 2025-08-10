@@ -1,98 +1,98 @@
 ﻿<!-- Views/Items/BulkUpload.cshtml -->
 @model InventorySystem.ViewModels.BulkItemUploadViewModel
 @{
-    ViewData["Title"] = "Bulk Upload Items";
+  ViewData["Title"] = "Bulk Upload Items";
 }
 
 <div class="row">
-    <div class="col-md-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="fas fa-upload"></i> Bulk Upload Items</h2>
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> Back to Items
+  <div class="col-md-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2><i class="fas fa-upload"></i> Bulk Upload Items</h2>
+      <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Items
+      </a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i> @Model.ErrorMessage
+        @if (TempData["ImportErrors"] != null)
+        {
+          <div class="mt-2">
+            <a asp-action="ViewImportErrors" class="btn btn-sm btn-outline-danger">
+              <i class="fas fa-list"></i> View Error Details
             </a>
-        </div>
-
-        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-        {
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle"></i> @Model.ErrorMessage
-                @if (TempData["ImportErrors"] != null)
-                {
-                    <div class="mt-2">
-                        <a asp-action="ViewImportErrors" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-list"></i> View Error Details
-                        </a>
-                    </div>
-                }
-            </div>
+          </div>
         }
+      </div>
+    }
 
-        @if (TempData["WarningMessage"] != null)
+    @if (TempData["WarningMessage"] != null)
+    {
+      <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+        @if (TempData["ImportErrors"] != null)
         {
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
-                @if (TempData["ImportErrors"] != null)
-                {
-                    <div class="mt-2">
-                        <a asp-action="ViewImportErrors" class="btn btn-sm btn-outline-warning">
-                            <i class="fas fa-list"></i> View Error Details
-                        </a>
-                    </div>
-                }
-            </div>
+          <div class="mt-2">
+            <a asp-action="ViewImportErrors" class="btn btn-sm btn-outline-warning">
+              <i class="fas fa-list"></i> View Error Details
+            </a>
+          </div>
         }
+      </div>
+    }
 
-        @if (!string.IsNullOrEmpty(Model.SuccessMessage))
-        {
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle"></i> @Model.SuccessMessage
-            </div>
-        }
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+      <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i> @Model.SuccessMessage
+      </div>
+    }
 
-        <!-- Step 1: File Upload -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5><i class="fas fa-file-csv"></i> Step 1: Upload CSV File</h5>
+    <!-- Step 1: File Upload -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5><i class="fas fa-file-csv"></i> Step 1: Upload CSV File</h5>
+      </div>
+      <div class="card-body">
+        <form asp-action="BulkUpload" method="post" enctype="multipart/form-data">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="mb-3">
+                <label asp-for="CsvFile" class="form-label">Select CSV File</label>
+                <input asp-for="CsvFile" class="form-control" type="file" accept=".csv" />
+                <span asp-validation-for="CsvFile" class="text-danger"></span>
+                <div class="form-text">
+                  Supported format: .csv (Maximum size: 10MB)
+                </div>
+              </div>
             </div>
-            <div class="card-body">
-                <form asp-action="BulkUpload" method="post" enctype="multipart/form-data">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label asp-for="CsvFile" class="form-label">Select CSV File</label>
-                                <input asp-for="CsvFile" class="form-control" type="file" accept=".csv" />
-                                <span asp-validation-for="CsvFile" class="text-danger"></span>
-                                <div class="form-text">
-                                    Supported format: .csv (Maximum size: 10MB)
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-check mt-4">
-                                <input asp-for="SkipHeaderRow" class="form-check-input" type="checkbox" checked />
-                                <label asp-for="SkipHeaderRow" class="form-check-label">
-                                    Skip first row (header)
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search"></i> Validate & Preview
-                    </button>
-                </form>
+            <div class="col-md-4">
+              <div class="form-check mt-4">
+                <input asp-for="SkipHeaderRow" class="form-check-input" type="checkbox" checked />
+                <label asp-for="SkipHeaderRow" class="form-check-label">
+                  Skip first row (header)
+                </label>
+              </div>
             </div>
-        </div>
+          </div>
 
-        <!-- CSV Format Instructions -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5><i class="fas fa-info-circle"></i> CSV File Format</h5>
-            </div>
-            <div class="card-body">
-                <p>Your CSV file should have the following column structure:</p>
-                <div class="table-responsive">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Validate & Preview
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- CSV Format Instructions -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> CSV File Format</h5>
+      </div>
+      <div class="card-body">
+        <p>Your CSV file should have the following column structure:</p>
+        <div class="table-responsive">
           <table class="table table-striped table-sm">
             <thead class="table-dark">
               <tr>
@@ -178,13 +178,20 @@
               </tr>
               <tr>
                 <td><strong>J</strong></td>
+                <td>Expense Item</td>
+                <td><span class="badge bg-warning">Optional</span></td>
+                <td>Is this an expense item (true/false, default: false)</td>
+                <td>false</td>
+              </tr>
+              <tr>
+                <td><strong>K</strong></td>
                 <td>Item Type</td>
                 <td><span class="badge bg-warning">Optional</span></td>
                 <td>Inventoried, Non-Inventoried, Service, Virtual, Consumable, Expense, Subscription, Utility, R&D Materials</td>
                 <td>Inventoried</td>
               </tr>
               <tr>
-                <td><strong>K</strong></td>
+                <td><strong>L</strong></td>
                 <td>Version</td>
                 <td><span class="badge bg-warning">Optional</span></td>
                 <td>Item revision (default: A)</td>
@@ -194,35 +201,35 @@
                 <td colspan="5"><strong>Initial Purchase Data (Optional - Only for Inventoried/Trackable Items)</strong></td>
               </tr>
               <tr>
-                <td><strong>L</strong></td>
+                <td><strong>M</strong></td>
                 <td>Initial Quantity</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Starting inventory quantity</td>
                 <td>25</td>
               </tr>
               <tr>
-                <td><strong>M</strong></td>
+                <td><strong>N</strong></td>
                 <td>Initial Cost Per Unit</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Cost per unit for initial purchase</td>
                 <td>15.50</td>
               </tr>
               <tr>
-                <td><strong>N</strong></td>
+                <td><strong>O</strong></td>
                 <td>Initial Vendor</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Vendor for initial purchase</td>
                 <td>Mouser Electronics</td>
               </tr>
               <tr>
-                <td><strong>O</strong></td>
+                <td><strong>P</strong></td>
                 <td>Initial Purchase Date</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Date of initial purchase</td>
                 <td>2025-01-15</td>
               </tr>
               <tr>
-                <td><strong>P</strong></td>
+                <td><strong>Q</strong></td>
                 <td>Initial PO Number</td>
                 <td><span class="badge bg-secondary">Optional</span></td>
                 <td>Purchase order number</td>
@@ -230,233 +237,214 @@
               </tr>
             </tbody>
           </table>
-                </div>
-                
-                <div class="alert alert-info mt-3">
-                    <i class="fas fa-lightbulb"></i>
-                    <strong>Distribution Channel Example:</strong>
-                    <div class="row mt-2">
-                        <div class="col-md-6">
-                            <small>
-                                <strong>Vendor:</strong> Mouser Electronics<br>
-                                <strong>Vendor P/N:</strong> 595-TPS54331DR
-                            </small>
-                        </div>
-                        <div class="col-md-6">
-                            <small>
-                                <strong>Manufacturer:</strong> Texas Instruments<br>
-                                <strong>MFG P/N:</strong> TPS54331DR
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="alert alert-secondary mt-3">
-                    <i class="fas fa-info-circle"></i>
-                    <strong>Tips:</strong>
-                    <ul class="mb-0 mt-2">
-                        <li>Manufacturer fields help with component traceability and alternative sourcing</li>
-                        <li>If you include initial purchase data (columns L-P), make sure to include at least Quantity, Cost Per Unit, and Vendor</li>
-                        <li>Part numbers must be unique - duplicates will be rejected</li>
-                        <li>Empty rows will be skipped automatically</li>
-                        <li>Download our <a href="#" id="downloadTemplate">CSV template</a> to get started</li>
-                    </ul>
-                </div>
-            </div>
         </div>
 
-        @if (Model.HasValidationResults)
-        {
-            <!-- Step 2: Validation Results -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5><i class="fas fa-check-circle"></i> Step 2: Validation Results</h5>
-                    <div>
-                        <span class="badge bg-success fs-6 me-2">@Model.ValidItemsCount Valid</span>
-                        @if (Model.InvalidItemsCount > 0)
-                        {
-                            <span class="badge bg-danger fs-6">@Model.InvalidItemsCount Invalid</span>
-                        }
-                    </div>
-                </div>
-                <div class="card-body">
-                    @if (Model.ValidationResults!.Any(vr => !vr.IsValid))
-                    {
-                        <div class="alert alert-warning">
-                            <h6><i class="fas fa-exclamation-triangle"></i> Items with Errors</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Row</th>
-                                            <th>Part Number</th>
-                                            <th>Description</th>
-                                            <th>Errors</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var invalid in Model.ValidationResults.Where(vr => !vr.IsValid))
-                                        {
-                                            <tr>
-                                                <td>@invalid.RowNumber</td>
-                                                <td>@invalid.PartNumber</td>
-                                                <td>@invalid.Description</td>
-                                                <td>
-                                                    @foreach (var error in invalid.Errors)
-                                                    {
-                                                        <span class="badge bg-danger me-1">@error</span>
-                                                    }
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    }
-
-                    @if (Model.CanProceedWithImport)
-                    {
-                        <div class="alert alert-success">
-                            <h6><i class="fas fa-check-circle"></i> Ready to Import</h6>
-                            <p class="mb-0">@Model.ValidItemsCount items are ready to be imported into the system.</p>
-                        </div>
-
-                        <!-- Preview of valid items -->
-                        <h6>Items to Import:</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Row</th>
-                                        <th>Part Number</th>
-                                        <th>Description</th>
-                                        <th>Vendor Info</th>
-                                        <th>Manufacturer Info</th>
-                                        <th>Min Stock</th>
-                                        <th>Initial Purchase</th>
-                                        <th>Warnings</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var valid in Model.ValidationResults.Where(vr => vr.IsValid))
-                                    {
-                                        <tr>
-                                            <td>@valid.RowNumber</td>
-                                            <td><strong>@valid.ItemData!.PartNumber</strong></td>
-                                            <td>@valid.ItemData.Description</td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor) || !string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
-                                                {
-                                                    <small>
-                                                        @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor))
-                                                        {
-                                                            <strong>@valid.ItemData.PreferredVendor</strong><br>
-                                                        }
-                                                        @if (!string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
-                                                        {
-                                                            <span class="text-muted">P/N: @valid.ItemData.VendorPartNumber</span>
-                                                        }
-                                                    </small>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not specified</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(valid.ItemData.Manufacturer) || !string.IsNullOrEmpty(valid.ItemData.ManufacturerPartNumber))
-                                                {
-                                                    <small>
-                                                        @if (!string.IsNullOrEmpty(valid.ItemData.Manufacturer))
-                                                        {
-                                                            <strong>@valid.ItemData.Manufacturer</strong><br>
-                                                        }
-                                                        @if (!string.IsNullOrEmpty(valid.ItemData.ManufacturerPartNumber))
-                                                        {
-                                                            <span class="text-muted">MFG P/N: @valid.ItemData.ManufacturerPartNumber</span>
-                                                        }
-                                                    </small>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not specified</span>
-                                                }
-                                            </td>
-                                            <td>@valid.ItemData.MinimumStock</td>
-                                            <td>
-                                                @if (valid.ItemData.InitialQuantity.HasValue && valid.ItemData.InitialCostPerUnit.HasValue && !string.IsNullOrEmpty(valid.ItemData.InitialVendor))
-                                                {
-                                                    <span class="badge bg-success">
-                                                        @valid.ItemData.InitialQuantity&nbsp;&nbsp;$@valid.ItemData.InitialCostPerUnit.Value.ToString("F2")
-                                                    </span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">None</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                @foreach (var warning in valid.Warnings)
-                                                {
-                                                    <span class="badge bg-warning text-dark me-1">@warning</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Import Button -->
-<form asp-action="ProcessBulkUpload" method="post" enctype="multipart/form-data">
-    
-    @if (Model.PreviewItems != null && Model.PreviewItems.Any())
-    {
-        @* Preserve all preview items as hidden fields *@
-        @for (int i = 0; i < Model.PreviewItems.Count; i++)
-        {
-            <input asp-for="PreviewItems[i].PartNumber" type="hidden" />
-            <input asp-for="PreviewItems[i].Description" type="hidden" />
-            <input asp-for="PreviewItems[i].UnitOfMeasure" type="hidden" />
-            <input asp-for="PreviewItems[i].ItemType" type="hidden" />
-            <input asp-for="PreviewItems[i].IsSellable" type="hidden" />
-            <input asp-for="PreviewItems[i].MinimumStock" type="hidden" />
-            <input asp-for="PreviewItems[i].Comments" type="hidden" />
-            <!-- Add other necessary fields that your BulkItemPreview contains -->
-            <input asp-for="PreviewItems[i].PreferredVendor" type="hidden" />
-        }
-        
-        <!-- Preserve other form properties -->
-        <input asp-for="SkipHeaderRow" type="hidden" />
-        
-        <div class="row mt-4">
-            <div class="col-12">
-                <button type="submit" class="btn btn-success btn-lg">
-                    <i class="fas fa-upload"></i> Import @Model.PreviewItems.Count Items
-                </button>
-                <a asp-action="BulkUpload" class="btn btn-secondary btn-lg ms-2">
-                    <i class="fas fa-arrow-left"></i> Back to Upload
-                </a>
+        <div class="alert alert-info mt-3">
+          <i class="fas fa-lightbulb"></i>
+          <strong>Distribution Channel Example:</strong>
+          <div class="row mt-2">
+            <div class="col-md-6">
+              <small>
+                <strong>Vendor:</strong> Mouser Electronics<br>
+                <strong>Vendor P/N:</strong> 595-TPS54331DR
+              </small>
             </div>
-        </div>
-    }
-    else
-    {
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            No valid items found to import. Please upload a file first.
-        </div>
-        <a asp-action="BulkUpload" class="btn btn-primary">
-            <i class="fas fa-upload"></i> Upload File
-        </a>
-    }
-</form>
-                    }
-                </div>
+            <div class="col-md-6">
+              <small>
+                <strong>Manufacturer:</strong> Texas Instruments<br>
+                <strong>MFG P/N:</strong> TPS54331DR
+              </small>
             </div>
-        }
+          </div>
+        </div>
+
+        <div class="alert alert-secondary mt-3">
+          <i class="fas fa-info-circle"></i>
+          <strong>Tips:</strong>
+          <ul class="mb-0 mt-2">
+            <li>Manufacturer fields help with component traceability and alternative sourcing</li>
+            <li>If you include initial purchase data (columns L-P), make sure to include at least Quantity, Cost Per Unit, and Vendor</li>
+            <li>Part numbers must be unique - duplicates will be rejected</li>
+            <li>Empty rows will be skipped automatically</li>
+            <li>Download our <a href="#" id="downloadTemplate">CSV template</a> to get started</li>
+          </ul>
+        </div>
+      </div>
     </div>
+
+    @if (Model.HasValidationResults)
+    {
+      <!-- Step 2: Validation Results -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-check-circle"></i> Step 2: Validation Results</h5>
+          <div>
+            <span class="badge bg-success fs-6 me-2">@Model.ValidItemsCount Valid</span>
+            @if (Model.InvalidItemsCount > 0)
+            {
+              <span class="badge bg-danger fs-6">@Model.InvalidItemsCount Invalid</span>
+            }
+          </div>
+        </div>
+        <div class="card-body">
+          @if (Model.ValidationResults!.Any(vr => !vr.IsValid))
+          {
+            <div class="alert alert-warning">
+              <h6><i class="fas fa-exclamation-triangle"></i> Items with Errors</h6>
+              <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Part Number</th>
+                      <th>Description</th>
+                      <th>Errors</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var invalid in Model.ValidationResults.Where(vr => !vr.IsValid))
+                    {
+                      <tr>
+                        <td>@invalid.RowNumber</td>
+                        <td>@invalid.PartNumber</td>
+                        <td>@invalid.Description</td>
+                        <td>
+                          @foreach (var error in invalid.Errors)
+                          {
+                            <span class="badge bg-danger me-1">@error</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          @if (Model.CanProceedWithImport)
+          {
+            <div class="alert alert-success">
+              <h6><i class="fas fa-check-circle"></i> Ready to Import</h6>
+              <p class="mb-0">@Model.ValidItemsCount items are ready to be imported into the system.</p>
+            </div>
+
+            <!-- Preview of valid items -->
+            <h6>Items to Import:</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-striped">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Row</th>
+                    <th>Part Number</th>
+                    <th>Description</th>
+                    <th>Type & Purpose</th>
+                    <th>Vendor Info</th>
+                    <th>Manufacturer Info</th>
+                    <th>Min Stock</th>
+                    <th>Initial Purchase</th>
+                    <th>Warnings</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var valid in Model.ValidationResults.Where(vr => vr.IsValid))
+                  {
+                    <tr>
+                      <td>@valid.RowNumber</td>
+                      <td><strong>@valid.ItemData!.PartNumber</strong></td>
+                      <td>@valid.ItemData.Description</td>
+                      <td>
+                        <span class="badge bg-@(valid.ItemData.IsExpense ? "danger" : "primary")">
+                          @valid.ItemData.ItemTypeDisplayName
+                        </span>
+                        <br>
+                        <small class="text-muted">@valid.ItemData.BusinessPurpose</small>
+                      </td>
+                      <td>
+                        @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor) || !string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
+                        {
+                          <small>
+                            @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor))
+                            {
+                              <strong>@valid.ItemData.PreferredVendor</strong><br>
+                            }
+                            @if (!string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
+                            {
+                              <span class="text-muted">P/N: @valid.ItemData.VendorPartNumber</span>
+                            }
+                          </small>
+                        }
+                        else
+                        {
+                          <span class="text-muted">Not specified</span>
+                        }
+                      </td>
+                      <td>
+                        @if (!string.IsNullOrEmpty(valid.ItemData.Manufacturer) || !string.IsNullOrEmpty(valid.ItemData.ManufacturerPartNumber))
+                        {
+                          <small>
+                            @if (!string.IsNullOrEmpty(valid.ItemData.Manufacturer))
+                            {
+                              <strong>@valid.ItemData.Manufacturer</strong><br>
+                            }
+                            @if (!string.IsNullOrEmpty(valid.ItemData.ManufacturerPartNumber))
+                            {
+                              <span class="text-muted">MFG P/N: @valid.ItemData.ManufacturerPartNumber</span>
+                            }
+                          </small>
+                        }
+                        else
+                        {
+                          <span class="text-muted">Not specified</span>
+                        }
+                      </td>
+                      <td>@valid.ItemData.MinimumStock</td>
+                      <td>
+                        @if (valid.ItemData.InitialQuantity.HasValue && valid.ItemData.InitialCostPerUnit.HasValue && !string.IsNullOrEmpty(valid.ItemData.InitialVendor))
+                        {
+                          <span class="badge bg-success">
+                            @valid.ItemData.InitialQuantity&nbsp;&nbsp;$@valid.ItemData.InitialCostPerUnit.Value.ToString("F2")
+                          </span>
+                        }
+                        else
+                        {
+                          <span class="text-muted">None</span>
+                        }
+                      </td>
+                      <td>
+                        @foreach (var warning in valid.Warnings)
+                        {
+                          <span class="badge bg-warning text-dark me-1">@warning</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Import Button - Session-Based Form (FIXED) -->
+            <form asp-action="ProcessBulkUpload" method="post" style="display: inline;">
+                <!-- Only pass the session ID - no large data collections -->
+                <input type="hidden" name="uploadSessionId" value="@Model.UploadSessionId" />
+                <!-- Remove any other hidden fields that might contain large data -->
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-upload"></i> Import @Model.ValidItemsCount Items
+                        </button>
+                        <a asp-action="BulkUpload" class="btn btn-secondary btn-lg ms-2">
+                            <i class="fas fa-arrow-left"></i> Back to Upload
+                        </a>
+                    </div>
+                </div>
+            </form>
+          }
+        </div>
+      </div>
+    }
+  </div>
 </div>
 
 <!-- Move JavaScript directly into the view instead of using sections -->
@@ -470,7 +458,7 @@
                 downloadCsvTemplate();
             });
         }
-        
+
         // File input validation
         const fileInput = document.querySelector('input[type="file"]');
         if (fileInput) {
@@ -483,7 +471,7 @@
                         this.value = '';
                         return;
                     }
-                    
+
                     // Check file extension
                     const allowedExtensions = ['.csv'];
                     const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
@@ -498,15 +486,16 @@
     });
 
       function downloadCsvTemplate() {
-      // Updated CSV template with manufacturer fields
+      // Updated CSV template with manufacturer fields and IsExpense
       const templateData = [
-          ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Manufacturer', 'Manufacturer Part Number', 'Sellable', 'Item Type', 'Version', 'Unit of Measure', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
-          ['IC-001', 'DC-DC Converter 12V to 3.3V', 'Used in power supply circuit', '25', '595-TPS54331DR', 'Mouser Electronics', 'Texas Instruments', 'TPS54331DR', 'true', 'Inventoried', 'A', 'EA', '50', '2.85', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
-          ['RES-001', '10K Ohm Resistor 1%', '0603 package size', '100', '71-CRCW060310K0FKEA', 'Mouser Electronics', 'Vishay', 'CRCW060310K0FKEA', 'true', 'Inventoried', 'A', 'EA', '200', '0.12', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
-          ['CAP-001', '10uF Ceramic Capacitor', '0805 package, 25V rating', '50', '81-GRM21BR61E106KA3L', 'Mouser Electronics', 'Murata', 'GRM21BR61E106KA73L', 'true', 'Inventoried', 'A', 'EA', '100', '0.45', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
-          ['VALVE-002', 'Ball Valve 1/2"', 'Stainless steel', '5', 'XYZ-67890', 'XYZ Parts', '', '', 'true', 'Inventoried', 'A', 'EA', '10', '8.25', 'XYZ Parts', '2025-01-15', 'PO-2025-001'],
-          ['FW-001', 'Main Controller Firmware', 'Version 2.1.3', '0', '', '', '', '', 'false', 'Non-Inventoried', 'A', '', '', '', '', ''],
-          ['SERVICE-001', 'Assembly Labor', 'Per hour rate', '0', '', '', '', '', 'true', 'Service', 'A', '', '', '', '', '']
+          ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Manufacturer', 'Manufacturer Part Number', 'Sellable', 'Expense Item', 'Item Type', 'Version', 'Unit of Measure', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
+          ['IC-001', 'DC-DC Converter 12V to 3.3V', 'Used in power supply circuit', '25', '595-TPS54331DR', 'Mouser Electronics', 'Texas Instruments', 'TPS54331DR', 'true', 'false', 'Inventoried', 'A', 'EA', '50', '2.85', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+          ['RES-001', '10K Ohm Resistor 1%', '0603 package size', '100', '71-CRCW060310K0FKEA', 'Mouser Electronics', 'Vishay', 'CRCW060310K0FKEA', 'true', 'false', 'Inventoried', 'A', 'EA', '200', '0.12', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+          ['CERT-001', 'Product Certification Service', 'Per unit certification', '0', '', 'Certification Corp', '', '', 'true', 'false', 'Service', 'A', 'EA', '', '', '', '', ''],
+          ['CONSULT-001', 'Engineering Consulting', 'External engineering consultation', '0', '', 'Tech Consultants Inc', '', '', 'false', 'true', 'Service', 'A', 'HR', '', '', '', '', ''],
+          ['UTIL-001', 'Monthly Internet Service', 'Business fiber internet', '0', '', 'ISP Provider', '', '', 'false', 'true', 'Utility', 'A', 'MO', '', '', '', '', ''],
+          ['SUB-001', 'Software License', 'Design software subscription', '0', '', 'Software Co', '', '', 'false', 'true', 'Subscription', 'A', 'MO', '', '', '', '', ''],
+          ['FW-001', 'Main Controller Firmware', 'Version 2.1.3', '0', '', '', '', '', 'false', 'false', 'Non-Inventoried', 'A', '', '', '', '', '']
       ];
 
       // Convert to CSV format for download
@@ -519,7 +508,7 @@
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'bulk_upload_template_with_manufacturer.csv';
+      a.download = 'bulk_upload_template_with_expense_flag.csv';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -529,28 +518,28 @@
 
 <!-- Move CSS directly into the view instead of using sections -->
 <style>
-    .table th {
-        vertical-align: middle;
-    }
-    
-    .badge.fs-6 {
-        font-size: 0.875rem !important;
-    }
-    
-    .card-header h5 {
-        margin-bottom: 0;
-    }
-    
-    .table-responsive {
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    
-    .alert ul {
-        padding-left: 1.5rem;
-    }
-    
-    .form-text {
-        font-size: 0.875rem;
-    }
+  .table th {
+    vertical-align: middle;
+  }
+
+  .badge.fs-6 {
+    font-size: 0.875rem !important;
+  }
+
+  .card-header h5 {
+    margin-bottom: 0;
+  }
+
+  .table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .alert ul {
+    padding-left: 1.5rem;
+  }
+
+  .form-text {
+    font-size: 0.875rem;
+  }
 </style>

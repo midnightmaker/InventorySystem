@@ -1,0 +1,638 @@
+@model InventorySystem.ViewModels.PayExpenseViewModel
+
+@{
+    ViewData["Title"] = "Pay Expense";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="fas fa-credit-card"></i> @ViewData["Title"]</h5>
+                </div>
+                <div class="card-body">
+                    <!-- UPDATED: Added enctype for file upload -->
+                    <form asp-action="PayExpense" method="post" enctype="multipart/form-data">
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                        <!-- Expense Item Selection -->
+                        <div class="mb-3">
+                            <label for="expenseSearch" class="form-label">
+                                <i class="fas fa-file-invoice text-danger"></i>
+                                Expense Item <span class="text-danger">*</span>
+                            </label>
+                            
+                            <!-- Search Input Container -->
+                            <div class="position-relative">
+                                <div class="input-group">
+                                    <input type="text" 
+                                           id="expenseSearch" 
+                                           class="form-control" 
+                                           placeholder="Search for expense items..." 
+                                           autocomplete="off" />
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search text-muted" id="expenseSearchIcon"></i>
+                                        <div class="spinner-border spinner-border-sm text-danger d-none" id="expenseSearchSpinner"></div>
+                                    </span>
+                                </div>
+                                
+                                <!-- Search Results Dropdown -->
+                                <div class="dropdown-menu w-100" id="expenseSearchResults" style="max-height: 300px; overflow-y: auto; z-index: 1050;">
+                                    <!-- Results will be populated here via JavaScript -->
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden field to store selected expense item ID -->
+                            <input type="hidden" asp-for="ExpenseItemId" id="selectedExpenseItemId" />
+                            <span asp-validation-for="ExpenseItemId" class="text-danger"></span>
+                            
+                            <!-- Selected Expense Item Display -->
+                            <div id="selectedExpenseDisplay" class="mt-2 d-none">
+                                <div class="alert alert-success py-2">
+                                    <i class="fas fa-check-circle"></i>
+                                    <strong>Selected:</strong> <span id="selectedExpenseInfo"></span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="clearExpenseSelection">
+                                        <i class="fas fa-times"></i> Change
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vendor Selection -->
+                        <div class="mb-3">
+                            <label asp-for="VendorId" class="form-label">
+                                <i class="fas fa-building text-success"></i>
+                                Vendor <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="VendorId" asp-items="ViewBag.VendorId" class="form-select" id="vendorSelect">
+                                <option value="">-- Select Vendor --</option>
+                            </select>
+                            <span asp-validation-for="VendorId" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <!-- Payment Date -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="PaymentDate" class="form-label">
+                                        <i class="fas fa-calendar text-info"></i>
+                                        Payment Date <span class="text-danger">*</span>
+                                    </label>
+                                    <input asp-for="PaymentDate" class="form-control" type="date" />
+                                    <span asp-validation-for="PaymentDate" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <!-- Payment Status -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Status" class="form-label">
+                                        <i class="fas fa-flag text-warning"></i>
+                                        Payment Status
+                                    </label>
+                                    <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<InventorySystem.Models.Enums.PurchaseStatus>()">
+                                    </select>
+                                    <span asp-validation-for="Status" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Amount -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Amount" class="form-label">
+                                        <i class="fas fa-dollar-sign text-success"></i>
+                                        Amount <span class="text-danger">*</span>
+                                    </label>
+                                    <input asp-for="Amount" class="form-control" type="number" step="0.01" min="0.01" placeholder="0.00" />
+                                    <span asp-validation-for="Amount" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <!-- Tax Amount -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="TaxAmount" class="form-label">
+                                        <i class="fas fa-percentage text-warning"></i>
+                                        Tax Amount
+                                    </label>
+                                    <input asp-for="TaxAmount" class="form-control" type="number" step="0.01" min="0" placeholder="0.00" />
+                                    <span asp-validation-for="TaxAmount" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">
+                                <i class="fas fa-sticky-note text-info"></i>
+                                Description/Notes
+                            </label>
+                            <textarea asp-for="Description" class="form-control" rows="3" placeholder="Payment description, invoice number, etc."></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <!-- Reference Number -->
+                        <div class="mb-3">
+                            <label asp-for="ReferenceNumber" class="form-label">
+                                <i class="fas fa-hashtag text-secondary"></i>
+                                Reference Number
+                            </label>
+                            <input asp-for="ReferenceNumber" class="form-control" placeholder="Invoice number, check number, etc." />
+                            <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i>
+                                Optional reference such as invoice number, check number, or transaction ID
+                            </div>
+                        </div>
+
+                        <!-- NEW: File Upload Section -->
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-file-upload"></i> Upload Receipt/Document (Optional)
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="mb-3">
+                                            <label asp-for="ReceiptFile" class="form-label">
+                                                <i class="fas fa-file-alt text-primary"></i>
+                                                Select File
+                                            </label>
+                                            <input asp-for="ReceiptFile" class="form-control" type="file" 
+                                                   accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx" />
+                                            <span asp-validation-for="ReceiptFile" class="text-danger"></span>
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle"></i>
+                                                Supported formats: PDF, Images (JPG, PNG, etc.), Word, Excel. Max size: 10MB
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label asp-for="DocumentType" class="form-label">
+                                                <i class="fas fa-tag text-secondary"></i>
+                                                Document Type
+                                            </label>
+                                            <select asp-for="DocumentType" class="form-select">
+                                                <option value="Receipt">Receipt</option>
+                                                <option value="Invoice">Invoice</option>
+                                                <option value="Statement">Statement</option>
+                                                <option value="Contract">Contract</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label asp-for="DocumentDescription" class="form-label">
+                                        <i class="fas fa-comment text-info"></i>
+                                        Document Description
+                                    </label>
+                                    <input asp-for="DocumentDescription" class="form-control" 
+                                           placeholder="Brief description of the document (optional)" />
+                                    <span asp-validation-for="DocumentDescription" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="@Url.Action("ExpensePayments")" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Expense Payments
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-credit-card"></i> Record Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Summary Panel -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-calculator"></i> Payment Summary</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Amount:</dt>
+                        <dd class="col-sm-6" id="summaryAmount">$0.00</dd>
+
+                        <dt class="col-sm-6">Tax:</dt>
+                        <dd class="col-sm-6" id="summaryTax">$0.00</dd>
+
+                        <dt class="col-sm-6 border-top pt-2"><strong>Total:</strong></dt>
+                        <dd class="col-sm-6 border-top pt-2"><strong id="summaryTotal">$0.00</strong></dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Expense Item Details Panel -->
+            <div class="card mt-3" id="expenseDetailsPanel" style="display: none;">
+                <div class="card-header">
+                    <h6><i class="fas fa-info-circle"></i> Selected Expense Details</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Part Number:</dt>
+                        <dd class="col-sm-6" id="detailPartNumber">-</dd>
+
+                        <dt class="col-sm-6">Description:</dt>
+                        <dd class="col-sm-6" id="detailDescription">-</dd>
+
+                        <dt class="col-sm-6">Type:</dt>
+                        <dd class="col-sm-6" id="detailExpenseType">-</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- NEW: File Upload Info Panel -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-file-upload"></i> Document Upload Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-receipt text-primary"></i>
+                            Upload receipts for accurate record keeping
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-file-pdf text-danger"></i>
+                            PDF files are preferred for archival
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-camera text-info"></i>
+                            Mobile photos are acceptable
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-shield-alt text-success"></i>
+                            Files are securely stored and encrypted
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-info-circle"></i> Expense Payment Info</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-credit-card text-danger"></i>
+                            Record payments for operating expenses, utilities, and services
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-receipt text-info"></i>
+                            Separate from production purchase orders
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-chart-line text-success"></i>
+                            Tracked for expense reporting and tax purposes
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-calendar text-warning"></i>
+                            Use actual payment date for accurate financial records
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Same JavaScript as before, with additional file validation -->
+    <script>
+        $(document).ready(function () {
+            let searchTimeout;
+            let selectedExpenseItem = null;
+            
+            // Auto-update totals when values change
+            function updateTotals() {
+                var amount = parseFloat($('#Amount').val()) || 0;
+                var tax = parseFloat($('#TaxAmount').val()) || 0;
+                var total = amount + tax;
+
+                $('#summaryAmount').text('$' + amount.toFixed(2));
+                $('#summaryTax').text('$' + tax.toFixed(2));
+                $('#summaryTotal').text('$' + total.toFixed(2));
+            }
+
+            // NEW: File upload validation
+            $('#ReceiptFile').change(function() {
+                var file = this.files[0];
+                if (file) {
+                    // Check file size (10MB)
+                    if (file.size > 10 * 1024 * 1024) {
+                        alert('File size cannot exceed 10MB. Please choose a smaller file.');
+                        $(this).val('');
+                        return;
+                    }
+
+                    // Check file type
+                    var allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/tiff', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+                    var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.doc', '.docx', '.xls', '.xlsx'];
+                    
+                    var fileName = file.name.toLowerCase();
+                    var isValidType = allowedExtensions.some(ext => fileName.endsWith(ext));
+                    
+                    if (!isValidType) {
+                        alert('File type not supported. Please upload PDF, image files, or Office documents.');
+                        $(this).val('');
+                        return;
+                    }
+
+                    // Auto-populate document description if empty
+                    if (!$('#DocumentDescription').val()) {
+                        var baseName = file.name.replace(/\.[^/.]+$/, "");
+                        $('#DocumentDescription').val(baseName);
+                    }
+                }
+            });
+
+            // Bind change events for total calculation
+            $('#Amount, #TaxAmount').on('input change', updateTotals);
+
+            // Expense item search functionality
+            $('#expenseSearch').on('input', function() {
+                const query = $(this).val();
+                clearTimeout(searchTimeout);
+                
+                if (query.length < 2) {
+                    hideExpenseSearchResults();
+                    return;
+                }
+
+                showExpenseLoadingSpinner();
+                searchTimeout = setTimeout(function() {
+                    performExpenseSearch(query);
+                }, 300);
+            });
+
+            function showExpenseLoadingSpinner() {
+                $('#expenseSearchIcon').addClass('d-none');
+                $('#expenseSearchSpinner').removeClass('d-none');
+            }
+
+            function hideExpenseLoadingSpinner() {
+                $('#expenseSearchIcon').removeClass('d-none');
+                $('#expenseSearchSpinner').addClass('d-none');
+            }
+
+            function hideExpenseSearchResults() {
+                $('#expenseSearchResults').removeClass('show').hide();
+            }
+
+            function showExpenseSearchResults() {
+                $('#expenseSearchResults').addClass('show').show();
+            }
+
+            function performExpenseSearch(query) {
+                $.ajax({
+                    url: '@Url.Action("SearchExpenseItems", "Purchases")',
+                    type: 'GET',
+                    data: { query: query, page: 1, pageSize: 10 },
+                    success: function(response) {
+                        hideExpenseLoadingSpinner();
+                        
+                        if (response.success && response.items && response.items.length > 0) {
+                            displayExpenseSearchResults(response.items, response.hasMore);
+                        } else {
+                            displayExpenseNoResults(response.message || 'No expense items found');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        hideExpenseLoadingSpinner();
+                        displayExpenseNoResults('Error searching expense items. Please try again.');
+                    }
+                });
+            }
+
+            function displayExpenseSearchResults(items, hasMore) {
+                let html = '';
+                window.expenseSearchResultsData = items;
+                
+                items.forEach(function(item, index) {
+                    html += `
+                        <a href="#" class="dropdown-item expense-result py-2" data-item-index="${index}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">${escapeHtml(item.partNumber)}</div>
+                                    <div class="text-muted small">${escapeHtml(item.description)}</div>
+                                </div>
+                                <div class="text-end">
+                                    <small class="badge bg-danger">${escapeHtml(item.itemTypeDisplay)}</small>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                });
+
+                if (hasMore) {
+                    html += '<div class="dropdown-header text-center text-muted"><small><em>Type more to refine search...</em></small></div>';
+                }
+
+                $('#expenseSearchResults').html(html);
+                showExpenseSearchResults();
+                bindExpenseResultClicks();
+            }
+
+            function displayExpenseNoResults(message) {
+                const html = `
+                    <div class="dropdown-header text-center text-muted py-3">
+                        <i class="fas fa-search"></i> ${escapeHtml(message)}
+                    </div>
+                `;
+                
+                $('#expenseSearchResults').html(html);
+                showExpenseSearchResults();
+            }
+
+            function bindExpenseResultClicks() {
+                $('.expense-result').off('click').on('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const itemIndex = parseInt($(this).data('item-index'));
+                    
+                    if (window.expenseSearchResultsData && window.expenseSearchResultsData[itemIndex]) {
+                        const itemData = window.expenseSearchResultsData[itemIndex];
+                        selectExpenseItem(itemData);
+                        hideExpenseSearchResults();
+                    }
+                });
+            }
+
+            function selectExpenseItem(item) {
+                selectedExpenseItem = item;
+                
+                // Set the hidden field value
+                $('#selectedExpenseItemId').val(item.id);
+                
+                // Update the search input
+                $('#expenseSearch').val(item.displayText);
+                
+                // Show selected expense display
+                $('#selectedExpenseInfo').text(item.displayText);
+                $('#selectedExpenseDisplay').removeClass('d-none');
+                
+                // Update expense details panel
+                $('#detailPartNumber').text(item.partNumber);
+                $('#detailDescription').text(item.description);
+                $('#detailExpenseType').text(item.itemTypeDisplay);
+                
+                $('#expenseDetailsPanel').show();
+
+                // Clear validation error
+                $('span[data-valmsg-for="ExpenseItemId"]').text('');
+                
+                // Auto-select recommended vendor
+                getRecommendedVendorForExpenseItem(item.id);
+            }
+
+            // Clear expense selection
+            $('#clearExpenseSelection').on('click', function() {
+                selectedExpenseItem = null;
+                $('#selectedExpenseItemId').val('');
+                $('#expenseSearch').val('');
+                $('#selectedExpenseDisplay').addClass('d-none');
+                $('#expenseDetailsPanel').hide();
+                $('#vendorSelect').val('');
+                $('#Amount').val('');
+                updateTotals();
+                $('#expenseSearch').focus();
+            });
+
+            // Hide search results when clicking outside
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('#expenseSearch, #expenseSearchResults').length) {
+                    hideExpenseSearchResults();
+                }
+            });
+
+            function getRecommendedVendorForExpenseItem(itemId) {
+                $.ajax({
+                    url: '@Url.Action("GetRecommendedVendorForItem")',
+                    type: 'GET',
+                    data: { itemId: itemId },
+                    success: function (response) {
+                        if (response.success && response.vendorId) {
+                            $('#vendorSelect').val(response.vendorId);
+                            
+                            if (response.recommendedCost && response.recommendedCost > 0) {
+                                $('#Amount').val(response.recommendedCost.toFixed(2));
+                                updateTotals();
+                            }
+                        }
+                    },
+                    error: function() {
+                        console.log('Could not retrieve vendor recommendation');
+                    }
+                });
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                return text.toString()
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            // Initial calculation
+            updateTotals();
+
+            // Pre-select expense item if provided
+            @if (Model.ExpenseItemId > 0)
+            {
+                <text>
+                // Auto-search for the pre-selected expense item
+                performExpenseSearch('*');
+                </text>
+            }
+            else
+            {
+                <text>
+                $('#expenseSearch').focus();
+                </text>
+            }
+        });
+    </script>
+}
+
+@section Styles {
+    <!-- Same styles as before, plus new styles for file upload -->
+    <style>
+        #expenseSearchResults {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        #expenseSearchResults.show {
+            display: block !important;
+        }
+
+        #expenseSearchResults .dropdown-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f8f9fa;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        #expenseSearchResults .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        #expenseSearchResults .dropdown-item:hover {
+            background-color: #f8f9fa;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .position-relative {
+            position: relative !important;
+        }
+
+        /* NEW: File upload styles */
+        .card.border-primary {
+            border-width: 2px;
+        }
+
+        #ReceiptFile {
+            border: 2px dashed #dee2e6;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            transition: border-color 0.3s ease;
+        }
+
+        #ReceiptFile:hover, #ReceiptFile:focus {
+            border-color: #0d6efd;
+        }
+
+        .form-text {
+            font-size: 0.875rem;
+        }
+    </style>
+}

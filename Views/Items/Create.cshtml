@@ -161,6 +161,15 @@
                 </label>
                 <div class="form-text">Uncheck for raw materials, components, or internal-use items.</div>
               </div>
+              
+              <div class="form-check mt-2">
+                <input asp-for="IsExpense" class="form-check-input" type="checkbox" />
+                <label asp-for="IsExpense" class="form-check-label">
+                  <i class="fas fa-file-invoice-dollar text-danger"></i>
+                  This is an expense item
+                </label>
+                <div class="form-text">Check for items you purchase as business expenses.</div>
+              </div>
             </div>
           </div>
 

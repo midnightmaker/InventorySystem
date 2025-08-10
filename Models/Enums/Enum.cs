@@ -23,10 +23,11 @@ namespace InventorySystem.Models.Enums
   public enum PurchaseStatus
   {
     Pending,        // Purchase order created but not confirmed
-    Ordered,      // Purchase order confirmed with vendor
+    Ordered,        // Purchase order confirmed with vendor
     Shipped,        // Items shipped by vendor
     PartiallyReceived, // Some items received
     Received,       // All items received
+    Paid,           // Payment completed (for expenses)
     Cancelled,      // Purchase order cancelled
     Returned        // Items returned to vendor
   }

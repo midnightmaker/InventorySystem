@@ -22,12 +22,15 @@ namespace InventorySystem.ViewModels
     public string? ErrorMessage { get; set; }
     public string? SuccessMessage { get; set; }
 
+    // Session-based upload support
+    public string? UploadSessionId { get; set; }
+
     // Helper properties
     public int ValidItemsCount => ValidationResults.Count(vr => vr.IsValid);
     public int InvalidItemsCount => ValidationResults.Count(vr => !vr.IsValid);
     public bool HasValidationResults => ValidationResults.Any();
     public bool CanProceedWithImport => ValidItemsCount > 0;
-  }
+	}
 
   public class BulkItemPreview
   {
@@ -46,6 +49,7 @@ namespace InventorySystem.ViewModels
     public string? ManufacturerPartNumber { get; set; }
 
     public bool IsSellable { get; set; } = true;
+    public bool IsExpense { get; set; } = false; // NEW: Expense flag
     public ItemType ItemType { get; set; } = ItemType.Inventoried;
     public string Version { get; set; } = "A";
     
@@ -60,10 +64,13 @@ namespace InventorySystem.ViewModels
     public string? InitialPurchaseOrderNumber { get; set; }
 
     // Helper properties
-    public bool TrackInventory => ItemType == ItemType.Inventoried;
+    public bool TrackInventory => !IsExpense && ItemType == ItemType.Inventoried;
     public string ItemTypeDisplayName => ItemType.ToString();
 
     // NEW: Helper property for display
+    public string BusinessPurpose => IsExpense ? "Expense" : (IsSellable ? "Sellable" : "Internal Use");
+    public string FullDisplayName => $"{ItemTypeDisplayName} ({BusinessPurpose})";
+
     public string ManufacturerInfo => !string.IsNullOrEmpty(Manufacturer) || !string.IsNullOrEmpty(ManufacturerPartNumber)
         ? $"{Manufacturer ?? "Unknown"} - {ManufacturerPartNumber ?? "N/A"}"
         : "Not specified";

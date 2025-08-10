@@ -40,6 +40,9 @@ namespace InventorySystem.ViewModels
     [Display(Name = "Item can be sold")]
     public bool IsSellable { get; set; } = true;
 
+    [Display(Name = "Expense Item")]
+    public bool IsExpense { get; set; } = false;
+
     [Display(Name = "Item Type")]
     public ItemType ItemType { get; set; } = ItemType.Inventoried;
 

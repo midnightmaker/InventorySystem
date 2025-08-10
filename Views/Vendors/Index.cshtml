@@ -257,9 +257,16 @@
               Page Size:
               <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
                       onchange="changePageSize(this.value)">
-                @foreach (var size in ViewBag.AllowedPageSizes)
+                @if (ViewBag.AllowedPageSizes != null)
                 {
-                  <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
+                    foreach (var size in ViewBag.AllowedPageSizes)
+                    {
+                        <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
+                    }
+                }
+                else
+                {
+                    <option value="25" selected>25</option>
                 }
               </select>
             </label>

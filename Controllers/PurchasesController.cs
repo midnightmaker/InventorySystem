@@ -84,34 +84,34 @@ namespace InventorySystem.Controllers
         // Apply search filter
         if (!string.IsNullOrWhiteSpace(search))
         {
-          var searchTerm = search.Trim();
-          Console.WriteLine($"Applying search filter: {searchTerm}");
+            var searchTerm = search.Trim().ToLower(); // Convert to lowercase
+            Console.WriteLine($"Applying search filter: {searchTerm}");
 
-          if (searchTerm.Contains('*') || searchTerm.Contains('?'))
-          {
-            var likePattern = ConvertWildcardToLike(searchTerm);
-            Console.WriteLine($"Using LIKE pattern: {likePattern}");
+            if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+            {
+                var likePattern = ConvertWildcardToLike(searchTerm);
+                Console.WriteLine($"Using LIKE pattern: {likePattern}");
 
-            query = query.Where(p =>
-              EF.Functions.Like(p.ItemPartNumber, likePattern) ||
-              EF.Functions.Like(p.ItemDescription, likePattern) ||
-              EF.Functions.Like(p.VendorCompanyName, likePattern) ||
-              (p.PurchaseOrderNumber != null && EF.Functions.Like(p.PurchaseOrderNumber, likePattern)) ||
-              (p.Notes != null && EF.Functions.Like(p.Notes, likePattern)) ||
-              EF.Functions.Like(p.Id.ToString(), likePattern)
-            );
-          }
-          else
-          {
-            query = query.Where(p =>
-              p.ItemPartNumber.Contains(searchTerm) ||
-              p.ItemDescription.Contains(searchTerm) ||
-              p.VendorCompanyName.Contains(searchTerm) ||
-              (p.PurchaseOrderNumber != null && p.PurchaseOrderNumber.Contains(searchTerm)) ||
-              (p.Notes != null && p.Notes.Contains(searchTerm)) ||
-              p.Id.ToString().Contains(searchTerm)
-            );
-          }
+                query = query.Where(p =>
+                    EF.Functions.Like(p.ItemPartNumber.ToLower(), likePattern) ||
+                    EF.Functions.Like(p.ItemDescription.ToLower(), likePattern) ||
+                    EF.Functions.Like(p.VendorCompanyName.ToLower(), likePattern) ||
+                    (p.PurchaseOrderNumber != null && EF.Functions.Like(p.PurchaseOrderNumber.ToLower(), likePattern)) ||
+                    (p.Notes != null && EF.Functions.Like(p.Notes.ToLower(), likePattern)) ||
+                    EF.Functions.Like(p.Id.ToString(), likePattern)
+                );
+            }
+            else
+            {
+                query = query.Where(p =>
+                    p.ItemPartNumber.ToLower().Contains(searchTerm) ||
+                    p.ItemDescription.ToLower().Contains(searchTerm) ||
+                    p.VendorCompanyName.ToLower().Contains(searchTerm) ||
+                    (p.PurchaseOrderNumber != null && p.PurchaseOrderNumber.ToLower().Contains(searchTerm)) ||
+                    (p.Notes != null && p.Notes.ToLower().Contains(searchTerm)) ||
+                    p.Id.ToString().Contains(searchTerm)
+                );
+            }
         }
 
         // Apply vendor filter
@@ -1356,6 +1356,796 @@ namespace InventorySystem.Controllers
       }
       
       return addressParts.Any() ? string.Join("<br/>", addressParts) : "Address not available";
+    }
+
+    /// <summary>
+    /// AJAX endpoint to search for items for purchase creation - Enhanced with debugging
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> SearchItems(string query, int page = 1, int pageSize = 10)
+    {
+        try
+        {
+            Console.WriteLine($"=== SEARCH ITEMS DEBUG ===");
+            Console.WriteLine($"Query: '{query}', Page: {page}, PageSize: {pageSize}");
+
+            if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+            {
+                return Json(new { success = false, message = "Please enter at least 2 characters to search" });
+            }
+
+            var searchTerm = query.Trim();
+            Console.WriteLine($"Search term: '{searchTerm}'");
+            
+            // Start with base query - include ALL items that can be purchased
+            var itemsQuery = _context.Items
+                .Where(i => i.ItemType == ItemType.Inventoried || 
+                           i.ItemType == ItemType.Consumable || 
+                           i.ItemType == ItemType.RnDMaterials ||
+                           i.ItemType == ItemType.NonInventoried) // Add NonInventoried items too
+                .AsQueryable();
+
+            // Log total available items
+            var totalAvailable = await itemsQuery.CountAsync();
+            Console.WriteLine($"Total purchasable items in database: {totalAvailable}");
+
+            // Apply search filter with wildcard support
+            if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+            {
+                var likePattern = ConvertWildcardToLike(searchTerm);
+                Console.WriteLine($"Using LIKE pattern: '{likePattern}'");
+                
+                itemsQuery = itemsQuery.Where(i =>
+                    EF.Functions.Like(i.PartNumber, likePattern) ||
+                    EF.Functions.Like(i.Description, likePattern) ||
+                    (i.Comments != null && EF.Functions.Like(i.Comments, likePattern))
+                );
+            }
+            else
+            {
+                Console.WriteLine($"Using contains search for: '{searchTerm}'");
+                itemsQuery = itemsQuery.Where(i =>
+                    i.PartNumber.Contains(searchTerm) ||
+                    i.Description.Contains(searchTerm) ||
+                    (i.Comments != null && i.Comments.Contains(searchTerm))
+                );
+            }
+
+            // Get total count for pagination
+            var totalCount = await itemsQuery.CountAsync();
+            Console.WriteLine($"Items matching search: {totalCount}");
+            
+            if (totalCount == 0)
+            {
+                // Let's check what items exist with similar patterns
+                var allItems = await _context.Items
+                    .Where(i => i.ItemType == ItemType.Inventoried || 
+                               i.ItemType == ItemType.Consumable || 
+                               i.ItemType == ItemType.RnDMaterials ||
+                               i.ItemType == ItemType.NonInventoried)
+                    .Select(i => new { i.PartNumber, i.Description, i.ItemType })
+                    .Take(5)
+                    .ToListAsync();
+                
+                Console.WriteLine("Sample items in database:");
+                foreach (var item in allItems)
+                {
+                    Console.WriteLine($"  - {item.PartNumber}: {item.Description} ({item.ItemType})");
+                }
+            }
+            
+            // Apply pagination and get results
+            var items = await itemsQuery
+                .OrderBy(i => i.PartNumber)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(i => new
+                {
+                    i.Id,
+                    i.PartNumber,
+                    i.Description,
+                    i.CurrentStock,
+                    i.MinimumStock,
+                    UnitOfMeasure = i.UnitOfMeasure.ToString(),
+                    ItemType = i.ItemType.ToString(),
+                    IsLowStock = i.CurrentStock <= i.MinimumStock,
+                    DisplayText = $"{i.PartNumber} - {i.Description}",
+                    StockInfo = $"Stock: {i.CurrentStock} (Min: {i.MinimumStock})"
+                })
+                .ToListAsync();
+
+            Console.WriteLine($"Returning {items.Count} items for page {page}");
+
+            return Json(new
+            {
+                success = true,
+                items = items,
+                totalCount = totalCount,
+                page = page,
+                pageSize = pageSize,
+                hasMore = (page * pageSize) < totalCount,
+                // Add debug info
+                debug = new
+                {
+                    searchTerm = searchTerm,
+                    totalAvailableItems = totalAvailable,
+                    itemsReturned = items.Count
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching items for purchase: {ex.Message}");
+            return Json(new { success = false, message = "Error searching items. Please try again.", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// AJAX endpoint to search for expense items for expense payment creation - Enhanced with debugging
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> SearchExpenseItems(string query, int page = 1, int pageSize = 10)
+    {
+        try
+        {
+            Console.WriteLine($"=== SEARCH EXPENSE ITEMS DEBUG ===");
+            Console.WriteLine($"Query: '{query}', Page: {page}, PageSize: {pageSize}");
+
+            if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+            {
+                return Json(new { success = false, message = "Please enter at least 2 characters to search" });
+            }
+
+            var searchTerm = query.Trim().ToLower(); // Convert to lowercase for case-insensitive search
+            Console.WriteLine($"Search term: '{searchTerm}'");
+            
+            // Start with base query - include ONLY expense items
+            var itemsQuery = _context.Items
+                .Where(i => i.IsExpense == true || 
+                           i.ItemType == ItemType.Expense || 
+                           i.ItemType == ItemType.Utility || 
+                           i.ItemType == ItemType.Subscription ||
+                           i.ItemType == ItemType.Service ||
+                           i.ItemType == ItemType.Virtual)
+                .AsQueryable();
+
+            // Log total available expense items
+            var totalAvailable = await itemsQuery.CountAsync();
+            Console.WriteLine($"Total expense items in database: {totalAvailable}");
+
+            // Apply search filter with wildcard support
+            if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+            {
+                var likePattern = ConvertWildcardToLike(searchTerm);
+                Console.WriteLine($"Using LIKE pattern: '{likePattern}'");
+                
+                itemsQuery = itemsQuery.Where(i =>
+                    EF.Functions.Like(i.PartNumber.ToLower(), likePattern) ||
+                    EF.Functions.Like(i.Description.ToLower(), likePattern) ||
+                    (i.Comments != null && EF.Functions.Like(i.Comments.ToLower(), likePattern))
+                );
+            }
+            else
+            {
+                Console.WriteLine($"Using contains search for: '{searchTerm}'");
+                itemsQuery = itemsQuery.Where(i =>
+                    i.PartNumber.ToLower().Contains(searchTerm) ||
+                    i.Description.ToLower().Contains(searchTerm) ||
+                    (i.Comments != null && i.Comments.ToLower().Contains(searchTerm))
+                );
+            }
+
+            // Get total count for pagination
+            var totalCount = await itemsQuery.CountAsync();
+            Console.WriteLine($"Expense items matching search: {totalCount}");
+            
+            if (totalCount == 0)
+            {
+                // Let's check what expense items exist with similar patterns
+                var sampleExpenseItems = await _context.Items
+                    .Where(i => i.IsExpense == true || 
+                               i.ItemType == ItemType.Expense || 
+                               i.ItemType == ItemType.Utility || 
+                               i.ItemType == ItemType.Subscription ||
+                               i.ItemType == ItemType.Service ||
+                               i.ItemType == ItemType.Virtual)
+                    .Select(i => new { i.PartNumber, i.Description, i.ItemType })
+                    .Take(5)
+                    .ToListAsync();
+                
+                Console.WriteLine("Sample expense items in database:");
+                foreach (var item in sampleExpenseItems)
+                {
+                    Console.WriteLine($"  - {item.PartNumber}: {item.Description} ({item.ItemType})");
+                }
+            }
+            
+            // Apply pagination and get results
+            var items = await itemsQuery
+                .OrderBy(i => i.PartNumber)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(i => new
+                {
+                    i.Id,
+                    i.PartNumber,
+                    i.Description,
+                    UnitOfMeasure = i.UnitOfMeasure.ToString(),
+                    ItemType = i.ItemType.ToString(),
+                    ItemTypeDisplay = GetExpenseTypeDisplayName(i.ItemType),
+                    DisplayText = $"{i.PartNumber} - {i.Description}",
+                    IsExpenseItem = true
+                })
+                .ToListAsync();
+
+            Console.WriteLine($"Returning {items.Count} expense items for page {page}");
+
+            return Json(new
+            {
+                success = true,
+                items = items,
+                totalCount = totalCount,
+                page = page,
+                pageSize = pageSize,
+                hasMore = (page * pageSize) < totalCount,
+                // Add debug info
+                debug = new
+                {
+                    searchTerm = searchTerm,
+                    totalAvailableExpenseItems = totalAvailable,
+                    itemsReturned = items.Count
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching expense items: {ex.Message}");
+            return Json(new { success = false, message = "Error searching expense items. Please try again.", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// GET: Pay Expense - Create expense payment
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> PayExpense(int? expenseItemId)
+    {
+        try
+        {
+            // Get all expense items for selection
+            var expenseItems = await _context.Items
+                .Where(i => i.IsExpense || 
+                           i.ItemType == ItemType.Expense ||
+                           i.ItemType == ItemType.Utility ||
+                           i.ItemType == ItemType.Subscription ||
+                           i.ItemType == ItemType.Service ||
+                           i.ItemType == ItemType.Virtual)
+                .OrderBy(i => i.PartNumber)
+                .ToListAsync();
+
+            var vendors = await _vendorService.GetActiveVendorsAsync();
+
+            var viewModel = new PayExpenseViewModel
+            {
+                PaymentDate = DateTime.Today,
+                Status = PurchaseStatus.Paid, // Default to paid for expenses
+                ExpenseItemId = expenseItemId ?? 0
+            };
+
+            // If expense item is pre-selected, get recommended vendor
+            if (expenseItemId.HasValue && expenseItemId.Value > 0)
+            {
+                var expenseItem = await _inventoryService.GetItemByIdAsync(expenseItemId.Value);
+                if (expenseItem != null)
+                {
+                    viewModel.ExpenseItemId = expenseItemId.Value;
+                    
+                    // Get recommended vendor
+                    var vendorInfo = await _vendorService.GetVendorSelectionInfoForItemAsync(expenseItemId.Value);
+                    if (vendorInfo.RecommendedVendor != null)
+                    {
+                        viewModel.VendorId = vendorInfo.RecommendedVendor.Id;
+                        
+                        // Get last cost if available
+                        if (vendorInfo.RecommendedCost.HasValue && vendorInfo.RecommendedCost.Value > 0)
+                        {
+                            viewModel.Amount = vendorInfo.RecommendedCost.Value;
+                        }
+                    }
+
+                    ViewBag.SelectedExpenseItem = new
+                    {
+                        PartNumber = expenseItem.PartNumber,
+                        Description = expenseItem.Description,
+                        ItemType = expenseItem.ItemType.ToString()
+                    };
+                }
+            }
+
+            // Format expense items for dropdown
+            ViewBag.ExpenseItems = expenseItems.Select(item => new SelectListItem
+            {
+                Value = item.Id.ToString(),
+                Text = $"{item.PartNumber} - {item.Description} ({item.ItemType})",
+                Selected = item.Id == viewModel.ExpenseItemId
+            }).ToList();
+
+            ViewBag.VendorId = new SelectList(vendors, "Id", "CompanyName", viewModel.VendorId);
+
+            return View(viewModel);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in PayExpense GET: {ex.Message}");
+            TempData["ErrorMessage"] = $"Error loading expense payment form: {ex.Message}";
+            return RedirectToAction("Index");
+        }
+    }
+
+    /// <summary>
+    /// POST: Pay Expense - Process expense payment
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PayExpense(PayExpenseViewModel viewModel)
+    {
+        if (!ModelState.IsValid)
+        {
+            await ReloadExpenseDropdownsAsync(viewModel.ExpenseItemId, viewModel.VendorId);
+            return View(viewModel);
+        }
+
+        try
+        {
+            // Validate that this is an expense item
+            var expenseItem = await _inventoryService.GetItemByIdAsync(viewModel.ExpenseItemId);
+            if (expenseItem == null)
+            {
+                ModelState.AddModelError("ExpenseItemId", "Selected expense item not found.");
+                await ReloadExpenseDropdownsAsync(viewModel.ExpenseItemId, viewModel.VendorId);
+                return View(viewModel);
+            }
+
+            if (!expenseItem.IsExpense)
+            {
+                ModelState.AddModelError("ExpenseItemId", "Selected item is not an expense item.");
+                await ReloadExpenseDropdownsAsync(viewModel.ExpenseItemId, viewModel.VendorId);
+                return View(viewModel);
+            }
+
+            // Validate file upload if provided
+            if (viewModel.ReceiptFile != null)
+            {
+                // Check file size (max 10MB)
+                if (viewModel.ReceiptFile.Length > 10 * 1024 * 1024)
+                {
+                    ModelState.AddModelError("ReceiptFile", "File size cannot exceed 10MB.");
+                    await ReloadExpenseDropdownsAsync(viewModel.ExpenseItemId, viewModel.VendorId);
+                    return View(viewModel);
+                }
+
+                // Check file type
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".doc", ".docx", ".xls", ".xlsx" };
+                var fileExtension = Path.GetExtension(viewModel.ReceiptFile.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    ModelState.AddModelError("ReceiptFile", "File type not supported. Please upload PDF, image files, or Office documents.");
+                    await ReloadExpenseDropdownsAsync(viewModel.ExpenseItemId, viewModel.VendorId);
+                    return View(viewModel);
+                }
+            }
+
+            // Create expense payment as a Purchase record with special handling
+            var expensePayment = new Purchase
+            {
+                ItemId = viewModel.ExpenseItemId,
+                VendorId = viewModel.VendorId,
+                PurchaseDate = viewModel.PaymentDate,
+                QuantityPurchased = 1, // Expenses typically have quantity of 1
+                CostPerUnit = viewModel.Amount,
+                ShippingCost = 0, // Expenses typically don't have shipping
+                TaxAmount = viewModel.TaxAmount,
+                PurchaseOrderNumber = $"EXP-{DateTime.Now:yyyyMMdd}-{DateTime.Now:HHmmss}",
+                Notes = $"Expense Payment: {viewModel.Description}" + 
+                       (!string.IsNullOrEmpty(viewModel.ReferenceNumber) ? $" | Ref: {viewModel.ReferenceNumber}" : ""),
+                Status = viewModel.Status,
+                ExpectedDeliveryDate = null, // Not applicable for expenses
+                ActualDeliveryDate = viewModel.Status == PurchaseStatus.Paid ? viewModel.PaymentDate : null,
+                RemainingQuantity = 0, // Expenses are immediately "consumed"
+                CreatedDate = DateTime.Now
+            };
+
+            await _purchaseService.CreatePurchaseAsync(expensePayment);
+
+            // Handle file upload if provided
+            if (viewModel.ReceiptFile != null)
+            {
+                try
+                {
+                    await SaveExpenseDocument(expensePayment.Id, viewModel);
+                    TempData["SuccessMessage"] = $"Expense payment recorded successfully with receipt uploaded! " +
+                        $"Amount: {viewModel.Amount:C} for {expenseItem.PartNumber} - {expenseItem.Description}";
+                }
+                catch (Exception fileEx)
+                {
+                    Console.WriteLine($"Error uploading file: {fileEx.Message}");
+                    // Don't fail the entire operation, just log the file upload issue
+                    TempData["SuccessMessage"] = $"Expense payment recorded successfully! " +
+                        $"Amount: {viewModel.Amount:C} for {expenseItem.PartNumber} - {expenseItem.Description}";
+                    TempData["WarningMessage"] = "Note: There was an issue uploading the receipt file. You can upload it later by editing the expense.";
+                }
+            }
+            else
+            {
+                TempData["SuccessMessage"] = $"Expense payment recorded successfully! " +
+                    $"Amount: {viewModel.Amount:C} for {expenseItem.PartNumber} - {expenseItem.Description}";
+            }
+            
+            return RedirectToAction("ExpensePayments");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating expense payment: {ex.Message}");
+            ModelState.AddModelError("", $"Error processing expense payment: {ex.Message}");
+            await ReloadExpenseDropdownsAsync(viewModel.ExpenseItemId, viewModel.VendorId);
+            return View(viewModel);
+        }
+    }
+
+    /// <summary>
+    /// Helper method to save uploaded expense document
+    /// </summary>
+    private async Task SaveExpenseDocument(int purchaseId, PayExpenseViewModel viewModel)
+    {
+        if (viewModel.ReceiptFile == null) return;
+
+        try
+        {
+            // Read file data
+            byte[] fileData;
+            using (var memoryStream = new MemoryStream())
+            {
+                await viewModel.ReceiptFile.CopyToAsync(memoryStream);
+                fileData = memoryStream.ToArray();
+            }
+
+            // Create document record
+            var document = new PurchaseDocument
+            {
+                PurchaseId = purchaseId,
+                DocumentName = !string.IsNullOrEmpty(viewModel.DocumentDescription) 
+                    ? viewModel.DocumentDescription 
+                    : Path.GetFileNameWithoutExtension(viewModel.ReceiptFile.FileName),
+                FileName = viewModel.ReceiptFile.FileName,
+                ContentType = viewModel.ReceiptFile.ContentType,
+                FileSize = viewModel.ReceiptFile.Length,
+                DocumentData = fileData, // FIXED: Use DocumentData instead of FileData
+                DocumentType = viewModel.DocumentType,
+                Description = viewModel.DocumentDescription,
+                UploadedDate = DateTime.Now
+            };
+
+            _context.PurchaseDocuments.Add(document);
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving expense document: {ex.Message}");
+            throw; // Re-throw to be handled by caller
+        }
+    }
+
+    // Helper method to reload expense-specific dropdowns
+    private async Task ReloadExpenseDropdownsAsync(int selectedExpenseItemId = 0, int? selectedVendorId = null)
+    {
+        try
+        {
+            var expenseItems = await _context.Items
+                .Where(i => i.IsExpense || 
+                           i.ItemType == ItemType.Expense ||
+                           i.ItemType == ItemType.Utility ||
+                           i.ItemType == ItemType.Subscription ||
+                           i.ItemType == ItemType.Service ||
+                           i.ItemType == ItemType.Virtual)
+                .OrderBy(i => i.PartNumber)
+                .ToListAsync();
+
+            var vendors = await _vendorService.GetActiveVendorsAsync();
+
+            ViewBag.ExpenseItems = expenseItems.Select(item => new SelectListItem
+            {
+                Value = item.Id.ToString(),
+                Text = $"{item.PartNumber} - {item.Description} ({item.ItemType})",
+                Selected = item.Id == selectedExpenseItemId
+            }).ToList();
+
+            ViewBag.VendorId = new SelectList(vendors, "Id", "CompanyName", selectedVendorId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reloading expense dropdowns: {ex.Message}");
+            
+            // Set empty dropdowns on error to prevent view crashes
+            ViewBag.ExpenseItems = new List<SelectListItem>();
+            ViewBag.VendorId = new SelectList(new List<object>(), "Id", "CompanyName");
+        }
+    }
+
+    // Helper method to get display names for expense types
+    private static string GetExpenseTypeDisplayName(ItemType itemType)
+    {
+        return itemType switch
+        {
+            ItemType.Expense => "Operating Expense",
+            ItemType.Utility => "Utility",
+            ItemType.Subscription => "Subscription",
+            ItemType.Service => "Service",
+            ItemType.Virtual => "Digital/Virtual",
+            _ => itemType.ToString()
+        };
+    }
+
+    /// <summary>
+    /// GET: Expense Payments - View all expense payments
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> ExpensePayments(
+        string search,
+        string vendorFilter,
+        string expenseTypeFilter,
+        DateTime? startDate,
+        DateTime? endDate,
+        string sortOrder = "date_desc",
+        int page = 1,
+        int pageSize = DefaultPageSize)
+    {
+        try
+        {
+            // Validate and constrain pagination parameters
+            page = Math.Max(1, page);
+            pageSize = AllowedPageSizes.Contains(pageSize) ? pageSize : DefaultPageSize;
+
+            Console.WriteLine($"=== EXPENSE PAYMENTS DEBUG ===");
+            Console.WriteLine($"Search: {search}");
+            Console.WriteLine($"Vendor Filter: {vendorFilter}");
+            Console.WriteLine($"Expense Type Filter: {expenseTypeFilter}");
+            Console.WriteLine($"Date Range: {startDate} to {endDate}");
+            Console.WriteLine($"Sort Order: {sortOrder}");
+            Console.WriteLine($"Page: {page}, PageSize: {pageSize}");
+
+            // Start with base query - only select expense purchases
+            var query = _context.Purchases
+                .Include(p => p.Item)
+                .Include(p => p.Vendor)
+                .Where(p => p.Item.IsExpense == true || 
+                           p.Item.ItemType == ItemType.Expense ||
+                           p.Item.ItemType == ItemType.Utility ||
+                           p.Item.ItemType == ItemType.Subscription ||
+                           p.Item.ItemType == ItemType.Service ||
+                           p.Item.ItemType == ItemType.Virtual)
+                .AsQueryable();
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchTerm = search.Trim().ToLower();
+                Console.WriteLine($"Applying search filter: {searchTerm}");
+
+                if (searchTerm.Contains('*') || searchTerm.Contains('?'))
+                {
+                    var likePattern = ConvertWildcardToLike(searchTerm);
+                    Console.WriteLine($"Using LIKE pattern: {likePattern}");
+
+                    query = query.Where(p =>
+                        EF.Functions.Like(p.Item.PartNumber.ToLower(), likePattern) ||
+                        EF.Functions.Like(p.Item.Description.ToLower(), likePattern) ||
+                        EF.Functions.Like(p.Vendor.CompanyName.ToLower(), likePattern) ||
+                        (p.PurchaseOrderNumber != null && EF.Functions.Like(p.PurchaseOrderNumber.ToLower(), likePattern)) ||
+                        (p.Notes != null && EF.Functions.Like(p.Notes.ToLower(), likePattern)) ||
+                        EF.Functions.Like(p.Id.ToString(), likePattern)
+                    );
+                }
+                else
+                {
+                    query = query.Where(p =>
+                        p.Item.PartNumber.ToLower().Contains(searchTerm) ||
+                        p.Item.Description.ToLower().Contains(searchTerm) ||
+                        p.Vendor.CompanyName.ToLower().Contains(searchTerm) ||
+                        (p.PurchaseOrderNumber != null && p.PurchaseOrderNumber.ToLower().Contains(searchTerm)) ||
+                        (p.Notes != null && p.Notes.ToLower().Contains(searchTerm)) ||
+                        p.Id.ToString().Contains(searchTerm)
+                    );
+                }
+            }
+
+            // Apply vendor filter
+            if (!string.IsNullOrWhiteSpace(vendorFilter) && int.TryParse(vendorFilter, out int vendorId))
+            {
+                Console.WriteLine($"Applying vendor filter: {vendorId}");
+                query = query.Where(p => p.VendorId == vendorId);
+            }
+
+            // Apply expense type filter
+            if (!string.IsNullOrWhiteSpace(expenseTypeFilter) && Enum.TryParse<ItemType>(expenseTypeFilter, out var expenseType))
+            {
+                Console.WriteLine($"Applying expense type filter: {expenseType}");
+                query = query.Where(p => p.Item.ItemType == expenseType);
+            }
+
+            // Apply date range filter
+            if (startDate.HasValue)
+            {
+                Console.WriteLine($"Applying start date filter: {startDate.Value}");
+                query = query.Where(p => p.PurchaseDate >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                Console.WriteLine($"Applying end date filter: {endDate.Value}");
+                var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(p => p.PurchaseDate <= endOfDay);
+            }
+
+            // Apply sorting
+            query = sortOrder switch
+            {
+                "date_asc" => query.OrderBy(p => p.PurchaseDate),
+                "date_desc" => query.OrderByDescending(p => p.PurchaseDate),
+                "vendor_asc" => query.OrderBy(p => p.Vendor.CompanyName),
+                "vendor_desc" => query.OrderByDescending(p => p.Vendor.CompanyName),
+                "amount_asc" => query.OrderBy(p => p.QuantityPurchased * p.CostPerUnit + p.TaxAmount + p.ShippingCost),
+                "amount_desc" => query.OrderByDescending(p => p.QuantityPurchased * p.CostPerUnit + p.TaxAmount + p.ShippingCost),
+                "type_asc" => query.OrderBy(p => p.Item.ItemType),
+                "type_desc" => query.OrderByDescending(p => p.Item.ItemType),
+                _ => query.OrderByDescending(p => p.PurchaseDate)
+            };
+
+            // Get total count for pagination (before Skip/Take)
+            var totalCount = await query.CountAsync();
+            Console.WriteLine($"Total filtered expense payments: {totalCount}");
+
+            // Calculate pagination values
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            var skip = (page - 1) * pageSize;
+
+            // Get paginated results
+            var expensePayments = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync();
+
+            Console.WriteLine($"Retrieved {expensePayments.Count} expense payments for page {page}");
+
+            // Calculate statistics
+            var allExpensePayments = await _context.Purchases
+                .Include(p => p.Item)
+                .Where(p => p.Item.IsExpense == true || 
+                           p.Item.ItemType == ItemType.Expense ||
+                           p.Item.ItemType == ItemType.Utility ||
+                           p.Item.ItemType == ItemType.Subscription ||
+                           p.Item.ItemType == ItemType.Service ||
+                           p.Item.ItemType == ItemType.Virtual)
+                .ToListAsync();
+
+            var totalExpenseAmount = allExpensePayments.Sum(p => p.QuantityPurchased * p.CostPerUnit + p.TaxAmount + p.ShippingCost);
+            var averageExpenseAmount = allExpensePayments.Any() ? totalExpenseAmount / allExpensePayments.Count : 0;
+
+            // Calculate monthly expenses for current year
+            var currentYear = DateTime.Now.Year;
+            var monthlyExpenses = await _context.Purchases
+                .Include(p => p.Item)
+                .Where(p => (p.Item.IsExpense == true || 
+                            p.Item.ItemType == ItemType.Expense ||
+                            p.Item.ItemType == ItemType.Utility ||
+                            p.Item.ItemType == ItemType.Subscription ||
+                            p.Item.ItemType == ItemType.Service ||
+                            p.Item.ItemType == ItemType.Virtual) &&
+                           p.PurchaseDate.Year == currentYear)
+                .GroupBy(p => p.PurchaseDate.Month)
+                .Select(g => new
+                {
+                    Month = g.Key,
+                    TotalAmount = g.Sum(p => p.QuantityPurchased * p.CostPerUnit + p.TaxAmount + p.ShippingCost)
+                })
+                .ToListAsync();
+
+            // Get filter options for dropdowns
+            var allVendors = await _vendorService.GetActiveVendorsAsync();
+            var expenseTypes = new[]
+            {
+                ItemType.Expense,
+                ItemType.Utility,
+                ItemType.Subscription,
+                ItemType.Service,
+                ItemType.Virtual
+            };
+
+            // Prepare ViewBag data
+            ViewBag.SearchTerm = search;
+            ViewBag.VendorFilter = vendorFilter;
+            ViewBag.ExpenseTypeFilter = expenseTypeFilter;
+            ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
+            ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
+            ViewBag.SortOrder = sortOrder;
+
+            // Pagination data
+            ViewBag.CurrentPage = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalCount = totalCount;
+            ViewBag.HasPreviousPage = page > 1;
+            ViewBag.HasNextPage = page < totalPages;
+            ViewBag.ShowingFrom = totalCount > 0 ? skip + 1 : 0;
+            ViewBag.ShowingTo = Math.Min(skip + pageSize, totalCount);
+            ViewBag.AllowedPageSizes = AllowedPageSizes;
+
+            // Statistics
+            ViewBag.TotalExpenseAmount = totalExpenseAmount;
+            ViewBag.AverageExpenseAmount = averageExpenseAmount;
+            ViewBag.MonthlyExpenses = monthlyExpenses;
+
+            // Dropdown data
+            ViewBag.VendorOptions = new SelectList(allVendors, "Id", "CompanyName", vendorFilter);
+            ViewBag.ExpenseTypeOptions = new SelectList(expenseTypes.Select(t => new
+            {
+                Value = t.ToString(),
+                Text = GetExpenseTypeDisplayName(t)
+            }), "Value", "Text", expenseTypeFilter);
+
+            // Search statistics
+            ViewBag.IsFiltered = !string.IsNullOrWhiteSpace(search) ||
+                               !string.IsNullOrWhiteSpace(vendorFilter) ||
+                               !string.IsNullOrWhiteSpace(expenseTypeFilter) ||
+                               startDate.HasValue ||
+                               endDate.HasValue;
+
+            if (ViewBag.IsFiltered)
+            {
+                ViewBag.SearchResultsCount = totalCount;
+                ViewBag.TotalExpensePaymentsCount = allExpensePayments.Count;
+            }
+
+            return View(expensePayments);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in ExpensePayments: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+
+            // Set essential ViewBag properties that the view expects
+            ViewBag.ErrorMessage = $"Error loading expense payments: {ex.Message}";
+            ViewBag.AllowedPageSizes = AllowedPageSizes;
+
+            // Set pagination defaults to prevent null reference exceptions
+            ViewBag.CurrentPage = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.TotalPages = 1;
+            ViewBag.TotalCount = 0;
+            ViewBag.HasPreviousPage = false;
+            ViewBag.HasNextPage = false;
+            ViewBag.ShowingFrom = 0;
+            ViewBag.ShowingTo = 0;
+
+            // Set filter defaults
+            ViewBag.SearchTerm = search;
+            ViewBag.VendorFilter = vendorFilter;
+            ViewBag.ExpenseTypeFilter = expenseTypeFilter;
+            ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
+            ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
+            ViewBag.SortOrder = sortOrder;
+            ViewBag.IsFiltered = false;
+
+            // Set statistics defaults
+            ViewBag.TotalExpenseAmount = 0m;
+            ViewBag.AverageExpenseAmount = 0m;
+            ViewBag.MonthlyExpenses = new List<object>();
+
+            // Set empty dropdown options
+            ViewBag.VendorOptions = new SelectList(new List<object>(), "Id", "CompanyName");
+            ViewBag.ExpenseTypeOptions = new SelectList(new List<object>(), "Value", "Text");
+
+            return View(new List<Purchase>());
+        }
     }
   }
 }

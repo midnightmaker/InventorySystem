@@ -1,4 +1,4 @@
-@* Views/Purchases/Create.cshtml - Clean implementation with vendor dropdown *@
+﻿@* Views/Purchases/Create.cshtml - Enhanced with working item search dropdown *@
 @model InventorySystem.ViewModels.CreatePurchaseViewModel
 
 @{
@@ -16,16 +16,53 @@
           <form asp-action="Create" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-            <!-- Item Selection -->
+            <!-- FIXED: Enhanced Item Selection with Search Dropdown -->
             <div class="mb-3">
-              <label asp-for="ItemId" class="form-label">
+              <label for="itemSearch" class="form-label">
                 <i class="fas fa-cube text-primary"></i>
                 Item <span class="text-danger">*</span>
               </label>
-              <select asp-for="ItemId" asp-items="ViewBag.ItemId" class="form-select" id="itemSelect">
-                <option value="">-- Select Item --</option>
-              </select>
+              
+              <!-- Search Input Container -->
+              <div class="position-relative">
+                <div class="input-group">
+                  <input type="text" 
+                         id="itemSearch" 
+                         class="form-control" 
+                         placeholder="Search by part number or description..." 
+                         autocomplete="off" />
+                  <span class="input-group-text">
+                    <i class="fas fa-search text-muted" id="searchIcon"></i>
+                    <div class="spinner-border spinner-border-sm text-primary d-none" id="searchSpinner"></div>
+                  </span>
+                </div>
+                
+                <!-- FIXED: Proper Bootstrap Dropdown for Search Results -->
+                <div class="dropdown-menu w-100" id="searchResults" style="max-height: 350px; overflow-y: auto; z-index: 1050;">
+                  <!-- Results will be populated here via JavaScript -->
+                </div>
+              </div>
+              
+              <!-- Hidden field to store selected item ID -->
+              <input type="hidden" asp-for="ItemId" id="selectedItemId" />
               <span asp-validation-for="ItemId" class="text-danger"></span>
+              
+              <!-- Selected Item Display -->
+              <div id="selectedItemDisplay" class="mt-2 d-none">
+                <div class="alert alert-success py-2">
+                  <i class="fas fa-check-circle"></i>
+                  <strong>Selected:</strong> <span id="selectedItemInfo"></span>
+                  <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="clearSelection">
+                    <i class="fas fa-times"></i> Change
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Search Instructions -->
+              <div class="form-text">
+                <i class="fas fa-info-circle"></i>
+                Type to search for items. You can use * for wildcards (e.g., "PUMP*" or "*resistor*").
+              </div>
             </div>
 
             <!-- Vendor Selection with Last Used Default -->
@@ -45,7 +82,7 @@
               <span asp-validation-for="VendorId" class="text-danger"></span>
               <div class="form-text">
                 <i class="fas fa-info-circle"></i>
-                The preferred vendor for the selected item will be automatically selected (Primary ? Preferred ? Last Used).
+                The preferred vendor for the selected item will be automatically selected (Primary → Preferred → Last Used).
               </div>
               
               @* Display vendor selection reason if available *@
@@ -238,6 +275,35 @@
         </div>
       </div>
 
+      <!-- Item Details Panel -->
+      <div class="card mt-3" id="itemDetailsPanel" style="display: none;">
+        <div class="card-header">
+          <h6><i class="fas fa-info-circle"></i> Selected Item Details</h6>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-6">Part Number:</dt>
+            <dd class="col-sm-6" id="detailPartNumber">-</dd>
+
+            <dt class="col-sm-6">Description:</dt>
+            <dd class="col-sm-6" id="detailDescription">-</dd>
+
+            <dt class="col-sm-6">Current Stock:</dt>
+            <dd class="col-sm-6" id="detailCurrentStock">-</dd>
+
+            <dt class="col-sm-6">Minimum Stock:</dt>
+            <dd class="col-sm-6" id="detailMinimumStock">-</dd>
+
+            <dt class="col-sm-6">Unit of Measure:</dt>
+            <dd class="col-sm-6" id="detailUnitOfMeasure">-</dd>
+          </dl>
+          <div id="stockWarning" class="alert alert-warning d-none">
+            <i class="fas fa-exclamation-triangle"></i>
+            This item is currently low on stock or out of stock.
+          </div>
+        </div>
+      </div>
+
       <div class="card mt-3">
         <div class="card-header">
           <h6><i class="fas fa-info-circle"></i> Quick Tips</h6>
@@ -245,8 +311,12 @@
         <div class="card-body">
           <ul class="list-unstyled mb-0">
             <li class="mb-2">
+              <i class="fas fa-search text-primary"></i>
+              Start typing to search for items by part number or description
+            </li>
+            <li class="mb-2">
               <i class="fas fa-lightbulb text-warning"></i>
-              Select an item first to auto-populate the last vendor used
+              Select an item to auto-populate the preferred vendor
             </li>
             <li class="mb-2">
               <i class="fas fa-magic text-primary"></i>
@@ -254,7 +324,7 @@
             </li>
             <li class="mb-2">
               <i class="fas fa-history text-info"></i>
-              Click the history button to use the last vendor for the selected item
+              Click the star button to use the recommended vendor for the selected item
             </li>
             <li class="mb-0">
               <i class="fas fa-calculator text-success"></i>
@@ -270,6 +340,11 @@
 @section Scripts {
   <script>
     $(document).ready(function () {
+        let searchTimeout;
+        let selectedItem = null;
+        
+        console.log('Purchase Create page loaded - Search functionality initialized');
+
         // Auto-update totals when values change
         function updateTotals() {
             var quantity = parseFloat($('#QuantityPurchased').val()) || 0;
@@ -288,71 +363,313 @@
             $('#summaryTotal').text('$' + total.toFixed(4));
         }
 
-        // Bind change events
+        // Bind change events for total calculation
         $('#QuantityPurchased, #CostPerUnit, #ShippingCost, #TaxAmount').on('input change', updateTotals);
 
-        // UPDATED: Auto-select recommended vendor when item changes
-        $('#itemSelect').change(function () {
-            var itemId = $(this).val();
-            console.log('Item selected:', itemId); // Debug log
+        // FIXED: Enhanced Item Search Functionality
+        $('#itemSearch').on('input', function() {
+            const query = $(this).val();
+            console.log('Search input changed:', query);
             
-            if (itemId && itemId !== '') {
-                console.log('Calling GetRecommendedVendorForItem for itemId:', itemId); // Debug log
-                
-                $.ajax({
-                    url: '@Url.Action("GetRecommendedVendorForItem")',
-                    type: 'GET',
-                    data: { itemId: itemId },
-                    success: function (response) {
-                        console.log('Response received:', response); // Debug log
-                        
-                        if (response.success && response.vendorId) {
-                            $('#vendorSelect').val(response.vendorId);
-                            
-                            // Also update the cost if available
-                            if (response.recommendedCost && response.recommendedCost > 0) {
-                                $('#CostPerUnit').val(response.recommendedCost.toFixed(6));
-                                updateTotals(); // Recalculate totals
-                            }
-                            
-                            // Show enhanced notification with selection reason
-                            var vendorName = $('#vendorSelect option:selected').text();
-                            var message = 'Vendor selected: ' + vendorName;
-                            if (response.selectionReason) {
-                                message += ' (' + response.selectionReason + ')';
-                            }
-                            
-                            showTempMessage(message, 'success');
-                            
-                            // Update vendor selection button tooltip
-                            updateVendorButtonTooltip(response);
-                        } else {
-                            console.log('No vendor recommendation found');
-                            showTempMessage('No preferred vendor found for this item', 'warning');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('AJAX Error:', status, error); // Debug log
-                        console.error('Response:', xhr.responseText); // Debug log
-                        showTempMessage('Could not retrieve vendor recommendation', 'warning');
-                    }
-                });
-            } else {
-                // Clear vendor selection if no item is selected
-                $('#vendorSelect').val('');
-                $('#CostPerUnit').val('');
-                updateTotals();
-            }
-        });
-
-        // UPDATED: Manual "Use Recommended Vendor" button
-        $('#useLastVendorBtn').click(function () {
-            var itemId = $('#itemSelect').val();
-            if (!itemId) {
-                alert('Please select an item first');
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+            
+            // Hide results if query is too short
+            if (query.length < 2) {
+                hideSearchResults();
                 return;
             }
 
+            // Show loading spinner
+            showLoadingSpinner();
+
+            // Debounce search
+            searchTimeout = setTimeout(function() {
+                performItemSearch(query);
+            }, 300);
+        });
+
+        // FIXED: Show loading spinner
+        function showLoadingSpinner() {
+            $('#searchIcon').addClass('d-none');
+            $('#searchSpinner').removeClass('d-none');
+        }
+
+        // FIXED: Hide loading spinner
+        function hideLoadingSpinner() {
+            $('#searchIcon').removeClass('d-none');
+            $('#searchSpinner').addClass('d-none');
+        }
+
+        // FIXED: Hide search results
+        function hideSearchResults() {
+            $('#searchResults').removeClass('show').hide();
+        }
+
+        // FIXED: Show search results
+        function showSearchResults() {
+            $('#searchResults').addClass('show').show();
+        }
+
+        // Perform the actual search
+        function performItemSearch(query) {
+            console.log('Performing search for:', query);
+            
+            $.ajax({
+                url: '@Url.Action("SearchItems")',
+                type: 'GET',
+                data: { query: query, page: 1, pageSize: 10 },
+                success: function(response) {
+                    hideLoadingSpinner();
+                    
+                    console.log('Search response received:', response);
+                    
+                    if (response.success && response.items && response.items.length > 0) {
+                        console.log('Displaying', response.items.length, 'search results');
+                        displaySearchResults(response.items, response.hasMore);
+                    } else {
+                        console.log('No items found or search failed');
+                        displayNoResults(response.message || 'No items found');
+                        
+                        // Log debug info if available
+                        if (response.debug) {
+                            console.log('Search debug info:', response.debug);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    hideLoadingSpinner();
+                    console.error('AJAX Error:', status, error);
+                    console.error('Response:', xhr.responseText);
+                    displayNoResults('Error searching items. Please try again.');
+                }
+            });
+        }
+
+        // FIXED: Display search results with proper dropdown styling
+        function displaySearchResults(items, hasMore) {
+            console.log('displaySearchResults called with', items.length, 'items');
+            
+            let html = '';
+            
+            // Store items data globally for easier access
+            window.searchResultsData = items;
+            
+            items.forEach(function(item, index) {
+                let stockBadge = '';
+                if (item.isLowStock) {
+                    stockBadge = '<span class="badge bg-warning text-dark ms-2">Low Stock</span>';
+                }
+                
+                // Create dropdown item with proper Bootstrap classes
+                html += `
+                    <a href="#" class="dropdown-item item-result py-2" data-item-index="${index}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">${escapeHtml(item.partNumber)} ${stockBadge}</div>
+                                <div class="text-muted small">${escapeHtml(item.description)}</div>
+                                <div class="text-muted small">${escapeHtml(item.stockInfo)} | ${escapeHtml(item.unitOfMeasure)}</div>
+                            </div>
+                            <div class="text-end">
+                                <small class="badge bg-secondary">${escapeHtml(item.itemType)}</small>
+                            </div>
+                        </div>
+                    </a>
+                `;
+            });
+
+            if (hasMore) {
+                html += '<div class="dropdown-header text-center text-muted"><small><em>Type more to refine search...</em></small></div>';
+            }
+
+            // FIXED: Properly show dropdown
+            const $searchResults = $('#searchResults');
+            $searchResults.html(html);
+            showSearchResults();
+            
+            console.log('Search results HTML updated, dropdown should be visible');
+            
+            // Bind click events to new results
+            bindResultClicks();
+        }
+
+        // FIXED: Display no results message
+        function displayNoResults(message) {
+            console.log('displayNoResults called with message:', message);
+            
+            const html = `
+                <div class="dropdown-header text-center text-muted py-3">
+                    <i class="fas fa-search"></i> ${escapeHtml(message)}
+                </div>
+            `;
+            
+            const $searchResults = $('#searchResults');
+            $searchResults.html(html);
+            showSearchResults();
+        }
+
+        // FIXED: Bind click events to search results
+        function bindResultClicks() {
+            console.log('Binding click events to search results');
+            
+            $('.item-result').off('click').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const itemIndex = parseInt($(this).data('item-index'));
+                console.log('Item clicked, index:', itemIndex);
+                
+                if (window.searchResultsData && window.searchResultsData[itemIndex]) {
+                    const itemData = window.searchResultsData[itemIndex];
+                    console.log('Selected item:', itemData);
+                    selectItem(itemData);
+                    hideSearchResults();
+                } else {
+                    console.error('Item data not found for index:', itemIndex);
+                }
+            });
+        }
+
+        // Select an item
+        function selectItem(item) {
+            console.log('selectItem called with:', item);
+            selectedItem = item;
+            
+            // Set the hidden field value
+            $('#selectedItemId').val(item.id);
+            
+            // Update the search input
+            $('#itemSearch').val(item.displayText);
+            
+            // Show selected item display
+            $('#selectedItemInfo').text(item.displayText);
+            $('#selectedItemDisplay').removeClass('d-none');
+            
+            // Update item details panel
+            $('#detailPartNumber').text(item.partNumber);
+            $('#detailDescription').text(item.description);
+            $('#detailCurrentStock').text(item.currentStock);
+            $('#detailMinimumStock').text(item.minimumStock);
+            $('#detailUnitOfMeasure').text(item.unitOfMeasure);
+            
+            // Show/hide stock warning
+            if (item.isLowStock) {
+                $('#stockWarning').removeClass('d-none');
+            } else {
+                $('#stockWarning').addClass('d-none');
+            }
+            
+            $('#itemDetailsPanel').show();
+
+            // Clear validation error if present
+            $('span[data-valmsg-for="ItemId"]').text('');
+            
+            console.log('Item selected successfully, getting recommended vendor');
+            
+            // Auto-select recommended vendor
+            getRecommendedVendorForItem(item.id);
+        }
+
+        // ENHANCED: Function to load item by ID (for pre-population)
+        function loadItemById(itemId) {
+            console.log('Loading item by ID:', itemId);
+            
+            showLoadingSpinner();
+            
+            $.ajax({
+                url: '@Url.Action("SearchItems")',
+                type: 'GET',
+                data: { query: '*', page: 1, pageSize: 1000 }, // Get all items and find the one we need
+                success: function(response) {
+                    hideLoadingSpinner();
+                    
+                    console.log('Search response for pre-population:', response);
+                    
+                    if (response.success && response.items && response.items.length > 0) {
+                        const preSelectedItem = response.items.find(item => item.id === itemId);
+                        if (preSelectedItem) {
+                            console.log('Found pre-selected item:', preSelectedItem);
+                            selectItem(preSelectedItem);
+                        } else {
+                            console.warn('Item with ID', itemId, 'not found in search results');
+                            loadItemByIdFallback(itemId);
+                        }
+                    } else {
+                        console.warn('No items returned from search for pre-population');
+                        loadItemByIdFallback(itemId);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    hideLoadingSpinner();
+                    console.error('Error loading item by ID:', error);
+                    console.log('Could not load pre-selected item');
+                }
+            });
+        }
+
+        // Fallback method to load item by ID using different search patterns
+        function loadItemByIdFallback(itemId) {
+            console.log('Trying fallback method for item ID:', itemId);
+            
+            const searchPatterns = ['*', 'A*', 'B*', 'C*', '1*', '2*', '3*', '0*', '4*', '5*'];
+            let patternIndex = 0;
+            
+            function tryNextPattern() {
+                if (patternIndex >= searchPatterns.length) {
+                    console.warn('Could not find item with ID', itemId, 'using any search pattern');
+                    return;
+                }
+                
+                const pattern = searchPatterns[patternIndex++];
+                
+                $.ajax({
+                    url: '@Url.Action("SearchItems")',
+                    type: 'GET',
+                    data: { query: pattern, page: 1, pageSize: 100 },
+                    success: function(response) {
+                        if (response.success && response.items && response.items.length > 0) {
+                            const preSelectedItem = response.items.find(item => item.id === itemId);
+                            if (preSelectedItem) {
+                                console.log('Found pre-selected item with pattern', pattern, ':', preSelectedItem);
+                                selectItem(preSelectedItem);
+                                return;
+                            }
+                        }
+                        // Try next pattern
+                        tryNextPattern();
+                    },
+                    error: function() {
+                        // Try next pattern
+                        tryNextPattern();
+                    }
+                });
+            }
+            
+            tryNextPattern();
+        }
+
+        // Clear item selection
+        $('#clearSelection').on('click', function() {
+            selectedItem = null;
+            $('#selectedItemId').val('');
+            $('#itemSearch').val('');
+            $('#selectedItemDisplay').addClass('d-none');
+            $('#itemDetailsPanel').hide();
+            $('#vendorSelect').val('');
+            $('#CostPerUnit').val('');
+            updateTotals();
+            $('#itemSearch').focus();
+        });
+
+        // Hide search results when clicking outside
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#itemSearch, #searchResults').length) {
+                hideSearchResults();
+            }
+        });
+
+        // Auto-select recommended vendor when item changes
+        function getRecommendedVendorForItem(itemId) {
             $.ajax({
                 url: '@Url.Action("GetRecommendedVendorForItem")',
                 type: 'GET',
@@ -361,26 +678,41 @@
                     if (response.success && response.vendorId) {
                         $('#vendorSelect').val(response.vendorId);
                         
-                        // Update cost if available
+                        // Also update the cost if available
                         if (response.recommendedCost && response.recommendedCost > 0) {
                             $('#CostPerUnit').val(response.recommendedCost.toFixed(6));
-                            updateTotals();
+                            updateTotals(); // Recalculate totals
                         }
                         
+                        // Show enhanced notification with selection reason
                         var vendorName = $('#vendorSelect option:selected').text();
                         var message = 'Vendor selected: ' + vendorName;
                         if (response.selectionReason) {
                             message += ' (' + response.selectionReason + ')';
                         }
+                        
                         showTempMessage(message, 'success');
+                        
+                        // Update vendor selection button tooltip
+                        updateVendorButtonTooltip(response);
                     } else {
                         showTempMessage('No preferred vendor found for this item', 'warning');
                     }
                 },
-                error: function () {
-                    alert('Error retrieving vendor recommendation');
+                error: function() {
+                    showTempMessage('Could not retrieve vendor recommendation', 'warning');
                 }
             });
+        }
+
+        // Manual "Use Recommended Vendor" button
+        $('#useLastVendorBtn').click(function () {
+            if (!selectedItem) {
+                alert('Please select an item first');
+                return;
+            }
+
+            getRecommendedVendorForItem(selectedItem.id);
         });
 
         // Generate Purchase Order Number
@@ -407,13 +739,13 @@
             var tooltip = 'Vendor Selection Info:\n';
             
             if (response.hasPrimaryVendor) {
-                tooltip += '� Primary: ' + response.primaryVendorName + '\n';
+                tooltip += '• Primary: ' + response.primaryVendorName + '\n';
             }
             if (response.hasItemPreferredVendor) {
-                tooltip += '� Item Preferred: ' + response.itemPreferredVendorName + '\n';
+                tooltip += '• Item Preferred: ' + response.itemPreferredVendorName + '\n';
             }
             if (response.hasLastPurchaseVendor) {
-                tooltip += '� Last Used: ' + response.lastPurchaseVendorName;
+                tooltip += '• Last Used: ' + response.lastPurchaseVendorName;
                 if (response.lastPurchaseDate) {
                     tooltip += ' (' + response.lastPurchaseDate + ')';
                 }
@@ -441,11 +773,118 @@
             }, 3000);
         }
 
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         // Initial calculation
         updateTotals();
         
-        // Debug: Log when page loads
-        console.log('Create Purchase page loaded, JavaScript initialized');
+        // IMPROVED: Handle pre-selected item (when coming from Items page)
+        @if (Model.ItemId > 0)
+        {
+            <text>
+            console.log('Pre-selecting item with ID:', @Model.ItemId);
+            // Load the specific item by ID
+            loadItemById(@Model.ItemId);
+            </text>
+        }
+        else
+        {
+            <text>
+            // Focus on search input when page loads (only if no pre-selection)
+            $('#itemSearch').focus();
+            </text>
+        }
+        
+        // Add debug function for testing
+        window.testSearch = function(query) {
+            console.log('Testing search with query:', query);
+            performItemSearch(query || 'test');
+        };
+        
+        console.log('Purchase Create page JavaScript loaded. Test search with: testSearch("your-query")');
     });
   </script>
+}
+
+@section Styles {
+  <style>
+    /* FIXED: Proper dropdown styling */
+    #searchResults {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        max-height: 350px;
+        overflow-y: auto;
+        display: none; /* Hidden by default */
+    }
+
+    #searchResults.show {
+        display: block !important;
+    }
+
+    /* Style dropdown items properly */
+    #searchResults .dropdown-item {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f8f9fa;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    #searchResults .dropdown-item:last-child {
+        border-bottom: none;
+    }
+
+    #searchResults .dropdown-item:hover {
+        background-color: #f8f9fa;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    #searchResults .dropdown-item:focus {
+        background-color: #e9ecef;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    /* Ensure spinner alignment */
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    /* Ensure proper positioning context */
+    .position-relative {
+        position: relative !important;
+    }
+
+    /* Badge styling in search results */
+    #searchResults .badge {
+        font-size: 0.65rem;
+    }
+
+    /* Typography improvements */
+    #searchResults .fw-bold {
+        font-weight: 600 !important;
+    }
+
+    #searchResults .text-muted {
+        color: #6c757d !important;
+    }
+  </style>
 }

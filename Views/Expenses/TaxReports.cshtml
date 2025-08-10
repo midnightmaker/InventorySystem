@@ -1,0 +1,368 @@
+```razor
+@model InventorySystem.ViewModels.TaxReportsViewModel
+@{
+    ViewData["Title"] = "Tax Reports";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-calculator"></i> Tax Reports</h1>
+    <div class="btn-group">
+        <a href="/Expenses/Reports" class="btn btn-outline-secondary">
+            <i class="fas fa-chart-bar"></i> Expense Reports
+        </a>
+        <a href="/Expenses/IncomeStatement" class="btn btn-outline-secondary">
+            <i class="fas fa-file-invoice"></i> Income Statement
+        </a>
+        <button class="btn btn-success" onclick="exportTaxReport()">
+            <i class="fas fa-download"></i> Export Tax Data
+        </button>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Tax Year Selection -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-alt"></i> Tax Year Selection</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" asp-action="TaxReports">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Tax Year</label>
+                            <select name="year" class="form-select">
+                                @foreach (var year in Model.AvailableYears)
+                                {
+                                    <option value="@year" selected="@(year == Model.TaxYear)">@year</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-8 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-refresh"></i> Generate Report
+                            </button>
+                            <small class="text-muted">
+                                Reporting Period: @Model.StartDate.ToString("MMM dd, yyyy") to @Model.EndDate.ToString("MMM dd, yyyy")
+                            </small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tax Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TotalDeductibleExpenses.ToString("C")</h4>
+                        <p class="mb-0">Total Deductible Expenses</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calculator fa-2x"></i>
+                    </div>
+                </div>
+                <small>Tax Year @Model.TaxYear</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.Form1099Count</h4>
+                        <p class="mb-0">Vendors Requiring 1099</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-invoice fa-2x"></i>
+                    </div>
+                </div>
+                <small>Payments ? $600</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TaxCategories.Count</h4>
+                        <p class="mb-0">Tax Categories</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-tags fa-2x"></i>
+                    </div>
+                </div>
+                <small>Active categories</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tax Categories Breakdown -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tags"></i> Tax-Deductible Expenses by Category</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.TaxCategories.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Tax Category</th>
+                                    <th>Total Amount</th>
+                                    <th>Transactions</th>
+                                    <th>Percentage</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var category in Model.TaxCategories)
+                                {
+                                    var percentage = Model.TotalDeductibleExpenses > 0 ? (category.TotalAmount / Model.TotalDeductibleExpenses) * 100 : 0;
+                                    <tr>
+                                        <td>
+                                            <strong>@category.TaxCategory</strong>
+                                            <br>
+                                            <small class="text-muted">@category.TransactionCount transactions</small>
+                                        </td>
+                                        <td>
+                                            <h6 class="text-success mb-0">@category.TotalAmount.ToString("C")</h6>
+                                        </td>
+                                        <td>@category.TransactionCount</td>
+                                        <td>
+                                            <div class="progress" style="width: 100px; height: 20px;">
+                                                <div class="progress-bar bg-success" role="progressbar" 
+                                                     style="width: @percentage.ToString("F0")%">
+                                                    @percentage.ToString("F1")%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    onclick="viewCategoryDetails('@category.TaxCategory')">
+                                                <i class="fas fa-eye"></i> Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-secondary">
+                                <tr>
+                                    <th>Total</th>
+                                    <th>@Model.TotalDeductibleExpenses.ToString("C")</th>
+                                    <th>@Model.TaxCategories.Sum(tc => tc.TransactionCount)</th>
+                                    <th>100.0%</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No tax-deductible expenses recorded for @Model.TaxYear</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 1099 Vendor Summary -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-building"></i> Vendor Summary for 1099 Reporting</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.VendorSummary.Any())
+                {
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>1099 Requirement:</strong> Vendors with total payments of $600 or more during the tax year require Form 1099-NEC.
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Vendor</th>
+                                    <th>Total Paid</th>
+                                    <th>Transactions</th>
+                                    <th>1099 Required</th>
+                                    <th>Tax ID</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var vendor in Model.VendorSummary)
+                                {
+                                    <tr class="@(vendor.RequiresForm1099 ? "table-warning" : "")">
+                                        <td>
+                                            <a href="/Vendors/Details/@vendor.VendorId" class="text-decoration-none">
+                                                <strong>@vendor.VendorName</strong>
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <strong class="@(vendor.RequiresForm1099 ? "text-warning" : "text-muted")">
+                                                @vendor.TotalPaid.ToString("C")
+                                            </strong>
+                                        </td>
+                                        <td>@vendor.TransactionCount</td>
+                                        <td>
+                                            @if (vendor.RequiresForm1099)
+                                            {
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-exclamation-triangle"></i> Yes
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">No</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(vendor.VendorTaxId))
+                                            {
+                                                <code>@vendor.VendorTaxId</code>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-danger">
+                                                    <i class="fas fa-exclamation-circle"></i> Missing
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (vendor.RequiresForm1099)
+                                            {
+                                                <button class="btn btn-sm btn-warning" 
+                                                        onclick="generate1099(@vendor.VendorId)">
+                                                    <i class="fas fa-file-invoice"></i> Generate 1099
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-sm btn-outline-secondary" disabled>
+                                                    <i class="fas fa-minus"></i> N/A
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No vendor payments recorded for @Model.TaxYear</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tax Export Options -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-download"></i> Export Options</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-excel fa-3x text-success mb-3"></i>
+                                <h6>Excel Export</h6>
+                                <p class="text-muted">Export all tax data to Excel for your accountant</p>
+                                <button class="btn btn-success" onclick="exportToExcel()">
+                                    <i class="fas fa-download"></i> Download Excel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-csv fa-3x text-info mb-3"></i>
+                                <h6>CSV Export</h6>
+                                <p class="text-muted">Export for import into tax software</p>
+                                <button class="btn btn-info" onclick="exportToCSV()">
+                                    <i class="fas fa-download"></i> Download CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                                <h6>PDF Report</h6>
+                                <p class="text-muted">Generate a comprehensive tax summary</p>
+                                <button class="btn btn-danger" onclick="exportToPDF()">
+                                    <i class="fas fa-download"></i> Download PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function viewCategoryDetails(category) {
+            // TODO: Implement category detail modal or page
+            alert('Category details for: ' + category);
+        }
+
+        function generate1099(vendorId) {
+            // TODO: Implement 1099 generation
+            alert('Generate 1099 for vendor ID: ' + vendorId);
+        }
+
+        function exportTaxReport() {
+            alert('Tax export functionality coming soon!');
+        }
+
+        function exportToExcel() {
+            // TODO: Implement Excel export
+            alert('Excel export functionality coming soon!');
+        }
+
+        function exportToCSV() {
+            // TODO: Implement CSV export
+            alert('CSV export functionality coming soon!');
+        }
+
+        function exportToPDF() {
+            // TODO: Implement PDF export
+            alert('PDF export functionality coming soon!');
+        }
+    </script>
+}
+```

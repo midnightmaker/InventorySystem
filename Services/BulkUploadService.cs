@@ -68,18 +68,19 @@ namespace InventorySystem.Services
           ManufacturerPartNumber = GetValue(values, 7), // Column 8
           
           IsSellable = GetBoolValue(values, 8), // Column 9
-          ItemType = GetItemTypeValue(values, 9), // Column 10
-          Version = !string.IsNullOrWhiteSpace(GetValue(values, 10)) ? GetValue(values, 10) : "A", // Column 11
+          IsExpense = GetBoolValue(values, 9), // Column 10 - NEW: Expense flag
+          ItemType = GetItemTypeValue(values, 10), // Column 11 - Shifted from 10
+          Version = !string.IsNullOrWhiteSpace(GetValue(values, 11)) ? GetValue(values, 11) : "A", // Column 12 - Shifted from 11
           
           // ADD: Unit of Measure parsing
-          UnitOfMeasure = GetUnitOfMeasureValue(values, 11), // Column 12
+          UnitOfMeasure = GetUnitOfMeasureValue(values, 12), // Column 13 - Shifted from 12
 
           // Optional initial purchase columns (shifted)
-          InitialQuantity = GetDecimalValue(values, 12), // Column 13
-          InitialCostPerUnit = GetDecimalValue(values, 13), // Column 14
-          InitialVendor = GetValue(values, 14), // Column 15
-          InitialPurchaseDate = GetDateValue(values, 15), // Column 16
-          InitialPurchaseOrderNumber = GetValue(values, 16) // Column 17
+          InitialQuantity = GetDecimalValue(values, 13), // Column 14 - Shifted from 13
+          InitialCostPerUnit = GetDecimalValue(values, 14), // Column 15 - Shifted from 14
+          InitialVendor = GetValue(values, 15), // Column 16 - Shifted from 15
+          InitialPurchaseDate = GetDateValue(values, 16), // Column 17 - Shifted from 16
+          InitialPurchaseOrderNumber = GetValue(values, 17) // Column 18 - Shifted from 17
         };
 
         items.Add(item);
@@ -206,6 +207,7 @@ namespace InventorySystem.Services
               VendorPartNumber = itemData.VendorPartNumber,
               // PreferredVendorItemId will be set after vendor processing
               IsSellable = itemData.IsSellable,
+              IsExpense = itemData.IsExpense, // NEW: Set expense flag
               ItemType = itemData.ItemType,
               Version = itemData.Version,
               

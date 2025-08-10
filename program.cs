@@ -5,6 +5,7 @@ using InventorySystem.Domain.Services;
 using InventorySystem.Infrastructure.Services;
 using InventorySystem.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -30,6 +31,15 @@ else
   builder.Services.AddDbContext<InventoryContext>(options =>
       options.UseSqlite("Data Source=inventory.db"));
 }
+
+// ADDITION: Configure session services for bulk upload
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Session timeout
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true; // Make the session cookie essential
+});
 
 // Add MVC services
 builder.Services.AddControllersWithViews();
@@ -70,15 +80,28 @@ builder.Services.AddScoped<IProductionService, ProductionService>();
 // Register the new Customer service
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 
-// Configure file upload limits
+// Configure file upload limits and request sizes
 builder.Services.Configure<FormOptions>(options =>
 {
-  options.MultipartBodyLengthLimit = 52428800; // 50MB
+    options.MultipartBodyLengthLimit = 52428800; // 50MB
+    options.ValueLengthLimit = int.MaxValue; // Increase individual field length limit
+    options.ValueCountLimit = int.MaxValue; // Increase field count limit
+    options.KeyLengthLimit = int.MaxValue; // Increase key length limit
+    options.MultipartHeadersLengthLimit = int.MaxValue; // Increase header length limit
+});
+
+// Configure Kestrel server limits
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestHeadersTotalSize = 1048576; // 1MB headers (increase from default 32KB)
+    options.Limits.MaxRequestHeaderCount = 1000; // Increase header count limit
+    options.Limits.MaxRequestBodySize = 52428800; // 50MB
+    options.Limits.MaxRequestLineSize = 16384; // Increase request line size
 });
 
 builder.Services.Configure<IISServerOptions>(options =>
 {
-  options.MaxRequestBodySize = 52428800; // 50MB
+    options.MaxRequestBodySize = 52428800; // 50MB
 });
 
 var app = builder.Build();
@@ -100,6 +123,9 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+// ADDITION: Enable session middleware (must be before MapControllerRoute)
+app.UseSession();
 
 // Configure routing with new controllers
 app.MapControllerRoute(

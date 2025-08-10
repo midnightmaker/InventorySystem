@@ -1,0 +1,334 @@
+```razor
+@model InventorySystem.ViewModels.ExpenseReportsViewModel
+@{
+    ViewData["Title"] = "Expense Reports";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-bar"></i> Expense Reports & Analytics</h1>
+    <div class="btn-group">
+        <a href="/Expenses/IncomeStatement" class="btn btn-outline-primary">
+            <i class="fas fa-file-invoice"></i> Income Statement
+        </a>
+        <a href="/Expenses/TaxReports" class="btn btn-outline-secondary">
+            <i class="fas fa-calculator"></i> Tax Reports
+        </a>
+        <button class="btn btn-success" onclick="exportExpenseReport()">
+            <i class="fas fa-download"></i> Export
+        </button>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-filter"></i> Report Filters</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" asp-action="Reports">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" name="startDate" class="form-control" 
+                                   value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" name="endDate" class="form-control" 
+                                   value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Expense Category</label>
+                            <select name="expenseCategory" class="form-select">
+                                @foreach (var category in Model.AvailableCategories)
+                                {
+                                    <option value="@category" selected="@(category == Model.ExpenseCategory)">
+                                        @(category == "All" ? "All Categories" : category)
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Generate Report
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TotalExpenses.ToString("C")</h4>
+                        <p class="mb-0">Total Expenses</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                    </div>
+                </div>
+                <small>@Model.ExpenseCount total transactions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.AverageExpense.ToString("C")</h4>
+                        <p class="mb-0">Average Expense</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calculator fa-2x"></i>
+                    </div>
+                </div>
+                <small>Per transaction average</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.ExpensesByCategory.Count</h4>
+                        <p class="mb-0">Expense Categories</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-tags fa-2x"></i>
+                    </div>
+                </div>
+                <small>Active categories</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expenses by Category and Monthly Trend -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> Expenses by Category</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.ExpensesByCategory.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Amount</th>
+                                    <th>Count</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var category in Model.ExpensesByCategory)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@category.CategoryDisplayName</strong>
+                                        </td>
+                                        <td>@category.TotalAmount.ToString("C")</td>
+                                        <td>@category.TransactionCount</td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                @category.Percentage.ToString("F1")%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No expense data available for the selected period</p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line"></i> Monthly Expense Trend</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.MonthlyExpenses.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Amount</th>
+                                    <th>Transactions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var month in Model.MonthlyExpenses.TakeLast(12))
+                                {
+                                    <tr>
+                                        <td>@month.MonthName</td>
+                                        <td>@month.TotalAmount.ToString("C")</td>
+                                        <td>@month.TransactionCount</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No monthly data available</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Vendors and Recent Expenses -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-building"></i> Top Expense Vendors</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.TopVendors.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Vendor</th>
+                                    <th>Total</th>
+                                    <th>Transactions</th>
+                                    <th>Average</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var vendor in Model.TopVendors)
+                                {
+                                    <tr>
+                                        <td>
+                                            <a href="/Vendors/Details/@vendor.VendorId" class="text-decoration-none">
+                                                @vendor.VendorName
+                                            </a>
+                                        </td>
+                                        <td>@vendor.TotalAmount.ToString("C")</td>
+                                        <td>@vendor.TransactionCount</td>
+                                        <td>@vendor.AverageAmount.ToString("C")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No vendor data available</p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Recent Expense Transactions</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.RecentExpenses.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Vendor</th>
+                                    <th>Item</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var expense in Model.RecentExpenses)
+                                {
+                                    <tr>
+                                        <td>@expense.PurchaseDate.ToString("MM/dd")</td>
+                                        <td>
+                                            @if (expense.Vendor != null)
+                                            {
+                                                <a href="/Vendors/Details/@expense.Vendor.Id" class="text-decoration-none">
+                                                    @expense.Vendor.CompanyName
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Unknown</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <a href="/Items/Details/@expense.Item.Id" class="text-decoration-none">
+                                                @expense.Item.PartNumber
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">@expense.Item.Description</small>
+                                        </td>
+                                        <td>@expense.TotalCost.ToString("C")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No recent expenses</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.ExpensesByCategory.Any() && !Model.RecentExpenses.Any())
+{
+    <div class="text-center py-5">
+        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">No Expense Data Available</h4>
+        <p class="text-muted">Start recording expenses to see analytics and reports here.</p>
+        <a href="/Items/Create?itemType=Expense" class="btn btn-success">
+            <i class="fas fa-plus"></i> Create Your First Expense Item
+        </a>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        function exportExpenseReport() {
+            // TODO: Implement export functionality
+            alert('Export functionality coming soon!');
+        }
+    </script>
+}
+```

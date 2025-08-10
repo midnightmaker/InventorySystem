@@ -1,16 +1,23 @@
 ﻿@model InventorySystem.Models.Purchase
 @{
   ViewData["Title"] = "Edit Purchase";
+  // Check if this is an expense item
+  bool isExpenseItem = Model.Item?.IsExpense == true ||
+                      (Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Expense ||
+                       Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Utility ||
+                       Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Subscription ||
+                       Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Service ||
+                       Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Virtual);
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-edit"></i> Edit Purchase</h1>
+  <h1><i class="fas fa-edit"></i> @(isExpenseItem ? "Edit Expense Payment" : "Edit Purchase")</h1>
   <div class="btn-group">
     <a href="/Purchases/Details/@Model.Id" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Details
     </a>
-    <a href="/Purchases" class="btn btn-outline-info">
-      <i class="fas fa-list"></i> All Purchases
+    <a href="@(isExpenseItem ? "/Purchases/ExpensePayments" : "/Purchases")" class="btn btn-outline-info">
+      <i class="fas fa-list"></i> @(isExpenseItem ? "All Expense Payments" : "All Purchases")
     </a>
   </div>
 </div>
@@ -35,13 +42,13 @@
   <div class="col-md-8">
     <!-- Purchase Details Form -->
     <form asp-action="Edit" method="post">
-      @Html.HiddenFor(model => model.Id)
-      @Html.HiddenFor(model => model.RemainingQuantity)
-      @Html.HiddenFor(model => model.CreatedDate)
+      <input asp-for="Id" type="hidden" />
+      <input asp-for="RemainingQuantity" type="hidden" />
+      <input asp-for="CreatedDate" type="hidden" />
 
       <div class="card">
         <div class="card-header">
-          <h5><i class="fas fa-info-circle"></i> Purchase Details</h5>
+          <h5><i class="fas fa-info-circle"></i> @(isExpenseItem ? "Expense Payment" : "Purchase") Details</h5>
         </div>
         <div class="card-body">
           <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
@@ -51,10 +58,10 @@
               <div class="mb-3">
                 <label asp-for="ItemId" class="form-label">
                   <i class="fas fa-cube text-primary"></i>
-                  Item <span class="text-danger">*</span>
+                  @(isExpenseItem ? "Expense Item" : "Item") <span class="text-danger">*</span>
                 </label>
                 <select asp-for="ItemId" class="form-select" asp-items="ViewBag.ItemId" id="itemSelect">
-                  <option value="">-- Select Item --</option>
+                  <option value="">-- Select @(isExpenseItem ? "Expense Item" : "Item") --</option>
                 </select>
                 <span asp-validation-for="ItemId" class="text-danger"></span>
               </div>
@@ -63,7 +70,7 @@
               <div class="mb-3">
                 <label asp-for="PurchaseDate" class="form-label">
                   <i class="fas fa-calendar text-info"></i>
-                  Purchase Date <span class="text-danger">*</span>
+                  @(isExpenseItem ? "Payment Date" : "Purchase Date") <span class="text-danger">*</span>
                 </label>
                 <input asp-for="PurchaseDate" class="form-control" type="date" />
                 <span asp-validation-for="PurchaseDate" class="text-danger"></span>
@@ -89,7 +96,7 @@
                 <span asp-validation-for="VendorId" class="text-danger"></span>
                 <div class="form-text">
                   <i class="fas fa-info-circle"></i>
-                  Select the vendor for this purchase. Click the history button to use the last vendor for the selected item.
+                  Select the vendor for this @(isExpenseItem ? "expense payment" : "purchase"). Click the history button to use the last vendor for the selected item.
                 </div>
               </div>
             </div>
@@ -97,36 +104,61 @@
               <div class="mb-3">
                 <label asp-for="PurchaseOrderNumber" class="form-label">
                   <i class="fas fa-receipt text-warning"></i>
-                  Purchase Order Number
+                  @(isExpenseItem ? "Reference Number" : "Purchase Order Number")
                 </label>
-                <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="Optional PO number" />
+                <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="@(isExpenseItem ? "Optional reference number" : "Optional PO number")" />
                 <span asp-validation-for="PurchaseOrderNumber" class="text-danger"></span>
               </div>
             </div>
           </div>
 
-          <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>Important:</strong> Changing quantity will affect FIFO calculations and inventory levels.
-            Current remaining quantity: <strong>@Model.RemainingQuantity</strong>
-          </div>
+          <!-- UPDATED: Conditionally show inventory warning only for non-expense items -->
+          @if (!isExpenseItem)
+          {
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Important:</strong> Changing quantity will affect FIFO calculations and inventory levels.
+              Current remaining quantity: <strong>@Model.RemainingQuantity</strong>
+            </div>
+          }
+          else
+          {
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Note:</strong> This is an expense payment. Changes will not affect inventory levels.
+            </div>
+          }
 
           <div class="row">
             <div class="col-md-4">
               <div class="mb-3">
                 <label asp-for="QuantityPurchased" class="form-label">
                   <i class="fas fa-boxes text-primary"></i>
-                  Quantity Purchased <span class="text-danger">*</span>
+                  @(isExpenseItem ? "Quantity" : "Quantity Purchased") <span class="text-danger">*</span>
                 </label>
-                <input asp-for="QuantityPurchased" class="form-control" type="number" min="1" />
+                @if (isExpenseItem)
+                {
+                  <input asp-for="QuantityPurchased" class="form-control" type="number" min="1" readonly />
+                }
+                else
+                {
+                  <input asp-for="QuantityPurchased" class="form-control" type="number" min="1" />
+                }
                 <span asp-validation-for="QuantityPurchased" class="text-danger"></span>
+                @if (isExpenseItem)
+                {
+                  <div class="form-text">
+                    <i class="fas fa-info-circle"></i>
+                    Expense items typically have a quantity of 1
+                  </div>
+                }
               </div>
             </div>
             <div class="col-md-4">
               <div class="mb-3">
                 <label asp-for="CostPerUnit" class="form-label">
                   <i class="fas fa-dollar-sign text-success"></i>
-                  Cost Per Unit <span class="text-danger">*</span>
+                  @(isExpenseItem ? "Amount" : "Cost Per Unit") <span class="text-danger">*</span>
                 </label>
                 <input asp-for="CostPerUnit" class="form-control" type="number" step="0.01" min="0" />
                 <span asp-validation-for="CostPerUnit" class="text-danger"></span>
@@ -136,7 +168,7 @@
               <div class="mb-3">
                 <label class="form-label">
                   <i class="fas fa-calculator text-info"></i>
-                  Total Cost
+                  @(isExpenseItem ? "Subtotal" : "Total Cost")
                 </label>
                 <input type="text" class="form-control" id="totalCost" readonly
                        value="@((Model.QuantityPurchased * Model.CostPerUnit).ToString("C"))" />
@@ -145,69 +177,101 @@
           </div>
 
           <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="ShippingCost" class="form-label">
-                  <i class="fas fa-shipping-fast text-primary"></i>
-                  Shipping Cost
-                </label>
-                <input asp-for="ShippingCost" class="form-control" type="number" step="0.000001" min="0" />
-                <span asp-validation-for="ShippingCost" class="text-danger"></span>
-                <div class="form-text">
-                  <i class="fas fa-info-circle"></i>
-                  Up to 6 decimal places supported
+            <!-- UPDATED: Hide shipping for expense items -->
+            @if (!isExpenseItem)
+            {
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label asp-for="ShippingCost" class="form-label">
+                    <i class="fas fa-shipping-fast text-primary"></i>
+                    Shipping Cost
+                  </label>
+                  <input asp-for="ShippingCost" class="form-control" type="number" step="0.000001" min="0" />
+                  <span asp-validation-for="ShippingCost" class="text-danger"></span>
+                  <div class="form-text">
+                    <i class="fas fa-info-circle"></i>
+                    Up to 6 decimal places supported
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label asp-for="TaxAmount" class="form-label">
+                    <i class="fas fa-percentage text-danger"></i>
+                    Tax Amount
+                  </label>
+                  <input asp-for="TaxAmount" class="form-control" type="number" step="0.01" min="0" />
+                  <span asp-validation-for="TaxAmount" class="text-danger"></span>
+                </div>
+              </div>
+            }
+            else
+            {
+              <div class="col-md-12">
+                <div class="mb-3">
+                  <label asp-for="TaxAmount" class="form-label">
+                    <i class="fas fa-percentage text-danger"></i>
+                    Tax Amount
+                  </label>
+                  <input asp-for="TaxAmount" class="form-control" type="number" step="0.01" min="0" />
+                  <span asp-validation-for="TaxAmount" class="text-danger"></span>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- UPDATED: Hide delivery dates for expense items -->
+          @if (!isExpenseItem)
+          {
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label asp-for="ExpectedDeliveryDate" class="form-label">
+                    <i class="fas fa-clock text-info"></i>
+                    Expected Delivery Date
+                  </label>
+                  <input asp-for="ExpectedDeliveryDate" class="form-control" type="date" />
+                  <span asp-validation-for="ExpectedDeliveryDate" class="text-danger"></span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label asp-for="ActualDeliveryDate" class="form-label">
+                    <i class="fas fa-check-circle text-success"></i>
+                    Actual Delivery Date
+                  </label>
+                  <input asp-for="ActualDeliveryDate" class="form-control" type="date" />
+                  <span asp-validation-for="ActualDeliveryDate" class="text-danger"></span>
                 </div>
               </div>
             </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="TaxAmount" class="form-label">
-                  <i class="fas fa-percentage text-danger"></i>
-                  Tax Amount
-                </label>
-                <input asp-for="TaxAmount" class="form-control" type="number" step="0.01" min="0" />
-                <span asp-validation-for="TaxAmount" class="text-danger"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="ExpectedDeliveryDate" class="form-label">
-                  <i class="fas fa-clock text-info"></i>
-                  Expected Delivery Date
-                </label>
-                <input asp-for="ExpectedDeliveryDate" class="form-control" type="date" />
-                <span asp-validation-for="ExpectedDeliveryDate" class="text-danger"></span>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="ActualDeliveryDate" class="form-label">
-                  <i class="fas fa-check-circle text-success"></i>
-                  Actual Delivery Date
-                </label>
-                <input asp-for="ActualDeliveryDate" class="form-control" type="date" />
-                <span asp-validation-for="ActualDeliveryDate" class="text-danger"></span>
-              </div>
-            </div>
-          </div>
+          }
 
           <div class="mb-3">
             <label asp-for="Status" class="form-label">
               <i class="fas fa-flag text-primary"></i>
-              Status
+              @(isExpenseItem ? "Payment Status" : "Status")
             </label>
-            <select asp-for="Status" class="form-select">
-              <option value="Pending">Pending</option>
-              <option value="Ordered">Ordered</option>
-              <option value="Shipped">Shipped</option>
-              <option value="Delivered">Delivered</option>
-              <option value="PartiallyReceived">Partially Received</option>
-              <option value="Received">Received</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
+            @if (isExpenseItem)
+            {
+              <select asp-for="Status" class="form-select">
+                <option value="Pending">Pending</option>
+                <option value="Paid">Paid</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            }
+            else
+            {
+              <select asp-for="Status" class="form-select">
+                <option value="Pending">Pending</option>
+                <option value="Ordered">Ordered</option>
+                <option value="Shipped">Shipped</option>
+                <option value="Delivered">Delivered</option>
+                <option value="PartiallyReceived">Partially Received</option>
+                <option value="Received">Received</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            }
             <span asp-validation-for="Status" class="text-danger"></span>
           </div>
 
@@ -216,7 +280,7 @@
               <i class="fas fa-sticky-note text-secondary"></i>
               Notes
             </label>
-            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Optional notes about this purchase"></textarea>
+            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Optional notes about this @(isExpenseItem ? "expense payment" : "purchase")"></textarea>
             <span asp-validation-for="Notes" class="text-danger"></span>
           </div>
         </div>
@@ -231,7 +295,7 @@
             </div>
             <div>
               <button type="submit" class="btn btn-success me-2">
-                <i class="fas fa-save"></i> Update Purchase
+                <i class="fas fa-save"></i> Update @(isExpenseItem ? "Expense Payment" : "Purchase")
               </button>
               <a href="/Purchases/Details/@Model.Id" class="btn btn-outline-secondary">
                 <i class="fas fa-times"></i> Cancel
@@ -245,14 +309,15 @@
     <!-- Purchase Documents Section -->
     <div class="card mt-4">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5><i class="fas fa-paperclip"></i> Purchase Documents</h5>
+        <h5><i class="fas fa-paperclip"></i> @(isExpenseItem ? "Receipts & Documents" : "Purchase Documents")</h5>
         <a href="/PurchaseDocuments/Upload?purchaseId=@Model.Id" class="btn btn-success btn-sm">
-          <i class="fas fa-upload"></i> Upload Document
+          <i class="fas fa-upload"></i> Upload @(isExpenseItem ? "Receipt" : "Document")
         </a>
       </div>
       <div class="card-body">
         @if (Model.PurchaseDocuments?.Any() == true)
         {
+          <!-- Same document display code as before -->
           <div class="table-responsive">
             <table class="table table-sm">
               <thead>
@@ -291,24 +356,24 @@
                       <div class="btn-group btn-group-sm">
                         @{
                           var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
-                              .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
+                          .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
                         }
-                        
+
                         @if (canPreview)
                         {
                           <a href="/PurchaseDocuments/Preview/@doc.Id" class="btn btn-outline-info" title="Preview" target="_blank">
                             <i class="fas fa-eye"></i>
                           </a>
                         }
-                        
+
                         <a href="/PurchaseDocuments/Download/@doc.Id" class="btn btn-outline-primary" title="Download">
                           <i class="fas fa-download"></i>
                         </a>
-                        
+
                         <form asp-controller="PurchaseDocuments" asp-action="Delete" method="post" style="display:inline;">
                           <input type="hidden" name="id" value="@doc.Id" />
-                          <button type="submit" class="btn btn-outline-danger" 
-                                  onclick="return confirm('Delete this document? This action cannot be undone.')" 
+                          <button type="submit" class="btn btn-outline-danger"
+                                  onclick="return confirm('Delete this document? This action cannot be undone.')"
                                   title="Delete Document">
                             <i class="fas fa-trash"></i>
                           </button>
@@ -325,10 +390,10 @@
         {
           <div class="text-center py-4">
             <i class="fas fa-file-upload fa-3x text-muted mb-3"></i>
-            <h6 class="text-muted">No Documents Uploaded</h6>
-            <p class="text-muted">Upload invoices, receipts, purchase orders, and other purchase-related documents.</p>
+            <h6 class="text-muted">No @(isExpenseItem ? "Receipts" : "Documents") Uploaded</h6>
+            <p class="text-muted">Upload @(isExpenseItem ? "receipts, invoices" : "invoices, receipts, purchase orders"), and other @(isExpenseItem ? "expense" : "purchase")-related documents.</p>
             <a href="/PurchaseDocuments/Upload?purchaseId=@Model.Id" class="btn btn-outline-success">
-              <i class="fas fa-upload"></i> Upload First Document
+              <i class="fas fa-upload"></i> Upload First @(isExpenseItem ? "Receipt" : "Document")
             </a>
           </div>
         }
@@ -336,12 +401,12 @@
     </div>
   </div>
 
-  <!-- Right Sidebar - Same as before -->
+  <!-- Right Sidebar - Same logic but updated labels for expenses -->
   <div class="col-md-4">
-    <!-- Purchase Summary Card -->
+    <!-- Payment/Purchase Summary Card -->
     <div class="card">
       <div class="card-header">
-        <h5><i class="fas fa-chart-line"></i> Purchase Summary</h5>
+        <h5><i class="fas fa-chart-line"></i> @(isExpenseItem ? "Payment" : "Purchase") Summary</h5>
       </div>
       <div class="card-body">
         <div class="row text-center">
@@ -356,14 +421,24 @@
         </div>
         <hr>
         <div class="row text-center">
-          <div class="col-6">
-            <h5 class="text-info">@Model.ShippingCost.ToString("C")</h5>
-            <small class="text-muted">Shipping</small>
-          </div>
-          <div class="col-6">
-            <h5 class="text-warning">@Model.TaxAmount.ToString("C")</h5>
-            <small class="text-muted">Tax</small>
-          </div>
+          @if (!isExpenseItem)
+          {
+            <div class="col-6">
+              <h5 class="text-info">@Model.ShippingCost.ToString("C")</h5>
+              <small class="text-muted">Shipping</small>
+            </div>
+            <div class="col-6">
+              <h5 class="text-warning">@Model.TaxAmount.ToString("C")</h5>
+              <small class="text-muted">Tax</small>
+            </div>
+          }
+          else
+          {
+            <div class="col-12">
+              <h5 class="text-warning">@Model.TaxAmount.ToString("C")</h5>
+              <small class="text-muted">Tax</small>
+            </div>
+          }
         </div>
         <hr>
         <div class="text-center">
@@ -380,13 +455,20 @@
     {
       <div class="card mt-3">
         <div class="card-header">
-          <h5><i class="fas fa-cube"></i> Item Information</h5>
+          <h5><i class="fas fa-cube"></i> @(isExpenseItem ? "Expense Item" : "Item") Information</h5>
         </div>
         <div class="card-body">
           <p><strong>Part Number:</strong> @Model.Item.PartNumber</p>
           <p><strong>Description:</strong> @Model.Item.Description</p>
-          <p><strong>Current Stock:</strong> @Model.Item.CurrentStock</p>
-          <p><strong>Min Stock:</strong> @Model.Item.MinimumStock</p>
+          @if (!isExpenseItem)
+          {
+            <p><strong>Current Stock:</strong> @Model.Item.CurrentStock</p>
+            <p><strong>Min Stock:</strong> @Model.Item.MinimumStock</p>
+          }
+          else
+          {
+            <p><strong>Type:</strong> @Model.Item.ItemType</p>
+          }
           <hr>
           <a href="/Items/Details/@Model.Item.Id" class="btn btn-outline-info btn-sm">
             <i class="fas fa-eye"></i> View Item Details
@@ -395,7 +477,7 @@
       </div>
     }
 
-    <!-- Vendor Information Card -->
+    <!-- Vendor Information Card - Same for both -->
     @if (Model.Vendor != null)
     {
       <div class="card mt-3">
@@ -424,140 +506,146 @@
 </div>
 
 @section Scripts {
-  <script>
-    $(document).ready(function() {
-        // Auto-calculate totals when values change
-        function updateTotals() {
-            var quantity = parseFloat($('#QuantityPurchased').val()) || 0;
-            var costPerUnit = parseFloat($('#CostPerUnit').val()) || 0;
-            var shipping = parseFloat($('#ShippingCost').val()) || 0;
-            var tax = parseFloat($('#TaxAmount').val()) || 0;
+    <script>
+        $(document).ready(function() {
+            var isExpenseItem = @(isExpenseItem.ToString().ToLower());
 
-            var subtotal = quantity * costPerUnit;
-            var grandTotal = subtotal + shipping + tax;
+            // Auto-calculate totals when values change
+            function updateTotals() {
+                var quantity = parseFloat($('#QuantityPurchased').val()) || 0;
+                var costPerUnit = parseFloat($('#CostPerUnit').val()) || 0;
+                var shipping = isExpenseItem ? 0 : (parseFloat($('#ShippingCost').val()) || 0);
+                var tax = parseFloat($('#TaxAmount').val()) || 0;
 
-            $('#totalCost').val('$' + subtotal.toFixed(2));
-            $('#summaryTotal').text('$' + subtotal.toFixed(2));
-            $('#grandTotal').text('$' + grandTotal.toFixed(2));
+                var subtotal = quantity * costPerUnit;
+                var grandTotal = subtotal + shipping + tax;
+
+                $('#totalCost').val('$' + subtotal.toFixed(2));
+                $('#summaryTotal').text('$' + subtotal.toFixed(2));
+                $('#grandTotal').text('$' + grandTotal.toFixed(2));
+            }
+
+            // Auto-select last vendor when item changes
+            $('#itemSelect').change(function() {
+                var itemId = $(this).val();
+                if (itemId) {
+                    $.get('/Purchases/GetLastVendorForItem', { itemId: itemId })
+                        .done(function(data) {
+                            if (data.success && data.vendorId) {
+                                $('#vendorSelect').val(data.vendorId);
+                            }
+                        })
+                        .fail(function() {
+                            console.log('Could not retrieve last vendor for item');
+                        });
+                }
+            });
+
+            // Use last vendor button
+            $('#useLastVendorBtn').click(function() {
+                var itemId = $('#itemSelect').val();
+                if (itemId) {
+                    $.get('/Purchases/GetLastVendorForItem', { itemId: itemId })
+                        .done(function(data) {
+                            if (data.success && data.vendorId) {
+                                $('#vendorSelect').val(data.vendorId);
+
+                                // Visual feedback
+                                var btn = $('#useLastVendorBtn');
+                                btn.removeClass('btn-outline-info').addClass('btn-success');
+                                btn.html('<i class="fas fa-check"></i>');
+
+                                setTimeout(function() {
+                                    btn.removeClass('btn-success').addClass('btn-outline-info');
+                                    btn.html('<i class="fas fa-history"></i>');
+                                }, 1000);
+                            } else {
+                                alert('No previous vendor found for this item.');
+                            }
+                        })
+                        .fail(function() {
+                            alert('Error retrieving last vendor information.');
+                        });
+                } else {
+                    alert('Please select an item first.');
+                }
+            });
+
+            // Bind total calculation to input changes
+            if (isExpenseItem) {
+                $('#QuantityPurchased, #CostPerUnit, #TaxAmount').on('input', updateTotals);
+            } else {
+                $('#QuantityPurchased, #CostPerUnit, #ShippingCost, #TaxAmount').on('input', updateTotals);
+            }
+
+            // Form validation
+            $('form').submit(function(e) {
+                var itemId = $('#itemSelect').val();
+                var vendorId = $('#vendorSelect').val();
+                var quantity = $('#QuantityPurchased').val();
+                var costPerUnit = $('#CostPerUnit').val();
+
+                if (!itemId) {
+                    alert('Please select an item.');
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (!vendorId) {
+                    alert('Please select a vendor.');
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (!quantity || quantity <= 0) {
+                    alert('Please enter a valid quantity.');
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (!costPerUnit || costPerUnit < 0) {
+                    alert('Please enter a valid cost per unit.');
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Initial total calculation
+            updateTotals();
+        });
+    </script>
+
+    <style>
+        .card-footer {
+          background-color: #f8f9fa;
+          border-top: 1px solid #dee2e6;
         }
 
-        // Auto-select last vendor when item changes
-        $('#itemSelect').change(function() {
-            var itemId = $(this).val();
-            if (itemId) {
-                $.get('/Purchases/GetLastVendorForItem', { itemId: itemId })
-                    .done(function(data) {
-                        if (data.success && data.vendorId) {
-                            $('#vendorSelect').val(data.vendorId);
-                        }
-                    })
-                    .fail(function() {
-                        console.log('Could not retrieve last vendor for item');
-                    });
-            }
-        });
+        .input-group .btn {
+          border-left: 0;
+        }
 
-        // Use last vendor button
-        $('#useLastVendorBtn').click(function() {
-            var itemId = $('#itemSelect').val();
-            if (itemId) {
-                $.get('/Purchases/GetLastVendorForItem', { itemId: itemId })
-                    .done(function(data) {
-                        if (data.success && data.vendorId) {
-                            $('#vendorSelect').val(data.vendorId);
+        #totalCost {
+          background-color: #e9ecef;
+          font-weight: bold;
+        }
 
-                            // Visual feedback
-                            var btn = $('#useLastVendorBtn');
-                            btn.removeClass('btn-outline-info').addClass('btn-success');
-                            btn.html('<i class="fas fa-check"></i>');
+        .alert-warning {
+          border-left: 4px solid #ffc107;
+        }
 
-                            setTimeout(function() {
-                                btn.removeClass('btn-success').addClass('btn-outline-info');
-                                btn.html('<i class="fas fa-history"></i>');
-                            }, 1000);
-                        } else {
-                            alert('No previous vendor found for this item.');
-                        }
-                    })
-                    .fail(function() {
-                        alert('Error retrieving last vendor information.');
-                    });
-            } else {
-                alert('Please select an item first.');
-            }
-        });
+        .form-text {
+          font-size: 0.875em;
+        }
 
-        // Bind total calculation to input changes
-        $('#QuantityPurchased, #CostPerUnit, #ShippingCost, #TaxAmount').on('input', updateTotals);
+        .table th {
+          border-top: none;
+          font-weight: 600;
+          font-size: 0.875rem;
+        }
 
-        // Form validation
-        $('form').submit(function(e) {
-            var itemId = $('#itemSelect').val();
-            var vendorId = $('#vendorSelect').val();
-            var quantity = $('#QuantityPurchased').val();
-            var costPerUnit = $('#CostPerUnit').val();
-
-            if (!itemId) {
-                alert('Please select an item.');
-                e.preventDefault();
-                return false;
-            }
-
-            if (!vendorId) {
-                alert('Please select a vendor.');
-                e.preventDefault();
-                return false;
-            }
-
-            if (!quantity || quantity <= 0) {
-                alert('Please enter a valid quantity.');
-                e.preventDefault();
-                return false;
-            }
-
-            if (!costPerUnit || costPerUnit < 0) {
-                alert('Please enter a valid cost per unit.');
-                e.preventDefault();
-                return false;
-            }
-        });
-
-        // Initial total calculation
-        updateTotals();
-    });
-  </script>
-
-  <style>
-    .card-footer {
-      background-color: #f8f9fa;
-      border-top: 1px solid #dee2e6;
-    }
-
-    .input-group .btn {
-      border-left: 0;
-    }
-
-    #totalCost {
-      background-color: #e9ecef;
-      font-weight: bold;
-    }
-
-    .alert-warning {
-      border-left: 4px solid #ffc107;
-    }
-
-    .form-text {
-      font-size: 0.875em;
-    }
-
-    .table th {
-      border-top: none;
-      font-weight: 600;
-      font-size: 0.875rem;
-    }
-
-    .badge {
-      font-size: 0.75rem;
-    }
-  </style>
+        .badge {
+          font-size: 0.75rem;
+        }
+    </style>
 }

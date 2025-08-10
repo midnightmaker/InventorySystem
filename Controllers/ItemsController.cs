@@ -52,6 +52,7 @@ namespace InventorySystem.Controllers
         string stockLevelFilter,
         string vendorFilter,
         bool? isSellable,
+        bool? isExpense,
         string sortOrder = "partNumber_asc",
         int page = 1,
         int pageSize = DefaultPageSize)
@@ -68,6 +69,7 @@ namespace InventorySystem.Controllers
         _logger.LogInformation("Stock Level Filter: {StockLevelFilter}", stockLevelFilter);
         _logger.LogInformation("Vendor Filter: {VendorFilter}", vendorFilter);
         _logger.LogInformation("Is Sellable: {IsSellable}", isSellable);
+        _logger.LogInformation("Is Expense: {IsExpense}", isExpense);
         _logger.LogInformation("Sort Order: {SortOrder}", sortOrder);
         _logger.LogInformation("Page: {Page}, PageSize: {PageSize}", page, pageSize);
 
@@ -108,11 +110,28 @@ namespace InventorySystem.Controllers
           }
         }
 
-        // Apply item type filter
-        if (!string.IsNullOrWhiteSpace(itemTypeFilter) && Enum.TryParse<ItemType>(itemTypeFilter, out var itemType))
+        // Apply item type filter - ENHANCED to handle comma-separated values
+        if (!string.IsNullOrWhiteSpace(itemTypeFilter))
         {
-          _logger.LogInformation("Applying item type filter: {ItemType}", itemType);
-          query = query.Where(i => i.ItemType == itemType);
+          _logger.LogInformation("Applying item type filter: {ItemTypeFilter}", itemTypeFilter);
+          
+          // Handle comma-separated ItemType filters (e.g., "Inventoried,Consumable")
+          var itemTypeStrings = itemTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries);
+          var validItemTypes = new List<ItemType>();
+          
+          foreach (var itemTypeString in itemTypeStrings)
+          {
+            if (Enum.TryParse<ItemType>(itemTypeString.Trim(), out var itemType))
+            {
+              validItemTypes.Add(itemType);
+            }
+          }
+          
+          if (validItemTypes.Any())
+          {
+            query = query.Where(i => validItemTypes.Contains(i.ItemType));
+            _logger.LogInformation("Filtered by item types: {ItemTypes}", string.Join(", ", validItemTypes));
+          }
         }
 
         // Apply stock level filter
@@ -155,6 +174,13 @@ namespace InventorySystem.Controllers
         {
           _logger.LogInformation("Applying sellable filter: {IsSellable}", isSellable.Value);
           query = query.Where(i => i.IsSellable == isSellable.Value);
+        }
+
+        // Apply expense filter
+        if (isExpense.HasValue)
+        {
+          _logger.LogInformation("Applying expense filter: {IsExpense}", isExpense.Value);
+          query = query.Where(i => i.IsExpense == isExpense.Value);
         }
 
         // Apply sorting
@@ -210,6 +236,7 @@ namespace InventorySystem.Controllers
         ViewBag.StockLevelFilter = stockLevelFilter;
         ViewBag.VendorFilter = vendorFilter;
         ViewBag.IsSellable = isSellable;
+        ViewBag.IsExpense = isExpense;
         ViewBag.SortOrder = sortOrder;
 
         // Pagination data
@@ -252,7 +279,8 @@ namespace InventorySystem.Controllers
                            !string.IsNullOrWhiteSpace(itemTypeFilter) ||
                            !string.IsNullOrWhiteSpace(stockLevelFilter) ||
                            !string.IsNullOrWhiteSpace(vendorFilter) ||
-                           isSellable.HasValue;
+                           isSellable.HasValue ||
+                           isExpense.HasValue;
 
         if (ViewBag.IsFiltered)
         {
@@ -428,6 +456,7 @@ namespace InventorySystem.Controllers
             UnitOfMeasure = viewModel.UnitOfMeasure,
             VendorPartNumber = viewModel.VendorPartNumber,
             IsSellable = viewModel.IsSellable,
+            IsExpense = viewModel.IsExpense, // NEW: Set expense flag
             ItemType = viewModel.ItemType,
             Version = viewModel.Version,
             MaterialType = viewModel.MaterialType,
@@ -478,46 +507,139 @@ namespace InventorySystem.Controllers
       var item = await _inventoryService.GetItemByIdAsync(id);
       if (item == null) return NotFound();
 
-      // Pass current item data to the view for editing
+      // Check if this is an expense item and redirect to appropriate edit view
+      if (item.IsExpense)
+      {
+        return RedirectToAction("EditExpense", new { id });
+      }
+
+      // Load vendors for the preferred vendor dropdown
+      await LoadVendorsForEditView(item);
+
       return View(item);
     }
 
+    // GET: /Items/EditExpense/5 - Dedicated expense item editing
+    public async Task<IActionResult> EditExpense(int id)
+    {
+      try
+      {
+        var item = await _inventoryService.GetItemByIdAsync(id);
+        if (item == null) 
+        {
+          TempData["ErrorMessage"] = "Item not found.";
+          return RedirectToAction("Index");
+        }
+
+        // Verify this is actually an expense item
+        if (!item.IsExpense)
+        {
+          TempData["ErrorMessage"] = "This item is not an expense item. Redirecting to standard edit view.";
+          return RedirectToAction("Edit", new { id });
+        }
+
+        // Create view model from item
+        var viewModel = new EditExpenseItemViewModel
+        {
+          Id = item.Id,
+          PartNumber = item.PartNumber,
+          Description = item.Description,
+          Comments = item.Comments,
+          UnitOfMeasure = item.UnitOfMeasure,
+          VendorPartNumber = item.VendorPartNumber,
+          ItemType = item.ItemType,
+          Version = item.Version,
+          PreferredVendorId = item.PreferredVendorItem?.VendorId,
+          HasImage = item.HasImage,
+          ImageFileName = item.ImageFileName,
+          CreatedDate = item.CreatedDate
+        };
+
+        // Load active vendors for preferred vendor selection
+        await LoadVendorsForView();
+
+        return View(viewModel);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading expense item for edit: {ItemId}", id);
+        TempData["ErrorMessage"] = $"Error loading expense item: {ex.Message}";
+        return RedirectToAction("Index", new { isExpense = true });
+      }
+    }
+
+    // POST: /Items/EditExpense/5
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, Item item)
+    public async Task<IActionResult> EditExpense(int id, EditExpenseItemViewModel viewModel)
     {
-      if (id != item.Id)
+      if (id != viewModel.Id)
       {
         return NotFound();
       }
 
       try
       {
+        // Validate that this is indeed an expense type
+        if (viewModel.ItemType != ItemType.Expense && 
+            viewModel.ItemType != ItemType.Utility && 
+            viewModel.ItemType != ItemType.Subscription &&
+            viewModel.ItemType != ItemType.Service &&
+            viewModel.ItemType != ItemType.Virtual)
+        {
+          ModelState.AddModelError("ItemType", "Invalid expense type selected.");
+        }
+
         if (ModelState.IsValid)
         {
-          await _inventoryService.UpdateItemAsync(item);
-          TempData["SuccessMessage"] = "Item updated successfully!";
-          return RedirectToAction("Index");
-        }
-      }
-      catch (DbUpdateConcurrencyException)
-      {
-        if (!ItemExists(item.Id))
-        {
-          return NotFound();
-        }
-        else
-        {
-          throw;
+          // Get the existing item
+          var existingItem = await _inventoryService.GetItemByIdAsync(id);
+          if (existingItem == null)
+          {
+            TempData["ErrorMessage"] = "Item not found.";
+            return RedirectToAction("Index", new { isExpense = true });
+          }
+
+          // Update the item properties
+          existingItem.PartNumber = viewModel.PartNumber;
+          existingItem.Description = viewModel.Description;
+          existingItem.Comments = viewModel.Comments ?? string.Empty;
+          existingItem.UnitOfMeasure = viewModel.UnitOfMeasure;
+          existingItem.VendorPartNumber = viewModel.VendorPartNumber;
+          existingItem.ItemType = viewModel.ItemType;
+          // Note: Version, CreatedDate, and expense status should not be changed
+
+          // Handle image upload if provided
+          if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
+          {
+            using var memoryStream = new MemoryStream();
+            await viewModel.ImageFile.CopyToAsync(memoryStream);
+            existingItem.ImageData = memoryStream.ToArray();
+            existingItem.ImageContentType = viewModel.ImageFile.ContentType;
+            existingItem.ImageFileName = viewModel.ImageFile.FileName;
+          }
+
+          // Update the item
+          await _inventoryService.UpdateItemAsync(existingItem);
+
+          // Handle preferred vendor relationship changes
+          await UpdateVendorItemRelationship(existingItem.Id, viewModel.PreferredVendorId, viewModel.VendorPartNumber);
+
+          TempData["SuccessMessage"] = $"{viewModel.ItemType} item updated successfully!";
+          
+          // Redirect back to the appropriate expense filter
+          return RedirectToAction("Index", new { itemTypeFilter = viewModel.ItemType.ToString() });
         }
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Error updating item: {PartNumber}", item.PartNumber);
-        ModelState.AddModelError("", $"Error updating item: {ex.Message}");
+        _logger.LogError(ex, "Error updating expense item: {PartNumber}", viewModel.PartNumber);
+        ModelState.AddModelError("", $"Error updating expense item: {ex.Message}");
       }
 
-      return View(item);
+      // Reload view data on error
+      await LoadVendorsForView();
+      return View(viewModel);
     }
 
     public async Task<IActionResult> Delete(int id)
@@ -638,212 +760,207 @@ namespace InventorySystem.Controllers
       return View(new BulkItemUploadViewModel());
     }
 
-    // Add these new action methods to ItemsController
-
-    [HttpGet]
-    public IActionResult ImportVendorAssignments(string? importId)
+    // POST: Handle CSV file upload and validation
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkUpload(BulkItemUploadViewModel model)
     {
-        // In a real implementation, you might store the ImportVendorAssignmentViewModel
-        // in TempData, Session, or database temporarily
-        if (TempData["VendorAssignments"] is string vendorAssignmentsJson)
+        if (model.CsvFile == null || model.CsvFile.Length == 0)
         {
-            var model = System.Text.Json.JsonSerializer.Deserialize<ImportVendorAssignmentViewModel>(vendorAssignmentsJson);
+            ModelState.AddModelError("CsvFile", "Please select a CSV file to upload.");
             return View(model);
         }
 
-        // If no pending assignments, redirect to items
-        TempData["InfoMessage"] = "No vendor assignments pending.";
-        return RedirectToAction("Index");
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CompleteVendorAssignments(ImportVendorAssignmentViewModel model)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View("ImportVendorAssignments", model);
-        }
-
         try
         {
+            // Get the bulk upload service
             var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
-            var result = await bulkUploadService.CompleteVendorAssignmentsAsync(model);
 
-            if (result.Success)
+            // Generate a unique session ID for this upload
+            var uploadSessionId = Guid.NewGuid().ToString();
+
+            // Store the uploaded file temporarily
+            var tempFilePath = await SaveTempFileAsync(model.CsvFile, uploadSessionId);
+
+            // Validate the CSV file
+            var validationResults = await bulkUploadService.ValidateCsvFileAsync(model.CsvFile, model.SkipHeaderRow);
+            
+            // Parse the CSV file to get preview items for valid rows
+            var allParsedItems = await bulkUploadService.ParseCsvFileAsync(model.CsvFile, model.SkipHeaderRow);
+            var validItems = validationResults
+                .Where(vr => vr.IsValid && vr.ItemData != null)
+                .Select(vr => vr.ItemData!)
+                .ToList();
+
+            // Store validation results and file info in session/cache
+            var uploadSession = new UploadSession
             {
-                TempData["SuccessMessage"] = result.Summary;
-                
-                // Clear any stored vendor assignments
-                TempData.Remove("VendorAssignments");
+                SessionId = uploadSessionId,
+                TempFilePath = tempFilePath,
+                SkipHeaderRow = model.SkipHeaderRow,
+                ValidationResults = validationResults,
+                ValidItemsCount = validItems.Count,
+                CreatedAt = DateTime.Now
+            };
+
+            // Store in session (or you could use a cache/database)
+            HttpContext.Session.SetString($"BulkUpload_{uploadSessionId}", 
+                System.Text.Json.JsonSerializer.Serialize(uploadSession));
+
+            // Update the model with results
+            model.ValidationResults = validationResults;
+            model.PreviewItems = validItems;
+            model.UploadSessionId = uploadSessionId;
+
+            if (validationResults.Any(vr => !vr.IsValid))
+            {
+                model.ErrorMessage = $"Found {validationResults.Count(vr => !vr.IsValid)} validation errors. Please review and correct them.";
+            }
+            else if (validItems.Any())
+            {
+                model.SuccessMessage = $"Successfully validated {validItems.Count} items. Review the items below and click 'Import' to proceed.";
             }
             else
             {
-                TempData["ErrorMessage"] = $"Assignment completed with errors: {string.Join(", ", result.Errors)}";
+                model.ErrorMessage = "No valid items found in the CSV file.";
             }
-
-            return RedirectToAction("Index");
         }
         catch (Exception ex)
         {
-            TempData["ErrorMessage"] = $"Error completing vendor assignments: {ex.Message}";
-            return View("ImportVendorAssignments", model);
+            _logger.LogError(ex, "Error processing bulk upload CSV file");
+            model.ErrorMessage = $"Error processing CSV file: {ex.Message}";
         }
+
+        return View(model);
     }
 
-    // Add this new method to your ItemsController.cs for vendor-grouped bulk purchases
+    // POST: Process the actual import using the stored file
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateVendorGroupedBulkPurchases(BulkPurchaseRequest model)
+    public async Task<IActionResult> ProcessBulkUpload(string uploadSessionId)
     {
+        if (string.IsNullOrEmpty(uploadSessionId))
+        {
+            TempData["ErrorMessage"] = "Invalid upload session. Please upload a CSV file first.";
+            return RedirectToAction("BulkUpload");
+        }
+
         try
         {
-            if (!ModelState.IsValid)
-            {
-                // Reload view data and return to form
-                await ReloadBulkPurchaseViewData(model);
-                return View("CreateBulkPurchaseRequest", model);
-            }
-
-            var selectedItems = model.ItemsToPurchase.Where(i => i.Selected).ToList();
-
-            if (!selectedItems.Any())
-            {
-                TempData["ErrorMessage"] = "Please select at least one item to purchase.";
-                await ReloadBulkPurchaseViewData(model);
-                return View("CreateBulkPurchaseRequest", model);
-            }
-
-            // Validate that all selected items have vendors
-            var itemsWithoutVendors = selectedItems.Where(i => !i.VendorId.HasValue).ToList();
-            if (itemsWithoutVendors.Any())
-            {
-                TempData["ErrorMessage"] = "Please select a vendor for all selected items.";
-                await ReloadBulkPurchaseViewData(model);
-                return View("CreateBulkPurchaseRequest", model);
-            }
-
-            // FIX: Add null check before accessing .Value to prevent CS8629
-            var vendorGroups = selectedItems
-                .Where(i => i.VendorId.HasValue) // Additional safety check
-                .GroupBy(i => i.VendorId!.Value) // Use null-forgiving operator since we've verified HasValue
-                .ToList();
+            _logger.LogInformation("Processing bulk import for session: {SessionId}", uploadSessionId);
             
-            var createdPurchaseOrders = new List<string>();
-
-            foreach (var vendorGroup in vendorGroups)
+            // Retrieve the upload session
+            var sessionData = HttpContext.Session.GetString($"BulkUpload_{uploadSessionId}");
+            if (string.IsNullOrEmpty(sessionData))
             {
-                var vendorId = vendorGroup.Key;
-                var vendor = await _vendorService.GetVendorByIdAsync(vendorId);
-                
-                if (vendor == null)
-                {
-                    TempData["ErrorMessage"] = $"Vendor not found for ID {vendorId}.";
-                    continue;
-                }
-
-                // Calculate totals for this vendor group
-                var vendorItems = vendorGroup.ToList();
-                var totalItemValue = vendorItems.Sum(i => i.QuantityToPurchase * i.EstimatedUnitCost);
-                
-                // Generate unique PO number for this vendor
-                var purchaseOrderNumber = model.PurchaseOrderNumber ?? 
-                    await _purchaseService.GeneratePurchaseOrderNumberAsync();
-
-                // Apply vendor-specific shipping and tax (you may want to make these configurable)
-                var shippingCost = CalculateShippingCost(totalItemValue, vendor);
-                var taxAmount = CalculateTaxAmount(totalItemValue, vendor);
-
-                // Create individual Purchase records for each item, with proportional costs
-                foreach (var item in vendorItems)
-                {
-                    var itemValue = item.QuantityToPurchase * item.EstimatedUnitCost;
-                    var proportionOfTotal = totalItemValue > 0 ? itemValue / totalItemValue : 0;
-                    
-                    // Calculate proportional shipping and tax for this item
-                    var itemShippingCost = shippingCost * proportionOfTotal;
-                    var itemTaxAmount = taxAmount * proportionOfTotal;
-
-                    var purchase = new Purchase
-                    {
-                        ItemId = item.ItemId,
-                        QuantityPurchased = item.QuantityToPurchase,
-                        CostPerUnit = item.EstimatedUnitCost,
-                        VendorId = vendorId,
-                        PurchaseOrderNumber = purchaseOrderNumber,
-                        Notes = $"{model.Notes} | Vendor Group PO | {item.Notes}".Trim(' ', '|'),
-                        PurchaseDate = DateTime.Today,
-                        RemainingQuantity = item.QuantityToPurchase,
-                        CreatedDate = DateTime.Now,
-                        
-                        // NEW: Proportional shipping and tax allocation
-                        ShippingCost = itemShippingCost,
-                        TaxAmount = itemTaxAmount,
-                        
-                        Status = PurchaseStatus.Pending,
-                        ExpectedDeliveryDate = model.ExpectedDeliveryDate
-                    };
-
-                    await _purchaseService.CreatePurchaseAsync(purchase);
-                }
-
-                createdPurchaseOrders.Add($"{vendor.CompanyName}: {purchaseOrderNumber}");
+                TempData["ErrorMessage"] = "Upload session expired. Please upload the CSV file again.";
+                return RedirectToAction("BulkUpload");
             }
 
-            TempData["SuccessMessage"] = $"Successfully created {vendorGroups.Count} consolidated purchase orders: {string.Join(", ", createdPurchaseOrders)}";
-            return RedirectToAction("Index", "Purchases");
+            var uploadSession = System.Text.Json.JsonSerializer.Deserialize<UploadSession>(sessionData);
+            
+            // Verify the temp file still exists
+            if (!System.IO.File.Exists(uploadSession.TempFilePath))
+            {
+                TempData["ErrorMessage"] = "Upload file not found. Please upload the CSV file again.";
+                return RedirectToAction("BulkUpload");
+            }
+
+            // Get the bulk upload service
+            var bulkUploadService = HttpContext.RequestServices.GetRequiredService<IBulkUploadService>();
+
+            // Create a FormFile from the stored file
+            var storedFileFormFile = await CreateFormFileFromStoredFile(uploadSession.TempFilePath);
+            
+            // Re-parse the stored file to get valid items
+            var validItems = await bulkUploadService.ParseCsvFileAsync(storedFileFormFile, uploadSession.SkipHeaderRow);
+            
+            // Import the valid items
+            var importResult = await bulkUploadService.ImportValidItemsAsync(validItems);
+
+            // Clean up temp file and session
+            await CleanupUploadSession(uploadSessionId, uploadSession.TempFilePath);
+
+            if (importResult.IsSuccess)
+            {
+                TempData["SuccessMessage"] = importResult.GetSummary();
+            }
+            else
+            {
+                TempData["ErrorMessage"] = $"Import completed with errors: {importResult.GetSummary()}";
+            }
         }
         catch (Exception ex)
         {
-            TempData["ErrorMessage"] = $"Error creating vendor-grouped bulk purchases: {ex.Message}";
-            await ReloadBulkPurchaseViewData(model);
-            return View("CreateBulkPurchaseRequest", model);
+            _logger.LogError(ex, "Error during bulk import process for session {SessionId}", uploadSessionId);
+            TempData["ErrorMessage"] = $"Error during import: {ex.Message}";
         }
+
+        return RedirectToAction("Index");
     }
 
-    // Helper method to calculate shipping costs based on order value and vendor
-    private decimal CalculateShippingCost(decimal orderValue, Vendor vendor)
+    // Helper method to create an IFormFile from a stored file
+    private async Task<IFormFile> CreateFormFileFromStoredFile(string filePath)
     {
-        // Example shipping calculation logic - customize based on your business rules
+        var fileName = Path.GetFileName(filePath);
+        var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+        var stream = new MemoryStream(fileBytes);
         
-        // Free shipping threshold check
-        if (orderValue >= 500m) return 0m;
+        var formFile = new FormFile(stream, 0, fileBytes.Length, "CsvFile", fileName)
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "text/csv"
+        };
         
-        // Flat rate for small orders
-        if (orderValue < 100m) return 25m;
-        
-        // Percentage-based shipping for medium orders
-        if (orderValue < 300m) return orderValue * 0.05m; // 5%
-        
-        // Reduced rate for larger orders
-        return orderValue * 0.03m; // 3%
-    }
-
-    // Helper method to calculate tax based on order value and vendor location
-    private decimal CalculateTaxAmount(decimal orderValue, Vendor vendor)
-    {
-        // Example tax calculation - customize based on your tax rules
-        
-        // You might want to store tax rate in Vendor entity or use a tax calculation service
-        decimal taxRate = GetTaxRateForVendor(vendor);
-        
-        return orderValue * taxRate;
-    }
-
-    // Helper method to get tax rate for vendor (customize based on your needs)
-    private decimal GetTaxRateForVendor(Vendor vendor)
-    {
-        // Example: Different tax rates based on vendor location
-        // In a real implementation, you might:
-        // 1. Store tax rate in Vendor entity
-        // 2. Use a tax calculation service
-        // 3. Look up rates by state/province
-        
-        // For now, return a default rate
-        return 0.0725m; // 7.25 default tax rate for NC
+        return formFile;
     }
 
     // Helper methods
+    private async Task<string> SaveTempFileAsync(IFormFile file, string sessionId)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "BulkUploads");
+        Directory.CreateDirectory(tempDir);
+        
+        var tempFileName = $"upload_{sessionId}_{DateTime.Now:yyyyMMddHHmmss}.csv";
+        var tempFilePath = Path.Combine(tempDir, tempFileName);
+        
+        using var stream = new FileStream(tempFilePath, FileMode.Create);
+        await file.CopyToAsync(stream);
+        
+        return tempFilePath;
+    }
+
+    private async Task CleanupUploadSession(string sessionId, string tempFilePath)
+    {
+        try
+        {
+            // Remove session data
+            HttpContext.Session.Remove($"BulkUpload_{sessionId}");
+            
+            // Delete temp file
+            if (System.IO.File.Exists(tempFilePath))
+            {
+                System.IO.File.Delete(tempFilePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error cleaning up upload session {SessionId}", sessionId);
+        }
+    }
+
+    // Supporting class for upload session data
+    public class UploadSession
+    {
+        public string SessionId { get; set; } = string.Empty;
+        public string TempFilePath { get; set; } = string.Empty;
+        public bool SkipHeaderRow { get; set; }
+        public List<ItemValidationResult> ValidationResults { get; set; } = new();
+        public int ValidItemsCount { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    // Helper method to load raw materials for parent selection
     private async Task LoadRawMaterialsForView()
     {
       try
@@ -876,6 +993,26 @@ namespace InventorySystem.Controllers
       {
         _logger.LogError(ex, "Error loading vendors for view");
         ViewBag.PreferredVendors = new SelectList(new List<object>(), "Id", "CompanyName");
+      }
+    }
+
+    private async Task LoadVendorsForEditView(Item item)
+    {
+      try
+      {
+        var vendors = await _vendorService.GetActiveVendorsAsync();
+        
+        // Set up the preferred vendor dropdown
+        ViewBag.PreferredVendorId = new SelectList(vendors.OrderBy(v => v.CompanyName), "Id", "CompanyName", item.PreferredVendorItem?.VendorId);
+        
+        // Store the current preferred vendor info for display
+        ViewBag.CurrentPreferredVendorId = item.PreferredVendorItem?.VendorId;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error loading vendors for edit view");
+        ViewBag.PreferredVendorId = new SelectList(new List<object>(), "Id", "CompanyName");
+        ViewBag.CurrentPreferredVendorId = null;
       }
     }
 
@@ -922,6 +1059,70 @@ namespace InventorySystem.Controllers
       }
     }
 
+    private async Task UpdateVendorItemRelationship(int itemId, int? newVendorId, string? vendorPartNumber)
+    {
+      try
+      {
+        // Get current item to check existing preferred vendor
+        var item = await _context.Items
+          .Include(i => i.PreferredVendorItem)
+          .FirstOrDefaultAsync(i => i.Id == itemId);
+        
+        if (item == null) return;
+
+        // If no new vendor selected, remove existing preferred vendor relationship
+        if (!newVendorId.HasValue)
+        {
+          if (item.PreferredVendorItem != null)
+          {
+            // Don't delete the VendorItem, just remove the preferred reference
+            item.PreferredVendorItemId = null;
+            await _context.SaveChangesAsync();
+          }
+          return;
+        }
+
+        // Check if vendor relationship already exists
+        var existingVendorItem = await _context.VendorItems
+          .FirstOrDefaultAsync(vi => vi.ItemId == itemId && vi.VendorId == newVendorId.Value);
+
+        if (existingVendorItem == null)
+        {
+          // Create new VendorItem relationship
+          existingVendorItem = new VendorItem
+          {
+            ItemId = itemId,
+            VendorId = newVendorId.Value,
+            VendorPartNumber = vendorPartNumber,
+            IsPrimary = true,
+            IsActive = true,
+            UnitCost = 0,
+            MinimumOrderQuantity = 1,
+            LeadTimeDays = 0,
+            LastUpdated = DateTime.Now
+          };
+
+          _context.VendorItems.Add(existingVendorItem);
+          await _context.SaveChangesAsync();
+        }
+        else
+        {
+          // Update existing vendor item with new part number
+          existingVendorItem.VendorPartNumber = vendorPartNumber;
+          existingVendorItem.LastUpdated = DateTime.Now;
+        }
+
+        // Update the item's preferred vendor reference
+        item.PreferredVendorItemId = existingVendorItem.Id;
+        await _context.SaveChangesAsync();
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error updating vendor-item relationship for Item {ItemId} and Vendor {VendorId}", itemId, newVendorId);
+        // Don't throw here as the item update was already successful
+      }
+    }
+
     private bool ItemExists(int id)
     {
       return _context.Items.Any(e => e.Id == id);
@@ -943,6 +1144,183 @@ namespace InventorySystem.Controllers
             ViewBag.ShortageAnalysis = null;
             ViewBag.Vendors = new List<Vendor>();
         }
+    }
+
+    // GET: /Items/CreateExpense - Dedicated expense item creation
+    public async Task<IActionResult> CreateExpense(string? itemType = "Expense")
+    {
+        try
+        {
+            // Validate the itemType is an expense type
+            if (!Enum.TryParse<ItemType>(itemType, out var expenseType) || 
+                (expenseType != ItemType.Expense && expenseType != ItemType.Utility && 
+                 expenseType != ItemType.Subscription && expenseType != ItemType.Service && 
+                 expenseType != ItemType.Virtual))
+            {
+                expenseType = ItemType.Expense;
+            }
+
+            var viewModel = new CreateExpenseItemViewModel
+            {
+                ItemType = expenseType,
+                Version = "A",
+                UnitOfMeasure = UnitOfMeasure.Each
+            };
+
+            // Load active vendors for preferred vendor selection
+            await LoadVendorsForView();
+
+            return View(viewModel);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading create expense item form");
+            TempData["ErrorMessage"] = $"Error loading create form: {ex.Message}";
+            return RedirectToAction("Index", new { itemTypeFilter = itemType });
+        }
+    }
+
+    // POST: /Items/CreateExpense
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateExpense(CreateExpenseItemViewModel viewModel)
+    {
+        if (viewModel == null)
+        {
+            ModelState.AddModelError("", "Expense item data is missing.");
+            return View(new CreateExpenseItemViewModel());
+        }
+
+        try
+        {
+            // Validate that this is indeed an expense type
+            if (viewModel.ItemType != ItemType.Expense && 
+                viewModel.ItemType != ItemType.Utility && 
+                viewModel.ItemType != ItemType.Subscription &&
+                viewModel.ItemType != ItemType.Service &&
+                viewModel.ItemType != ItemType.Virtual)
+            {
+                ModelState.AddModelError("ItemType", "Invalid expense type selected.");
+            }
+
+            if (ModelState.IsValid)
+            {
+                // Create the Item entity from the expense ViewModel
+                var item = new Item
+                {
+                    PartNumber = viewModel.PartNumber,
+                    Description = viewModel.Description,
+                    Comments = viewModel.Comments ?? string.Empty,
+                    MinimumStock = 0, // Expenses don't track stock
+                    CurrentStock = 0,
+                    CreatedDate = DateTime.Now,
+                    UnitOfMeasure = viewModel.UnitOfMeasure,
+                    VendorPartNumber = viewModel.VendorPartNumber,
+                    IsSellable = false, // Expenses are not sellable
+                    IsExpense = true, // Mark as expense item
+                    ItemType = viewModel.ItemType,
+                    Version = viewModel.Version,
+                    MaterialType = MaterialType.Standard, // Expenses use standard material type
+                };
+
+                // Handle image upload if provided
+                if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
+                {
+                    using var memoryStream = new MemoryStream();
+                    await viewModel.ImageFile.CopyToAsync(memoryStream);
+                    item.ImageData = memoryStream.ToArray();
+                    item.ImageContentType = viewModel.ImageFile.ContentType;
+                    item.ImageFileName = viewModel.ImageFile.FileName;
+                }
+
+                // Create the item
+                await _inventoryService.CreateItemAsync(item);
+
+                // Handle preferred vendor relationship if selected
+                if (viewModel.PreferredVendorId.HasValue)
+                {
+                    await CreateVendorItemRelationship(item.Id, viewModel.PreferredVendorId.Value, viewModel.VendorPartNumber);
+                }
+
+                TempData["SuccessMessage"] = $"{viewModel.ItemType} item created successfully!";
+                
+                // Redirect back to the appropriate expense filter
+                return RedirectToAction("Index", new { itemTypeFilter = viewModel.ItemType.ToString() });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating expense item: {PartNumber}", viewModel.PartNumber);
+            ModelState.AddModelError("", $"Error creating expense item: {ex.Message}");
+        }
+
+        // Reload view data on error
+        await LoadVendorsForView();
+        return View(viewModel);
+    }
+
+    // GET: Test endpoint to verify ProcessBulkUpload is working
+    [HttpGet]
+    public IActionResult TestProcessBulkUpload()
+    {
+        return Json(new
+        {
+            Success = true,
+            Message = "ProcessBulkUpload endpoint is accessible",
+            Route = "Items/ProcessBulkUpload",
+            Method = "POST",
+            RequiredFields = new[]
+            {
+                "PreviewItems[].PartNumber",
+                "PreviewItems[].Description",
+                "PreviewItems[].Comments",
+                "PreviewItems[].MinimumStock",
+                "PreviewItems[].RowNumber",
+                "PreviewItems[].VendorPartNumber",
+                "PreviewItems[].PreferredVendor",
+                "PreviewItems[].Manufacturer",
+                "PreviewItems[].ManufacturerPartNumber",
+                "PreviewItems[].IsSellable",
+                "PreviewItems[].IsExpense",
+                "PreviewItems[].ItemType",
+                "PreviewItems[].Version",
+                "PreviewItems[].UnitOfMeasure",
+                "PreviewItems[].InitialQuantity",
+                "PreviewItems[].InitialCostPerUnit",
+                "PreviewItems[].InitialVendor",
+                "PreviewItems[].InitialPurchaseDate",
+                "PreviewItems[].InitialPurchaseOrderNumber"
+            },
+            Timestamp = DateTime.Now
+        });
+    }
+
+    // POST: Test endpoint to verify ProcessBulkUpload model binding
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestProcessBulkUpload(BulkItemUploadViewModel model)
+    {
+        _logger.LogInformation("TestProcessBulkUpload called. Model is null: {IsNull}", model == null);
+        _logger.LogInformation("PreviewItems count: {Count}", model?.PreviewItems?.Count ?? 0);
+
+        return Json(new
+        {
+            Success = true,
+            Message = "Test ProcessBulkUpload received data successfully",
+            ModelIsNull = model == null,
+            PreviewItemsCount = model?.PreviewItems?.Count ?? 0,
+            PreviewItemsData = model?.PreviewItems?.Take(3)?.Select(p => new
+            {
+                p.PartNumber,
+                p.Description,
+                p.ItemType,
+                p.RowNumber
+            }),
+            ModelStateIsValid = ModelState.IsValid,
+            ModelStateErrors = ModelState.Where(ms => ms.Value.Errors.Any())
+                .ToDictionary(ms => ms.Key, ms => ms.Value.Errors.Select(e => e.ErrorMessage)),
+            Timestamp = DateTime.Now
+        });
     }
   }
 }
