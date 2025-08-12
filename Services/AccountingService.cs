@@ -1000,5 +1000,111 @@ namespace InventorySystem.Services
 
 			return dashboard;
 		}
+
+		public async Task<bool> GenerateJournalEntriesForCustomerPaymentAsync(CustomerPayment payment)
+		{
+			try
+			{
+				if (payment.IsJournalEntryGenerated) return true;
+
+				var journalNumber = await GenerateNextJournalNumberAsync("JE-PMT");
+				var entries = new List<GeneralLedgerEntry>();
+
+				// Get the sale for context
+				var sale = await _context.Sales
+						.Include(s => s.Customer)
+						.FirstOrDefaultAsync(s => s.Id == payment.SaleId);
+
+				if (sale == null)
+				{
+					_logger.LogError("Sale {SaleId} not found for payment {PaymentId}", payment.SaleId, payment.Id);
+					return false;
+				}
+
+				// Determine cash account based on payment method
+				var cashAccountCode = GetCashAccountCodeByPaymentMethod(payment.PaymentMethod);
+				var cashAccount = await GetAccountByCodeAsync(cashAccountCode);
+
+				if (cashAccount == null)
+				{
+					_logger.LogError("Cash account {AccountCode} not found for payment method {PaymentMethod}",
+							cashAccountCode, payment.PaymentMethod);
+					return false;
+				}
+
+				// Debit: Cash/Bank Account
+				entries.Add(new GeneralLedgerEntry
+				{
+					TransactionDate = payment.PaymentDate,
+					TransactionNumber = journalNumber,
+					AccountId = cashAccount.Id,
+					Description = $"Customer payment: {sale.Customer?.CustomerName ?? "Unknown Customer"} - {sale.SaleNumber}",
+					DebitAmount = payment.Amount,
+					CreditAmount = 0,
+					ReferenceType = "CustomerPayment",
+					ReferenceId = payment.Id
+				});
+
+				// Credit: Accounts Receivable
+				var arAccount = await GetAccountByCodeAsync("1100");
+				if (arAccount == null)
+				{
+					_logger.LogError("Accounts Receivable account (1100) not found");
+					return false;
+				}
+
+				entries.Add(new GeneralLedgerEntry
+				{
+					TransactionDate = payment.PaymentDate,
+					TransactionNumber = journalNumber,
+					AccountId = arAccount.Id,
+					Description = $"Payment received: {sale.Customer?.CustomerName ?? "Unknown Customer"} - {sale.SaleNumber}",
+					DebitAmount = 0,
+					CreditAmount = payment.Amount,
+					ReferenceType = "CustomerPayment",
+					ReferenceId = payment.Id
+				});
+
+				await CreateJournalEntriesAsync(entries);
+
+				// Update payment to mark journal entry as generated
+				payment.JournalEntryNumber = journalNumber;
+				payment.IsJournalEntryGenerated = true;
+
+				await _context.SaveChangesAsync();
+
+				_logger.LogInformation("Generated journal entry {JournalNumber} for customer payment {PaymentId}",
+						journalNumber, payment.Id);
+
+				return true;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error generating journal entries for customer payment {PaymentId}", payment.Id);
+				return false;
+			}
+		}
+
+		// Helper method to determine cash account based on payment method
+		private string GetCashAccountCodeByPaymentMethod(string paymentMethod)
+		{
+			return paymentMethod?.ToLower() switch
+			{
+				"cash" => "1000",           // Cash
+				"check" => "1010",          // Checking Account
+				"credit card" => "1020",    // Credit Card Clearing
+				"debit card" => "1010",     // Checking Account
+				"bank transfer" => "1010",  // Checking Account
+				"ach" => "1010",           // Checking Account
+				"wire transfer" => "1010",  // Checking Account
+				"paypal" => "1030",        // PayPal Account
+				"stripe" => "1031",        // Stripe Account
+				"square" => "1032",        // Square Account
+				_ => "1000"                // Default to Cash
+			};
+		}
+
+
+
 	}
 }

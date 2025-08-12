@@ -515,8 +515,28 @@ namespace InventorySystem.Data
         entity.HasIndex(p => new { p.ItemId, p.PurchaseDate })
               .HasDatabaseName("IX_Purchases_ItemId_PurchaseDate");
       });
+			// ENHANCED CUSTOMER PAYMENT CONFIGURATION
+			modelBuilder.Entity<CustomerPayment>(entity =>
+			{
+				// ... your existing CustomerPayment configuration ...
 
-      ConfigureAccountingEntities(modelBuilder);
+				// ADD THESE NEW CONFIGURATIONS:
+				entity.Property(e => e.JournalEntryNumber)
+						.HasMaxLength(50);
+
+				entity.Property(e => e.IsJournalEntryGenerated)
+						.HasDefaultValue(false);
+
+				// Add indexes for performance
+				entity.HasIndex(e => e.JournalEntryNumber)
+						.HasDatabaseName("IX_CustomerPayments_JournalEntryNumber");
+
+				entity.HasIndex(e => e.IsJournalEntryGenerated)
+						.HasDatabaseName("IX_CustomerPayments_IsJournalEntryGenerated");
+			});
+
+
+			ConfigureAccountingEntities(modelBuilder);
 
 		}
 

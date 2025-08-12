@@ -446,7 +446,7 @@ namespace InventorySystem.Controllers
 		}
 
 		[HttpGet]
-		public Task<IActionResult> RecordPayment(int? saleId)
+		public async Task<IActionResult> RecordPayment(int? saleId)
 		{
 			if (saleId.HasValue)
 			{

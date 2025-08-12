@@ -71,8 +71,15 @@ namespace InventorySystem.Models
         [Display(Name = "Is Recent")]
         public bool IsRecent => DaysSincePayment <= 30;
 
-        // Validation
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+		    [StringLength(50)]
+		    [Display(Name = "Journal Entry Number")]
+		    public string? JournalEntryNumber { get; set; }
+
+		    [Display(Name = "Journal Entry Generated")]
+		    public bool IsJournalEntryGenerated { get; set; } = false;
+
+		// Validation
+		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             var results = new List<ValidationResult>();
 

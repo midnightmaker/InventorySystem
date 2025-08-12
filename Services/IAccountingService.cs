@@ -33,6 +33,7 @@ namespace InventorySystem.Services
 		Task<bool> GenerateJournalEntriesForSaleAsync(Sale sale);
 		Task<bool> GenerateJournalEntriesForProductionAsync(Production production);
 		Task<bool> GenerateJournalEntriesForVendorPaymentAsync(VendorPayment payment);
+		Task<bool> GenerateJournalEntriesForCustomerPaymentAsync(CustomerPayment payment);
 
 		// ============= Account Balances =============
 		Task<decimal> GetAccountBalanceAsync(string accountCode, DateTime? asOfDate = null);

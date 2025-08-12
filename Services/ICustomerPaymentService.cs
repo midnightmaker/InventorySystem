@@ -5,8 +5,8 @@ namespace InventorySystem.Services
 {
     public interface ICustomerPaymentService
     {
-        // Basic CRUD operations
-        Task<CustomerPayment> CreatePaymentAsync(CustomerPayment payment);
+		    // Basic CRUD operations
+		    Task<CustomerPayment> CreatePaymentAsync(CustomerPayment payment);
         Task<CustomerPayment> UpdatePaymentAsync(CustomerPayment payment);
         Task<CustomerPayment?> GetPaymentByIdAsync(int id);
         Task<IEnumerable<CustomerPayment>> GetAllPaymentsAsync();

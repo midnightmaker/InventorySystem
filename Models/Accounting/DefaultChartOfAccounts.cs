@@ -291,8 +291,69 @@ namespace InventorySystem.Models.Accounting
 										AccountType = AccountType.Expense,
 										AccountSubType = AccountSubType.OperatingExpense,
 										IsSystemAccount = true
-								}
-						};
+								},
+								// Cash Accounts (1000-1099)
+								new()
+				{
+						AccountCode = "1010",
+						AccountName = "Checking Account",
+						Description = "Primary business checking account",
+						AccountType = AccountType.Asset,
+						AccountSubType = AccountSubType.CurrentAsset,
+						IsActive = true,
+						IsSystemAccount = true,
+						CreatedDate = DateTime.Now,
+						CreatedBy = "System"
+				},
+				new ()
+				{
+						AccountCode = "1020",
+						AccountName = "Credit Card Clearing",
+						Description = "Credit card payments clearing account",
+						AccountType = AccountType.Asset,
+						AccountSubType = AccountSubType.CurrentAsset,
+						IsActive = true,
+						IsSystemAccount = true,
+						CreatedDate = DateTime.Now,
+						CreatedBy = "System"
+				},
+				new ()
+				{
+						AccountCode = "1030",
+						AccountName = "PayPal Account",
+						Description = "PayPal payment clearing account",
+						AccountType = AccountType.Asset,
+						AccountSubType = AccountSubType.CurrentAsset,
+						IsActive = true,
+						IsSystemAccount = true,
+						CreatedDate = DateTime.Now,
+						CreatedBy = "System"
+				},
+				new ()
+				{
+						AccountCode = "1031",
+						AccountName = "Stripe Account",
+						Description = "Stripe payment clearing account",
+						AccountType = AccountType.Asset,
+						AccountSubType = AccountSubType.CurrentAsset,
+						IsActive = true,
+						IsSystemAccount = true,
+						CreatedDate = DateTime.Now,
+						CreatedBy = "System"
+				},
+				new ()
+				{
+						AccountCode = "1032",
+						AccountName = "Square Account",
+						Description = "Square payment clearing account",
+						AccountType = AccountType.Asset,
+						AccountSubType = AccountSubType.CurrentAsset,
+						IsActive = true,
+						IsSystemAccount = true,
+						CreatedDate = DateTime.Now,
+						CreatedBy = "System"
+				}
+			};
 		}
 
 		// Mapping helper for your existing ItemType enum
