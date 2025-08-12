@@ -16,25 +16,29 @@ namespace InventorySystem.Controllers
     private readonly IInventoryService _inventoryService;
     private readonly IVendorService _vendorService;
     private readonly InventoryContext _context;
+    private readonly IAccountingService _accountingService;
 
-    // Pagination constants
-    private const int DefaultPageSize = 25;
+		// Pagination constants
+		private const int DefaultPageSize = 25;
     private const int MaxPageSize = 100;
     private readonly int[] AllowedPageSizes = { 10, 25, 50, 100 };
 
     public PurchasesController(
-        IPurchaseService purchaseService,
-        IInventoryService inventoryService,
-        IVendorService vendorService,
-        InventoryContext context)
-    {
-      _purchaseService = purchaseService;
-      _inventoryService = inventoryService;
-      _vendorService = vendorService;
-      _context = context;
-    }
+				IPurchaseService purchaseService,
+				IInventoryService inventoryService,
+				IVendorService vendorService,
+				InventoryContext context,
+				IAccountingService accountingService)
+		{
+			_purchaseService = purchaseService;
+			_inventoryService = inventoryService;
+			_vendorService = vendorService;
+			_context = context;
+      _accountingService = accountingService;
+			_accountingService = accountingService;
+		}
 
-    public async Task<IActionResult> Index(
+		public async Task<IActionResult> Index(
         string search,
         string vendorFilter,
         string statusFilter,
@@ -473,7 +477,13 @@ namespace InventorySystem.Controllers
 
         Console.WriteLine($"Purchase created successfully with ID: {purchase.Id}");
         TempData["SuccessMessage"] = $"Purchase recorded successfully! ID: {purchase.Id}";
-        return RedirectToAction("Index");
+				var createdPurchase = await _purchaseService.CreatePurchaseAsync(purchase);
+
+				// Add this line for automatic accounting:
+				await _accountingService.GenerateJournalEntriesForPurchaseAsync(createdPurchase);
+
+
+				return RedirectToAction("Index");
       }
       catch (Exception ex)
       {

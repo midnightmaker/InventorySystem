@@ -84,6 +84,9 @@ builder.Services.AddScoped<IProductionService, ProductionService>();
 // Register the new Customer service
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 
+// Register the main accounting service
+builder.Services.AddScoped<IAccountingService, AccountingService>();
+
 // Configure file upload limits and request sizes
 builder.Services.Configure<FormOptions>(options =>
 {

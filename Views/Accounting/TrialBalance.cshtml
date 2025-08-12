@@ -1,0 +1,306 @@
+﻿@model InventorySystem.ViewModels.Accounting.TrialBalanceViewModel
+@{
+  ViewData["Title"] = "Trial Balance";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-balance-scale"></i> Trial Balance</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    <button class="btn btn-success" onclick="exportTrialBalance()">
+      <i class="fas fa-download"></i> Export PDF
+    </button>
+    <button class="btn btn-outline-success" onclick="exportTrialBalanceExcel()">
+      <i class="fas fa-file-excel"></i> Export Excel
+    </button>
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Date Selection -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5><i class="fas fa-calendar-alt"></i> Report Date</h5>
+  </div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row">
+        <div class="col-md-4">
+          <div class="mb-3">
+            <label class="form-label">As of Date</label>
+            <input type="date" name="asOfDate" class="form-control"
+                   value="@Model.AsOfDate.ToString("yyyy-MM-dd")" />
+          </div>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary mb-3">
+            <i class="fas fa-refresh"></i> Update Report
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Balance Status Alert -->
+@if (!Model.IsBalanced && Model.Entries.Any())
+{
+  <div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>Trial Balance Error:</strong>
+    The books are out of balance! Debits (@Model.TotalDebits.ToString("C")) do not equal Credits (@Model.TotalCredits.ToString("C")).
+    <br><strong>Difference: @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")</strong>
+    <br><small>Please review your journal entries for errors.</small>
+  </div>
+}
+else if (Model.IsBalanced && Model.Entries.Any())
+{
+  <div class="alert alert-success">
+    <i class="fas fa-check-circle"></i>
+    <strong>Trial Balance Confirmed:</strong>
+    The books are in balance. Debits equal Credits (@Model.TotalDebits.ToString("C")).
+  </div>
+}
+
+<!-- Trial Balance Report -->
+<div class="card">
+  <div class="card-header text-center">
+    <h4>Trial Balance</h4>
+    <h6 class="text-muted">As of @Model.AsOfDate.ToString("MMMM dd, yyyy")</h6>
+  </div>
+  <div class="card-body p-0">
+    @if (Model.Entries.Any())
+    {
+      <div class="table-responsive">
+        <table class="table table-bordered mb-0">
+          <thead class="table-dark">
+            <tr>
+              <th>Account Code</th>
+              <th>Account Name</th>
+              <th class="text-end">Debit Balance</th>
+              <th class="text-end">Credit Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var accountType in new[] {
+                    InventorySystem.Models.Accounting.AccountType.Asset,
+                    InventorySystem.Models.Accounting.AccountType.Liability,
+                    InventorySystem.Models.Accounting.AccountType.Equity,
+                    InventorySystem.Models.Accounting.AccountType.Revenue,
+                    InventorySystem.Models.Accounting.AccountType.Expense
+                    })
+            {
+              var accountsOfType = Model.Entries.Where(e => e.AccountType == accountType).ToList();
+              if (accountsOfType.Any())
+              {
+                <!-- Account Type Header -->
+                <tr class="table-light">
+                  <td colspan="4">
+                    <strong>
+                      @accountType.ToString().ToUpper()
+                      @switch (accountType)
+                      {
+                        case InventorySystem.Models.Accounting.AccountType.Asset:
+                          <i class="fas fa-building text-success ms-2"></i>
+                          break;
+                        case InventorySystem.Models.Accounting.AccountType.Liability:
+                          <i class="fas fa-credit-card text-danger ms-2"></i>
+                          break;
+                        case InventorySystem.Models.Accounting.AccountType.Equity:
+                          <i class="fas fa-chart-pie text-primary ms-2"></i>
+                          break;
+                        case InventorySystem.Models.Accounting.AccountType.Revenue:
+                          <i class="fas fa-arrow-up text-info ms-2"></i>
+                          break;
+                        case InventorySystem.Models.Accounting.AccountType.Expense:
+                          <i class="fas fa-arrow-down text-warning ms-2"></i>
+                          break;
+                      }
+                    </strong>
+                  </td>
+                </tr>
+
+                @foreach (var entry in accountsOfType.OrderBy(e => e.AccountCode))
+                {
+                  <tr>
+                    <td>@entry.AccountCode</td>
+                    <td>@entry.AccountName</td>
+                    <td class="text-end">
+                      @if (entry.DebitBalance > 0)
+                      {
+                        <span class="fw-bold text-success">@entry.DebitBalance.ToString("C")</span>
+                      }
+                      else
+                      {
+                        <span class="text-muted">-</span>
+                      }
+                    </td>
+                    <td class="text-end">
+                      @if (entry.CreditBalance > 0)
+                      {
+                        <span class="fw-bold text-danger">@entry.CreditBalance.ToString("C")</span>
+                      }
+                      else
+                      {
+                        <span class="text-muted">-</span>
+                      }
+                    </td>
+                  </tr>
+                }
+
+                <!-- Subtotal for this account type -->
+                <tr class="table-light">
+                  <td colspan="2" class="text-end">
+                    <strong>@accountType Subtotal:</strong>
+                  </td>
+                  <td class="text-end">
+                    <strong class="text-success">
+                      @accountsOfType.Sum(e => e.DebitBalance).ToString("C")
+                    </strong>
+                  </td>
+                  <td class="text-end">
+                    <strong class="text-danger">
+                      @accountsOfType.Sum(e => e.CreditBalance).ToString("C")
+                    </strong>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+          <tfoot class="table-dark">
+            <tr>
+              <th colspan="2" class="text-end">TOTAL:</th>
+              <th class="text-end">
+                <span class="@(Model.IsBalanced ? "text-success" : "text-warning")">
+                  @Model.TotalDebits.ToString("C")
+                </span>
+              </th>
+              <th class="text-end">
+                <span class="@(Model.IsBalanced ? "text-success" : "text-warning")">
+                  @Model.TotalCredits.ToString("C")
+                </span>
+              </th>
+            </tr>
+            @if (!Model.IsBalanced)
+            {
+              <tr>
+                <th colspan="2" class="text-end text-danger">DIFFERENCE:</th>
+                <th colspan="2" class="text-end text-danger">
+                  @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")
+                </th>
+              </tr>
+            }
+          </tfoot>
+        </table>
+      </div>
+    }
+    else
+    {
+      <div class="text-center py-5">
+        <i class="fas fa-balance-scale fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">No Account Balances</h4>
+        <p class="text-muted">There are no account balances to display for the selected date.</p>
+        <div class="mt-3">
+          <a href="@Url.Action("GeneralLedger")" class="btn btn-primary">
+            <i class="fas fa-book"></i> View General Ledger
+          </a>
+          <form method="post" action="@Url.Action("GenerateJournalEntries")" class="d-inline">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-sync"></i> Generate Journal Entries
+            </button>
+          </form>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Trial Balance Summary -->
+@if (Model.Entries.Any())
+{
+  <div class="row mt-4">
+    <div class="col-md-4">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Total Accounts</h5>
+          <h3 class="text-primary">@Model.Entries.Count</h3>
+          <small class="text-muted">Accounts with balances</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Balance Check</h5>
+          @if (Model.IsBalanced)
+          {
+            <h3 class="text-success">
+              <i class="fas fa-check-circle"></i> Balanced
+            </h3>
+            <small class="text-muted">Debits = Credits</small>
+          }
+          else
+          {
+            <h3 class="text-danger">
+              <i class="fas fa-exclamation-triangle"></i> Out of Balance
+            </h3>
+            <small class="text-muted">Difference: @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")</small>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Report Date</h5>
+          <h3 class="text-info">@Model.AsOfDate.ToString("MMM dd")</h3>
+          <small class="text-muted">@Model.AsOfDate.Year</small>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<script>
+  function exportTrialBalance() {
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = '@Url.Action("ExportTrialBalancePDF")';
+
+      const asOfDateInput = document.createElement('input');
+      asOfDateInput.type = 'hidden';
+      asOfDateInput.name = 'asOfDate';
+      asOfDateInput.value = '@Model.AsOfDate.ToString("yyyy-MM-dd")';
+      form.appendChild(asOfDateInput);
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+  }
+
+  function exportTrialBalanceExcel() {
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = '@Url.Action("ExportTrialBalanceExcel")';
+
+      const asOfDateInput = document.createElement('input');
+      asOfDateInput.type = 'hidden';
+      asOfDateInput.name = 'asOfDate';
+      asOfDateInput.value = '@Model.AsOfDate.ToString("yyyy-MM-dd")';
+      form.appendChild(asOfDateInput);
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+  }
+</script>

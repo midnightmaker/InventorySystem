@@ -2,6 +2,7 @@
 using InventorySystem.Domain.Entities.Production;
 using InventorySystem.Domain.Enums;
 using InventorySystem.Models;
+using InventorySystem.Models.Accounting;
 using InventorySystem.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,6 +50,29 @@ namespace InventorySystem.Data
 
     // NEW: Add Projects DbSet for R&D project tracking
     public DbSet<Project> Projects { get; set; }
+
+		// ============= NEW ACCOUNTING DBSETS =============
+
+		/// <summary>
+		/// Chart of Accounts
+		/// </summary>
+		public DbSet<Account> Accounts { get; set; } = null!;
+
+		/// <summary>
+		/// General Ledger Entries for double-entry bookkeeping
+		/// </summary>
+		public DbSet<GeneralLedgerEntry> GeneralLedgerEntries { get; set; } = null!;
+
+		/// <summary>
+		/// Accounts Payable records
+		/// </summary>
+		public DbSet<AccountsPayable> AccountsPayable { get; set; } = null!;
+
+		/// <summary>
+		/// Vendor Payment records
+		/// </summary>
+		public DbSet<VendorPayment> VendorPayments { get; set; } = null!;
+
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -492,8 +516,9 @@ namespace InventorySystem.Data
               .HasDatabaseName("IX_Purchases_ItemId_PurchaseDate");
       });
 
+      ConfigureAccountingEntities(modelBuilder);
 
-    }
+		}
 
     private void ConfigureWorkflowEntities(ModelBuilder modelBuilder)
     {
@@ -565,8 +590,176 @@ namespace InventorySystem.Data
       });
     }
 
-    // Override SaveChanges to handle automatic timestamps
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+   
+    public static void ConfigureAccountingEntities(ModelBuilder modelBuilder)
+    {
+      // ============= ACCOUNT CONFIGURATION =============
+      modelBuilder.Entity<Account>(entity =>
+      {
+        entity.HasKey(e => e.Id);
+        entity.HasIndex(e => e.AccountCode).IsUnique();
+
+        entity.Property(e => e.AccountCode)
+            .IsRequired()
+            .HasMaxLength(10);
+
+        entity.Property(e => e.AccountName)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        entity.Property(e => e.Description)
+            .HasMaxLength(200);
+
+        entity.Property(e => e.CurrentBalance)
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0);
+
+        entity.Property(e => e.CreatedBy)
+            .HasMaxLength(100);
+
+        // Self-referencing relationship for account hierarchy
+        entity.HasOne(a => a.ParentAccount)
+            .WithMany(a => a.SubAccounts)
+            .HasForeignKey(a => a.ParentAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Relationship with ledger entries
+        entity.HasMany(a => a.LedgerEntries)
+            .WithOne(le => le.Account)
+            .HasForeignKey(le => le.AccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+      });
+
+      // ============= GENERAL LEDGER ENTRY CONFIGURATION =============
+      modelBuilder.Entity<GeneralLedgerEntry>(entity =>
+      {
+        entity.HasKey(e => e.Id);
+
+        entity.Property(e => e.TransactionNumber)
+            .IsRequired()
+            .HasMaxLength(50);
+
+        entity.Property(e => e.Description)
+            .HasMaxLength(200);
+
+        entity.Property(e => e.DebitAmount)
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0);
+
+        entity.Property(e => e.CreditAmount)
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0);
+
+        entity.Property(e => e.ReferenceType)
+            .HasMaxLength(50);
+
+        entity.Property(e => e.CreatedBy)
+            .HasMaxLength(100);
+
+        // Index for performance
+        entity.HasIndex(e => e.TransactionDate);
+        entity.HasIndex(e => e.TransactionNumber);
+        entity.HasIndex(e => new { e.ReferenceType, e.ReferenceId });
+
+        // Relationship with Account
+        entity.HasOne(le => le.Account)
+            .WithMany(a => a.LedgerEntries)
+            .HasForeignKey(le => le.AccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+      });
+
+      // ============= ACCOUNTS PAYABLE CONFIGURATION =============
+      modelBuilder.Entity<AccountsPayable>(entity =>
+      {
+        entity.HasKey(e => e.Id);
+
+        entity.Property(e => e.InvoiceNumber)
+            .IsRequired()
+            .HasMaxLength(50);
+
+        entity.Property(e => e.InvoiceAmount)
+            .HasColumnType("decimal(18,2)");
+
+        entity.Property(e => e.AmountPaid)
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0);
+
+        entity.Property(e => e.DiscountTaken)
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0);
+
+        entity.Property(e => e.Notes)
+            .HasMaxLength(200);
+
+        entity.Property(e => e.CreatedBy)
+            .HasMaxLength(100);
+
+        entity.Property(e => e.LastModifiedBy)
+            .HasMaxLength(100);
+
+        // Indexes for performance
+        entity.HasIndex(e => e.InvoiceNumber);
+        entity.HasIndex(e => e.DueDate);
+        entity.HasIndex(e => e.PaymentStatus);
+
+        // Relationships
+        entity.HasOne(ap => ap.Vendor)
+            .WithMany()
+            .HasForeignKey(ap => ap.VendorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(ap => ap.Purchase)
+            .WithMany()
+            .HasForeignKey(ap => ap.PurchaseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasMany(ap => ap.Payments)
+            .WithOne(p => p.AccountsPayable)
+            .HasForeignKey(p => p.AccountsPayableId)
+            .OnDelete(DeleteBehavior.Cascade);
+      });
+
+      // ============= VENDOR PAYMENT CONFIGURATION =============
+      modelBuilder.Entity<VendorPayment>(entity =>
+      {
+        entity.HasKey(e => e.Id);
+
+        entity.Property(e => e.PaymentAmount)
+            .HasColumnType("decimal(18,2)");
+
+        entity.Property(e => e.DiscountAmount)
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0);
+
+        entity.Property(e => e.CheckNumber)
+            .HasMaxLength(50);
+
+        entity.Property(e => e.BankAccount)
+            .HasMaxLength(50);
+
+        entity.Property(e => e.Notes)
+            .HasMaxLength(200);
+
+        entity.Property(e => e.ReferenceNumber)
+            .HasMaxLength(50);
+
+        entity.Property(e => e.CreatedBy)
+            .HasMaxLength(100);
+
+        // Indexes
+        entity.HasIndex(e => e.PaymentDate);
+        entity.HasIndex(e => e.CheckNumber);
+
+        // Relationship
+        entity.HasOne(p => p.AccountsPayable)
+            .WithMany(ap => ap.Payments)
+            .HasForeignKey(p => p.AccountsPayableId)
+            .OnDelete(DeleteBehavior.Cascade);
+      });
+    }
+    
+			// Override SaveChanges to handle automatic timestamps
+			public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
       var entries = ChangeTracker
           .Entries()

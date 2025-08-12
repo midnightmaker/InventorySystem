@@ -1,0 +1,312 @@
+﻿@model InventorySystem.ViewModels.Accounting.SetupViewModel
+@{
+  ViewData["Title"] = "Accounting Setup";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-cog"></i> Accounting System Setup</h1>
+  @if (Model.IsSystemInitialized)
+  {
+    <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+  }
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> @Model.StatusMessage
+  </div>
+}
+
+<div class="row">
+  <div class="col-md-8">
+    @if (!Model.IsSystemInitialized)
+    {
+      <!-- Initial Setup -->
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5><i class="fas fa-rocket"></i> Welcome to the Accounting System</h5>
+        </div>
+        <div class="card-body">
+          <p>Your accounting system needs to be initialized before you can start using it. This setup process will:</p>
+          <ul>
+            <li><strong>Create a Chart of Accounts</strong> - Standard accounting accounts for your manufacturing business</li>
+            <li><strong>Set up Account Categories</strong> - Assets, Liabilities, Equity, Revenue, and Expenses</li>
+            <li><strong>Configure Integration</strong> - Connect with your existing inventory and sales data</li>
+            <li><strong>Prepare Reports</strong> - Enable financial reporting and analysis</li>
+          </ul>
+
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Important:</strong> This setup process will create system accounts that are essential for proper accounting.
+            These accounts should not be deleted after creation.
+          </div>
+
+          <form asp-action="Setup" method="post" class="mt-4">
+            <div class="form-check mb-3">
+              <input asp-for="SeedDefaultAccounts" class="form-check-input" checked>
+              <label asp-for="SeedDefaultAccounts" class="form-check-label">
+                <strong>Create Default Chart of Accounts</strong>
+              </label>
+              <div class="form-text">
+                Creates a complete set of standard accounting accounts tailored for manufacturing businesses.
+              </div>
+            </div>
+
+            <div class="form-check mb-4">
+              <input asp-for="GenerateHistoricalEntries" class="form-check-input">
+              <label asp-for="GenerateHistoricalEntries" class="form-check-label">
+                <strong>Generate Journal Entries for Existing Transactions</strong>
+              </label>
+              <div class="form-text">
+                Creates accounting entries for your existing purchases and sales. This ensures your books are complete from day one.
+              </div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-rocket"></i> Initialize Accounting System
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
+    else
+    {
+      <!-- System Already Initialized -->
+      <div class="card">
+        <div class="card-header bg-success text-white">
+          <h5><i class="fas fa-check-circle"></i> Accounting System Initialized</h5>
+        </div>
+        <div class="card-body">
+          <p>Your accounting system is set up and ready to use! You can:</p>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="list-group">
+                <a href="@Url.Action("Index")" class="list-group-item list-group-item-action">
+                  <i class="fas fa-tachometer-alt text-primary"></i>
+                  <strong class="ms-2">View Dashboard</strong>
+                  <small class="d-block text-muted ms-4">See your financial overview</small>
+                </a>
+                <a href="@Url.Action("ChartOfAccounts")" class="list-group-item list-group-item-action">
+                  <i class="fas fa-list text-success"></i>
+                  <strong class="ms-2">Manage Accounts</strong>
+                  <small class="d-block text-muted ms-4">View and edit your chart of accounts</small>
+                </a>
+                <a href="@Url.Action("GeneralLedger")" class="list-group-item list-group-item-action">
+                  <i class="fas fa-book text-info"></i>
+                  <strong class="ms-2">View Transactions</strong>
+                  <small class="d-block text-muted ms-4">Browse all accounting transactions</small>
+                </a>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="list-group">
+                <a href="@Url.Action("TrialBalance")" class="list-group-item list-group-item-action">
+                  <i class="fas fa-balance-scale text-warning"></i>
+                  <strong class="ms-2">Trial Balance</strong>
+                  <small class="d-block text-muted ms-4">Verify your books balance</small>
+                </a>
+                <a href="@Url.Action("BalanceSheet")" class="list-group-item list-group-item-action">
+                  <i class="fas fa-building text-primary"></i>
+                  <strong class="ms-2">Balance Sheet</strong>
+                  <small class="d-block text-muted ms-4">View assets, liabilities, and equity</small>
+                </a>
+                <a href="@Url.Action("IncomeStatement")" class="list-group-item list-group-item-action">
+                  <i class="fas fa-chart-line text-success"></i>
+                  <strong class="ms-2">Income Statement</strong>
+                  <small class="d-block text-muted ms-4">See revenue, expenses, and profit</small>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Setup Options -->
+          <div class="mt-4">
+            <h6>Additional Setup Options:</h6>
+            <form asp-action="Setup" method="post" class="d-inline">
+              <input type="hidden" name="SeedDefaultAccounts" value="false">
+              <input type="hidden" name="GenerateHistoricalEntries" value="true">
+              <button type="submit" class="btn btn-outline-success">
+                <i class="fas fa-sync"></i> Generate Journal Entries for Existing Transactions
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="col-md-4">
+    <!-- Setup Information -->
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-info-circle"></i> What Gets Created</h6>
+      </div>
+      <div class="card-body">
+        <div class="setup-info">
+          <div class="mb-3">
+            <h6 class="text-success"><i class="fas fa-building"></i> Assets (@($"1000-1999"))</h6>
+            <ul class="small">
+              <li>Cash - Operating (1000)</li>
+              <li>Accounts Receivable (1100)</li>
+              <li>Raw Materials Inventory (1200)</li>
+              <li>Finished Goods Inventory (1220)</li>
+              <li>Manufacturing Equipment (1600)</li>
+              <li>Software & Licenses (1900)</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-danger"><i class="fas fa-credit-card"></i> Liabilities (@($"2000-2999"))</h6>
+            <ul class="small">
+              <li>Accounts Payable (2000)</li>
+              <li>Accrued Expenses (2200)</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-primary"><i class="fas fa-chart-pie"></i> Equity (@($"3000-3999"))</h6>
+            <ul class="small">
+              <li>Owner's Equity (3000)</li>
+              <li>Retained Earnings (3100)</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-info"><i class="fas fa-arrow-up"></i> Revenue (@($"4000-4999"))</h6>
+            <ul class="small">
+              <li>Product Sales (4000)</li>
+              <li>Service Revenue (4100)</li>
+              <li>Custom Manufacturing (4200)</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-warning"><i class="fas fa-arrow-down"></i> Expenses (@($"5000-6999"))</h6>
+            <ul class="small">
+              <li>Cost of Goods Sold (5000)</li>
+              <li>Direct Labor (5200)</li>
+              <li>Utilities (6210-6240)</li>
+              <li>Software Subscriptions (6300)</li>
+              <li>Manufacturing Supplies (6710)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integration Info -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-plug"></i> System Integration</h6>
+      </div>
+      <div class="card-body">
+        <p class="small">The accounting system automatically integrates with:</p>
+        <ul class="small">
+          <li><strong>Inventory Management</strong> - Tracks inventory values and movements</li>
+          <li><strong>Sales System</strong> - Records revenue and accounts receivable</li>
+          <li><strong>Purchase System</strong> - Manages expenses and accounts payable</li>
+          <li><strong>Production System</strong> - Calculates cost of goods sold</li>
+        </ul>
+        <div class="alert alert-info alert-sm">
+          <small>
+            <i class="fas fa-lightbulb"></i>
+            Journal entries are automatically generated when you create sales, purchases, or production records.
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help & Support -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-question-circle"></i> Need Help?</h6>
+      </div>
+      <div class="card-body">
+        <p class="small">Common questions:</p>
+        <div class="accordion accordion-flush" id="helpAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help1">
+                Can I modify the accounts later?
+              </button>
+            </h2>
+            <div id="help1" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body small">
+                Yes! You can add, edit, or deactivate accounts anytime. System accounts (marked with SYS) should not be deleted as they're required for proper integration.
+              </div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help2">
+                What about my existing data?
+              </button>
+            </h2>
+            <div id="help2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body small">
+                Your existing inventory, sales, and purchase data remains unchanged. The setup creates accounting entries to track financial impacts going forward.
+              </div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help3">
+                Is this real double-entry accounting?
+              </button>
+            </h2>
+            <div id="help3" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body small">
+                Yes! Every transaction creates balanced journal entries where debits equal credits. You'll get proper financial statements suitable for accounting professionals.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (!Model.IsSystemInitialized)
+{
+  <script>
+    // Add some interactivity to make the setup process feel more engaging
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const button = form.querySelector('button[type="submit"]');
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing...';
+                button.disabled = true;
+            });
+        }
+    });
+  </script>
+}
+
+@section Scripts {
+  @{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+  }
+}

@@ -1,0 +1,238 @@
+﻿@model InventorySystem.ViewModels.Accounting.CreateAccountViewModel
+@{
+  ViewData["Title"] = "Create Account";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-plus"></i> Create New Account</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("ChartOfAccounts")" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Chart of Accounts
+    </a>
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-edit"></i> Account Information</h5>
+      </div>
+      <div class="card-body">
+        <form asp-action="CreateAccount" method="post">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="AccountCode" class="form-label">
+                  Account Code <span class="text-danger">*</span>
+                </label>
+                <input asp-for="AccountCode" class="form-control" placeholder="e.g., 1000, 4000" />
+                <span asp-validation-for="AccountCode" class="text-danger"></span>
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i>
+                  Use standard numbering: 1000-1999 (Assets), 2000-2999 (Liabilities),
+                  3000-3999 (Equity), 4000-4999 (Revenue), 5000-6999 (Expenses)
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="AccountName" class="form-label">
+                  Account Name <span class="text-danger">*</span>
+                </label>
+                <input asp-for="AccountName" class="form-control" placeholder="e.g., Cash - Operating" />
+                <span asp-validation-for="AccountName" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">Description</label>
+            <textarea asp-for="Description" class="form-control" rows="3"
+                      placeholder="Brief description of this account's purpose..."></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="AccountType" class="form-label">
+                  Account Type <span class="text-danger">*</span>
+                </label>
+                <select asp-for="AccountType" class="form-select" id="accountTypeSelect">
+                  <option value="">-- Select Account Type --</option>
+                  <option value="1">Asset</option>
+                  <option value="2">Liability</option>
+                  <option value="3">Equity</option>
+                  <option value="4">Revenue</option>
+                  <option value="5">Expense</option>
+                </select>
+                <span asp-validation-for="AccountType" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="AccountSubType" class="form-label">
+                  Account Sub Type <span class="text-danger">*</span>
+                </label>
+                <select asp-for="AccountSubType" class="form-select" id="accountSubTypeSelect">
+                  <option value="">-- Select Sub Type --</option>
+                </select>
+                <span asp-validation-for="AccountSubType" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="ParentAccountId" class="form-label">Parent Account (Optional)</label>
+            <select asp-for="ParentAccountId" class="form-select">
+              <option value="">-- No Parent Account --</option>
+              @foreach (var parentAccount in Model.AvailableParentAccounts.OrderBy(a => a.AccountCode))
+              {
+                <option value="@parentAccount.Id">@parentAccount.AccountCode - @parentAccount.AccountName</option>
+              }
+            </select>
+            <span asp-validation-for="ParentAccountId" class="text-danger"></span>
+            <div class="form-text">
+              <i class="fas fa-info-circle"></i>
+              Select a parent account to create a sub-account hierarchy
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <a href="@Url.Action("ChartOfAccounts")" class="btn btn-secondary">
+              <i class="fas fa-times"></i> Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Create Account
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <!-- Account Type Guide -->
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-question-circle"></i> Account Type Guide</h6>
+      </div>
+      <div class="card-body">
+        <div class="account-type-guide">
+          <div class="mb-3">
+            <h6 class="text-success"><i class="fas fa-building"></i> Assets (1000-1999)</h6>
+            <small class="text-muted">What your company owns</small>
+            <ul class="small mt-1">
+              <li>Cash accounts</li>
+              <li>Accounts receivable</li>
+              <li>Inventory</li>
+              <li>Equipment</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-danger"><i class="fas fa-credit-card"></i> Liabilities (2000-2999)</h6>
+            <small class="text-muted">What your company owes</small>
+            <ul class="small mt-1">
+              <li>Accounts payable</li>
+              <li>Loans</li>
+              <li>Accrued expenses</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-primary"><i class="fas fa-chart-pie"></i> Equity (3000-3999)</h6>
+            <small class="text-muted">Owner's stake in the company</small>
+            <ul class="small mt-1">
+              <li>Owner's equity</li>
+              <li>Retained earnings</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-info"><i class="fas fa-arrow-up"></i> Revenue (4000-4999)</h6>
+            <small class="text-muted">Money coming in</small>
+            <ul class="small mt-1">
+              <li>Product sales</li>
+              <li>Service revenue</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-warning"><i class="fas fa-arrow-down"></i> Expenses (5000-6999)</h6>
+            <small class="text-muted">Money going out</small>
+            <ul class="small mt-1">
+              <li>Cost of goods sold</li>
+              <li>Operating expenses</li>
+              <li>Utilities</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      const accountTypeSelect = document.getElementById('accountTypeSelect');
+      const accountSubTypeSelect = document.getElementById('accountSubTypeSelect');
+
+      const subTypeOptions = {
+          '1': [ // Asset
+              { value: '101', text: 'Current Asset' },
+              { value: '102', text: 'Fixed Asset' },
+              { value: '103', text: 'Inventory Asset' }
+          ],
+          '2': [ // Liability
+              { value: '201', text: 'Current Liability' },
+              { value: '202', text: 'Long Term Liability' }
+          ],
+          '3': [ // Equity
+              { value: '301', text: 'Owner Equity' },
+              { value: '302', text: 'Retained Earnings' }
+          ],
+          '4': [ // Revenue
+              { value: '401', text: 'Sales Revenue' },
+              { value: '402', text: 'Service Revenue' }
+          ],
+          '5': [ // Expense
+              { value: '501', text: 'Cost of Goods Sold' },
+              { value: '502', text: 'Operating Expense' },
+              { value: '503', text: 'Utility Expense' },
+              { value: '504', text: 'Subscription Expense' }
+          ]
+      };
+
+      accountTypeSelect.addEventListener('change', function() {
+          const accountType = this.value;
+
+          // Clear existing options
+          accountSubTypeSelect.innerHTML = '<option value="">-- Select Sub Type --</option>';
+
+          if (accountType && subTypeOptions[accountType]) {
+              subTypeOptions[accountType].forEach(option => {
+                  const optionElement = document.createElement('option');
+                  optionElement.value = option.value;
+                  optionElement.textContent = option.text;
+                  accountSubTypeSelect.appendChild(optionElement);
+              });
+          }
+      });
+  });
+</script>
+
+@section Scripts {
+  @{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+  }
+}

@@ -1,4 +1,5 @@
 // Models/Purchase.cs - Enhanced with higher precision decimal fields
+using InventorySystem.Models.Accounting;
 using InventorySystem.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -90,5 +91,109 @@ namespace InventorySystem.Models
     public virtual Project? Project { get; set; }
 
     public virtual ICollection<PurchaseDocument> PurchaseDocuments { get; set; } = new List<PurchaseDocument>();
-  }
+
+		// ============= NEW ACCOUNTING PROPERTIES =============
+
+		/// <summary>
+		/// General Ledger account code for this purchase (e.g., "1200" for Raw Materials Inventory)
+		/// </summary>
+		[StringLength(10)]
+		public string? AccountCode { get; set; }
+
+		/// <summary>
+		/// Reference to the journal entry number generated for this purchase
+		/// </summary>
+		[StringLength(50)]
+		public string? JournalEntryNumber { get; set; }
+
+		/// <summary>
+		/// Indicates whether journal entries have been generated for this purchase
+		/// </summary>
+		public bool IsJournalEntryGenerated { get; set; } = false;
+
+		/// <summary>
+		/// When journal entries were generated
+		/// </summary>
+		public DateTime? JournalEntryGeneratedDate { get; set; }
+
+		/// <summary>
+		/// Who generated the journal entries
+		/// </summary>
+		[StringLength(100)]
+		public string? JournalEntryGeneratedBy { get; set; }
+
+		// ============= COMPUTED PROPERTIES =============
+
+		/// <summary>
+		/// Gets the default GL account code based on item type and material type
+		/// </summary>
+		[NotMapped]
+		public string DefaultAccountCode => Item?.ItemType.GetDefaultPurchaseAccountCode(Item?.MaterialType) ?? "6000";
+
+		/// <summary>
+		/// Indicates if this purchase affects inventory (vs. immediate expense)
+		/// </summary>
+		[NotMapped]
+		public bool IsInventoryPurchase => Item?.ItemType == ItemType.Inventoried;
+
+		/// <summary>
+		/// Indicates if this purchase is an immediate expense
+		/// </summary>
+		[NotMapped]
+		public bool IsExpensePurchase => !IsInventoryPurchase;
+
+		// ============= HELPER METHODS =============
+
+		/// <summary>
+		/// Gets the account name this purchase should be posted to
+		/// </summary>
+		public string GetAccountName()
+		{
+			if (Item == null) return "General Operating Expenses";
+
+			return Item.ItemType switch
+			{
+				ItemType.Inventoried when Item.MaterialType == MaterialType.RawMaterial => "Raw Materials Inventory",
+				ItemType.Inventoried when Item.MaterialType == MaterialType.Transformed => "Finished Goods Inventory",
+				ItemType.Inventoried when Item.MaterialType == MaterialType.WorkInProcess => "Work in Process Inventory",
+				ItemType.Inventoried => "Raw Materials Inventory",
+				ItemType.NonInventoried => "Raw Materials Used",
+				ItemType.Service => "Direct Labor",
+				ItemType.Expense => "General Operating Expenses",
+				ItemType.Utility => "Utilities",
+				ItemType.Subscription => "Software Subscriptions",
+				ItemType.Virtual => "Software & Licenses",
+				ItemType.Consumable => "Manufacturing Supplies",
+				ItemType.RnDMaterials => "R&D Materials",
+				_ => "General Operating Expenses"
+			};
+		}
+
+		/// <summary>
+		/// Determines if this purchase requires journal entry generation
+		/// </summary>
+		public bool RequiresJournalEntry()
+		{
+			return !IsJournalEntryGenerated && Status == PurchaseStatus.Received;
+		}
+
+		/// <summary>
+		/// Gets the expense category for reporting
+		/// </summary>
+		public string GetExpenseCategory()
+		{
+			if (Item?.ItemType == ItemType.Inventoried) return "Inventory";
+
+			return Item?.ItemType switch
+			{
+				ItemType.Utility => "Utilities",
+				ItemType.Subscription => "Software & Subscriptions",
+				ItemType.Service => "Professional Services",
+				ItemType.Consumable => "Supplies",
+				ItemType.RnDMaterials => "Research & Development",
+				ItemType.Expense => "Operating Expenses",
+				_ => "Other Expenses"
+			};
+		}
+	}
 }

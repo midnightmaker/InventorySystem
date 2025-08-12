@@ -1,0 +1,286 @@
+﻿@model InventorySystem.ViewModels.Accounting.ChartOfAccountsViewModel
+@{
+  ViewData["Title"] = "Chart of Accounts";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-list"></i> Chart of Accounts</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("CreateAccount")" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Add Account
+    </a>
+    <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Filter Controls -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5><i class="fas fa-filter"></i> Filter Accounts</h5>
+  </div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row">
+        <div class="col-md-4">
+          <div class="mb-3">
+            <label class="form-label">Search</label>
+            <input type="text" name="searchTerm" class="form-control"
+                   value="@Model.SearchTerm" placeholder="Account code or name...">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="mb-3">
+            <label class="form-label">Account Type</label>
+            <select name="filterAccountType" class="form-select">
+              <option value="">All Types</option>
+              @{
+                var assetSelected = Model.FilterAccountType == InventorySystem.Models.Accounting.AccountType.Asset;
+                var liabilitySelected = Model.FilterAccountType == InventorySystem.Models.Accounting.AccountType.Liability;
+                var equitySelected = Model.FilterAccountType == InventorySystem.Models.Accounting.AccountType.Equity;
+                var revenueSelected = Model.FilterAccountType == InventorySystem.Models.Accounting.AccountType.Revenue;
+                var expenseSelected = Model.FilterAccountType == InventorySystem.Models.Accounting.AccountType.Expense;
+              }
+              <option value="1" selected="@assetSelected">Assets</option>
+              <option value="2" selected="@liabilitySelected">Liabilities</option>
+              <option value="3" selected="@equitySelected">Equity</option>
+              <option value="4" selected="@revenueSelected">Revenue</option>
+              <option value="5" selected="@expenseSelected">Expenses</option>
+            </select>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="mb-3">
+            <div class="form-check mt-4">
+              <input type="checkbox" name="showInactiveAccounts" class="form-check-input"
+                     @(Model.ShowInactiveAccounts ? "checked" : "") value="true">
+              <label class="form-check-label">Show Inactive Accounts</label>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="mb-3">
+            <label class="form-label">&nbsp;</label>
+            <button type="submit" class="btn btn-primary d-block">
+              <i class="fas fa-search"></i> Filter
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Accounts by Type -->
+@foreach (var accountGroup in Model.AccountsByType.OrderBy(g => (int)g.Key))
+{
+  var accountType = accountGroup.Key;
+  var accounts = accountGroup.OrderBy(a => a.AccountCode).ToList();
+
+  var cardClass = accountType switch
+  {
+    InventorySystem.Models.Accounting.AccountType.Asset => "border-success",
+    InventorySystem.Models.Accounting.AccountType.Liability => "border-danger",
+    InventorySystem.Models.Accounting.AccountType.Equity => "border-primary",
+    InventorySystem.Models.Accounting.AccountType.Revenue => "border-info",
+    InventorySystem.Models.Accounting.AccountType.Expense => "border-warning",
+    _ => "border-secondary"
+  };
+
+  var iconClass = accountType switch
+  {
+    InventorySystem.Models.Accounting.AccountType.Asset => "fas fa-building text-success",
+    InventorySystem.Models.Accounting.AccountType.Liability => "fas fa-credit-card text-danger",
+    InventorySystem.Models.Accounting.AccountType.Equity => "fas fa-chart-pie text-primary",
+    InventorySystem.Models.Accounting.AccountType.Revenue => "fas fa-arrow-up text-info",
+    InventorySystem.Models.Accounting.AccountType.Expense => "fas fa-arrow-down text-warning",
+    _ => "fas fa-question"
+  };
+
+  <div class="card mb-4 @cardClass">
+    <div class="card-header">
+      <h5><i class="@iconClass"></i> @accountType (@accounts.Count accounts)</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Code</th>
+              <th>Account Name</th>
+              <th>Description</th>
+              <th class="text-end">Balance</th>
+              <th>Status</th>
+              <th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var account in accounts)
+            {
+              <tr class="@(!account.IsActive ? "table-secondary" : "")">
+                <td>
+                  <strong>@account.AccountCode</strong>
+                  @if (account.IsSystemAccount)
+                  {
+                    <span class="badge bg-secondary ms-1" title="System Account">SYS</span>
+                  }
+                </td>
+                <td>
+                  <a href="@Url.Action("AccountDetails", new { id = account.Id })"
+                     class="text-decoration-none">
+                    @account.AccountName
+                  </a>
+                  @if (account.ParentAccountId.HasValue)
+                  {
+                    <br>
+              
+                    <small class="text-muted">
+                      <i class="fas fa-arrow-right"></i> Sub-account
+                    </small>
+                  }
+                </td>
+                <td>
+                  <small class="text-muted">@account.Description</small>
+                </td>
+                <td class="text-end">
+                  @if (account.CurrentBalance != 0)
+                  {
+                    <span class="@(account.CurrentBalance > 0 ? "text-success" : "text-danger")">
+                      @account.GetFormattedBalance()
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="text-muted">$0.00</span>
+                  }
+                </td>
+                <td>
+                  @if (account.IsActive)
+                  {
+                    <span class="badge bg-success">Active</span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-secondary">Inactive</span>
+                  }
+                </td>
+                <td class="text-center">
+                  <div class="btn-group btn-group-sm">
+                    <a href="@Url.Action("AccountDetails", new { id = account.Id })"
+                       class="btn btn-outline-info" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="@Url.Action("EditAccount", new { id = account.Id })"
+                       class="btn btn-outline-primary" title="Edit Account">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    @if (!account.IsSystemAccount)
+                    {
+                      <button class="btn btn-outline-danger" title="Delete Account"
+                              onclick="confirmDelete(@account.Id, '@account.AccountName')">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}
+
+@if (!Model.Accounts.Any())
+{
+  <div class="text-center py-5">
+    <i class="fas fa-list fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">No Accounts Found</h4>
+    <p class="text-muted">
+      @if (string.IsNullOrEmpty(Model.SearchTerm) && !Model.FilterAccountType.HasValue)
+      {
+        <span>Your chart of accounts is empty.</span>
+      }
+      else
+      {
+        <span>No accounts match your search criteria.</span>
+      }
+    </p>
+    <a href="@Url.Action("Setup")" class="btn btn-primary">
+      <i class="fas fa-cog"></i> Set Up Default Accounts
+    </a>
+  </div>
+}
+
+<!-- Account Summary -->
+@if (Model.Accounts.Any())
+{
+  <div class="card mt-4">
+    <div class="card-header">
+      <h5><i class="fas fa-chart-bar"></i> Account Summary</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        @foreach (var group in Model.AccountsByType)
+        {
+          <div class="col-md">
+            <div class="text-center">
+              <h4 class="text-primary">@group.Count()</h4>
+              <small class="text-muted">@group.Key</small>
+            </div>
+          </div>
+        }
+        <div class="col-md">
+          <div class="text-center">
+            <h4 class="text-success">@Model.Accounts.Count</h4>
+            <small class="text-muted">Total Accounts</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<script>
+  function confirmDelete(accountId, accountName) {
+      if (confirm(`Are you sure you want to delete account "${accountName}"?\n\nThis action cannot be undone.`)) {
+          // Create a form to submit the delete request
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '@Url.Action("DeleteAccount")';
+
+          const idInput = document.createElement('input');
+          idInput.type = 'hidden';
+          idInput.name = 'id';
+          idInput.value = accountId;
+          form.appendChild(idInput);
+
+          const token = document.createElement('input');
+          token.type = 'hidden';
+          token.name = '__RequestVerificationToken';
+          token.value = $('input[name="__RequestVerificationToken"]').val();
+          form.appendChild(token);
+
+          document.body.appendChild(form);
+          form.submit();
+      }
+  }
+</script>

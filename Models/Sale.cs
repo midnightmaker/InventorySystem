@@ -137,5 +137,170 @@ namespace InventorySystem.Models
 
             return results;
         }
-    }
+		// ============= NEW ACCOUNTING PROPERTIES =============
+
+		/// <summary>
+		/// General Ledger revenue account code for this sale (e.g., "4000" for Product Sales)
+		/// </summary>
+		[StringLength(10)]
+		public string? RevenueAccountCode { get; set; } = "4000";
+
+		/// <summary>
+		/// Reference to the journal entry number generated for this sale
+		/// </summary>
+		[StringLength(50)]
+		public string? JournalEntryNumber { get; set; }
+
+		/// <summary>
+		/// Indicates whether journal entries have been generated for this sale
+		/// </summary>
+		public bool IsJournalEntryGenerated { get; set; } = false;
+
+		/// <summary>
+		/// When journal entries were generated
+		/// </summary>
+		public DateTime? JournalEntryGeneratedDate { get; set; }
+
+		/// <summary>
+		/// Who generated the journal entries
+		/// </summary>
+		[StringLength(100)]
+		public string? JournalEntryGeneratedBy { get; set; }
+
+		// ============= COMPUTED PROPERTIES =============
+
+		/// <summary>
+		/// Gets the default revenue account code based on sale items
+		/// </summary>
+		[NotMapped]
+		public string DefaultRevenueAccountCode
+		{
+			get
+			{
+				if (SaleItems?.Any() != true) return "4000";
+
+				// Determine revenue account based on what's being sold
+				var hasProducts = SaleItems.Any(si => si.Item?.ItemType == ItemType.Inventoried);
+				var hasServices = SaleItems.Any(si => si.Item?.ItemType == ItemType.Service);
+
+				if (hasServices && !hasProducts) return "4100"; // Service Revenue
+				if (hasProducts && !hasServices) return "4000"; // Product Sales
+
+				return "4000"; // Default to Product Sales for mixed sales
+			}
+		}
+
+		/// <summary>
+		/// Total Cost of Goods Sold for this sale
+		/// </summary>
+		[NotMapped]
+		public decimal TotalCOGS => SaleItems?.Sum(si => si.UnitCost * si.QuantitySold) ?? 0;
+
+		/// <summary>
+		/// Gross profit for this sale (Revenue - COGS)
+		/// </summary>
+		[NotMapped]
+		public decimal GrossProfit => TotalAmount - TotalCOGS;
+
+		/// <summary>
+		/// Gross profit margin percentage
+		/// </summary>
+		[NotMapped]
+		public decimal GrossProfitMargin => TotalAmount > 0 ? (GrossProfit / TotalAmount) * 100 : 0;
+
+		// ============= HELPER METHODS =============
+
+		/// <summary>
+		/// Gets the revenue account name this sale should be posted to
+		/// </summary>
+		public string GetRevenueAccountName()
+		{
+			return (RevenueAccountCode ?? DefaultRevenueAccountCode) switch
+			{
+				"4000" => "Product Sales",
+				"4100" => "Service Revenue",
+				"4200" => "Custom Manufacturing",
+				"4300" => "R&D Services",
+				_ => "Product Sales"
+			};
+		}
+
+		/// <summary>
+		/// Determines if this sale requires journal entry generation
+		/// </summary>
+		public bool RequiresJournalEntry()
+		{
+			return !IsJournalEntryGenerated &&
+						 SaleStatus != SaleStatus.Cancelled;
+		}
+
+		/// <summary>
+		/// Gets the revenue category for reporting
+		/// </summary>
+		public string GetRevenueCategory()
+		{
+			if (SaleItems?.Any() != true) return "Other Revenue";
+
+			var hasProducts = SaleItems.Any(si => si.Item?.ItemType == ItemType.Inventoried);
+			var hasServices = SaleItems.Any(si => si.Item?.ItemType == ItemType.Service);
+			var hasVirtual = SaleItems.Any(si => si.Item?.ItemType == ItemType.Virtual);
+
+			if (hasServices && !hasProducts) return "Service Revenue";
+			if (hasVirtual && !hasProducts && !hasServices) return "Software/Licensing";
+			if (hasProducts) return "Product Sales";
+
+			return "Other Revenue";
+		}
+
+		/// <summary>
+		/// Determines the appropriate revenue account code based on sale contents
+		/// </summary>
+		public void SetDefaultRevenueAccount()
+		{
+			if (string.IsNullOrEmpty(RevenueAccountCode))
+			{
+				RevenueAccountCode = DefaultRevenueAccountCode;
+			}
+		}
+
+		/// <summary>
+		/// Gets formatted gross profit display
+		/// </summary>
+		public string GetFormattedGrossProfit()
+		{
+			return GrossProfit.ToString("C");
+		}
+
+		/// <summary>
+		/// Gets formatted gross profit margin display
+		/// </summary>
+		public string GetFormattedGrossProfitMargin()
+		{
+			return $"{GrossProfitMargin:F1}%";
+		}
+
+		/// <summary>
+		/// Indicates if this is a profitable sale
+		/// </summary>
+		public bool IsProfitable()
+		{
+			return GrossProfit > 0;
+		}
+
+		/// <summary>
+		/// Gets the profitability status for display
+		/// </summary>
+		public string GetProfitabilityStatus()
+		{
+			var margin = GrossProfitMargin;
+			return margin switch
+			{
+				>= 50 => "Excellent",
+				>= 30 => "Good",
+				>= 15 => "Fair",
+				>= 0 => "Low",
+				_ => "Loss"
+			};
+		}
+	}
 }

@@ -1,0 +1,532 @@
+﻿@model InventorySystem.ViewModels.Accounting.AccountingDashboardViewModel
+@{
+  ViewData["Title"] = "Accounting Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-calculator"></i> Accounting Dashboard</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("ChartOfAccounts")" class="btn btn-primary">
+      <i class="fas fa-list"></i> Chart of Accounts
+    </a>
+    <a href="@Url.Action("GeneralLedger")" class="btn btn-outline-primary">
+      <i class="fas fa-book"></i> General Ledger
+    </a>
+    <a href="@Url.Action("AccountsPayable")" class="btn btn-outline-warning">
+      <i class="fas fa-file-invoice-dollar"></i> Accounts Payable
+    </a>
+    <div class="btn-group">
+      <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fas fa-chart-bar"></i> Reports
+      </button>
+      <ul class="dropdown-menu">
+        <li>
+          <a class="dropdown-item" href="@Url.Action("TrialBalance")">
+            <i class="fas fa-balance-scale"></i> Trial Balance
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="@Url.Action("BalanceSheet")">
+            <i class="fas fa-building"></i> Balance Sheet
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="@Url.Action("IncomeStatement")">
+            <i class="fas fa-chart-line"></i> Income Statement
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Financial Overview Cards -->
+<div class="row mb-4">
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card bg-primary text-white h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="mb-0">@Model.CashBalance.ToString("C0")</h4>
+            <p class="mb-0 opacity-75">Cash Balance</p>
+          </div>
+          <div>
+            <i class="fas fa-wallet fa-2x opacity-75"></i>
+          </div>
+        </div>
+        <div class="mt-2">
+          <small class="opacity-75">Operating account balance</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card bg-success text-white h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="mb-0">@Model.AccountsReceivableBalance.ToString("C0")</h4>
+            <p class="mb-0 opacity-75">Accounts Receivable</p>
+          </div>
+          <div>
+            <i class="fas fa-hand-holding-usd fa-2x opacity-75"></i>
+          </div>
+        </div>
+        <div class="mt-2">
+          <small class="opacity-75">@Model.UnpaidInvoicesCount unpaid invoice(s)</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card bg-warning text-white h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="mb-0">@Model.AccountsPayableBalance.ToString("C0")</h4>
+            <p class="mb-0 opacity-75">Accounts Payable</p>
+          </div>
+          <div>
+            <i class="fas fa-file-invoice fa-2x opacity-75"></i>
+          </div>
+        </div>
+        <div class="mt-2">
+          @if (Model.OverdueInvoicesCount > 0)
+          {
+            <small class="opacity-75">
+              <i class="fas fa-exclamation-triangle"></i>
+              @Model.OverdueInvoicesCount overdue
+            </small>
+          }
+          else
+          {
+            <small class="opacity-75">All current</small>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card bg-info text-white h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="mb-0">@Model.NetIncome.ToString("C0")</h4>
+            <p class="mb-0 opacity-75">Net Income (MTD)</p>
+          </div>
+          <div>
+            <i class="fas fa-chart-line fa-2x opacity-75"></i>
+          </div>
+        </div>
+        <div class="mt-2">
+          @{
+            var profitMargin = Model.MonthlyRevenue > 0 ? (Model.NetIncome / Model.MonthlyRevenue) * 100 : 0;
+          }
+          <small class="opacity-75">@profitMargin.ToString("F1")% margin</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Balance Sheet Summary & Key Metrics -->
+<div class="row mb-4">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5><i class="fas fa-chart-pie"></i> Financial Position</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4">
+            <div class="text-center p-3 border-end">
+              <h3 class="text-success mb-1">@Model.TotalAssets.ToString("C0")</h3>
+              <h6 class="text-muted mb-3">Total Assets</h6>
+              <div class="small">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>Cash:</span>
+                  <span class="fw-bold">@Model.CashBalance.ToString("C0")</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                  <span>A/R:</span>
+                  <span class="fw-bold">@Model.AccountsReceivableBalance.ToString("C0")</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Inventory:</span>
+                  <span class="fw-bold">@Model.InventoryValue.ToString("C0")</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="text-center p-3 border-end">
+              <h3 class="text-danger mb-1">@Model.TotalLiabilities.ToString("C0")</h3>
+              <h6 class="text-muted mb-3">Total Liabilities</h6>
+              <div class="small">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>A/P:</span>
+                  <span class="fw-bold">@Model.AccountsPayableBalance.ToString("C0")</span>
+                </div>
+                @if (Model.OverdueInvoicesCount > 0)
+                {
+                  <div class="mt-2">
+                    <small class="text-danger">
+                      <i class="fas fa-exclamation-triangle"></i>
+                      @Model.OverdueInvoicesCount overdue
+                    </small>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="text-center p-3">
+              <h3 class="text-primary mb-1">@Model.OwnerEquity.ToString("C0")</h3>
+              <h6 class="text-muted mb-3">Owner's Equity</h6>
+              <div class="small">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>Revenue (MTD):</span>
+                  <span class="text-success fw-bold">@Model.MonthlyRevenue.ToString("C0")</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Expenses (MTD):</span>
+                  <span class="text-danger fw-bold">@Model.MonthlyExpenses.ToString("C0")</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Balance Check -->
+        @{
+          var balanceCheck = Model.TotalAssets - (Model.TotalLiabilities + Model.OwnerEquity);
+        }
+        @if (Math.Abs(balanceCheck) > 0.01m)
+        {
+          <div class="alert alert-warning mt-3 mb-0">
+            <i class="fas fa-exclamation-triangle"></i>
+            <small><strong>Balance Sheet Warning:</strong> Assets do not equal Liabilities + Equity. Difference: @balanceCheck.ToString("C")</small>
+          </div>
+        }
+        else
+        {
+          <div class="alert alert-success mt-3 mb-0">
+            <i class="fas fa-check-circle"></i>
+            <small><strong>Balance Sheet Verified:</strong> Assets = Liabilities + Equity</small>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5><i class="fas fa-tachometer-alt"></i> Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-6">
+            <a href="@Url.Action("CreateAccount")" class="btn btn-outline-primary w-100 text-center py-3">
+              <i class="fas fa-plus d-block mb-1"></i>
+              <small>Add Account</small>
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="@Url.Action("GeneralLedger")" class="btn btn-outline-info w-100 text-center py-3">
+              <i class="fas fa-book d-block mb-1"></i>
+              <small>View Ledger</small>
+            </a>
+          </div>
+          <div class="col-6">
+            <button class="btn btn-outline-success w-100 text-center py-3" onclick="generateJournalEntries()">
+              <i class="fas fa-sync d-block mb-1"></i>
+              <small>Sync Entries</small>
+            </button>
+          </div>
+          <div class="col-6">
+            <a href="@Url.Action("TrialBalance")" class="btn btn-outline-warning w-100 text-center py-3">
+              <i class="fas fa-balance-scale d-block mb-1"></i>
+              <small>Trial Balance</small>
+            </a>
+          </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="mt-3">
+          <h6 class="text-muted">System Status</h6>
+          <div class="small">
+            <div class="d-flex justify-content-between mb-1">
+              <span>Total Accounts:</span>
+              <span class="fw-bold">@Model.TotalAccounts</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span>Active Accounts:</span>
+              <span class="fw-bold text-success">@Model.ActiveAccounts</span>
+            </div>
+            @if (Model.TotalAccounts - Model.ActiveAccounts > 0)
+            {
+              <div class="d-flex justify-content-between">
+                <span>Inactive:</span>
+                <span class="fw-bold text-muted">@(Model.TotalAccounts - Model.ActiveAccounts)</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Financial Reports & Recent Activity -->
+<div class="row mb-4">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-chart-bar"></i> Financial Reports</h5>
+        <small class="text-muted">Quick access</small>
+      </div>
+      <div class="card-body">
+        <div class="list-group list-group-flush">
+          <a href="@Url.Action("TrialBalance")" class="list-group-item list-group-item-action border-0 px-0">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-balance-scale text-primary me-2"></i>
+                <strong>Trial Balance</strong>
+                <small class="text-muted d-block">Verify debits equal credits</small>
+              </div>
+              <i class="fas fa-chevron-right text-muted"></i>
+            </div>
+          </a>
+
+          <a href="@Url.Action("BalanceSheet")" class="list-group-item list-group-item-action border-0 px-0">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-building text-success me-2"></i>
+                <strong>Balance Sheet</strong>
+                <small class="text-muted d-block">Assets, Liabilities & Equity</small>
+              </div>
+              <i class="fas fa-chevron-right text-muted"></i>
+            </div>
+          </a>
+
+          <a href="@Url.Action("IncomeStatement")" class="list-group-item list-group-item-action border-0 px-0">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-chart-line text-info me-2"></i>
+                <strong>Income Statement</strong>
+                <small class="text-muted d-block">Revenue, Expenses & Profit</small>
+              </div>
+              <i class="fas fa-chevron-right text-muted"></i>
+            </div>
+          </a>
+        </div>
+
+        <div class="text-center mt-3">
+          <small class="text-muted">All reports are generated in real-time from your transaction data</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-history"></i> Recent Transactions</h5>
+        <a href="@Url.Action("GeneralLedger")" class="btn btn-sm btn-outline-primary">View All</a>
+      </div>
+      <div class="card-body">
+        @if (Model.RecentTransactions != null && Model.RecentTransactions.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-sm table-hover">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Account</th>
+                  <th class="text-end">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var transaction in Model.RecentTransactions.Take(8))
+                {
+                  <tr>
+                    <td>
+                      <small>@transaction.TransactionDate.ToString("MM/dd")</small>
+                    </td>
+                    <td>
+                      <div class="text-truncate" style="max-width: 120px;" title="@transaction.Description">
+                        @transaction.Description
+                      </div>
+                      <small class="text-muted">@transaction.TransactionNumber</small>
+                    </td>
+                    <td>
+                      <small>@transaction.Account?.AccountCode</small>
+                    </td>
+                    <td class="text-end">
+                      @if (transaction.DebitAmount > 0)
+                      {
+                        <small class="text-success">Dr @transaction.DebitAmount.ToString("C0")</small>
+                      }
+                      else
+                      {
+                        <small class="text-danger">Cr @transaction.CreditAmount.ToString("C0")</small>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="fas fa-book-open fa-2x text-muted mb-2"></i>
+            <p class="text-muted mb-0">No recent transactions</p>
+            <small class="text-muted">Journal entries will appear here</small>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upcoming Payments & Alerts -->
+@if (Model.UpcomingPayments != null && Model.UpcomingPayments.Any())
+{
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-calendar-check"></i> Upcoming Payments</h5>
+          <a href="@Url.Action("AccountsPayable")" class="btn btn-sm btn-outline-warning">Manage A/P</a>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            @foreach (var payment in Model.UpcomingPayments.Take(6))
+            {
+              var daysUntilDue = (payment.DueDate - DateTime.Today).Days;
+              var urgencyClass = daysUntilDue <= 3 ? "border-danger" : (daysUntilDue <= 7 ? "border-warning" : "border-secondary");
+
+              <div class="col-lg-4 col-md-6 mb-3">
+                <div class="card @urgencyClass">
+                  <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h6 class="mb-1">@payment.Vendor.CompanyName</h6>
+                        <small class="text-muted">Invoice: @payment.InvoiceNumber</small>
+                      </div>
+                      <div class="text-end">
+                        <div class="fw-bold">@payment.GetFormattedBalance()</div>
+                        @if (daysUntilDue <= 0)
+                        {
+                          <small class="text-danger">Overdue</small>
+                        }
+                        else if (daysUntilDue <= 3)
+                        {
+                          <small class="text-warning">Due in @daysUntilDue days</small>
+                        }
+                        else
+                        {
+                          <small class="text-muted">Due @payment.DueDate.ToString("MM/dd")</small>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Anti-forgery token for AJAX requests -->
+@Html.AntiForgeryToken()
+
+<script>
+  function generateJournalEntries() {
+      if (confirm('This will generate journal entries for transactions that don\'t have them yet. This may take a moment. Continue?')) {
+          // Show loading state
+          const button = event.target;
+          const originalContent = button.innerHTML;
+          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <small>Processing...</small>';
+          button.disabled = true;
+
+          // Create form and submit
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '@Url.Action("GenerateJournalEntries")';
+
+          const token = document.createElement('input');
+          token.type = 'hidden';
+          token.name = '__RequestVerificationToken';
+          token.value = document.querySelector('input[name="__RequestVerificationToken"]').value;
+          form.appendChild(token);
+
+          document.body.appendChild(form);
+          form.submit();
+      }
+  }
+
+  // Auto-refresh dashboard data every 5 minutes
+  setTimeout(function() {
+      location.reload();
+  }, 300000);
+</script>
+
+<style>
+  .card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+  .opacity-75 {
+    opacity: 0.75;
+  }
+
+  .border-end {
+    border-right: 1px solid #dee2e6;
+  }
+
+  @@media (max-width: 768px) {
+    .border-end
+
+  {
+    border-right: none;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  }
+</style>
