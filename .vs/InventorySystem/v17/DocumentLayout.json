@@ -7,16 +7,32 @@
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\accountingcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\accounting\\accountingdetails.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\accounting\\accountingdetails.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\data\\inventorycontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:data\\inventorycontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\accounting\\balancesheet.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\accounting\\balancesheet.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\production.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\production.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\accountingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\accountingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\accounting\\incomestatement.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\accounting\\incomestatement.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\accounting\\balancesheet.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\accounting\\balancesheet.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\accounting\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
@@ -71,10 +87,6 @@
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:database\\addaccountingtables.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\data\\inventorycontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:data\\inventorycontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\iaccountingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\iaccountingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -85,10 +97,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\accounting\\account.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -318,7 +326,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 5,
           "Children": [
             {
               "$type": "Bookmark",
@@ -330,20 +338,33 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "BalanceSheet.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\BalanceSheet.cshtml",
-              "RelativeDocumentMoniker": "Views\\Accounting\\BalanceSheet.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Accounting\\BalanceSheet.cshtml",
-              "RelativeToolTip": "Views\\Accounting\\BalanceSheet.cshtml",
-              "ViewState": "AgIAAM0BAAAAAAAAAAAcwPUBAAAIAAAAAAAAAA==",
+              "DocumentIndex": 1,
+              "Title": "AccountingDetails.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\AccountingDetails.cshtml",
+              "RelativeDocumentMoniker": "Views\\Accounting\\AccountingDetails.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Accounting\\AccountingDetails.cshtml",
+              "RelativeToolTip": "Views\\Accounting\\AccountingDetails.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T15:25:39.496Z",
+              "WhenOpened": "2025-08-12T16:41:44.118Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
+              "Title": "Production.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Models\\Production.cs",
+              "RelativeDocumentMoniker": "Models\\Production.cs",
+              "ToolTip": "C:\\InventorySystem\\Models\\Production.cs",
+              "RelativeToolTip": "Models\\Production.cs",
+              "ViewState": "AgIAAD4AAAAAAAAAAAAAAF8AAAASAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-12T15:59:19.312Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\Index.cshtml",
@@ -360,16 +381,16 @@
               "Title": "AccountingController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\AccountingController.cs",
               "RelativeDocumentMoniker": "Controllers\\AccountingController.cs",
-              "ToolTip": "C:\\InventorySystem\\Controllers\\AccountingController.cs*",
-              "RelativeToolTip": "Controllers\\AccountingController.cs*",
-              "ViewState": "AgIAADsCAAAAAAAAAAAgwGMCAAABAAAAAAAAAA==",
+              "ToolTip": "C:\\InventorySystem\\Controllers\\AccountingController.cs",
+              "RelativeToolTip": "Controllers\\AccountingController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAKwBAAAHAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-12T13:42:09.769Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 13,
               "Title": "Setup.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\Setup.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\Setup.cshtml",
@@ -382,7 +403,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 12,
               "Title": "AccountsPayable.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\AccountsPayable.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\AccountsPayable.cshtml",
@@ -395,7 +416,33 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
+              "Title": "BalanceSheet.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\BalanceSheet.cshtml",
+              "RelativeDocumentMoniker": "Views\\Accounting\\BalanceSheet.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Accounting\\BalanceSheet.cshtml",
+              "RelativeToolTip": "Views\\Accounting\\BalanceSheet.cshtml",
+              "ViewState": "AgIAAJwBAAAAAAAAAAAMwK8BAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-12T15:25:39.496Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "InventoryContext.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Data\\InventoryContext.cs",
+              "RelativeDocumentMoniker": "Data\\InventoryContext.cs",
+              "ToolTip": "C:\\InventorySystem\\Data\\InventoryContext.cs",
+              "RelativeToolTip": "Data\\InventoryContext.cs",
+              "ViewState": "AgIAAD0CAAAAAAAAAAAowFACAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-12T13:11:57.404Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "AccountingService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\AccountingService.cs",
               "RelativeDocumentMoniker": "Services\\AccountingService.cs",
@@ -408,7 +455,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 4,
+              "Title": "program.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\program.cs",
+              "RelativeDocumentMoniker": "program.cs",
+              "ToolTip": "C:\\InventorySystem\\program.cs",
+              "RelativeToolTip": "program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAFcAAAAQAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-12T13:45:50.654Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
               "Title": "TrialBalance.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\TrialBalance.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\TrialBalance.cshtml",
@@ -421,7 +481,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 7,
               "Title": "IncomeStatement.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\IncomeStatement.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\IncomeStatement.cshtml",
@@ -434,7 +494,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 9,
               "Title": "GeneralLedger.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\GeneralLedger.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\GeneralLedger.cshtml",
@@ -447,7 +507,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 10,
               "Title": "ChartOfAccounts.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\ChartOfAccounts.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\ChartOfAccounts.cshtml",
@@ -460,7 +520,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 11,
               "Title": "AccountingDashboardViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\AccountingDashboardViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\AccountingDashboardViewModel.cs",
@@ -473,7 +533,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 15,
               "Title": "CreateAccount.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\CreateAccount.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\CreateAccount.cshtml",
@@ -486,7 +546,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 20,
               "Title": "AddAccountingTables.sql ",
               "DocumentMoniker": "C:\\InventorySystem\\Database\\AddAccountingTables.sql",
               "RelativeDocumentMoniker": "Database\\AddAccountingTables.sql",
@@ -498,20 +558,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 17,
-              "Title": "InventoryContext.cs",
-              "DocumentMoniker": "C:\\InventorySystem\\Data\\InventoryContext.cs",
-              "RelativeDocumentMoniker": "Data\\InventoryContext.cs",
-              "ToolTip": "C:\\InventorySystem\\Data\\InventoryContext.cs",
-              "RelativeToolTip": "Data\\InventoryContext.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAkAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T13:11:57.404Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 19,
               "Title": "DefaultChartOfAccounts.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Accounting\\DefaultChartOfAccounts.cs",
               "RelativeDocumentMoniker": "Models\\Accounting\\DefaultChartOfAccounts.cs",
@@ -524,7 +571,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 18,
               "Title": "Sale.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Sale.cs",
               "RelativeDocumentMoniker": "Models\\Sale.cs",
@@ -537,7 +584,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 17,
               "Title": "AccountsPayable.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Accounting\\AccountsPayable.cs",
               "RelativeDocumentMoniker": "Models\\Accounting\\AccountsPayable.cs",
@@ -550,7 +597,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 16,
               "Title": "Purchase.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Purchase.cs",
               "RelativeDocumentMoniker": "Models\\Purchase.cs",
@@ -563,7 +610,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 18,
+              "DocumentIndex": 21,
               "Title": "IAccountingService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\IAccountingService.cs",
               "RelativeDocumentMoniker": "Services\\IAccountingService.cs",
@@ -576,7 +623,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 19,
+              "DocumentIndex": 22,
               "Title": "PurchasesController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\PurchasesController.cs",
               "RelativeDocumentMoniker": "Controllers\\PurchasesController.cs",
@@ -589,7 +636,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 20,
+              "DocumentIndex": 23,
               "Title": "_Layout.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
               "RelativeDocumentMoniker": "Views\\Shared\\_Layout.cshtml",
@@ -602,20 +649,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 21,
-              "Title": "program.cs",
-              "DocumentMoniker": "C:\\InventorySystem\\program.cs",
-              "RelativeDocumentMoniker": "program.cs",
-              "ToolTip": "C:\\InventorySystem\\program.cs",
-              "RelativeToolTip": "program.cs",
-              "ViewState": "AgIAADkAAAAAAAAAAADwv1cAAAAQAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T13:45:50.654Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 24,
+              "DocumentIndex": 26,
               "Title": "VendorPayment.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Accounting\\VendorPayment.cs",
               "RelativeDocumentMoniker": "Models\\Accounting\\VendorPayment.cs",
@@ -628,7 +662,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 23,
+              "DocumentIndex": 25,
               "Title": "GeneralLedgerEntry.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Accounting\\GeneralLedgerEntry.cs",
               "RelativeDocumentMoniker": "Models\\Accounting\\GeneralLedgerEntry.cs",
@@ -641,7 +675,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 22,
+              "DocumentIndex": 24,
               "Title": "Account.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Accounting\\Account.cs",
               "RelativeDocumentMoniker": "Models\\Accounting\\Account.cs",
@@ -654,7 +688,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 72,
+              "DocumentIndex": 74,
               "Title": "PayExpense.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\PayExpense.cshtml",
               "RelativeDocumentMoniker": "Views\\Purchases\\PayExpense.cshtml",
@@ -667,7 +701,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 71,
+              "DocumentIndex": 73,
               "Title": "PayExpenseViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\PayExpenseViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\PayExpenseViewModel.cs",
@@ -680,7 +714,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 70,
+              "DocumentIndex": 72,
               "Title": "ProjectViewModels.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\ProjectViewModels.cs",
               "RelativeDocumentMoniker": "ViewModels\\ProjectViewModels.cs",
@@ -693,7 +727,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 69,
+              "DocumentIndex": 71,
               "Title": "_PurchasesList.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Projects\\_PurchasesList.cshtml",
               "RelativeDocumentMoniker": "Views\\Projects\\_PurchasesList.cshtml",
@@ -706,7 +740,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 68,
+              "DocumentIndex": 70,
               "Title": "Create.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Projects\\Create.cshtml",
               "RelativeDocumentMoniker": "Views\\Projects\\Create.cshtml",
@@ -719,7 +753,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 67,
+              "DocumentIndex": 69,
               "Title": "Details.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Projects\\Details.cshtml",
               "RelativeDocumentMoniker": "Views\\Projects\\Details.cshtml",
@@ -732,7 +766,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 66,
+              "DocumentIndex": 68,
               "Title": "Dashboard.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Projects\\Dashboard.cshtml",
               "RelativeDocumentMoniker": "Views\\Projects\\Dashboard.cshtml",
@@ -745,7 +779,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 65,
+              "DocumentIndex": 67,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Projects\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Projects\\Index.cshtml",
@@ -758,7 +792,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 64,
+              "DocumentIndex": 66,
               "Title": "ApplyProjectsMigration.ps1",
               "DocumentMoniker": "C:\\InventorySystem\\Database\\ApplyProjectsMigration.ps1",
               "RelativeDocumentMoniker": "Database\\ApplyProjectsMigration.ps1",
@@ -771,7 +805,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 61,
+              "DocumentIndex": 63,
               "Title": "ResetDatabaseAndMigrate.ps1",
               "DocumentMoniker": "C:\\InventorySystem\\Database\\ResetDatabaseAndMigrate.ps1",
               "RelativeDocumentMoniker": "Database\\ResetDatabaseAndMigrate.ps1",
@@ -784,7 +818,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 60,
+              "DocumentIndex": 62,
               "Title": "reset-database.bat",
               "DocumentMoniker": "C:\\InventorySystem\\Database\\reset-database.bat",
               "RelativeDocumentMoniker": "Database\\reset-database.bat",
@@ -797,7 +831,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 59,
+              "DocumentIndex": 61,
               "Title": "CompleteReset.ps1",
               "DocumentMoniker": "C:\\InventorySystem\\Database\\CompleteReset.ps1",
               "RelativeDocumentMoniker": "Database\\CompleteReset.ps1",
@@ -810,7 +844,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 58,
+              "DocumentIndex": 60,
               "Title": "ProjectsController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\ProjectsController.cs",
               "RelativeDocumentMoniker": "Controllers\\ProjectsController.cs",
@@ -823,7 +857,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 57,
+              "DocumentIndex": 59,
               "Title": "Reports.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Projects\\Reports.cshtml",
               "RelativeDocumentMoniker": "Views\\Projects\\Reports.cshtml",
@@ -836,7 +870,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 56,
+              "DocumentIndex": 58,
               "Title": "Create.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Create.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\Create.cshtml",
@@ -849,7 +883,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 25,
+              "DocumentIndex": 27,
               "Title": "HomeController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\HomeController.cs",
               "RelativeDocumentMoniker": "Controllers\\HomeController.cs",
@@ -862,7 +896,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 73,
+              "DocumentIndex": 75,
               "Title": "Project.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Project.cs",
               "RelativeDocumentMoniker": "Models\\Project.cs",
@@ -875,7 +909,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 74,
+              "DocumentIndex": 76,
               "Title": "IncomeStatement.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Expenses\\IncomeStatement.cshtml",
               "RelativeDocumentMoniker": "Views\\Expenses\\IncomeStatement.cshtml",
@@ -888,7 +922,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 75,
+              "DocumentIndex": 77,
               "Title": "Edit.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Purchases\\Edit.cshtml",
               "RelativeDocumentMoniker": "Views\\Purchases\\Edit.cshtml",
@@ -901,7 +935,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 55,
+              "DocumentIndex": 57,
               "Title": "CreateItemViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\CreateItemViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\CreateItemViewModel.cs",
@@ -914,7 +948,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 54,
+              "DocumentIndex": 56,
               "Title": "Create.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\Create.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\Create.cshtml",
@@ -927,7 +961,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 53,
+              "DocumentIndex": 55,
               "Title": "Item.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Item.cs",
               "RelativeDocumentMoniker": "Models\\Item.cs",
@@ -940,7 +974,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 52,
+              "DocumentIndex": 54,
               "Title": "SALE_PRICE_IMPLEMENTATION.md",
               "DocumentMoniker": "C:\\InventorySystem\\SALE_PRICE_IMPLEMENTATION.md",
               "RelativeDocumentMoniker": "SALE_PRICE_IMPLEMENTATION.md",
@@ -953,7 +987,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 51,
+              "DocumentIndex": 53,
               "Title": "Edit.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Items\\Edit.cshtml",
               "RelativeDocumentMoniker": "Views\\Items\\Edit.cshtml",
@@ -966,7 +1000,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 50,
+              "DocumentIndex": 52,
               "Title": "SALES_PRICE_AUTOFILL_ENHANCEMENT.md",
               "DocumentMoniker": "C:\\InventorySystem\\SALES_PRICE_AUTOFILL_ENHANCEMENT.md",
               "RelativeDocumentMoniker": "SALES_PRICE_AUTOFILL_ENHANCEMENT.md",
@@ -979,7 +1013,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 49,
+              "DocumentIndex": 51,
               "Title": "SalesService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\SalesService.cs",
               "RelativeDocumentMoniker": "Services\\SalesService.cs",
@@ -992,7 +1026,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 48,
+              "DocumentIndex": 50,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\CustomerPayments\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\CustomerPayments\\Index.cshtml",
@@ -1005,7 +1039,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 47,
+              "DocumentIndex": 49,
               "Title": "Reports.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\CustomerPayments\\Reports.cshtml",
               "RelativeDocumentMoniker": "Views\\CustomerPayments\\Reports.cshtml",
@@ -1018,7 +1052,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 46,
+              "DocumentIndex": 48,
               "Title": "Details.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\CustomerPayments\\Details.cshtml",
               "RelativeDocumentMoniker": "Views\\CustomerPayments\\Details.cshtml",
@@ -1031,7 +1065,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 62,
+              "DocumentIndex": 64,
               "Title": "CreateProjectsTable.sql ",
               "DocumentMoniker": "C:\\InventorySystem\\Database\\CreateProjectsTable.sql",
               "RelativeDocumentMoniker": "Database\\CreateProjectsTable.sql",
@@ -1043,7 +1077,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 37,
+              "DocumentIndex": 39,
               "Title": "CustomerPayment.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\CustomerPayment.cs",
               "RelativeDocumentMoniker": "Models\\CustomerPayment.cs",
@@ -1056,7 +1090,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 45,
+              "DocumentIndex": 47,
               "Title": "CustomerPaymentViewModels.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\CustomerPaymentViewModels.cs",
               "RelativeDocumentMoniker": "ViewModels\\CustomerPaymentViewModels.cs",
@@ -1069,7 +1103,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 44,
+              "DocumentIndex": 46,
               "Title": "CustomerService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\CustomerService.cs",
               "RelativeDocumentMoniker": "Services\\CustomerService.cs",
@@ -1082,7 +1116,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 36,
+              "DocumentIndex": 38,
               "Title": "Enum.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Enums\\Enum.cs",
               "RelativeDocumentMoniker": "Models\\Enums\\Enum.cs",
@@ -1095,7 +1129,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 35,
+              "DocumentIndex": 37,
               "Title": "AddItem.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\AddItem.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\AddItem.cshtml",
@@ -1108,7 +1142,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 34,
+              "DocumentIndex": 36,
               "Title": "Details.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Details.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\Details.cshtml",
@@ -1121,7 +1155,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 33,
+              "DocumentIndex": 35,
               "Title": "AccountsReceivableController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\AccountsReceivableController.cs",
               "RelativeDocumentMoniker": "Controllers\\AccountsReceivableController.cs",
@@ -1134,7 +1168,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 32,
+              "DocumentIndex": 34,
               "Title": "AccountsReceivableViewModels.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\AccountsReceivableViewModels.cs",
               "RelativeDocumentMoniker": "ViewModels\\AccountsReceivableViewModels.cs",
@@ -1147,7 +1181,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 31,
+              "DocumentIndex": 33,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\AccountsReceivable\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\AccountsReceivable\\Index.cshtml",
@@ -1160,7 +1194,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 30,
+              "DocumentIndex": 32,
               "Title": "SalesController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\SalesController.cs",
               "RelativeDocumentMoniker": "Controllers\\SalesController.cs",
@@ -1173,7 +1207,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 29,
+              "DocumentIndex": 31,
               "Title": "InvoiceReportPrint.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\InvoiceReportPrint.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\InvoiceReportPrint.cshtml",
@@ -1186,7 +1220,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 43,
+              "DocumentIndex": 45,
               "Title": "ApplyCustomerPaymentsMigration.ps1",
               "DocumentMoniker": "C:\\InventorySystem\\Database\\ApplyCustomerPaymentsMigration.ps1",
               "RelativeDocumentMoniker": "Database\\ApplyCustomerPaymentsMigration.ps1",
@@ -1199,7 +1233,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 41,
+              "DocumentIndex": 43,
               "Title": "CreateCustomerPaymentsTable.sql ",
               "DocumentMoniker": "C:\\InventorySystem\\Database\\CreateCustomerPaymentsTable.sql",
               "RelativeDocumentMoniker": "Database\\CreateCustomerPaymentsTable.sql",
@@ -1211,7 +1245,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 40,
+              "DocumentIndex": 42,
               "Title": "ICustomerPaymentService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\ICustomerPaymentService.cs",
               "RelativeDocumentMoniker": "Services\\ICustomerPaymentService.cs",
@@ -1224,7 +1258,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 39,
+              "DocumentIndex": 41,
               "Title": "Customer.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Customer.cs",
               "RelativeDocumentMoniker": "Models\\Customer.cs",
@@ -1237,7 +1271,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 38,
+              "DocumentIndex": 40,
               "Title": "CustomerPaymentService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\CustomerPaymentService.cs",
               "RelativeDocumentMoniker": "Services\\CustomerPaymentService.cs",
@@ -1250,7 +1284,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 28,
+              "DocumentIndex": 30,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Home\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Home\\Index.cshtml",
@@ -1263,7 +1297,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 27,
+              "DocumentIndex": 29,
               "Title": "ItemsController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\ItemsController.cs",
               "RelativeDocumentMoniker": "Controllers\\ItemsController.cs",
@@ -1276,7 +1310,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 26,
+              "DocumentIndex": 28,
               "Title": "InventoryService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\InventoryService.cs",
               "RelativeDocumentMoniker": "Services\\InventoryService.cs",

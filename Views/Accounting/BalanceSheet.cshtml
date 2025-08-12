@@ -428,7 +428,7 @@ else if (Model.IsBalanced && (Model.CurrentAssets.Any() || Model.CurrentLiabilit
         </div>
         <div class="col-md-3">
           <div class="text-center">
-            @if (Model.TotalAssets > 0)
+            @if (Model.TotalAssets > 0 && Model.TotalEquity > 0)
             {
               var equityMultiplier = Model.TotalAssets / Model.TotalEquity;
               <h4 class="text-info">@equityMultiplier.ToString("F2")</h4>

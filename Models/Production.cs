@@ -1,4 +1,6 @@
 ﻿// Models/Production.cs
+using InventorySystem.Domain.Entities.Production;
+using InventorySystem.Domain.Enums;
 using InventorySystem.Models;
 using System.ComponentModel.DataAnnotations;
 
@@ -68,10 +70,16 @@ namespace InventorySystem.Models
     /// </summary>
     public decimal OverheadCostPercentage => TotalCost > 0 ? (OverheadCost / TotalCost * 100) : 0;
 
-    /// <summary>
-    /// Efficiency indicator - lower unit cost is better
-    /// </summary>
-    public string EfficiencyRating
+		// Add these navigation properties
+		public virtual ProductionWorkflow? ProductionWorkflow { get; set; }
+
+		// Add a computed property for easier access to status
+		public ProductionStatus? Status => ProductionWorkflow?.Status;
+
+		/// <summary>
+		/// Efficiency indicator - lower unit cost is better
+		/// </summary>
+		public string EfficiencyRating
     {
       get
       {
@@ -92,6 +100,7 @@ namespace InventorySystem.Models
     /// Check if this production is cost-efficient (has valid cost data)
     /// </summary>
     public bool IsCostEfficient => HasCostData && QuantityProduced > 0;
+
   }
 }
 

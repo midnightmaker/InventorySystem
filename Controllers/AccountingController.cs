@@ -439,7 +439,9 @@ namespace InventorySystem.Controllers
 				var productionsWithoutEntries = await _context.Productions
 						.Include(p => p.Bom)
 						.Include(p => p.MaterialConsumptions)
-						.Where(p => p.Status == ProductionStatus.Completed)
+						.Include(p => p.ProductionWorkflow) // Include the workflow
+						.Where(p => p.ProductionWorkflow != null &&
+												p.ProductionWorkflow.Status == ProductionStatus.Completed)
 						.ToListAsync();
 
 				foreach (var production in productionsWithoutEntries)

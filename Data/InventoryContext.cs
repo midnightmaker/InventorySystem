@@ -588,7 +588,13 @@ namespace InventorySystem.Data
         entity.HasIndex(e => e.TransitionDate);
         entity.HasIndex(e => e.EventType);
       });
-    }
+
+			// Configure the relationship between Production and ProductionWorkflow
+			modelBuilder.Entity<Models.Production>()
+					.HasOne(p => p.ProductionWorkflow)
+					.WithOne(pw => pw.Production)
+					.HasForeignKey<Domain.Entities.Production.ProductionWorkflow>(pw => pw.ProductionId);
+		}
 
    
     public static void ConfigureAccountingEntities(ModelBuilder modelBuilder)
