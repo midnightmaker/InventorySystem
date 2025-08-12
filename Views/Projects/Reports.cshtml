@@ -1,0 +1,506 @@
+@model List<InventorySystem.Models.Project>
+@{
+    ViewData["Title"] = "R&D Project Reports";
+    var reportData = ViewBag.ReportData;
+    
+    // Safe casting for collections to avoid runtime binding issues
+    var topSpendingProjects = reportData?.TopSpendingProjects as List<InventorySystem.Models.Project> ?? new List<InventorySystem.Models.Project>();
+    var overBudgetProjects = reportData?.OverBudgetProjects as List<InventorySystem.Models.Project> ?? new List<InventorySystem.Models.Project>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-bar text-primary"></i> @ViewData["Title"]</h1>
+    <div class="btn-group">
+        <a asp-action="Dashboard" class="btn btn-info">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </a>
+        <a asp-action="Index" class="btn btn-outline-primary">
+            <i class="fas fa-list"></i> All Projects
+        </a>
+        <button class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Report
+        </button>
+    </div>
+</div>
+
+<!-- Report Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6><i class="fas fa-filter"></i> Report Filters</h6>
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="startDate" value="@ViewBag.StartDate?.ToString("yyyy-MM-dd")" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="endDate" value="@ViewBag.EndDate?.ToString("yyyy-MM-dd")" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Department</label>
+                    <select name="department" class="form-select" asp-items="ViewBag.DepartmentOptions">
+                        <option value="">All Departments</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Project Type</label>
+                    <select name="projectType" class="form-select" asp-items="ViewBag.ProjectTypeOptions">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Generate Report
+                    </button>
+                    <a href="@Url.Action("Reports")" class="btn btn-outline-secondary">
+                        <i class="fas fa-refresh"></i> Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Executive Summary -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line"></i> Executive Summary</h5>
+                <small class="text-muted">
+                    Report Period: @ViewBag.StartDate?.ToString("MM/dd/yyyy") - @ViewBag.EndDate?.ToString("MM/dd/yyyy")
+                </small>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2 text-center">
+                        <h4 class="text-primary">@reportData.Summary.TotalProjects</h4>
+                        <small class="text-muted">Total Projects</small>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <h4 class="text-success">@reportData.Summary.TotalBudget.ToString("C0")</h4>
+                        <small class="text-muted">Total Budget</small>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <h4 class="text-info">@reportData.Summary.TotalSpent.ToString("C0")</h4>
+                        <small class="text-muted">Total Spent</small>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <h4 class="text-warning">@reportData.Summary.AverageBudget.ToString("C0")</h4>
+                        <small class="text-muted">Avg Budget</small>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <h4 class="text-secondary">@reportData.Summary.AverageSpent.ToString("C0")</h4>
+                        <small class="text-muted">Avg Spent</small>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <h4 class="text-danger">@reportData.Summary.OverBudgetCount</h4>
+                        <small class="text-muted">Over Budget</small>
+                        <div class="small">(@reportData.Summary.OverBudgetPercentage.ToString("F1")%)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Projects by Status -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-pie"></i> Projects by Status</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" height="200"></canvas>
+                <div class="mt-3">
+                    @foreach (var status in reportData.ProjectsByStatus)
+                    {
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>@status.Status.ToString().Replace("_", " ")</span>
+                            <span><strong>@status.Count</strong> (@status.TotalSpent.ToString("C0"))</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects by Type -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-doughnut"></i> Projects by Type</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="typeChart" height="200"></canvas>
+                <div class="mt-3">
+                    @foreach (var type in reportData.ProjectsByType)
+                    {
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>@type.Type</span>
+                            <span><strong>@type.Count</strong> (@type.TotalSpent.ToString("C0"))</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects by Department -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-bar"></i> Projects by Department</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="departmentChart" height="200"></canvas>
+                <div class="mt-3">
+                    @foreach (var dept in reportData.ProjectsByDepartment)
+                    {
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>@dept.Department</span>
+                            <span><strong>@dept.Count</strong> (@dept.TotalSpent.ToString("C0"))</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Spending Projects -->
+@if (topSpendingProjects.Any())
+{
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-trophy"></i> Top Spending Projects</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Project</th>
+                                    <th>Type</th>
+                                    <th>Department</th>
+                                    <th>Budget</th>
+                                    <th>Spent</th>
+                                    <th>Utilization</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{ int rank = 1; }
+                                @foreach (var project in topSpendingProjects)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (rank <= 3)
+                                            {
+                                                <span class="badge bg-warning">@rank</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@rank</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <strong>@project.ProjectCode</strong>
+                                            <div class="text-muted small">@project.ProjectName</div>
+                                        </td>
+                                        <td>@project.ProjectType.ToString().Replace("_", " ")</td>
+                                        <td>@(project.Department ?? "N/A")</td>
+                                        <td>@project.Budget.ToString("C")</td>
+                                        <td>@project.TotalSpent.ToString("C")</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress me-2" style="width: 60px; height: 6px;">
+                                                    <div class="progress-bar bg-@(project.IsOverBudget ? "danger" : "success")" 
+                                                         style="width: @(Math.Min(project.BudgetUtilization, 100))%"></div>
+                                                </div>
+                                                <small class="text-@(project.IsOverBudget ? "danger" : "muted")">
+                                                    @project.BudgetUtilization.ToString("F1")%
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-@(GetStatusBadgeColor(project.Status))">
+                                                @project.Status.ToString().Replace("_", " ")
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    rank++;
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Over Budget Projects -->
+@if (overBudgetProjects.Any())
+{
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Over Budget Projects</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Budget</th>
+                                    <th>Spent</th>
+                                    <th>Over By</th>
+                                    <th>Utilization</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var project in overBudgetProjects)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@project.ProjectCode</strong>
+                                            <div class="text-muted small">@project.ProjectName</div>
+                                        </td>
+                                        <td>@project.Budget.ToString("C")</td>
+                                        <td class="text-danger"><strong>@project.TotalSpent.ToString("C")</strong></td>
+                                        <td class="text-danger">
+                                            <strong>@((project.TotalSpent - project.Budget).ToString("C"))</strong>
+                                        </td>
+                                        <td>
+                                            <span class="text-danger"><strong>@project.BudgetUtilization.ToString("F1")%</strong></span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-@(GetStatusBadgeColor(project.Status))">
+                                                @project.Status.ToString().Replace("_", " ")
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="@Url.Action("Details", new { id = project.Id })" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-eye"></i> Review
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- All Projects Summary -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> All Projects in Report Period</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Project Code</th>
+                                    <th>Project Name</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Manager</th>
+                                    <th>Department</th>
+                                    <th>Budget</th>
+                                    <th>Spent</th>
+                                    <th>Utilization</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var project in Model)
+                                {
+                                    <tr class="@(project.IsOverBudget ? "table-danger" : "")">
+                                        <td>
+                                            <a href="@Url.Action("Details", new { id = project.Id })">
+                                                <strong>@project.ProjectCode</strong>
+                                            </a>
+                                        </td>
+                                        <td>@project.ProjectName</td>
+                                        <td>@project.ProjectType.ToString().Replace("_", " ")</td>
+                                        <td>
+                                            <span class="badge bg-@(GetStatusBadgeColor(project.Status))">
+                                                @project.Status.ToString().Replace("_", " ")
+                                            </span>
+                                        </td>
+                                        <td>@(project.ProjectManager ?? "N/A")</td>
+                                        <td>@(project.Department ?? "N/A")</td>
+                                        <td>@project.Budget.ToString("C")</td>
+                                        <td class="@(project.IsOverBudget ? "text-danger" : "")">
+                                            @project.TotalSpent.ToString("C")
+                                        </td>
+                                        <td>
+                                            <span class="@(project.IsOverBudget ? "text-danger" : "text-muted")">
+                                                @project.BudgetUtilization.ToString("F1")%
+                                            </span>
+                                        </td>
+                                        <td>@project.CreatedDate.ToString("MM/dd/yyyy")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Projects Found</h5>
+                        <p class="text-muted">Adjust your filter criteria to see project data.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetStatusBadgeColor(InventorySystem.Models.Enums.ProjectStatus status)
+    {
+        return status switch
+        {
+            InventorySystem.Models.Enums.ProjectStatus.Planning => "secondary",
+            InventorySystem.Models.Enums.ProjectStatus.Active => "success",
+            InventorySystem.Models.Enums.ProjectStatus.On_Hold => "warning",
+            InventorySystem.Models.Enums.ProjectStatus.Completed => "primary",
+            InventorySystem.Models.Enums.ProjectStatus.Cancelled => "danger",
+            InventorySystem.Models.Enums.ProjectStatus.Suspended => "dark",
+            InventorySystem.Models.Enums.ProjectStatus.Under_Review => "info",
+            _ => "secondary"
+        };
+    }
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Convert ViewBag reportData to JavaScript variables
+        const reportData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ReportData));
+
+        // Status Chart
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        const statusLabels = reportData.ProjectsByStatus.map(s => s.Status.replace('_', ' '));
+        const statusCounts = reportData.ProjectsByStatus.map(s => s.Count);
+
+        new Chart(statusCtx, {
+            type: 'pie',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusCounts,
+                    backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#6c757d', '#dc3545', '#6f42c1']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Type Chart
+        const typeCtx = document.getElementById('typeChart').getContext('2d');
+        const typeLabels = reportData.ProjectsByType.map(t => t.Type);
+        const typeCounts = reportData.ProjectsByType.map(t => t.Count);
+
+        new Chart(typeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: typeLabels,
+                datasets: [{
+                    data: typeCounts,
+                    backgroundColor: ['#007bff', '#28a745', '#17a2b8', '#ffc107', '#dc3545', '#6c757d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Department Chart
+        const deptCtx = document.getElementById('departmentChart').getContext('2d');
+        const deptLabels = reportData.ProjectsByDepartment.map(d => d.Department);
+        const deptCounts = reportData.ProjectsByDepartment.map(d => d.Count);
+
+        new Chart(deptCtx, {
+            type: 'bar',
+            data: {
+                labels: deptLabels,
+                datasets: [{
+                    label: 'Projects',
+                    data: deptCounts,
+                    backgroundColor: '#007bff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        @@media print {
+            .btn, .card-header .btn-group, .navbar, .footer {
+                display: none !important;
+            }
+            
+            .card {
+                border: 1px solid #dee2e6 !important;
+                page-break-inside: avoid;
+            }
+            
+            .table {
+                page-break-inside: auto;
+            }
+            
+            .table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+        }
+    </style>
+}

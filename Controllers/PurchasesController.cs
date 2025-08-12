@@ -1752,7 +1752,9 @@ namespace InventorySystem.Controllers
                 ExpectedDeliveryDate = null, // Not applicable for expenses
                 ActualDeliveryDate = viewModel.Status == PurchaseStatus.Paid ? viewModel.PaymentDate : null,
                 RemainingQuantity = 0, // Expenses are immediately "consumed"
-                CreatedDate = DateTime.Now
+                CreatedDate = DateTime.Now,
+                // NEW: Associate with R&D project if selected
+                ProjectId = viewModel.ProjectId
             };
 
             await _purchaseService.CreatePurchaseAsync(expensePayment);
@@ -1836,7 +1838,7 @@ namespace InventorySystem.Controllers
     }
 
     // Helper method to reload expense-specific dropdowns
-    private async Task ReloadExpenseDropdownsAsync(int selectedExpenseItemId = 0, int? selectedVendorId = null)
+    private async Task ReloadExpenseDropdownsAsync(int selectedExpenseItemId = 0, int? selectedVendorId = null, int? selectedProjectId = null)
     {
         try
         {
@@ -1852,6 +1854,12 @@ namespace InventorySystem.Controllers
 
             var vendors = await _vendorService.GetActiveVendorsAsync();
 
+            // NEW: Load active projects for R&D tracking
+            var projects = await _context.Projects
+                .Where(p => p.IsActive)
+                .OrderBy(p => p.ProjectCode)
+                .ToListAsync();
+
             ViewBag.ExpenseItems = expenseItems.Select(item => new SelectListItem
             {
                 Value = item.Id.ToString(),
@@ -1860,6 +1868,13 @@ namespace InventorySystem.Controllers
             }).ToList();
 
             ViewBag.VendorId = new SelectList(vendors, "Id", "CompanyName", selectedVendorId);
+            
+            // NEW: Add projects dropdown
+            ViewBag.ProjectId = new SelectList(projects.Select(p => new 
+            {
+                Id = p.Id,
+                DisplayText = $"{p.ProjectCode} - {p.ProjectName}"
+            }), "Id", "DisplayText", selectedProjectId);
         }
         catch (Exception ex)
         {
@@ -1868,6 +1883,7 @@ namespace InventorySystem.Controllers
             // Set empty dropdowns on error to prevent view crashes
             ViewBag.ExpenseItems = new List<SelectListItem>();
             ViewBag.VendorId = new SelectList(new List<object>(), "Id", "CompanyName");
+            ViewBag.ProjectId = new SelectList(new List<object>(), "Id", "DisplayText");
         }
     }
 
@@ -1913,8 +1929,8 @@ namespace InventorySystem.Controllers
             Console.WriteLine($"Sort Order: {sortOrder}");
             Console.WriteLine($"Page: {page}, PageSize: {pageSize}");
 
-            // Start with base query - only select expense purchases
-            var query = _context.Purchases
+            // Start with base query - only select expense purchases without projection initially
+            var baseQuery = _context.Purchases
                 .Include(p => p.Item)
                 .Include(p => p.Vendor)
                 .Where(p => p.Item.IsExpense == true || 
@@ -1922,8 +1938,7 @@ namespace InventorySystem.Controllers
                            p.Item.ItemType == ItemType.Utility ||
                            p.Item.ItemType == ItemType.Subscription ||
                            p.Item.ItemType == ItemType.Service ||
-                           p.Item.ItemType == ItemType.Virtual)
-                .AsQueryable();
+                           p.Item.ItemType == ItemType.Virtual);
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(search))
@@ -1936,7 +1951,7 @@ namespace InventorySystem.Controllers
                     var likePattern = ConvertWildcardToLike(searchTerm);
                     Console.WriteLine($"Using LIKE pattern: {likePattern}");
 
-                    query = query.Where(p =>
+                    baseQuery = baseQuery.Where(p =>
                         EF.Functions.Like(p.Item.PartNumber.ToLower(), likePattern) ||
                         EF.Functions.Like(p.Item.Description.ToLower(), likePattern) ||
                         EF.Functions.Like(p.Vendor.CompanyName.ToLower(), likePattern) ||
@@ -1947,7 +1962,7 @@ namespace InventorySystem.Controllers
                 }
                 else
                 {
-                    query = query.Where(p =>
+                    baseQuery = baseQuery.Where(p =>
                         p.Item.PartNumber.ToLower().Contains(searchTerm) ||
                         p.Item.Description.ToLower().Contains(searchTerm) ||
                         p.Vendor.CompanyName.ToLower().Contains(searchTerm) ||
@@ -1962,46 +1977,46 @@ namespace InventorySystem.Controllers
             if (!string.IsNullOrWhiteSpace(vendorFilter) && int.TryParse(vendorFilter, out int vendorId))
             {
                 Console.WriteLine($"Applying vendor filter: {vendorId}");
-                query = query.Where(p => p.VendorId == vendorId);
+                baseQuery = baseQuery.Where(p => p.VendorId == vendorId);
             }
 
             // Apply expense type filter
             if (!string.IsNullOrWhiteSpace(expenseTypeFilter) && Enum.TryParse<ItemType>(expenseTypeFilter, out var expenseType))
             {
                 Console.WriteLine($"Applying expense type filter: {expenseType}");
-                query = query.Where(p => p.Item.ItemType == expenseType);
+                baseQuery = baseQuery.Where(p => p.Item.ItemType == expenseType);
             }
 
             // Apply date range filter
             if (startDate.HasValue)
             {
                 Console.WriteLine($"Applying start date filter: {startDate.Value}");
-                query = query.Where(p => p.PurchaseDate >= startDate.Value);
+                baseQuery = baseQuery.Where(p => p.PurchaseDate >= startDate.Value);
             }
 
             if (endDate.HasValue)
             {
                 Console.WriteLine($"Applying end date filter: {endDate.Value}");
                 var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
-                query = query.Where(p => p.PurchaseDate <= endOfDay);
+                baseQuery = baseQuery.Where(p => p.PurchaseDate <= endOfDay);
             }
 
             // Apply sorting
-            query = sortOrder switch
+            baseQuery = sortOrder switch
             {
-                "date_asc" => query.OrderBy(p => p.PurchaseDate),
-                "date_desc" => query.OrderByDescending(p => p.PurchaseDate),
-                "vendor_asc" => query.OrderBy(p => p.Vendor.CompanyName),
-                "vendor_desc" => query.OrderByDescending(p => p.Vendor.CompanyName),
-                "amount_asc" => query.OrderBy(p => p.QuantityPurchased * p.CostPerUnit + p.TaxAmount + p.ShippingCost),
-                "amount_desc" => query.OrderByDescending(p => p.QuantityPurchased * p.CostPerUnit + p.TaxAmount + p.ShippingCost),
-                "type_asc" => query.OrderBy(p => p.Item.ItemType),
-                "type_desc" => query.OrderByDescending(p => p.Item.ItemType),
-                _ => query.OrderByDescending(p => p.PurchaseDate)
+                "date_asc" => baseQuery.OrderBy(p => p.PurchaseDate),
+                "date_desc" => baseQuery.OrderByDescending(p => p.PurchaseDate),
+                "vendor_asc" => baseQuery.OrderBy(p => p.Vendor.CompanyName),
+                "vendor_desc" => baseQuery.OrderByDescending(p => p.Vendor.CompanyName),
+                "amount_asc" => baseQuery.OrderBy(p => p.QuantityPurchased * p.CostPerUnit + p.TaxAmount + p.ShippingCost),
+                "amount_desc" => baseQuery.OrderByDescending(p => p.QuantityPurchased * p.CostPerUnit + p.TaxAmount + p.ShippingCost),
+                "type_asc" => baseQuery.OrderBy(p => p.Item.ItemType),
+                "type_desc" => baseQuery.OrderByDescending(p => p.Item.ItemType),
+                _ => baseQuery.OrderByDescending(p => p.PurchaseDate)
             };
 
             // Get total count for pagination (before Skip/Take)
-            var totalCount = await query.CountAsync();
+            var totalCount = await baseQuery.CountAsync();
             Console.WriteLine($"Total filtered expense payments: {totalCount}");
 
             // Calculate pagination values
@@ -2009,7 +2024,7 @@ namespace InventorySystem.Controllers
             var skip = (page - 1) * pageSize;
 
             // Get paginated results
-            var expensePayments = await query
+            var expensePayments = await baseQuery
                 .Skip(skip)
                 .Take(pageSize)
                 .ToListAsync();
@@ -2135,7 +2150,7 @@ namespace InventorySystem.Controllers
             ViewBag.SortOrder = sortOrder;
             ViewBag.IsFiltered = false;
 
-            // Set statistics defaults
+            // Statistics defaults
             ViewBag.TotalExpenseAmount = 0m;
             ViewBag.AverageExpenseAmount = 0m;
             ViewBag.MonthlyExpenses = new List<object>();

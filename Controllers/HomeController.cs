@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
 using InventorySystem.Data;
+using InventorySystem.Models; // Added for Item model
+using InventorySystem.Models.Enums; // Added for ItemType enum
 
 namespace InventorySystem.Controllers
 {
@@ -64,8 +66,13 @@ namespace InventorySystem.Controllers
         var totalBoms = await _context.Boms.CountAsync();
         var totalPurchases = await _context.Purchases.CountAsync();
         var totalVendors = await _context.Vendors.CountAsync(v => v.IsActive);
+        // FIXED: Use actual database fields instead of computed property
         var lowStockItems = await _context.Items
-            .Where(i => i.CurrentStock <= i.MinimumStock)
+            .Where(i => !i.IsExpense && 
+                       (i.ItemType == ItemType.Inventoried || 
+                        i.ItemType == ItemType.Consumable || 
+                        i.ItemType == ItemType.RnDMaterials) && 
+                       i.CurrentStock <= i.MinimumStock)
             .CountAsync();
 
         return new DashboardViewModel
@@ -76,7 +83,8 @@ namespace InventorySystem.Controllers
           ActiveVendorsCount = totalVendors,
           LowStockCount = lowStockItems,
           TotalInventoryValue = 0, // Will calculate properly once services work
-          BackorderWidget = new BackorderWidgetViewModel()
+          BackorderWidget = new BackorderWidgetViewModel(),
+          LowStockItems = new List<Item>() // Empty list since we're only counting here
         };
       }
       catch (Exception ex)
@@ -185,7 +193,10 @@ namespace InventorySystem.Controllers
         var totalPurchaseDocuments = allPurchases.Sum(p => p.PurchaseDocuments?.Count ?? 0);
 
         // FIXED - Only count inventoried items for stock calculations
-        var inventoriedItems = allItems.Where(i => i.ItemType == Models.Enums.ItemType.Inventoried).ToList();
+        var inventoriedItems = allItems.Where(i => !i.IsExpense && 
+                                                 (i.ItemType == ItemType.Inventoried || 
+                                                  i.ItemType == ItemType.Consumable || 
+                                                  i.ItemType == ItemType.RnDMaterials)).ToList();
         var itemsInStock = inventoriedItems.Count(i => i.CurrentStock > i.MinimumStock);
         var itemsLowStock = inventoriedItems.Count(i => i.CurrentStock <= i.MinimumStock && i.CurrentStock > 0);
         var itemsNoStock = inventoriedItems.Count(i => i.CurrentStock == 0);

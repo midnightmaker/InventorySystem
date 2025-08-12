@@ -59,17 +59,48 @@
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <label asp-for="CustomerId" class="form-label">Customer *</label>
-                                <div class="input-group">
-                                    <select asp-for="CustomerId" asp-items="ViewBag.Customers" class="form-select" id="customerSelect" required>
-                                        <option value="">Select a customer...</option>
-                                    </select>
-                                    <a href="@Url.Action("Create", "Customers")" class="btn btn-outline-primary" target="_blank">
-                                        <i class="fas fa-user-plus"></i> New Customer
-                                    </a>
+                                <div class="position-relative">
+                                    <!-- Enhanced Customer Search Input (similar to item search) -->
+                                    <div class="input-group">
+                                        <input type="text" 
+                                               id="customerSearch" 
+                                               class="form-control" 
+                                               placeholder="Search customers by name, company, or email..." 
+                                               autocomplete="off" />
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search text-muted" id="customerSearchIcon"></i>
+                                            <div class="spinner-border spinner-border-sm text-primary d-none" id="customerSearchSpinner"></div>
+                                        </span>
+                                        <a href="@Url.Action("Create", "Customers")" class="btn btn-outline-primary" target="_blank">
+                                            <i class="fas fa-user-plus"></i> New Customer
+                                        </a>
+                                    </div>
+                                    
+                                    <!-- Customer Search Results Dropdown -->
+                                    <div class="dropdown-menu w-100" id="customerSearchResults" style="max-height: 300px; overflow-y: auto; z-index: 1050;">
+                                        <!-- Results will be populated here via JavaScript -->
+                                    </div>
                                 </div>
+                                
+                                <!-- THE MAIN CUSTOMER ID FIELD - This is the one that gets submitted -->
+                                <input asp-for="CustomerId" type="hidden" />
                                 <span asp-validation-for="CustomerId" class="text-danger"></span>
+                                
+                                <!-- Selected Customer Display -->
+                                <div id="selectedCustomerDisplay" class="mt-2 d-none">
+                                    <div class="alert alert-success py-2">
+                                        <i class="fas fa-check-circle"></i>
+                                        <strong>Selected:</strong> <span id="selectedCustomerInfo"></span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="clearCustomerSelection">
+                                            <i class="fas fa-times"></i> Change
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Search Instructions -->
                                 <div class="form-text">
-                                    Can't find the customer? <a href="@Url.Action("Create", "Customers")" target="_blank">Create a new customer</a> first.
+                                    <i class="fas fa-info-circle"></i>
+                                    Type to search for customers. Can't find the customer? <a href="@Url.Action("Create", "Customers")" target="_blank">Create a new customer</a> first.
                                 </div>
                             </div>
                         </div>
@@ -289,6 +320,304 @@
     
 <script>
     let selectedCustomer = null;
+    let customerSearchTimeout;
+
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page loaded, initializing...');
+        
+        // Check if there are validation errors and hide loading indicator if so
+        const hasValidationErrors = document.querySelectorAll('.text-danger, .alert-warning, .alert-danger').length > 0;
+        if (hasValidationErrors) {
+            console.log('Validation errors detected on page load, ensuring loading indicator is hidden');
+            if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+                window.LoadingIndicator.hide(true); // Force hide
+            }
+            
+            // Focus on the first error field
+            const firstErrorField = document.querySelector('.is-invalid, .text-danger');
+            if (firstErrorField) {
+                const relatedInput = firstErrorField.previousElementSibling || 
+                                   firstErrorField.parentElement.querySelector('input, select, textarea');
+                if (relatedInput) {
+                    relatedInput.focus();
+                }
+            }
+        }
+        
+        updatePaymentDueDate();
+        
+        // Set today's date as default (date only, no time)
+        const today = new Date();
+        const dateString = today.toISOString().split('T')[0];
+        const saleDateInput = document.getElementById('SaleDate');
+        if (saleDateInput) {
+            saleDateInput.value = dateString;
+            updatePaymentDueDate();
+        }
+        
+        // Debug: Check if customer search input exists
+        const customerSearch = document.getElementById('customerSearch');
+        if (customerSearch) {
+            console.log('Customer search input found');
+            customerSearch.focus(); // Focus on search input when page loads
+        } else {
+            console.error('Customer search input not found!');
+        }
+        
+        // Debug: Check if form exists
+        const form = document.querySelector('form[asp-action="Create"]');
+        if (form) {
+            console.log('Create sale form found');
+        } else {
+            console.error('Create sale form not found!');
+        }
+    });
+
+    // Ensure loading indicator is hidden when page visibility changes (handles browser back/forward)
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible' && window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+            console.log('Page became visible with loading indicator showing, hiding it');
+            window.LoadingIndicator.hide(true);
+        }
+    });
+
+    // Add page unload handler to cleanup loading indicator
+    window.addEventListener('beforeunload', function() {
+        if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+            console.log('Page unloading, hiding loading indicator');
+            window.LoadingIndicator.hide(true);
+        }
+    });
+
+    // Customer search functionality (similar to item search in Purchase Create)
+    $('#customerSearch').on('input', function() {
+        const query = $(this).val();
+        console.log('Customer search input changed:', query);
+        
+        // Clear previous timeout
+        clearTimeout(customerSearchTimeout);
+        
+        // Hide results if query is too short
+        if (query.length < 2) {
+            hideCustomerSearchResults();
+            return;
+        }
+
+        // Show loading spinner
+        showCustomerLoadingSpinner();
+
+        // Debounce search
+        customerSearchTimeout = setTimeout(function() {
+            performCustomerSearch(query);
+        }, 300);
+    });
+
+    // Show customer loading spinner
+    function showCustomerLoadingSpinner() {
+        $('#customerSearchIcon').addClass('d-none');
+        $('#customerSearchSpinner').removeClass('d-none');
+    }
+
+    // Hide customer loading spinner
+    function hideCustomerLoadingSpinner() {
+        $('#customerSearchIcon').removeClass('d-none');
+        $('#customerSearchSpinner').addClass('d-none');
+    }
+
+    // Hide customer search results
+    function hideCustomerSearchResults() {
+        $('#customerSearchResults').removeClass('show').hide();
+    }
+
+    // Show customer search results
+    function showCustomerSearchResults() {
+        $('#customerSearchResults').addClass('show').show();
+    }
+
+    // Perform customer search
+    function performCustomerSearch(query) {
+        console.log('Performing customer search for:', query);
+        
+        $.ajax({
+            url: '@Url.Action("SearchCustomers")',
+            type: 'GET',
+            data: { query: query, page: 1, pageSize: 10 },
+            success: function(response) {
+                hideCustomerLoadingSpinner();
+                
+                console.log('Customer search response received:', response);
+                
+                if (response.success && response.customers && response.customers.length > 0) {
+                    console.log('Displaying', response.customers.length, 'customer results');
+                    displayCustomerSearchResults(response.customers, response.hasMore);
+                } else {
+                    console.log('No customers found or search failed');
+                    displayCustomerNoResults(response.message || 'No customers found');
+                }
+            },
+            error: function(xhr, status, error) {
+                hideCustomerLoadingSpinner();
+                console.error('Customer search AJAX Error:', status, error);
+                displayCustomerNoResults('Error searching customers. Please try again.');
+            }
+        });
+    }
+
+    // Display customer search results
+    function displayCustomerSearchResults(customers, hasMore) {
+        console.log('displayCustomerSearchResults called with', customers.length, 'customers');
+        
+        let html = '';
+        
+        // Store customers data globally for easier access
+        window.customerSearchResultsData = customers;
+        
+        customers.forEach(function(customer, index) {
+            let creditBadge = '';
+            if (customer.outstandingBalance > customer.creditLimit && customer.creditLimit > 0) {
+                creditBadge = '<span class="badge bg-danger text-white ms-2">Over Credit</span>';
+            } else if (customer.creditLimit > 0) {
+                creditBadge = '<span class="badge bg-success text-white ms-2">Credit OK</span>';
+            }
+            
+            html += `
+                <a href="#" class="dropdown-item customer-result py-2" data-customer-index="${index}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">${escapeHtml(customer.displayText)} ${creditBadge}</div>
+                            <div class="text-muted small">${escapeHtml(customer.email || 'No email')}</div>
+                            <div class="text-muted small">${escapeHtml(customer.phone || 'No phone')} | Credit: $${customer.creditLimit.toLocaleString()}</div>
+                        </div>
+                        <div class="text-end">
+                            <small class="badge bg-secondary">${escapeHtml(customer.customerType)}</small>
+                        </div>
+                    </div>
+                </a>
+            `;
+        });
+
+        if (hasMore) {
+            html += '<div class="dropdown-header text-center text-muted"><small><em>Type more to refine search...</em></small></div>';
+        }
+
+        const $customerSearchResults = $('#customerSearchResults');
+        $customerSearchResults.html(html);
+        showCustomerSearchResults();
+        
+        console.log('Customer search results HTML updated, dropdown should be visible');
+        
+        // Bind click events to new results
+        bindCustomerResultClicks();
+    }
+
+    // Display no customer results message
+    function displayCustomerNoResults(message) {
+        console.log('displayCustomerNoResults called with message:', message);
+        
+        const html = `
+            <div class="dropdown-header text-center text-muted py-3">
+                <i class="fas fa-search"></i> ${escapeHtml(message)}
+            </div>
+        `;
+        
+        const $customerSearchResults = $('#customerSearchResults');
+        $customerSearchResults.html(html);
+        showCustomerSearchResults();
+    }
+
+    // Bind click events to customer search results
+    function bindCustomerResultClicks() {
+        console.log('Binding click events to customer search results');
+        
+        $('.customer-result').off('click').on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const customerIndex = parseInt($(this).data('customer-index'));
+            console.log('Customer clicked, index:', customerIndex);
+            
+            if (window.customerSearchResultsData && window.customerSearchResultsData[customerIndex]) {
+                const customerData = window.customerSearchResultsData[customerIndex];
+                console.log('Selected customer:', customerData);
+                selectCustomer(customerData);
+                hideCustomerSearchResults();
+            } else {
+                console.error('Customer data not found for index:', customerIndex);
+            }
+        });
+    }
+
+    // Select a customer
+    function selectCustomer(customer) {
+        console.log('selectCustomer called with:', customer);
+        selectedCustomer = customer;
+        
+        // Set the main CustomerId field (the one that gets submitted)
+        $('input[name="CustomerId"]').val(customer.id);
+        
+        // Update the search input
+        $('#customerSearch').val(customer.displayText);
+        
+        // Show selected customer display
+        $('#selectedCustomerInfo').text(customer.displayText);
+        $('#selectedCustomerDisplay').removeClass('d-none');
+        
+        // Load full customer details and display preview
+        loadFullCustomerDetails(customer.id);
+        
+        // Clear validation error if present
+        $('span[data-valmsg-for="CustomerId"]').text('');
+        
+        console.log('Customer selected successfully. CustomerId field value:', $('input[name="CustomerId"]').val());
+    }
+
+    // Load full customer details for preview
+    async function loadFullCustomerDetails(customerId) {
+        try {
+            const response = await fetch(`/Sales/GetCustomerDetails/${customerId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                selectedCustomer = result.data;
+                displayCustomerPreview(result.data);
+                loadCustomerPaymentTerms(result.data);
+                $('#customerPreview').show();
+                $('#creditCheckCard').show();
+            }
+        } catch (error) {
+            console.error('Error loading customer details:', error);
+        }
+    }
+
+    // Clear customer selection
+    $('#clearCustomerSelection').on('click', function() {
+        selectedCustomer = null;
+        $('input[name="CustomerId"]').val('');
+        $('#customerSearch').val('');
+        $('#selectedCustomerDisplay').addClass('d-none');
+        $('#customerPreview').hide();
+        $('#creditCheckCard').hide();
+        $('#customerSearch').focus();
+    });
+
+    // Hide customer search results when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#customerSearch, #customerSearchResults').length) {
+            hideCustomerSearchResults();
+        }
+    });
 
     // Update payment due date based on terms
     function updatePaymentDueDate() {
@@ -316,36 +645,6 @@
             console.log('Payment due date updated to:', dueDateString);
         }
     }
-
-    // Handle customer selection
-    document.getElementById('customerSelect').addEventListener('change', async function() {
-        const customerId = this.value;
-        const preview = document.getElementById('customerPreview');
-        const creditCard = document.getElementById('creditCheckCard');
-        
-        if (!customerId) {
-            preview.style.display = 'none';
-            creditCard.style.display = 'none';
-            selectedCustomer = null;
-            return;
-        }
-
-        try {
-            // Fetch customer details
-            const response = await fetch(`/Customers/GetCustomerDetails/${customerId}`);
-            const customer = await response.json();
-            
-            if (customer.success) {
-                selectedCustomer = customer.data;
-                displayCustomerPreview(customer.data);
-                loadCustomerPaymentTerms(customer.data);
-                preview.style.display = 'block';
-                creditCard.style.display = 'block';
-            }
-        } catch (error) {
-            console.error('Error loading customer details:', error);
-        }
-    });
 
     function displayCustomerPreview(customer) {
         const detailsDiv = document.getElementById('customerDetails');
@@ -431,7 +730,7 @@
         }
         
         // Check if customer is selected
-        const customerId = document.getElementById('customerSelect').value;
+        const customerId = $('input[name="CustomerId"]').val();
         if (!customerId) {
             alert('Please select a customer before creating the sale.');
             e.preventDefault();
@@ -477,75 +776,84 @@
     function calculateEstimatedTotal() {
         const shipping = parseFloat(document.getElementById('ShippingCost').value) || 0;
         const tax = parseFloat(document.getElementById('TaxAmount').value) || 0;
-        // Add logic to calculate subtotal from line items when they're added
-        return shipping + tax;
+        // Add logic to calculate subtotal from line items when they're implemented
+        const subtotal = 0; // Placeholder, implement subtotal calculation
+        
+        return subtotal + shipping + tax;
     }
-
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Page loaded, initializing...');
-        
-        // Check if there are validation errors and hide loading indicator if so
-        const hasValidationErrors = document.querySelectorAll('.text-danger, .alert-warning, .alert-danger').length > 0;
-        if (hasValidationErrors) {
-            console.log('Validation errors detected on page load, ensuring loading indicator is hidden');
-            if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
-                window.LoadingIndicator.hide(true); // Force hide
-            }
-            
-            // Focus on the first error field
-            const firstErrorField = document.querySelector('.is-invalid, .text-danger');
-            if (firstErrorField) {
-                const relatedInput = firstErrorField.previousElementSibling || 
-                                   firstErrorField.parentElement.querySelector('input, select, textarea');
-                if (relatedInput) {
-                    relatedInput.focus();
-                }
-            }
-        }
-        
-        updatePaymentDueDate();
-        
-        // Set today's date as default (date only, no time)
-        const today = new Date();
-        const dateString = today.toISOString().split('T')[0];
-        const saleDateInput = document.getElementById('SaleDate');
-        if (saleDateInput) {
-            saleDateInput.value = dateString;
-            updatePaymentDueDate();
-        }
-        
-        // Debug: Check if customers dropdown is populated
-        const customerSelect = document.getElementById('customerSelect');
-        if (customerSelect) {
-            console.log('Customer dropdown found with', customerSelect.options.length, 'options');
-        } else {
-            console.error('Customer dropdown not found!');
-        }
-        
-        // Debug: Check if form exists
-        const form = document.querySelector('form[action="/Sales/Create"]');
-        if (form) {
-            console.log('Create sale form found');
-        } else {
-            console.error('Create sale form not found!');
-        }
-    });
-
-    // Ensure loading indicator is hidden when page visibility changes (handles browser back/forward)
-    document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'visible' && window.LoadingIndicator && window.LoadingIndicator.isShowing) {
-            console.log('Page became visible with loading indicator showing, hiding it');
-            window.LoadingIndicator.hide(true);
-        }
-    });
-
-    // Add page unload handler to cleanup loading indicator
-    window.addEventListener('beforeunload', function() {
-        if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
-            console.log('Page unloading, hiding loading indicator');
-            window.LoadingIndicator.hide(true);
-        }
-    });
 </script>
+}
+
+@section Styles {
+    <style>
+        /* Customer search dropdown styling (similar to item search) */
+        #customerSearchResults {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            max-height: 300px;
+            overflow-y: auto;
+            display: none; /* Hidden by default */
+        }
+
+        #customerSearchResults.show {
+            display: block !important;
+        }
+
+        /* Style dropdown items properly */
+        #customerSearchResults .dropdown-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f8f9fa;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        #customerSearchResults .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        #customerSearchResults .dropdown-item:hover {
+            background-color: #f8f9fa;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        #customerSearchResults .dropdown-item:focus {
+            background-color: #e9ecef;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        /* Ensure spinner alignment */
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        /* Ensure proper positioning context */
+        .position-relative {
+            position: relative !important;
+        }
+
+        /* Badge styling in search results */
+        #customerSearchResults .badge {
+            font-size: 0.65rem;
+        }
+
+        /* Typography improvements */
+        #customerSearchResults .fw-bold {
+            font-weight: 600 !important;
+        }
+
+        #customerSearchResults .text-muted {
+            color: #6c757d !important;
+        }
+    </style>
 }

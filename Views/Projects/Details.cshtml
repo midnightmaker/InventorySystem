@@ -1,0 +1,383 @@
+@model InventorySystem.ViewModels.ProjectDetailsViewModel
+@{
+    ViewData["Title"] = $"Project: {Model.Project.ProjectCode}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>
+            <i class="fas fa-project-diagram text-primary"></i> 
+            @Model.Project.ProjectCode - @Model.Project.ProjectName
+        </h1>
+        <div class="d-flex align-items-center gap-3">
+            <span class="badge bg-@(GetStatusBadgeColor(Model.Project.Status)) fs-6">
+                @Model.Project.Status.ToString().Replace("_", " ")
+            </span>
+            <span class="badge bg-info fs-6">
+                @Model.Project.ProjectType.ToString().Replace("_", " ")
+            </span>
+            @if (Model.Project.Priority == InventorySystem.Models.Enums.ProjectPriority.High || Model.Project.Priority == InventorySystem.Models.Enums.ProjectPriority.Critical)
+            {
+                <span class="badge bg-danger fs-6">@Model.Project.Priority Priority</span>
+            }
+        </div>
+    </div>
+    <div class="btn-group">
+        <a asp-action="Edit" asp-route-id="@Model.Project.Id" class="btn btn-primary">
+            <i class="fas fa-edit"></i> Edit Project
+        </a>
+        <a asp-controller="Purchases" asp-action="PayExpense" asp-route-ProjectId="@Model.Project.Id" class="btn btn-success">
+            <i class="fas fa-credit-card"></i> Record Expense
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Projects
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Project Overview Row -->
+<div class="row mb-4">
+    <!-- Project Information -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Project Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-5">Project Code:</dt>
+                    <dd class="col-sm-7"><strong>@Model.Project.ProjectCode</strong></dd>
+
+                    <dt class="col-sm-5">Project Name:</dt>
+                    <dd class="col-sm-7">@Model.Project.ProjectName</dd>
+
+                    @if (!string.IsNullOrEmpty(Model.Project.Description))
+                    {
+                        <dt class="col-sm-5">Description:</dt>
+                        <dd class="col-sm-7">@Model.Project.Description</dd>
+                    }
+
+                    <dt class="col-sm-5">Type:</dt>
+                    <dd class="col-sm-7">@Model.Project.ProjectType.ToString().Replace("_", " ")</dd>
+
+                    <dt class="col-sm-5">Priority:</dt>
+                    <dd class="col-sm-7">
+                        <span class="badge bg-@(GetPriorityBadgeColor(Model.Project.Priority))">
+                            @Model.Project.Priority
+                        </span>
+                    </dd>
+
+                    @if (!string.IsNullOrEmpty(Model.Project.ProjectManager))
+                    {
+                        <dt class="col-sm-5">Project Manager:</dt>
+                        <dd class="col-sm-7">@Model.Project.ProjectManager</dd>
+                    }
+
+                    @if (!string.IsNullOrEmpty(Model.Project.Department))
+                    {
+                        <dt class="col-sm-5">Department:</dt>
+                        <dd class="col-sm-7">@Model.Project.Department</dd>
+                    }
+
+                    <dt class="col-sm-5">Created:</dt>
+                    <dd class="col-sm-7">
+                        @Model.Project.CreatedDate.ToString("MM/dd/yyyy")
+                        @if (!string.IsNullOrEmpty(Model.Project.CreatedBy))
+                        {
+                            <div class="text-muted small">by @Model.Project.CreatedBy</div>
+                        }
+                    </dd>
+
+                    @if (Model.Project.StartDate.HasValue)
+                    {
+                        <dt class="col-sm-5">Start Date:</dt>
+                        <dd class="col-sm-7">@Model.Project.StartDate.Value.ToString("MM/dd/yyyy")</dd>
+                    }
+
+                    @if (Model.Project.ExpectedEndDate.HasValue)
+                    {
+                        <dt class="col-sm-5">Expected End:</dt>
+                        <dd class="col-sm-7">@Model.Project.ExpectedEndDate.Value.ToString("MM/dd/yyyy")</dd>
+                    }
+
+                    @if (Model.Project.ActualEndDate.HasValue)
+                    {
+                        <dt class="col-sm-5">Actual End:</dt>
+                        <dd class="col-sm-7">@Model.Project.ActualEndDate.Value.ToString("MM/dd/yyyy")</dd>
+                    }
+                </dl>
+
+                @if (!string.IsNullOrEmpty(Model.Project.Notes))
+                {
+                    <hr>
+                    <h6>Notes:</h6>
+                    <div class="border rounded p-2 bg-light">
+                        @Html.Raw(Model.Project.Notes.Replace("\n", "<br>"))
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5><i class="fas fa-dollar-sign"></i> Financial Summary</h5>
+            </div>
+            <div class="card-body">
+                <!-- Budget Overview -->
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h6 class="text-muted">Budget</h6>
+                            <h4 class="text-primary">@Model.FinancialSummary.TotalBudget.ToString("C")</h4>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h6 class="text-muted">Spent</h6>
+                            <h4 class="text-@(Model.FinancialSummary.IsOverBudget ? "danger" : "success")">
+                                @Model.FinancialSummary.TotalSpent.ToString("C")
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget Utilization Bar -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small">Budget Utilization</span>
+                        <span class="small text-@(Model.FinancialSummary.IsOverBudget ? "danger" : "muted")">
+                            @Model.FinancialSummary.BudgetUtilization.ToString("F1")%
+                        </span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-@(Model.FinancialSummary.IsOverBudget ? "danger" : "success")" 
+                             style="width: @(Math.Min(Model.FinancialSummary.BudgetUtilization, 100))%"></div>
+                    </div>
+                </div>
+
+                <!-- Remaining Budget -->
+                <div class="row mb-3">
+                    <div class="col-12 text-center">
+                        <h6 class="text-muted">Remaining Budget</h6>
+                        <h4 class="text-@(Model.FinancialSummary.RemainingBudget >= 0 ? "success" : "danger")">
+                            @Model.FinancialSummary.RemainingBudget.ToString("C")
+                        </h4>
+                    </div>
+                </div>
+
+                @if (Model.FinancialSummary.IsOverBudget)
+                {
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Over Budget!</strong> This project has exceeded its budget by @((Model.FinancialSummary.TotalSpent - Model.FinancialSummary.TotalBudget).ToString("C")).
+                    </div>
+                }
+
+                <!-- Purchase Statistics -->
+                <hr>
+                <dl class="row">
+                    <dt class="col-sm-6">Total Purchases:</dt>
+                    <dd class="col-sm-6">@Model.FinancialSummary.TotalPurchases</dd>
+
+                    @if (Model.FinancialSummary.AverageTransactionSize > 0)
+                    {
+                        <dt class="col-sm-6">Avg Transaction:</dt>
+                        <dd class="col-sm-6">@Model.FinancialSummary.AverageTransactionSize.ToString("C")</dd>
+                    }
+
+                    @if (Model.FinancialSummary.LastPurchaseDate.HasValue)
+                    {
+                        <dt class="col-sm-6">Last Purchase:</dt>
+                        <dd class="col-sm-6">@Model.FinancialSummary.LastPurchaseDate.Value.ToString("MM/dd/yyyy")</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Spending Chart -->
+@if (Model.MonthlySpending.Any())
+{
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line"></i> Monthly Spending - @DateTime.Now.Year</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlySpendingChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Purchases Tabs -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#recent-purchases" type="button">
+                            <i class="fas fa-clock"></i> Recent Purchases (@Model.RecentPurchases.Count)
+                        </button>
+                    </li>
+                    @if (Model.PendingPurchases.Any())
+                    {
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pending-purchases" type="button">
+                                <i class="fas fa-hourglass-half"></i> Pending (@Model.PendingPurchases.Count)
+                            </button>
+                        </li>
+                    }
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#all-purchases" type="button">
+                            <i class="fas fa-list"></i> All Purchases (@Model.Project.PurchaseCount)
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <!-- Recent Purchases Tab -->
+                    <div class="tab-pane fade show active" id="recent-purchases">
+                        @if (Model.RecentPurchases.Any())
+                        {
+                            @await Html.PartialAsync("_PurchasesList", Model.RecentPurchases)
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No Purchases Yet</h5>
+                                <p class="text-muted">Start recording expenses for this project.</p>
+                                <a asp-controller="Purchases" asp-action="PayExpense" asp-route-ProjectId="@Model.Project.Id" class="btn btn-success">
+                                    <i class="fas fa-credit-card"></i> Record First Expense
+                                </a>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Pending Purchases Tab -->
+                    @if (Model.PendingPurchases.Any())
+                    {
+                        <div class="tab-pane fade" id="pending-purchases">
+                            @await Html.PartialAsync("_PurchasesList", Model.PendingPurchases)
+                        </div>
+                    }
+
+                    <!-- All Purchases Tab -->
+                    <div class="tab-pane fade" id="all-purchases">
+                        <div class="text-center py-3">
+                            <a href="@Url.Action("ExpensePayments", "Purchases", new { ProjectFilter = Model.Project.Id })" class="btn btn-primary">
+                                <i class="fas fa-external-link-alt"></i> View All Project Expenses
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetStatusBadgeColor(InventorySystem.Models.Enums.ProjectStatus status)
+    {
+        return status switch
+        {
+            InventorySystem.Models.Enums.ProjectStatus.Planning => "secondary",
+            InventorySystem.Models.Enums.ProjectStatus.Active => "success",
+            InventorySystem.Models.Enums.ProjectStatus.On_Hold => "warning",
+            InventorySystem.Models.Enums.ProjectStatus.Completed => "primary",
+            InventorySystem.Models.Enums.ProjectStatus.Cancelled => "danger",
+            InventorySystem.Models.Enums.ProjectStatus.Suspended => "dark",
+            InventorySystem.Models.Enums.ProjectStatus.Under_Review => "info",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPriorityBadgeColor(InventorySystem.Models.Enums.ProjectPriority priority)
+    {
+        return priority switch
+        {
+            InventorySystem.Models.Enums.ProjectPriority.Low => "success",
+            InventorySystem.Models.Enums.ProjectPriority.Medium => "info",
+            InventorySystem.Models.Enums.ProjectPriority.High => "warning",
+            InventorySystem.Models.Enums.ProjectPriority.Critical => "danger",
+            InventorySystem.Models.Enums.ProjectPriority.Strategic => "primary",
+            _ => "secondary"
+        };
+    }
+}
+
+@section Scripts {
+    @if (Model.MonthlySpending.Any())
+    {
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            // Monthly Spending Chart
+            const monthlySpendingCtx = document.getElementById('monthlySpendingChart').getContext('2d');
+            const monthlySpendingChart = new Chart(monthlySpendingCtx, {
+                type: 'line',
+                data: {
+                    labels: @Html.Raw(Json.Serialize(Model.MonthlySpending.Select(m => m.MonthName))),
+                    datasets: [{
+                        label: 'Monthly Spending',
+                        data: @Html.Raw(Json.Serialize(Model.MonthlySpending.Select(m => m.Amount))),
+                        borderColor: '@(Model.FinancialSummary.IsOverBudget ? "#dc3545" : "#28a745")',
+                        backgroundColor: '@(Model.FinancialSummary.IsOverBudget ? "rgba(220, 53, 69, 0.1)" : "rgba(40, 167, 69, 0.1)")',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+        </script>
+    }
+}

@@ -24,6 +24,7 @@ namespace InventorySystem.Services
         {
             return await _context.Customers
                 .Include(c => c.Sales)
+                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
                 .OrderBy(c => c.CustomerName)
                 .ToListAsync();
         }
@@ -32,6 +33,7 @@ namespace InventorySystem.Services
         {
             return await _context.Customers
                 .Include(c => c.Sales)
+                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
                 .Where(c => c.IsActive)
                 .OrderBy(c => c.CustomerName)
                 .ToListAsync();
@@ -50,6 +52,7 @@ namespace InventorySystem.Services
         {
             return await _context.Customers
                 .Include(c => c.Sales)
+                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
                 .FirstOrDefaultAsync(c => c.Email.ToLower() == email.ToLower());
         }
 
@@ -109,6 +112,7 @@ namespace InventorySystem.Services
             var searchTermTrimmed = searchTerm.Trim();
             var query = _context.Customers
                 .Include(c => c.Sales)
+                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
                 .AsQueryable();
 
             if (searchTermTrimmed.Contains('*') || searchTermTrimmed.Contains('?'))
@@ -142,6 +146,7 @@ namespace InventorySystem.Services
         {
             return await _context.Customers
                 .Include(c => c.Sales)
+                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
                 .Where(c => c.CustomerType == customerType && c.IsActive)
                 .OrderBy(c => c.CustomerName)
                 .ToListAsync();
@@ -151,6 +156,7 @@ namespace InventorySystem.Services
         {
             var customers = await _context.Customers
                 .Include(c => c.Sales)
+                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
                 .Where(c => c.IsActive && c.Sales.Any(s => 
                     s.PaymentStatus == PaymentStatus.Pending || 
                     s.PaymentStatus == PaymentStatus.Overdue))
@@ -165,6 +171,7 @@ namespace InventorySystem.Services
         {
             var customers = await _context.Customers
                 .Include(c => c.Sales)
+                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
                 .Where(c => c.IsActive && c.CreditLimit > 0)
                 .ToListAsync(); // First get the data from database
 

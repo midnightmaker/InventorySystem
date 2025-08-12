@@ -190,6 +190,55 @@
               </div>
             </div>
           </div>
+
+          <!-- Pricing Information -->
+          <div class="row" id="pricingSection">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="SalePrice" class="form-label">
+                  <i class="fas fa-tag text-success"></i>
+                  Sale Price <span class="text-muted">(Optional)</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="SalePrice" class="form-control" type="number" step="0.01" min="0" placeholder="0.00" />
+                </div>
+                <span asp-validation-for="SalePrice" class="text-danger"></span>
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i>
+                  Default price for selling this item. Used as the suggested price in sales forms.
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6" id="pricingInfo">
+              <div class="mb-3">
+                <label class="form-label">
+                  <i class="fas fa-calculator text-info"></i>
+                  Pricing Information
+                </label>
+                <div class="alert alert-light border p-2" id="pricingGuidance">
+                  <small>
+                    @if (Model.HasSalePrice)
+                    {
+                      <span class="text-success">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Sale Price Set:</strong> @Model.SalePrice.Value.ToString("C")
+                      </span>
+                    }
+                    else
+                    {
+                      <span class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>No Sale Price:</strong> System will suggest pricing based on cost and item type
+                      </span>
+                    }
+                    <br>
+                    <strong>Suggested Price:</strong> @Model.SuggestedSalePrice.ToString("C")
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

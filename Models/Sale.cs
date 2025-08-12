@@ -67,6 +67,7 @@ namespace InventorySystem.Models
 
         // Navigation properties
         public virtual ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
+        public virtual ICollection<CustomerPayment> CustomerPayments { get; set; } = new List<CustomerPayment>();
 
         // Computed properties
         [NotMapped]

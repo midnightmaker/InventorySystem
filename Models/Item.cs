@@ -124,6 +124,77 @@ namespace InventorySystem.Models
     [Column(TypeName = "decimal(5,2)")]
     public decimal? WastePercentage { get; set; }
 
+    // Sale Price Properties
+    [Display(Name = "Sale Price")]
+    [Column(TypeName = "decimal(18,2)")]
+    [Range(0, double.MaxValue, ErrorMessage = "Sale price must be 0 or greater")]
+    public decimal? SalePrice { get; set; }
+
+    [Display(Name = "Has Sale Price")]
+    [NotMapped]
+    public bool HasSalePrice => SalePrice.HasValue && SalePrice.Value > 0;
+
+    [Display(Name = "Suggested Sale Price")]
+    [NotMapped]
+    public decimal SuggestedSalePrice
+    {
+        get
+        {
+            // If sale price is already set, use it
+            if (HasSalePrice) return SalePrice.Value;
+
+            // Try to calculate from latest cost with appropriate markup
+            try
+            {
+                // Use different markup strategies based on item type
+                var markupFactor = ItemType switch
+                {
+                    ItemType.Service => 3.0m,           // 200% markup for services
+                    ItemType.Virtual => 4.0m,           // 300% markup for virtual items
+                    ItemType.Subscription => 2.5m,      // 150% markup for subscriptions
+                    ItemType.Utility => 1.2m,           // 20% markup for utilities
+                    ItemType.Inventoried => 1.5m,       // 50% markup for physical items
+                    ItemType.Consumable => 1.4m,        // 40% markup for consumables
+                    ItemType.RnDMaterials => 1.6m,      // 60% markup for R&D materials
+                    _ => 1.5m                            // Default 50% markup
+                };
+
+                // For inventory items, try to use cost-based pricing
+                if (TrackInventory)
+                {
+                    // This would need to be calculated via service call in real implementation
+                    // For now, provide a reasonable default
+                    return 10.00m * markupFactor;
+                }
+                else
+                {
+                    // For non-inventory items, use type-based defaults
+                    return ItemType switch
+                    {
+                        ItemType.Service => 75.00m,
+                        ItemType.Virtual => 50.00m,
+                        ItemType.Subscription => 25.00m,
+                        ItemType.Utility => 150.00m,
+                        ItemType.NonInventoried => 30.00m,
+                        _ => 25.00m
+                    };
+                }
+            }
+            catch
+            {
+                // Fallback pricing
+                return ItemType switch
+                {
+                    ItemType.Service => 75.00m,
+                    ItemType.Virtual => 50.00m,
+                    ItemType.Subscription => 25.00m,
+                    ItemType.Utility => 150.00m,
+                    _ => 25.00m
+                };
+            }
+        }
+    }
+
     // Navigation properties
     public virtual ICollection<Item> TransformedItems { get; set; } = new List<Item>();
     public virtual ICollection<ItemDocument> DesignDocuments { get; set; } = new List<ItemDocument>();

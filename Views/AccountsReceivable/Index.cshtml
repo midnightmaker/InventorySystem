@@ -381,55 +381,175 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Aging Chart
-    const ctx = document.getElementById('agingChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Current', '1-30 Days', '31-60 Days', '61-90 Days', '90+ Days'],
-            datasets: [{
-                data: [
-                    @Model.CurrentAmount,
-                    @Model.Days1To30Amount,
-                    @Model.Days31To60Amount,
-                    @Model.Days61To90Amount,
-                    @Model.Over90DaysAmount
-                ],
-                backgroundColor: [
-                    '#28a745', // green - current
-                    '#ffc107', // yellow - 1-30
-                    '#fd7e14', // orange - 31-60
-                    '#dc3545', // red - 61-90
-                    '#6c757d'  // gray - 90+
-                ],
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const value = context.parsed;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                            return context.label + ': $' + value.toLocaleString() + ' (' + percentage + '%)';
+    try {
+        // Aging Chart - with enhanced no-data handling
+        const ctx = document.getElementById('agingChart');
+        
+        if (!ctx) {
+            console.warn('Aging chart canvas element not found');
+            return;
+        }
+
+        const chartData = [
+            @Model.CurrentAmount,
+            @Model.Days1To30Amount,
+            @Model.Days31To60Amount,
+            @Model.Days61To90Amount,
+            @Model.Over90DaysAmount
+        ];
+
+        console.log('Chart data:', chartData);
+
+        // Enhanced validation to handle no-data scenarios
+        const isValidData = chartData.every(value => 
+            typeof value === 'number' && 
+            isFinite(value) && 
+            !isNaN(value) && 
+            value >= 0
+        );
+
+        const hasData = chartData.some(value => value > 0);
+
+        if (!isValidData || !hasData) {
+            console.warn('No valid data or all values are zero - showing no data message');
+            
+            // Hide the canvas and show a meaningful message
+            ctx.style.display = 'none';
+            const noDataMsg = document.createElement('div');
+            noDataMsg.className = 'alert alert-info text-center';
+            noDataMsg.innerHTML = `
+                <i class="fas fa-info-circle fa-2x mb-2"></i>
+                <h6>No Accounts Receivable Data</h6>
+                <p class="mb-0">There are currently no unpaid invoices to display in the aging chart.</p>
+                <small class="text-muted">This is actually good news - all invoices are paid!</small>
+            `;
+            ctx.parentNode.replaceChild(noDataMsg, ctx);
+            return;
+        }
+
+        // For very small amounts, add a minimum value to prevent rendering issues
+        const processedData = chartData.map(value => Math.max(value, 0.01));
+        const totalValue = processedData.reduce((a, b) => a + b, 0);
+
+        // Ensure we have a reasonable total
+        if (totalValue < 0.01) {
+            console.warn('Total value too small for chart rendering');
+            ctx.style.display = 'none';
+            const minDataMsg = document.createElement('div');
+            minDataMsg.className = 'alert alert-info text-center';
+            minDataMsg.innerHTML = `
+                <i class="fas fa-chart-pie fa-2x mb-2 text-muted"></i>
+                <h6>Minimal A/R Data</h6>
+                <p class="mb-0">Account receivable amounts are too small to display meaningfully in the chart.</p>
+            `;
+            ctx.parentNode.replaceChild(minDataMsg, ctx);
+            return;
+        }
+
+        // Create chart with timeout protection
+        const chartTimeout = setTimeout(() => {
+            console.error('Chart rendering timed out - preventing infinite loop');
+            ctx.style.display = 'none';
+            const timeoutMsg = document.createElement('div');
+            timeoutMsg.className = 'alert alert-warning text-center';
+            timeoutMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Chart loading timed out. Please refresh the page.';
+            ctx.parentNode.replaceChild(timeoutMsg, ctx);
+        }, 5000);
+
+        const chart = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Current (0-30)', '1-30 Days', '31-60 Days', '61-90 Days', '90+ Days'],
+                datasets: [{
+                    data: processedData,
+                    backgroundColor: [
+                        '#28a745', // green - current
+                        '#ffc107', // yellow - 1-30
+                        '#fd7e14', // orange - 31-60
+                        '#dc3545', // red - 61-90
+                        '#6c757d'  // gray - 90+
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                    // Prevent animation issues with small values
+                    circumference: 360,
+                    rotation: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart',
+                    onComplete: function() {
+                        clearTimeout(chartTimeout);
+                        console.log('Chart rendered successfully');
+                    },
+                    onProgress: function(animation) {
+                        // Prevent infinite animation loops
+                        if (animation.currentStep > animation.numSteps + 10) {
+                            console.warn('Animation taking too long, stopping');
+                            animation.stop();
+                            clearTimeout(chartTimeout);
                         }
                     }
-                }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            generateLabels: function(chart) {
+                                const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                                const labels = original.call(this, chart);
+                                
+                                // Only show labels for non-zero values
+                                return labels.filter((label, index) => {
+                                    return chartData[index] > 0;
+                                });
+                            }
+                        }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                try {
+                                    const value = chartData[context.dataIndex]; // Use original data
+                                    const percentage = totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : 0;
+                                    return context.label + ': $' + value.toLocaleString() + ' (' + percentage + '%)';
+                                } catch (err) {
+                                    console.warn('Error in tooltip callback:', err);
+                                    return context.label + ': $' + context.parsed.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                },
+                // Additional safeguards
+                cutout: '50%',
+                radius: '90%'
             }
+        });
+
+        // Clear timeout on successful creation
+        clearTimeout(chartTimeout);
+        console.log('Aging chart initialized successfully');
+
+    } catch (error) {
+        console.error('Error initializing aging chart:', error);
+        
+        // Replace chart with error message
+        const ctx = document.getElementById('agingChart');
+        if (ctx) {
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'alert alert-danger text-center';
+            errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Unable to load chart. Please refresh the page.';
+            ctx.parentNode.replaceChild(errorMsg, ctx);
         }
-    });
+    }
 });
 </script>
 }

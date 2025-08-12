@@ -84,6 +84,11 @@ namespace InventorySystem.Models
     [DataType(DataType.Date)]
     public DateTime? ActualDeliveryDate { get; set; }
 
+    // NEW: Project association for R&D tracking
+    [Display(Name = "Project")]
+    public int? ProjectId { get; set; }
+    public virtual Project? Project { get; set; }
+
     public virtual ICollection<PurchaseDocument> PurchaseDocuments { get; set; } = new List<PurchaseDocument>();
   }
 }

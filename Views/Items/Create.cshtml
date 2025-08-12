@@ -187,6 +187,48 @@
               </div>
             </div>
           </div>
+
+          <!-- Pricing Information -->
+          <div class="row" id="pricingSection">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="SalePrice" class="form-label">
+                  <i class="fas fa-tag text-success"></i>
+                  Sale Price <span class="text-muted">(Optional)</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input asp-for="SalePrice" class="form-control" type="number" step="0.01" min="0" placeholder="0.00" />
+                </div>
+                <span asp-validation-for="SalePrice" class="text-danger"></span>
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i>
+                  Set the default price for selling this item. If not set, the system will suggest pricing based on cost and item type.
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6" id="pricingInfo">
+              <div class="mb-3">
+                <label class="form-label">
+                  <i class="fas fa-calculator text-info"></i>
+                  Pricing Guide
+                </label>
+                <div class="alert alert-light border p-2" id="pricingGuidance">
+                  <small class="text-muted">
+                    <i class="fas fa-lightbulb"></i>
+                    <strong>Suggested Pricing:</strong>
+                    <ul class="mt-2 mb-0 ps-3">
+                      <li><strong>Service Items:</strong> $50-150/hour</li>
+                      <li><strong>Virtual Items:</strong> $25-100 per license</li>
+                      <li><strong>Subscriptions:</strong> $15-50/month</li>
+                      <li><strong>Utilities:</strong> Based on usage/cost</li>
+                      <li><strong>Physical Items:</strong> Cost + 50% markup</li>
+                    </ul>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

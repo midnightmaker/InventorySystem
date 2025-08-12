@@ -188,6 +188,100 @@
               </ul>
             </li>
 
+            <!-- NEW: R&D Projects Dropdown -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-project-diagram"></i> R&D Projects
+              </a>
+              <ul class="dropdown-menu">
+                <!-- Main Project Actions -->
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Dashboard">
+                    <i class="fas fa-tachometer-alt text-primary"></i> Project Dashboard
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index">
+                    <i class="fas fa-list text-info"></i> All Projects
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Create">
+                    <i class="fas fa-plus text-success"></i> New Project
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Project Status Views -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-tasks"></i> By Status
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-statusFilter="Active">
+                    <i class="fas fa-play text-success"></i> Active Projects
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-statusFilter="Planning">
+                    <i class="fas fa-clock text-secondary"></i> Planning Projects
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-statusFilter="Completed">
+                    <i class="fas fa-check text-primary"></i> Completed Projects
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-isOverBudget="true">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> Over Budget
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Project Types -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-flask"></i> By Type
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-typeFilter="Research">
+                    <i class="fas fa-search text-info"></i> Research Projects
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-typeFilter="Development">
+                    <i class="fas fa-code text-success"></i> Development Projects
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-typeFilter="ProductDevelopment">
+                    <i class="fas fa-cogs text-warning"></i> Product Development
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Reports & Analytics -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-chart-bar"></i> Reports & Analytics
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Projects" asp-action="Reports">
+                    <i class="fas fa-chart-line text-primary"></i> Project Reports
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="ExpensePayments">
+                    <i class="fas fa-credit-card text-danger"></i> R&D Expenses
+                  </a>
+                </li>
+              </ul>
+            </li>
+
             <!-- Production & Workflow Dropdown -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -362,18 +456,19 @@
 
             <!-- Sales Dropdown -->
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="salesDropdown" role="button" data-bs-toggle="dropdown">
-                <i class="fas fa-cash-register"></i> Sales
+              <a class="nav-link dropdown-toggle" href="#" id="salesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-shopping-cart"></i> Sales
               </a>
-              <ul class="dropdown-menu">
+              <ul class="dropdown-menu" aria-labelledby="salesDropdown">
                 <li><a class="dropdown-item" href="/Sales"><i class="fas fa-list"></i> All Sales</a></li>
                 <li><a class="dropdown-item" href="/Sales/Create"><i class="fas fa-plus"></i> New Sale</a></li>
                 <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/CustomerPayments"><i class="fas fa-credit-card text-danger"></i> Customer Payments</a></li>
                 <li><a class="dropdown-item" href="/Sales/Backorders"><i class="fas fa-hourglass-half text-warning"></i> Backorders</a></li>
-                <li><a class="dropdown-item" href="/Sales/Reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
-                <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="/AccountsReceivable"><i class="fas fa-file-invoice-dollar text-success"></i> Accounts Receivable</a></li>
-                <li><a class="dropdown-item" href="/Sales/PastDueReport"><i class="fas fa-exclamation-triangle text-danger"></i> Past Due Report</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/Sales/Reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
+                <li><a class="dropdown-item" href="/CustomerPayments/Reports"><i class="fas fa-file-invoice text-warning"></i> Payment Reports</a></li>
               </ul>
             </li>
             <!-- Customer Management Dropdown -->

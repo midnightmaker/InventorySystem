@@ -1,0 +1,510 @@
+@model List<InventorySystem.Models.Project>
+@{
+    ViewData["Title"] = "R&D Projects Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-tachometer-alt text-primary"></i> @ViewData["Title"]</h1>
+    <div class="btn-group">
+        <a asp-action="Create" class="btn btn-success">
+            <i class="fas fa-plus"></i> New Project
+        </a>
+        <a asp-action="Index" class="btn btn-outline-primary">
+            <i class="fas fa-list"></i> All Projects
+        </a>
+        <a asp-action="Reports" class="btn btn-outline-secondary">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Key Metrics Row -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Projects
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalProjects</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-project-diagram fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Active Projects
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.ActiveProjects</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-play fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Total Budget
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalBudget.ToString("C0")</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Total Spent
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalSpent.ToString("C0")</div>
+                        <div class="text-xs text-gray-600">
+                            @if (ViewBag.TotalBudget > 0)
+                            {
+                                @($"{Math.Round((decimal)ViewBag.TotalSpent / (decimal)ViewBag.TotalBudget * 100, 1)}% of budget")
+                            }
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-credit-card fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Monthly Spending Trend -->
+    <div class="col-xl-8 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-line"></i> Monthly Spending Trend - @DateTime.Now.Year
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Type Distribution -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-pie"></i> Project Types
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie pt-4 pb-2">
+                    <canvas id="projectTypeChart"></canvas>
+                </div>
+                <div class="mt-4 text-center small">
+                    @foreach (var typeData in ViewBag.TypeDistribution)
+                    {
+                        <span class="mr-2">
+                            <i class="fas fa-circle text-primary"></i> @typeData.Type (@typeData.Count)
+                        </span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Project Status & Budget Overview -->
+<div class="row mb-4">
+    <!-- Budget Utilization -->
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-bar"></i> Budget Utilization by Project
+                </h6>
+            </div>
+            <div class="card-body">
+                @if (ViewBag.BudgetUtilization != null)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Budget</th>
+                                    <th>Spent</th>
+                                    <th>Utilization</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var project in ViewBag.BudgetUtilization)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@project.ProjectCode</strong>
+                                            <div class="text-muted small">@project.ProjectName</div>
+                                        </td>
+                                        <td>@project.Budget.ToString("C0")</td>
+                                        <td>@project.Spent.ToString("C0")</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress me-2" style="width: 100px; height: 6px;">
+                                                    <div class="progress-bar bg-@(project.IsOverBudget ? "danger" : "success")" 
+                                                         style="width: @(Math.Min(project.Utilization, 100))%"></div>
+                                                </div>
+                                                <small class="text-@(project.IsOverBudget ? "danger" : "muted")">
+                                                    @project.Utilization.ToString("F1")%
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if (project.IsOverBudget)
+                                            {
+                                                <span class="badge bg-danger">Over Budget</span>
+                                            }
+                                            else if (project.Utilization > 80)
+                                            {
+                                                <span class="badge bg-warning">High Usage</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">On Track</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Budget Data Available</h5>
+                        <p class="text-muted">Create projects and record expenses to see budget utilization.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions & Alerts -->
+    <div class="col-lg-4">
+        <!-- Over Budget Alert -->
+        @if (ViewBag.OverBudgetProjects > 0)
+        {
+            <div class="card border-left-danger shadow mb-3">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Over Budget Projects
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.OverBudgetProjects</div>
+                            <a asp-action="Index" asp-route-isOverBudget="true" class="btn btn-sm btn-outline-danger mt-2">
+                                <i class="fas fa-exclamation-triangle"></i> Review Projects
+                            </a>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Recent Projects Created -->
+        @if (ViewBag.RecentProjects > 0)
+        {
+            <div class="card border-left-info shadow mb-3">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                New Projects (30 days)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.RecentProjects</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-plus fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Quick Actions Card -->
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a asp-action="Create" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> New Project
+                    </a>
+                    <a asp-controller="Purchases" asp-action="PayExpense" class="btn btn-primary btn-sm">
+                        <i class="fas fa-credit-card"></i> Record Expense
+                    </a>
+                    <a asp-action="Reports" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-chart-bar"></i> Generate Reports
+                    </a>
+                    <hr class="my-2">
+                    <a asp-action="Index" asp-route-statusFilter="Active" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-play"></i> Active Projects
+                    </a>
+                    <a asp-action="Index" asp-route-statusFilter="Planning" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-clock"></i> Planning Projects
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Projects -->
+@if (Model.Any())
+{
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-list"></i> Recent Projects
+                    </h6>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-primary">
+                        View All <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Budget</th>
+                                    <th>Spent</th>
+                                    <th>Progress</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var project in Model.Take(8))
+                                {
+                                    <tr>
+                                        <td>
+                                            <div>
+                                                <strong>@project.ProjectCode</strong>
+                                                @if (project.Priority == InventorySystem.Models.Enums.ProjectPriority.High || project.Priority == InventorySystem.Models.Enums.ProjectPriority.Critical)
+                                                {
+                                                    <span class="badge bg-danger ms-1">@project.Priority</span>
+                                                }
+                                            </div>
+                                            <div class="text-muted small">@project.ProjectName</div>
+                                        </td>
+                                        <td><span class="badge bg-info">@project.ProjectType.ToString().Replace("_", " ")</span></td>
+                                        <td><span class="badge bg-@(GetStatusBadgeColor(project.Status))">@project.Status.ToString().Replace("_", " ")</span></td>
+                                        <td>@project.Budget.ToString("C0")</td>
+                                        <td>@project.TotalSpent.ToString("C0")</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress me-2" style="width: 60px; height: 6px;">
+                                                    <div class="progress-bar bg-@(project.IsOverBudget ? "danger" : "success")" 
+                                                         style="width: @(Math.Min(project.BudgetUtilization, 100))%"></div>
+                                                </div>
+                                                <small class="text-@(project.IsOverBudget ? "danger" : "muted")">
+                                                    @project.BudgetUtilization.ToString("F0")%
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="@Url.Action("Details", new { id = project.Id })" class="btn btn-outline-info btn-sm" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="@Url.Action("Edit", new { id = project.Id })" class="btn btn-outline-primary btn-sm" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@functions {
+    private string GetStatusBadgeColor(InventorySystem.Models.Enums.ProjectStatus status)
+    {
+        return status switch
+        {
+            InventorySystem.Models.Enums.ProjectStatus.Planning => "secondary",
+            InventorySystem.Models.Enums.ProjectStatus.Active => "success",
+            InventorySystem.Models.Enums.ProjectStatus.On_Hold => "warning",
+            InventorySystem.Models.Enums.ProjectStatus.Completed => "primary",
+            InventorySystem.Models.Enums.ProjectStatus.Cancelled => "danger",
+            InventorySystem.Models.Enums.ProjectStatus.Suspended => "dark",
+            InventorySystem.Models.Enums.ProjectStatus.Under_Review => "info",
+            _ => "secondary"
+        };
+    }
+}
+
+@section Styles {
+    <style>
+        .border-left-primary { border-left: 0.25rem solid #4e73df !important; }
+        .border-left-success { border-left: 0.25rem solid #1cc88a !important; }
+        .border-left-info { border-left: 0.25rem solid #36b9cc !important; }
+        .border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
+        .border-left-danger { border-left: 0.25rem solid #e74a3b !important; }
+        
+        .text-xs { font-size: 0.7rem; }
+        .chart-area, .chart-pie { position: relative; height: 15rem; }
+        
+        @@media (max-width: 768px) {
+            .chart-area, .chart-pie { height: 10rem; }
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Monthly Trend Chart
+        const monthlyTrendCtx = document.getElementById('monthlyTrendChart').getContext('2d');
+        
+        // Convert ViewBag data to JavaScript arrays
+        const monthlyTrendData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.MonthlyTrend));
+        const monthLabels = monthlyTrendData.map(m => m.Month);
+        const monthAmounts = monthlyTrendData.map(m => m.Amount);
+
+        const monthlyTrendChart = new Chart(monthlyTrendCtx, {
+            type: 'line',
+            data: {
+                labels: monthLabels,
+                datasets: [{
+                    label: 'Monthly Spending',
+                    data: monthAmounts,
+                    borderColor: '#4e73df',
+                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 4,
+                        hoverRadius: 6
+                    }
+                }
+            }
+        });
+
+        // Project Type Distribution Chart
+        const projectTypeCtx = document.getElementById('projectTypeChart').getContext('2d');
+        
+        const typeDistributionData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.TypeDistribution));
+        const typeLabels = typeDistributionData.map(t => t.Type);
+        const typeCounts = typeDistributionData.map(t => t.Count);
+
+        const projectTypeChart = new Chart(projectTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: typeLabels,
+                datasets: [{
+                    data: typeCounts,
+                    backgroundColor: [
+                        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                        '#858796', '#5a5c69', '#6f42c1', '#fd7e14', '#20c997'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    </script>
+}

@@ -140,12 +140,34 @@ namespace InventorySystem.Controllers
           _logger.LogInformation("Applying stock level filter: {StockLevelFilter}", stockLevelFilter);
           query = stockLevelFilter switch
           {
-            "low" => query.Where(i => (i.ItemType == ItemType.Inventoried || i.ItemType == ItemType.Consumable || i.ItemType == ItemType.RnDMaterials) && i.CurrentStock <= i.MinimumStock),
-            "out" => query.Where(i => (i.ItemType == ItemType.Inventoried || i.ItemType == ItemType.Consumable || i.ItemType == ItemType.RnDMaterials) && i.CurrentStock == 0),
-            "overstock" => query.Where(i => (i.ItemType == ItemType.Inventoried || i.ItemType == ItemType.Consumable || i.ItemType == ItemType.RnDMaterials) && i.CurrentStock > (i.MinimumStock * 2)),
-            "instock" => query.Where(i => i.ItemType == ItemType.Inventoried && i.CurrentStock > 0),
-            "tracked" => query.Where(i => i.ItemType == ItemType.Inventoried),
-            "nontracked" => query.Where(i => i.ItemType != ItemType.Inventoried),
+            "low" => query.Where(i => !i.IsExpense && 
+                                     (i.ItemType == ItemType.Inventoried || 
+                                      i.ItemType == ItemType.Consumable || 
+                                      i.ItemType == ItemType.RnDMaterials) && 
+                                     i.CurrentStock <= i.MinimumStock),
+            "out" => query.Where(i => !i.IsExpense && 
+                                     (i.ItemType == ItemType.Inventoried || 
+                                      i.ItemType == ItemType.Consumable || 
+                                      i.ItemType == ItemType.RnDMaterials) && 
+                                     i.CurrentStock == 0),
+            "overstock" => query.Where(i => !i.IsExpense && 
+                                           (i.ItemType == ItemType.Inventoried || 
+                                            i.ItemType == ItemType.Consumable || 
+                                            i.ItemType == ItemType.RnDMaterials) && 
+                                           i.CurrentStock > (i.MinimumStock * 2)),
+            "instock" => query.Where(i => !i.IsExpense && 
+                                         (i.ItemType == ItemType.Inventoried || 
+                                          i.ItemType == ItemType.Consumable || 
+                                          i.ItemType == ItemType.RnDMaterials) && 
+                                         i.CurrentStock > 0),
+            "tracked" => query.Where(i => !i.IsExpense && 
+                                         (i.ItemType == ItemType.Inventoried || 
+                                          i.ItemType == ItemType.Consumable || 
+                                          i.ItemType == ItemType.RnDMaterials)),
+            "nontracked" => query.Where(i => i.IsExpense || 
+                                            !(i.ItemType == ItemType.Inventoried || 
+                                              i.ItemType == ItemType.Consumable || 
+                                              i.ItemType == ItemType.RnDMaterials)),
             _ => query
           };
         }
@@ -462,7 +484,8 @@ namespace InventorySystem.Controllers
             MaterialType = viewModel.MaterialType,
             ParentRawMaterialId = viewModel.ParentRawMaterialId,
             YieldFactor = viewModel.YieldFactor,
-            WastePercentage = viewModel.WastePercentage
+            WastePercentage = viewModel.WastePercentage,
+            SalePrice = viewModel.SalePrice // NEW: Set sale price
           };
 
           // Handle image upload if provided

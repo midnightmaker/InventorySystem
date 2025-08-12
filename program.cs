@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using InventorySystem.Models;
+using InventorySystem.Models.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,11 +48,13 @@ builder.Services.AddControllersWithViews();
 
 // Existing services
 builder.Services.AddScoped<IInventoryService, InventoryService>();
-builder.Services.AddScoped<IBomService, BomService>();
+builder.Services.AddScoped<ISalesService, SalesService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ICustomerPaymentService, CustomerPaymentService>();
+builder.Services.AddScoped<IVendorService, VendorService>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IProductionService, ProductionService>();
-builder.Services.AddScoped<ISalesService, SalesService>();
-builder.Services.AddScoped<IBulkUploadService, BulkUploadService>();
+builder.Services.AddScoped<IBomService, BomService>();
 builder.Services.AddScoped<IVersionControlService, VersionControlService>();
 
 // NEW: Add CompanyInfoService registration
@@ -142,36 +146,31 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Create database and initialize workflow tables AND CompanyInfo table
+// Database initialization - USE EnsureCreated instead of migrations
 using (var scope = app.Services.CreateScope())
 {
   var context = scope.ServiceProvider.GetRequiredService<InventoryContext>();
+  var logger = scope.ServiceProvider.GetService<ILogger<Program>>();
+
   try
   {
-    context.Database.EnsureCreated();
-
-    // Ensure workflow tables exist
-    await EnsureWorkflowTablesExist(context);
-    
-    // NEW: Ensure CompanyInfo table exists
-    await EnsureCompanyInfoTableExists(context);
-
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("Application started successfully with workflow support and CompanyInfo");
-
-    // Test service registration
-    var workflowEngine = scope.ServiceProvider.GetService<IWorkflowEngine>();
-    var orchestrator = scope.ServiceProvider.GetService<IProductionOrchestrator>();
-    var companyInfoService = scope.ServiceProvider.GetService<ICompanyInfoService>();
-    
-    logger.LogInformation($"WorkflowEngine registered: {workflowEngine != null}");
-    logger.LogInformation($"ProductionOrchestrator registered: {orchestrator != null}");
-    logger.LogInformation($"CompanyInfoService registered: {companyInfoService != null}");
+    // Use EnsureCreated instead of migrations - creates database from current models
+    if (context.Database.EnsureCreated())
+    {
+      logger?.LogInformation("Database created successfully from models");
+      
+      // Seed initial data if needed
+      await SeedInitialData(context, logger);
+    }
+    else
+    {
+      logger?.LogInformation("Database already exists");
+    }
   }
   catch (Exception ex)
   {
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "An error occurred during application startup.");
+    logger?.LogError(ex, "An error occurred while ensuring the database exists");
+    throw;
   }
 }
 
@@ -376,5 +375,65 @@ async Task EnsureCompanyInfoTableExists(InventoryContext context)
     var logger = context.GetService<ILogger<Program>>();
     logger?.LogError(ex, "Failed to ensure CompanyInfo table exists");
     throw;
+  }
+}
+
+// Helper method to seed initial data
+async Task SeedInitialData(InventoryContext context, ILogger<Program>? logger)
+{
+  try
+  {
+    // Seed sample project if no projects exist
+    if (!context.Projects.Any())
+    {
+      var sampleProject = new Project
+      {
+        ProjectCode = "SAMPLE-2025-001",
+        ProjectName = "Sample R&D Project",
+        Description = "This is a sample project to demonstrate the Projects functionality",
+        ProjectType = ProjectType.Research,
+        Status = ProjectStatus.Planning,
+        Budget = 10000.00m,
+        Priority = ProjectPriority.Medium,
+        CreatedDate = DateTime.Now,
+        CreatedBy = "System",
+        StartDate = DateTime.Today,
+        ExpectedEndDate = DateTime.Today.AddMonths(6)
+      };
+
+      context.Projects.Add(sampleProject);
+      await context.SaveChangesAsync();
+      
+      logger?.LogInformation("Sample project created successfully");
+    }
+
+    // Seed default company info if none exists
+    if (!context.CompanyInfo.Any())
+    {
+      var defaultCompanyInfo = new CompanyInfo
+      {
+        CompanyName = "Your Inventory Management Company",
+        Address = "123 Business Drive",
+        City = "Business City",
+        State = "NC",
+        ZipCode = "27101",
+        Country = "United States",
+        Phone = "(336) 555-0123",
+        Email = "purchasing@yourcompany.com",
+        Website = "www.yourcompany.com",
+        CreatedDate = DateTime.Now,
+        LastUpdated = DateTime.Now,
+        IsActive = true
+      };
+
+      context.CompanyInfo.Add(defaultCompanyInfo);
+      await context.SaveChangesAsync();
+      
+      logger?.LogInformation("Default company info created successfully");
+    }
+  }
+  catch (Exception ex)
+  {
+    logger?.LogError(ex, "Error seeding initial data");
   }
 }

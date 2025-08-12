@@ -49,6 +49,14 @@ namespace InventorySystem.ViewModels
         [StringLength(200, ErrorMessage = "Document description cannot exceed 200 characters")]
         public string? DocumentDescription { get; set; }
 
+        // NEW: Project association for R&D tracking
+        [Display(Name = "R&D Project (Optional)")]
+        public int? ProjectId { get; set; }
+
+        // Display properties
+        public string? ProjectName { get; set; }
+        public string? ProjectCode { get; set; }
+
         [Display(Name = "Document Type")]
         [StringLength(50)]
         public string DocumentType { get; set; } = "Receipt";

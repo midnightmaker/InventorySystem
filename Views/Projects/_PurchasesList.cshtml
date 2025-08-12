@@ -1,0 +1,109 @@
+@model List<InventorySystem.Models.Purchase>
+
+@if (Model.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Item</th>
+                    <th>Vendor</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>PO Number</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var purchase in Model)
+                {
+                    <tr>
+                        <td>
+                            <small>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</small>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>@(purchase.Item?.PartNumber ?? "N/A")</strong>
+                            </div>
+                            <div class="text-muted small">
+                                @(purchase.Item?.Description ?? "Description not available")
+                            </div>
+                        </td>
+                        <td>
+                            <small>@(purchase.Vendor?.CompanyName ?? "N/A")</small>
+                        </td>
+                        <td>
+                            <strong>@purchase.ExtendedTotal.ToString("C")</strong>
+                            @if (purchase.QuantityPurchased != 1)
+                            {
+                                <div class="text-muted small">
+                                    @purchase.QuantityPurchased × @purchase.CostPerUnit.ToString("C")
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge bg-@(GetPurchaseStatusBadgeColor(purchase.Status))">
+                                @purchase.Status.ToString().Replace("_", " ")
+                            </span>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(purchase.PurchaseOrderNumber))
+                            {
+                                <small class="text-muted">@purchase.PurchaseOrderNumber</small>
+                            }
+                            else
+                            {
+                                <small class="text-muted">No PO</small>
+                            }
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="@Url.Action("Details", "Purchases", new { id = purchase.Id })" 
+                                   class="btn btn-outline-info btn-sm" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="@Url.Action("Edit", "Purchases", new { id = purchase.Id })" 
+                                   class="btn btn-outline-primary btn-sm" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (Model.Count >= 10)
+    {
+        <div class="text-center mt-3">
+            <small class="text-muted">Showing latest @Model.Count purchases</small>
+        </div>
+    }
+}
+else
+{
+    <div class="text-center py-4">
+        <i class="fas fa-receipt fa-2x text-muted mb-2"></i>
+        <p class="text-muted">No purchases found</p>
+    </div>
+}
+
+@functions {
+    private string GetPurchaseStatusBadgeColor(InventorySystem.Models.Enums.PurchaseStatus status)
+    {
+        return status switch
+        {
+            InventorySystem.Models.Enums.PurchaseStatus.Pending => "warning",
+            InventorySystem.Models.Enums.PurchaseStatus.Ordered => "info",
+            InventorySystem.Models.Enums.PurchaseStatus.Shipped => "primary",
+            InventorySystem.Models.Enums.PurchaseStatus.PartiallyReceived => "warning",
+            InventorySystem.Models.Enums.PurchaseStatus.Received => "success",
+            InventorySystem.Models.Enums.PurchaseStatus.Paid => "success",
+            InventorySystem.Models.Enums.PurchaseStatus.Cancelled => "danger",
+            InventorySystem.Models.Enums.PurchaseStatus.Returned => "secondary",
+            _ => "secondary"
+        };
+    }
+}

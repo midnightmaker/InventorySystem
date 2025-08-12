@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Data;
 using InventorySystem.Models;
+using InventorySystem.Models.Enums; // Added for ItemType enum
 
 namespace InventorySystem.Services
 {
@@ -75,6 +76,7 @@ namespace InventorySystem.Services
         existingItem.IsSellable = item.IsSellable;
         existingItem.ItemType = item.ItemType;
         existingItem.Version = item.Version;
+        existingItem.SalePrice = item.SalePrice; // NEW: Update sale price
 
         // Update image data if provided
         if (item.ImageData != null && item.ImageData.Length > 0)
@@ -153,7 +155,11 @@ namespace InventorySystem.Services
     public async Task<IEnumerable<Item>> GetLowStockItemsAsync()
     {
       return await _context.Items
-          .Where(i => i.CurrentStock <= i.MinimumStock)
+          .Where(i => !i.IsExpense && 
+                     (i.ItemType == ItemType.Inventoried || 
+                      i.ItemType == ItemType.Consumable || 
+                      i.ItemType == ItemType.RnDMaterials) && 
+                     i.CurrentStock <= i.MinimumStock)
           .Include(i => i.Purchases)
           .OrderBy(i => i.PartNumber)
           .ToListAsync();
@@ -165,23 +171,39 @@ namespace InventorySystem.Services
 
     public async Task<int> GetItemsInStockCountAsync()
     {
-      return await _context.Items.CountAsync(i => i.CurrentStock > 0);
+      return await _context.Items.CountAsync(i => !i.IsExpense && 
+                                                 (i.ItemType == ItemType.Inventoried || 
+                                                  i.ItemType == ItemType.Consumable || 
+                                                  i.ItemType == ItemType.RnDMaterials) && 
+                                                 i.CurrentStock > 0);
     }
 
     public async Task<int> GetItemsNoStockCountAsync()
     {
-      return await _context.Items.CountAsync(i => i.CurrentStock == 0);
+      return await _context.Items.CountAsync(i => !i.IsExpense && 
+                                                 (i.ItemType == ItemType.Inventoried || 
+                                                  i.ItemType == ItemType.Consumable || 
+                                                  i.ItemType == ItemType.RnDMaterials) && 
+                                                 i.CurrentStock == 0);
     }
 
     public async Task<int> GetItemsOverstockedCountAsync()
     {
-      return await _context.Items.CountAsync(i => i.CurrentStock > (i.MinimumStock * 2));
+      return await _context.Items.CountAsync(i => !i.IsExpense && 
+                                                 (i.ItemType == ItemType.Inventoried || 
+                                                  i.ItemType == ItemType.Consumable || 
+                                                  i.ItemType == ItemType.RnDMaterials) && 
+                                                 i.CurrentStock > (i.MinimumStock * 2));
     }
 
     public async Task<decimal> GetTotalInventoryValueAsync()
     {
       var items = await _context.Items
-        .Where(i => i.CurrentStock > 0)
+        .Where(i => !i.IsExpense && 
+                   (i.ItemType == ItemType.Inventoried || 
+                    i.ItemType == ItemType.Consumable || 
+                    i.ItemType == ItemType.RnDMaterials) && 
+                   i.CurrentStock > 0)
         .Select(i => new { i.Id, i.CurrentStock })
         .ToListAsync();
 

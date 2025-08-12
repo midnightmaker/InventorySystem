@@ -71,6 +71,22 @@
                             <span asp-validation-for="VendorId" class="text-danger"></span>
                         </div>
 
+                        <!-- R&D Project (Optional) -->
+                        <div class="mb-3">
+                            <label asp-for="ProjectId" class="form-label">
+                                <i class="fas fa-project-diagram text-info"></i>
+                                R&D Project <small class="text-muted">(Optional)</small>
+                            </label>
+                            <select asp-for="ProjectId" asp-items="ViewBag.ProjectId" class="form-select" id="projectSelect">
+                                <option value="">-- No Project (General Expense) --</option>
+                            </select>
+                            <span asp-validation-for="ProjectId" class="text-danger"></span>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i>
+                                Select an R&D project to track this expense against a specific project budget.
+                            </div>
+                        </div>
+
                         <div class="row">
                             <!-- Payment Date -->
                             <div class="col-md-6">

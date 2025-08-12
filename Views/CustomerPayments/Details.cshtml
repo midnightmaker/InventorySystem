@@ -1,0 +1,341 @@
+@model InventorySystem.ViewModels.CustomerPaymentDetailsViewModel
+@{
+    ViewData["Title"] = $"Payment Details - {Model.Sale.SaleNumber}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-money-bill-wave"></i> Payment Details</h1>
+    <div class="btn-group">
+        <a href="/CustomerPayments" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Payments
+        </a>
+        <a href="/Sales/Details/@Model.Sale.Id" class="btn btn-outline-primary">
+            <i class="fas fa-shopping-cart"></i> View Sale
+        </a>
+        <a href="/Sales/InvoiceReport?saleId=@Model.Sale.Id" class="btn btn-outline-info">
+            <i class="fas fa-file-invoice"></i> View Invoice
+        </a>
+    </div>
+</div>
+
+@* Success/Error Messages *@
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-8">
+        @* Sale Information *@
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-shopping-cart"></i> Sale Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Sale Number:</dt>
+                            <dd class="col-sm-8">@Model.Sale.SaleNumber</dd>
+                            
+                            <dt class="col-sm-4">Sale Date:</dt>
+                            <dd class="col-sm-8">@Model.Sale.SaleDate.ToString("MM/dd/yyyy")</dd>
+                            
+                            <dt class="col-sm-4">Customer:</dt>
+                            <dd class="col-sm-8">
+                                <a href="/Customers/Details/@Model.Sale.CustomerId" class="text-decoration-none">
+                                    @Model.Sale.Customer?.CustomerName
+                                </a>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Sale Status:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-@(Model.Sale.SaleStatus switch {
+                                    InventorySystem.Models.Enums.SaleStatus.Processing => "warning",
+                                    InventorySystem.Models.Enums.SaleStatus.Shipped => "success",
+                                    InventorySystem.Models.Enums.SaleStatus.Delivered => "primary",
+                                    InventorySystem.Models.Enums.SaleStatus.Cancelled => "danger",
+                                    InventorySystem.Models.Enums.SaleStatus.Returned => "secondary",
+                                    _ => "info"
+                                })">
+                                    @Model.Sale.SaleStatus
+                                </span>
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Payment Status:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-@(Model.Sale.PaymentStatus switch {
+                                    InventorySystem.Models.Enums.PaymentStatus.Paid => "success",
+                                    InventorySystem.Models.Enums.PaymentStatus.PartiallyPaid => "warning",
+                                    InventorySystem.Models.Enums.PaymentStatus.Pending => "secondary",
+                                    InventorySystem.Models.Enums.PaymentStatus.Overdue => "danger",
+                                    _ => "secondary"
+                                })">
+                                    @Model.Sale.PaymentStatus
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Due Date:</dt>
+                            <dd class="col-sm-8">@Model.Sale.PaymentDueDate.ToString("MM/dd/yyyy")</dd>
+                            
+                            <dt class="col-sm-4">Payment Terms:</dt>
+                            <dd class="col-sm-8">@Model.Sale.Terms</dd>
+                            
+                            @if (!string.IsNullOrEmpty(Model.Sale.OrderNumber))
+                            {
+                                <dt class="col-sm-4">Order Number:</dt>
+                                <dd class="col-sm-8">@Model.Sale.OrderNumber</dd>
+                            }
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Payment Records *@
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-list"></i> Payment Records</h5>
+                <span class="badge bg-primary">@Model.PaymentCount Payments</span>
+            </div>
+            <div class="card-body">
+                @if (Model.Payments?.Any() == true)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Payment Date</th>
+                                    <th>Amount</th>
+                                    <th>Payment Method</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var payment in Model.Payments.OrderBy(p => p.PaymentDate))
+                                {
+                                    <tr>
+                                        <td>
+                                            @payment.PaymentDate.ToString("MM/dd/yyyy")
+                                            <br>
+                                            <small class="text-muted">@payment.PaymentDate.ToString("h:mm tt")</small>
+                                        </td>
+                                        <td>
+                                            <strong class="text-success">@payment.Amount.ToString("C")</strong>
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(payment.PaymentMethod))
+                                            {
+                                                <span class="badge bg-info">@payment.PaymentMethod</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Unknown</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(payment.PaymentNotes))
+                                            {
+                                                @payment.PaymentNotes
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">No notes</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-success">
+                                    <th>Total Payments:</th>
+                                    <th><strong>@Model.TotalPaid.ToString("C")</strong></th>
+                                    <th colspan="2"></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No detailed payment records found</h5>
+                        <p class="text-muted">Payment information may be available in the sale notes or status.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        @* Payment Summary *@
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-calculator"></i> Payment Summary</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td><strong>Invoice Total:</strong></td>
+                            <td class="text-end"><strong>@Model.Sale.TotalAmount.ToString("C")</strong></td>
+                        </tr>
+                        <tr class="table-success">
+                            <td><strong>Amount Paid:</strong></td>
+                            <td class="text-end"><strong>@Model.TotalPaid.ToString("C")</strong></td>
+                        </tr>
+                        <tr class="@(Model.RemainingBalance > 0 ? "table-warning" : "table-light")">
+                            <td><strong>Remaining Balance:</strong></td>
+                            <td class="text-end">
+                                <strong class="@(Model.RemainingBalance > 0 ? "text-warning" : "text-success")">
+                                    @Model.RemainingBalance.ToString("C")
+                                </strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                @if (Model.IsFullyPaid)
+                {
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle"></i> <strong>Fully Paid</strong>
+                        @if (Model.LastPaymentDate.HasValue)
+                        {
+                            <br><small>Last payment: @Model.LastPaymentDate.Value.ToString("MM/dd/yyyy")</small>
+                        }
+                    </div>
+                }
+                else if (Model.RemainingBalance > 0)
+                {
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Outstanding Balance</strong>
+                        <br><small>@Model.RemainingBalance.ToString("C") remaining</small>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Customer Information *@
+        @if (Model.Sale.Customer != null)
+        {
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-user"></i> Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-5">Name:</dt>
+                        <dd class="col-sm-7">
+                            <a href="/Customers/Details/@Model.Sale.Customer.Id" class="text-decoration-none">
+                                @Model.Sale.Customer.CustomerName
+                            </a>
+                        </dd>
+                        
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer.CompanyName))
+                        {
+                            <dt class="col-sm-5">Company:</dt>
+                            <dd class="col-sm-7">@Model.Sale.Customer.CompanyName</dd>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer.Email))
+                        {
+                            <dt class="col-sm-5">Email:</dt>
+                            <dd class="col-sm-7">
+                                <a href="mailto:@Model.Sale.Customer.Email" class="text-decoration-none">
+                                    @Model.Sale.Customer.Email
+                                </a>
+                            </dd>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer.Phone))
+                        {
+                            <dt class="col-sm-5">Phone:</dt>
+                            <dd class="col-sm-7">
+                                <a href="tel:@Model.Sale.Customer.Phone" class="text-decoration-none">
+                                    @Model.Sale.Customer.Phone
+                                </a>
+                            </dd>
+                        }
+                        
+                        <dt class="col-sm-5">Customer Type:</dt>
+                        <dd class="col-sm-7">@Model.Sale.Customer.CustomerType</dd>
+                        
+                        <dt class="col-sm-5">Credit Limit:</dt>
+                        <dd class="col-sm-7">@Model.Sale.Customer.CreditLimit.ToString("C")</dd>
+                        
+                        <dt class="col-sm-5">Outstanding:</dt>
+                        <dd class="col-sm-7">
+                            <span class="@(Model.Sale.Customer.OutstandingBalance > 0 ? "text-warning" : "text-success")">
+                                @Model.Sale.Customer.OutstandingBalance.ToString("C")
+                            </span>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        }
+
+        @* Quick Actions *@
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tools"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/Sales/Details/@Model.Sale.Id" class="btn btn-outline-primary">
+                        <i class="fas fa-shopping-cart"></i> View Full Sale Details
+                    </a>
+                    <a href="/Sales/InvoiceReport?saleId=@Model.Sale.Id" class="btn btn-outline-info">
+                        <i class="fas fa-file-invoice"></i> View/Print Invoice
+                    </a>
+                    @if (Model.Sale.Customer != null)
+                    {
+                        <a href="/Customers/Details/@Model.Sale.Customer.Id" class="btn btn-outline-warning">
+                            <i class="fas fa-user"></i> View Customer Profile
+                        </a>
+                        <a href="/CustomerPayments?customerFilter=@Model.Sale.CustomerId" class="btn btn-outline-secondary">
+                            <i class="fas fa-money-bill-wave"></i> Customer's Payments
+                        </a>
+                    }
+                    @if (!Model.IsFullyPaid && Model.Sale.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
+                    {
+                        <a href="/Sales/Details/@Model.Sale.Id#recordPayment" class="btn btn-success">
+                            <i class="fas fa-dollar-sign"></i> Record Payment
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Sale Notes *@
+@if (!string.IsNullOrEmpty(Model.Sale.Notes))
+{
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-sticky-note"></i> Sale Notes</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="mb-0">@Model.Sale.Notes</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,443 @@
+@model InventorySystem.ViewModels.ProjectIndexViewModel
+@{
+    ViewData["Title"] = "R&D Projects";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-project-diagram text-primary"></i> @ViewData["Title"]</h1>
+    <div class="btn-group">
+        <a asp-action="Create" class="btn btn-success">
+            <i class="fas fa-plus"></i> New Project
+        </a>
+        <a asp-action="Dashboard" class="btn btn-info">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </a>
+        <a asp-action="Reports" class="btn btn-outline-secondary">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Summary Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Projects</h6>
+                        <h4>@Model.SummaryStats.TotalProjects</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-project-diagram fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Active Projects</h6>
+                        <h4>@Model.SummaryStats.ActiveProjects</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-play fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Budget</h6>
+                        <h4>@Model.SummaryStats.TotalBudget.ToString("C")</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Over Budget</h6>
+                        <h4>@Model.SummaryStats.ProjectsOverBudget</h4>
+                        <small>(@(Model.SummaryStats.TotalProjects > 0 ? Math.Round((double)Model.SummaryStats.ProjectsOverBudget / Model.SummaryStats.TotalProjects * 100, 1) : 0)%)</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filter Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-filter"></i> Filter Projects
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row">
+                <div class="col-md-2">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" value="@ViewBag.SearchTerm" class="form-control" placeholder="Search projects..." />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="statusFilter" class="form-select" asp-items="ViewBag.StatusOptions">
+                        <option value="">All Statuses</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Type</label>
+                    <select name="typeFilter" class="form-select" asp-items="ViewBag.TypeOptions">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Department</label>
+                    <select name="departmentFilter" class="form-select" asp-items="ViewBag.DepartmentOptions">
+                        <option value="">All Departments</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Priority</label>
+                    <select name="priorityFilter" class="form-select" asp-items="ViewBag.PriorityOptions">
+                        <option value="">All Priorities</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input type="checkbox" name="isOverBudget" value="true" class="form-check-input" 
+                               @(ViewBag.IsOverBudget == true ? "checked" : "") />
+                        <label class="form-check-label">
+                            Over Budget Projects Only
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-9 text-end">
+                    @if (ViewBag.IsFiltered == true)
+                    {
+                        <span class="text-muted me-2">
+                            Showing @ViewBag.SearchResultsCount of @ViewBag.TotalProjectsCount projects
+                        </span>
+                        <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times"></i> Clear Filters
+                        </a>
+                    }
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Projects Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6><i class="fas fa-list"></i> Projects</h6>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary">@ViewBag.ShowingFrom - @ViewBag.ShowingTo of @ViewBag.TotalCount</span>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    Sort
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" asp-route-sortOrder="projectCode_asc" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget">Project Code A-Z</a></li>
+                    <li><a class="dropdown-item" asp-route-sortOrder="projectCode_desc" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget">Project Code Z-A</a></li>
+                    <li><a class="dropdown-item" asp-route-sortOrder="projectName_asc" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget">Name A-Z</a></li>
+                    <li><a class="dropdown-item" asp-route-sortOrder="budget_desc" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget">Highest Budget</a></li>
+                    <li><a class="dropdown-item" asp-route-sortOrder="spent_desc" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget">Highest Spending</a></li>
+                    <li><a class="dropdown-item" asp-route-sortOrder="created_desc" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget">Newest First</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (Model.Projects.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Project Code</th>
+                            <th>Project Name</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Budget</th>
+                            <th>Spent</th>
+                            <th>Utilization</th>
+                            <th>Manager</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var project in Model.Projects)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@project.ProjectCode</strong>
+                                    @if (project.Priority == InventorySystem.Models.Enums.ProjectPriority.High || project.Priority == InventorySystem.Models.Enums.ProjectPriority.Critical)
+                                    {
+                                        <span class="badge bg-danger ms-1">@project.Priority</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>@project.ProjectName</strong>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(project.Description))
+                                    {
+                                        <div class="text-muted small">
+                                            @(project.Description.Length > 50 ? project.Description.Substring(0, 50) + "..." : project.Description)
+                                        </div>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        @project.ProjectType.ToString().Replace("_", " ")
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-@(GetStatusBadgeColor(project.Status))">
+                                        @project.Status.ToString().Replace("_", " ")
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>@project.Budget.ToString("C")</strong>
+                                </td>
+                                <td>
+                                    <strong>@project.TotalSpent.ToString("C")</strong>
+                                    @if (project.PurchaseCount > 0)
+                                    {
+                                        <div class="text-muted small">@project.PurchaseCount purchases</div>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress me-2" style="width: 60px; height: 8px;">
+                                            <div class="progress-bar bg-@(project.IsOverBudget ? "danger" : "success")" 
+                                                 style="width: @(Math.Min(project.BudgetUtilization, 100))%"></div>
+                                        </div>
+                                        <small class="text-@(project.IsOverBudget ? "danger" : "muted")">
+                                            @project.BudgetUtilization.ToString("F1")%
+                                        </small>
+                                    </div>
+                                    @if (project.IsOverBudget)
+                                    {
+                                        <div class="text-danger small">
+                                            Over by @((project.TotalSpent - project.Budget).ToString("C"))
+                                        </div>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(project.ProjectManager))
+                                    {
+                                        <div>@project.ProjectManager</div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(project.Department))
+                                    {
+                                        <div class="text-muted small">@project.Department</div>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="@Url.Action("Details", new { id = project.Id })" class="btn btn-outline-info" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="@Url.Action("Edit", new { id = project.Id })" class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="More Actions">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("PayExpense", "Purchases", new { ProjectId = project.Id })">
+                                                        <i class="fas fa-credit-card text-danger"></i> Record Expense
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("ExpensePayments", "Purchases", new { ProjectFilter = project.Id })">
+                                                        <i class="fas fa-list text-info"></i> View Expenses
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                @if (project.Status != InventorySystem.Models.Enums.ProjectStatus.Completed)
+                                                {
+                                                    <li>
+                                                        <button class="dropdown-item" onclick="updateProjectStatus(@project.Id, 'Completed')">
+                                                            <i class="fas fa-check text-success"></i> Mark Complete
+                                                        </button>
+                                                    </li>
+                                                }
+                                                @if (project.Status == InventorySystem.Models.Enums.ProjectStatus.Planning)
+                                                {
+                                                    <li>
+                                                        <button class="dropdown-item" onclick="updateProjectStatus(@project.Id, 'Active')">
+                                                            <i class="fas fa-play text-success"></i> Activate Project
+                                                        </button>
+                                                    </li>
+                                                }
+                                                @if (project.Status == InventorySystem.Models.Enums.ProjectStatus.Active)
+                                                {
+                                                    <li>
+                                                        <button class="dropdown-item" onclick="updateProjectStatus(@project.Id, 'On_Hold')">
+                                                            <i class="fas fa-pause text-warning"></i> Put On Hold
+                                                        </button>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav aria-label="Projects pagination">
+                    <ul class="pagination justify-content-center">
+                        @if (ViewBag.HasPreviousPage)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" asp-route-page="@(ViewBag.CurrentPage - 1)" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget" asp-route-sortOrder="@ViewBag.SortOrder">Previous</a>
+                            </li>
+                        }
+
+                        @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link" asp-route-page="@i" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget" asp-route-sortOrder="@ViewBag.SortOrder">@i</a>
+                            </li>
+                        }
+
+                        @if (ViewBag.HasNextPage)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" asp-route-page="@(ViewBag.CurrentPage + 1)" asp-route-search="@ViewBag.SearchTerm" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-typeFilter="@ViewBag.TypeFilter" asp-route-departmentFilter="@ViewBag.DepartmentFilter" asp-route-priorityFilter="@ViewBag.PriorityFilter" asp-route-isOverBudget="@ViewBag.IsOverBudget" asp-route-sortOrder="@ViewBag.SortOrder">Next</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-project-diagram fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No Projects Found</h5>
+                <p class="text-muted">Get started by creating your first R&D project.</p>
+                <a asp-action="Create" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Create Project
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@functions {
+    private string GetStatusBadgeColor(InventorySystem.Models.Enums.ProjectStatus status)
+    {
+        return status switch
+        {
+            InventorySystem.Models.Enums.ProjectStatus.Planning => "secondary",
+            InventorySystem.Models.Enums.ProjectStatus.Active => "success",
+            InventorySystem.Models.Enums.ProjectStatus.On_Hold => "warning",
+            InventorySystem.Models.Enums.ProjectStatus.Completed => "primary",
+            InventorySystem.Models.Enums.ProjectStatus.Cancelled => "danger",
+            InventorySystem.Models.Enums.ProjectStatus.Suspended => "dark",
+            InventorySystem.Models.Enums.ProjectStatus.Under_Review => "info",
+            _ => "secondary"
+        };
+    }
+}
+
+@section Scripts {
+    <script>
+        // Update project status
+        async function updateProjectStatus(projectId, newStatus) {
+            const reason = prompt(`Please provide a reason for changing status to ${newStatus.replace('_', ' ')}:`);
+            if (reason === null) return; // User cancelled
+
+            try {
+                const response = await fetch(`/Projects/UpdateStatus/${projectId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    },
+                    body: `newStatus=${newStatus}&reason=${encodeURIComponent(reason)}`
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Reload the page to show updated status
+                    window.location.reload();
+                } else {
+                    alert('Error updating project status: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error updating project status:', error);
+                alert('Error updating project status. Please try again.');
+            }
+        }
+
+        // Auto-submit form on filter changes
+        document.querySelectorAll('select[name$="Filter"], input[name="isOverBudget"]').forEach(element => {
+            element.addEventListener('change', function() {
+                this.form.submit();
+            });
+        });
+
+        // Search with debouncing
+        let searchTimeout;
+        document.querySelector('input[name="search"]').addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.form.submit();
+            }, 500);
+        });
+    </script>
+}

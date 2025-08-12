@@ -99,6 +99,12 @@ namespace InventorySystem.ViewModels
     [Range(0, 50, ErrorMessage = "Waste percentage must be between 0 and 50%")]
     public decimal? WastePercentage { get; set; }
 
+    // Sale Price Field
+    [Display(Name = "Sale Price")]
+    [Range(0, double.MaxValue, ErrorMessage = "Sale price must be 0 or greater")]
+    [DataType(DataType.Currency)]
+    public decimal? SalePrice { get; set; }
+
     // Helper properties
     public bool ShowStockFields => ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials;
     public bool IsMaterialItem => ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials;

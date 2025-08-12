@@ -66,15 +66,46 @@ namespace InventorySystem.Services
       return sale;
     }
 
-    // FIXED: Removed attempts to set computed properties
+    // ALTERNATIVE: More robust update method using fresh entity loading
     public async Task<Sale> UpdateSaleAsync(Sale sale)
     {
-      // The TotalAmount and SubtotalAmount are computed properties that calculate automatically
-      // based on SaleItems, ShippingCost, and TaxAmount. No manual calculation needed.
-      
-      _context.Sales.Update(sale);
-      await _context.SaveChangesAsync();
-      return sale;
+        try
+        {
+            // Load the current entity from database to ensure we have the latest state
+            var existingEntity = await _context.Sales
+                .FirstOrDefaultAsync(s => s.Id == sale.Id);
+            
+            if (existingEntity == null)
+            {
+                throw new InvalidOperationException($"Sale with ID {sale.Id} not found");
+            }
+
+            // Update only the properties that should be modifiable
+            existingEntity.SaleDate = sale.SaleDate;
+            existingEntity.Terms = sale.Terms;
+            existingEntity.PaymentDueDate = sale.PaymentDueDate;
+            existingEntity.PaymentStatus = sale.PaymentStatus;
+            existingEntity.SaleStatus = sale.SaleStatus;
+            existingEntity.PaymentMethod = sale.PaymentMethod;
+            existingEntity.ShippingAddress = sale.ShippingAddress;
+            existingEntity.TaxAmount = sale.TaxAmount;
+            existingEntity.ShippingCost = sale.ShippingCost;
+            existingEntity.Notes = sale.Notes;
+            existingEntity.OrderNumber = sale.OrderNumber;
+
+            // Do NOT update these protected fields:
+            // - SaleNumber (reference integrity)
+            // - CreatedDate (audit trail)
+            // - CustomerId (business rule - use transfer function if needed)
+            // - Id (primary key)
+
+            await _context.SaveChangesAsync();
+            return existingEntity;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to update sale {sale.Id}: {ex.Message}", ex);
+        }
     }
 
     public async Task DeleteSaleAsync(int id)
@@ -85,6 +116,9 @@ namespace InventorySystem.Services
 
       if (sale != null)
       {
+        // Cascading delete for sale items
+        _context.SaleItems.RemoveRange(sale.SaleItems);
+
         _context.Sales.Remove(sale);
         await _context.SaveChangesAsync();
       }
@@ -127,14 +161,25 @@ namespace InventorySystem.Services
 
     public async Task DeleteSaleItemAsync(int saleItemId)
     {
-      var saleItem = await _context.SaleItems.FindAsync(saleItemId);
-      if (saleItem != null)
+      var saleItem = await _context.SaleItems
+          .Include(si => si.Sale)
+          .FirstOrDefaultAsync(si => si.Id == saleItemId);
+      
+      if (saleItem == null)
       {
-        _context.SaleItems.Remove(saleItem);
-        await _context.SaveChangesAsync();
-
-        // No need to manually update sale totals - they're computed properties
+        throw new InvalidOperationException("Sale item not found.");
       }
+
+      // SECURITY: Check if sale allows modifications
+      if (!CanModifySaleItems(saleItem.Sale.SaleStatus))
+      {
+        throw new InvalidOperationException($"Cannot remove items from a sale with status '{saleItem.Sale.SaleStatus}'. Only sales with 'Processing' or 'Backordered' status can be modified.");
+      }
+
+      _context.SaleItems.Remove(saleItem);
+      await _context.SaveChangesAsync();
+
+      // No need to manually update sale totals - they're computed properties
     }
 
     public async Task<bool> ProcessSaleAsync(int saleId)
@@ -154,19 +199,22 @@ namespace InventorySystem.Services
           {
             // Selling raw inventory item
             var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-            if (item != null)
+            if (item != null && item.TrackInventory)
             {
+              // Only reduce stock for inventory-tracked items
               item.CurrentStock -= saleItem.QuantitySold;
 
-              // Process FIFO consumption
+              // Process FIFO consumption only for inventory-tracked items
               await _purchaseService.ProcessInventoryConsumptionAsync(
                   saleItem.ItemId.Value,
                   saleItem.QuantitySold);
             }
+            // Non-inventory items (Service, Virtual, etc.) don't affect stock
           }
           else if (saleItem.FinishedGoodId.HasValue)
           {
             // Access finished goods directly from context
+            // Finished goods always track inventory
             var finishedGood = await _context.FinishedGoods
                 .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
             if (finishedGood != null)
@@ -267,16 +315,51 @@ namespace InventorySystem.Services
 
     public async Task<SaleItem> AddSaleItemAsync(SaleItem saleItem)
     {
-      // Enhanced logic to handle backorders
+      // SECURITY: Check if sale allows modifications
+      var sale = await _context.Sales.FindAsync(saleItem.SaleId);
+      if (sale == null)
+      {
+        throw new InvalidOperationException("Sale not found.");
+      }
+
+      if (!CanModifySaleItems(sale.SaleStatus))
+      {
+        throw new InvalidOperationException($"Cannot add items to a sale with status '{sale.SaleStatus}'. Only sales with 'Processing' or 'Backordered' status can be modified.");
+      }
+
+      // Enhanced logic to handle backorders - but only for inventory-tracked items
       int availableQuantity = 0;
+      bool tracksInventory = false;
 
       if (saleItem.ItemId.HasValue)
       {
         var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
         if (item != null)
         {
-          availableQuantity = item.CurrentStock;
-          saleItem.UnitCost = await _inventoryService.GetAverageCostAsync(saleItem.ItemId.Value);
+          tracksInventory = item.TrackInventory;
+          
+          if (tracksInventory)
+          {
+            // Only check stock for inventory-tracked items
+            availableQuantity = item.CurrentStock;
+          }
+          
+          // Always try to get cost information for pricing
+          try
+          {
+            saleItem.UnitCost = await _inventoryService.GetAverageCostAsync(saleItem.ItemId.Value);
+          }
+          catch
+          {
+            // For non-inventory items, set minimal cost
+            saleItem.UnitCost = item.ItemType switch
+            {
+              ItemType.Service => saleItem.UnitPrice * 0.3m, // 30% cost ratio for services
+              ItemType.Virtual => saleItem.UnitPrice * 0.1m, // 10% cost ratio for virtual items
+              ItemType.Subscription => saleItem.UnitPrice * 0.2m, // 20% cost ratio for subscriptions
+              _ => 0 // No cost for other non-inventory items
+            };
+          }
         }
       }
       else if (saleItem.FinishedGoodId.HasValue)
@@ -285,19 +368,30 @@ namespace InventorySystem.Services
             .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
         if (finishedGood != null)
         {
+          // Finished goods always track inventory
+          tracksInventory = true;
           availableQuantity = finishedGood.CurrentStock;
           saleItem.UnitCost = finishedGood.UnitCost;
         }
       }
 
-      // Calculate backorder quantity
-      if (availableQuantity < saleItem.QuantitySold)
+      // Calculate backorder quantity only for inventory-tracked items
+      if (tracksInventory)
       {
-        saleItem.QuantityBackordered = saleItem.QuantitySold - availableQuantity;
+        if (availableQuantity < saleItem.QuantitySold)
+        {
+          saleItem.QuantityBackordered = saleItem.QuantitySold - availableQuantity;
+        }
+        else
+        {
+          saleItem.QuantityBackordered = 0;
+        }
       }
       else
       {
+        // Non-inventory items never have backorders
         saleItem.QuantityBackordered = 0;
+        _logger.LogInformation("Added non-inventory item to sale - no backorder logic applied for Item ID: {ItemId}", saleItem.ItemId);
       }
 
       _context.SaleItems.Add(saleItem);
@@ -354,11 +448,17 @@ namespace InventorySystem.Services
         if (saleItem.ItemId.HasValue)
         {
           var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-          if (item == null || item.CurrentStock < saleItem.QuantitySold)
+          if (item == null) return false;
+          
+          // Only check stock for inventory-tracked items
+          if (item.TrackInventory && item.CurrentStock < saleItem.QuantitySold)
             return false;
+          
+          // Non-inventory items (Service, Virtual, etc.) can always be processed
         }
         else if (saleItem.FinishedGoodId.HasValue)
         {
+          // Finished goods always track inventory
           var finishedGood = await _context.FinishedGoods
               .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
           if (finishedGood == null || finishedGood.CurrentStock < saleItem.QuantitySold)
@@ -367,6 +467,36 @@ namespace InventorySystem.Services
       }
 
       return true;
+    }
+
+    /// <summary>
+    /// Determines if sale items can be added or removed based on the sale status
+    /// </summary>
+    /// <param name="saleStatus">The current status of the sale</param>
+    /// <returns>True if items can be modified, false otherwise</returns>
+    private static bool CanModifySaleItems(SaleStatus saleStatus)
+    {
+      return saleStatus switch
+      {
+        SaleStatus.Processing => true,    // Can modify - sale is still being prepared
+        SaleStatus.Backordered => true,   // Can modify - still waiting for inventory
+        SaleStatus.Shipped => false,     // Cannot modify - sale has been shipped
+        SaleStatus.Delivered => false,   // Cannot modify - sale has been delivered  
+        SaleStatus.Cancelled => false,   // Cannot modify - sale has been cancelled
+        SaleStatus.Returned => false,    // Cannot modify - sale has been returned
+        _ => false                        // Default: Cannot modify unknown status
+      };
+    }
+
+    /// <summary>
+    /// Public method to check if a sale can have items modified
+    /// </summary>
+    /// <param name="saleId">The ID of the sale to check</param>
+    /// <returns>True if items can be modified, false otherwise</returns>
+    public async Task<bool> CanModifySaleItemsAsync(int saleId)
+    {
+      var sale = await _context.Sales.FindAsync(saleId);
+      return sale != null && CanModifySaleItems(sale.SaleStatus);
     }
   }
 }

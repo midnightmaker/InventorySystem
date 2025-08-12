@@ -44,8 +44,12 @@ namespace InventorySystem.Controllers
         {
             try
             {
+                _logger.LogInformation("Loading A/R Aging Report");
+
                 var allSales = await _salesService.GetAllSalesAsync();
                 var unpaidSales = allSales.Where(s => s.PaymentStatus != PaymentStatus.Paid && s.SaleStatus != SaleStatus.Cancelled).ToList();
+
+                _logger.LogInformation("Found {UnpaidSalesCount} unpaid sales to analyze", unpaidSales.Count);
 
                 var agingReport = new AgingReportViewModel
                 {
@@ -72,6 +76,7 @@ namespace InventorySystem.Controllers
                         PaymentStatus = sale.PaymentStatus
                     };
 
+                    // Categorize into aging buckets
                     if (daysOld <= 0)
                         agingReport.Current.Add(item);
                     else if (daysOld <= 30)
@@ -83,6 +88,15 @@ namespace InventorySystem.Controllers
                     else
                         agingReport.Over90Days.Add(item);
                 }
+
+                // Pre-calculate totals to prevent repeated calculations in the view
+                agingReport.CurrentTotal = agingReport.Current.Sum(i => i.Amount);
+                agingReport.Days1To30Total = agingReport.Days1To30.Sum(i => i.Amount);
+                agingReport.Days31To60Total = agingReport.Days31To60.Sum(i => i.Amount);
+                agingReport.Days61To90Total = agingReport.Days61To90.Sum(i => i.Amount);
+                agingReport.Over90DaysTotal = agingReport.Over90Days.Sum(i => i.Amount);
+
+                _logger.LogInformation("Aging report built successfully - Total A/R: {GrandTotal:C}", agingReport.GrandTotal);
 
                 return View(agingReport);
             }

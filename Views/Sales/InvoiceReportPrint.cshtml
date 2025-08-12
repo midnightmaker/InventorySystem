@@ -38,6 +38,44 @@
             margin-bottom: 20px;
         }
         
+        /* Print-optimized table styling - uniform colors and borders */
+        .line-items-table table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #333;
+        }
+        
+        .line-items-table th,
+        .line-items-table td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+            background-color: white;
+        }
+        
+        .line-items-table thead th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .line-items-table tfoot th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .line-items-table tbody tr {
+            background-color: white;
+        }
+        
+        .line-items-table .text-center {
+            text-align: center;
+        }
+        
+        .line-items-table .text-end {
+            text-align: right;
+        }
+        
         .totals-section {
             margin-bottom: 20px;
         }
@@ -70,6 +108,7 @@
             margin-bottom: 15px;
         }
         
+        /* Print-specific overrides for clean, professional appearance */
         @@media print {
             .no-print {
                 display: none;
@@ -77,10 +116,76 @@
             
             body {
                 font-size: 11px;
+                background: white !important;
+                color: black !important;
             }
             
             .page-break {
                 page-break-before: always;
+            }
+            
+            /* Ensure all table elements are consistently styled for print */
+            .line-items-table table {
+                border: 2px solid #000;
+            }
+            
+            .line-items-table th,
+            .line-items-table td {
+                border: 1px solid #000;
+                background: white !important;
+                color: black !important;
+            }
+            
+            .line-items-table thead th {
+                background: #f0f0f0 !important;
+                color: black !important;
+            }
+            
+            .line-items-table tfoot th {
+                background: #f0f0f0 !important;
+                color: black !important;
+            }
+            
+            /* Remove Bootstrap color classes for print */
+            .table-dark,
+            .table-secondary,
+            .table-info,
+            .table-success {
+                background: #f0f0f0 !important;
+                color: black !important;
+            }
+            
+            .text-primary,
+            .text-success,
+            .text-warning,
+            .text-danger {
+                color: black !important;
+            }
+            
+            /* Ensure badges are readable in print */
+            .badge {
+                background: white !important;
+                color: black !important;
+                border: 1px solid black !important;
+            }
+            
+            /* Clean alert styling for print */
+            .alert-info {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                color: black !important;
+            }
+            
+            .overdue-notice {
+                background: white !important;
+                border: 2px solid black !important;
+                color: black !important;
+            }
+            
+            .payment-info {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                color: black !important;
             }
         }
     </style>
@@ -178,16 +283,7 @@
                 </div>
                 <div class="col-3">
                     <strong>Status:</strong><br>
-                    <span class="badge bg-@(Model.PaymentStatus switch 
-                    {
-                        InventorySystem.Models.Enums.PaymentStatus.Pending => "warning",
-                        InventorySystem.Models.Enums.PaymentStatus.Paid => "success",
-                        InventorySystem.Models.Enums.PaymentStatus.Overdue => "danger",
-                        InventorySystem.Models.Enums.PaymentStatus.PartiallyPaid => "info",
-                        _ => "secondary"
-                    })">
-                        @Model.PaymentStatus
-                    </span>
+                    <span class="badge">@Model.PaymentStatus</span>
                 </div>
             </div>
             
@@ -203,15 +299,15 @@
 
         <!-- Line Items -->
         <div class="line-items-table">
-            <table class="table table-bordered table-sm">
-                <thead class="table-dark">
+            <table>
+                <thead>
                     <tr>
                         <th width="8%">Line #</th>
                         <th width="15%">Item Number</th>
                         <th width="35%">Description</th>
-                        <th width="10%" class="text-center">Qty</th>
-                        <th width="15%" class="text-end">Unit Price</th>
-                        <th width="17%" class="text-end">Line Total</th>
+                        <th width="10%">Qty</th>
+                        <th width="15%">Unit Price</th>
+                        <th width="17%">Line Total</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -227,7 +323,7 @@
                                 @item.Description
                                 @if (item.IsBackordered)
                                 {
-                                    <br><em class="text-warning">@item.BackorderStatus</em>
+                                    <br><em>@item.BackorderStatus</em>
                                 }
                             </td>
                             <td class="text-center">@item.Quantity</td>
@@ -237,7 +333,7 @@
                         lineNumber++;
                     }
                 </tbody>
-                <tfoot class="table-secondary">
+                <tfoot>
                     <tr>
                         <th colspan="5" class="text-end">Subtotal (@Model.LineItemCount items):</th>
                         <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
@@ -256,18 +352,18 @@
                             <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
                         </tr>
                     }
-                    <tr class="table-info">
+                    <tr>
                         <th colspan="5" class="text-end"><strong>INVOICE TOTAL:</strong></th>
                         <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
                     </tr>
                     @if (Model.AmountPaid > 0)
                     {
-                        <tr class="table-success">
+                        <tr>
                             <th colspan="5" class="text-end">Amount Paid:</th>
                             <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
                         </tr>
                     }
-                    <tr class="table-dark">
+                    <tr>
                         <th colspan="5" class="text-end">
                             <strong>
                                 @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
@@ -284,7 +380,7 @@
                             <strong>
                                 @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
                                 {
-                                    <span class="text-success">$0.00</span>
+                                    <span>$0.00</span>
                                 }
                                 else
                                 {

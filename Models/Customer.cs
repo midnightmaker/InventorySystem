@@ -132,6 +132,7 @@ namespace InventorySystem.Models
         // Navigation properties
         public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
         public virtual ICollection<CustomerDocument> Documents { get; set; } = new List<CustomerDocument>();
+        public virtual ICollection<CustomerPayment> CustomerPayments { get; set; } = new List<CustomerPayment>();
 
         // Computed properties
         [NotMapped]

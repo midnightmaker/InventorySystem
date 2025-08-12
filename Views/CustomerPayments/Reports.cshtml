@@ -1,0 +1,377 @@
+@model InventorySystem.ViewModels.CustomerPaymentsReportViewModel
+@{
+    ViewData["Title"] = "Customer Payments Reports";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-bar"></i> Customer Payments Reports</h1>
+    <div class="btn-group">
+        <a href="/CustomerPayments" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Payments
+        </a>
+        <a href="/AccountsReceivable/Reports" class="btn btn-outline-info">
+            <i class="fas fa-file-invoice-dollar"></i> A/R Reports
+        </a>
+    </div>
+</div>
+
+@* Success/Error Messages *@
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* Date Range Filter *@
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-calendar"></i> Report Date Range</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" action="/CustomerPayments/Reports">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="startDate" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate" name="startDate" 
+                           value="@ViewBag.StartDate">
+                </div>
+                <div class="col-md-3">
+                    <label for="endDate" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDate" name="endDate" 
+                           value="@ViewBag.EndDate">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-refresh"></i> Update Report
+                    </button>
+                </div>
+                <div class="col-md-3 text-end">
+                    <small class="text-muted">
+                        Report Period: @Model.DateRangeDisplay
+                    </small>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.HasData)
+{
+    @* Summary Statistics *@
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>@Model.TotalPayments.ToString("C")</h3>
+                    <p class="mb-0">Total Payments</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>@Model.PaymentCount</h3>
+                    <p class="mb-0">Transactions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>@Model.AveragePayment.ToString("C")</h3>
+                    <p class="mb-0">Average Payment</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    @{
+                        var dailyAverage = Model.PaymentCount > 0 ? Model.TotalPayments / (decimal)(Model.EndDate - Model.StartDate).TotalDays : 0;
+                    }
+                    <h3>@dailyAverage.ToString("C")</h3>
+                    <p class="mb-0">Daily Average</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            @* Payments by Method *@
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-credit-card"></i> Payments by Method</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.PaymentsByMethod?.Any() == true)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <th>Count</th>
+                                        <th>Amount</th>
+                                        <th>%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var method in Model.PaymentsByMethod)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-info">@method.PaymentMethod</span>
+                                            </td>
+                                            <td>@method.Count</td>
+                                            <td><strong>@method.TotalAmount.ToString("C")</strong></td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                        <div class="progress-bar bg-info" 
+                                                             style="width: @method.Percentage.ToString("F0")%"
+                                                             title="@method.PercentageDisplay">
+                                                        </div>
+                                                    </div>
+                                                    <small>@method.PercentageDisplay</small>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No payment method data available.</p>
+                    }
+                </div>
+            </div>
+
+            @* Monthly Trends *@
+            @if (Model.MonthlyTrends?.Any() == true)
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-line"></i> Monthly Payment Trends</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th>Payments</th>
+                                        <th>Total Amount</th>
+                                        <th>Average</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var trend in Model.MonthlyTrends)
+                                    {
+                                        <tr>
+                                            <td>@trend.MonthName</td>
+                                            <td>@trend.PaymentCount</td>
+                                            <td><strong>@trend.TotalAmount.ToString("C")</strong></td>
+                                            <td>@trend.AveragePayment.ToString("C")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="col-md-6">
+            @* Top Customers *@
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-users"></i> Top Customers by Payments</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.TopCustomers?.Any() == true)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Payments</th>
+                                        <th>Total Amount</th>
+                                        <th>Last Payment</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var customer in Model.TopCustomers)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <a href="/Customers/Details/@customer.CustomerId" class="text-decoration-none">
+                                                    @customer.CustomerName
+                                                </a>
+                                            </td>
+                                            <td>@customer.PaymentCount</td>
+                                            <td><strong>@customer.TotalAmount.ToString("C")</strong></td>
+                                            <td>@customer.LastPaymentDate.ToString("MM/dd/yyyy")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <a href="/CustomerPayments" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye"></i> View All Customer Payments
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No customer payment data available for this period.</p>
+                    }
+                </div>
+            </div>
+
+            @* Quick Stats *@
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-calculator"></i> Quick Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Report Period:</dt>
+                        <dd class="col-sm-6">@Model.DateRangeDisplay</dd>
+                        
+                        <dt class="col-sm-6">Total Days:</dt>
+                        <dd class="col-sm-6">@((Model.EndDate - Model.StartDate).TotalDays.ToString("F0")) days</dd>
+                        
+                        <dt class="col-sm-6">Payment Methods:</dt>
+                        <dd class="col-sm-6">@(Model.PaymentsByMethod?.Count ?? 0) different methods</dd>
+                        
+                        <dt class="col-sm-6">Active Customers:</dt>
+                        <dd class="col-sm-6">@(Model.TopCustomers?.Count ?? 0) customers with payments</dd>
+                        
+                        <dt class="col-sm-6">Largest Payment:</dt>
+                        <dd class="col-sm-6">
+                            @if (Model.TopCustomers?.Any() == true)
+                            {
+                                @Model.TopCustomers.Max(c => c.TotalAmount).ToString("C")
+                            }
+                            else
+                            {
+                                <span class="text-muted">N/A</span>
+                            }
+                        </dd>
+                        
+                        <dt class="col-sm-6">Most Active Customer:</dt>
+                        <dd class="col-sm-6">
+                            @if (Model.TopCustomers?.Any() == true)
+                            {
+                                var mostActive = Model.TopCustomers.OrderByDescending(c => c.PaymentCount).First();
+                                <a href="/Customers/Details/@mostActive.CustomerId" class="text-decoration-none">
+                                    @mostActive.CustomerName
+                                </a>
+                                <small class="text-muted">(@mostActive.PaymentCount payments)</small>
+                            }
+                            else
+                            {
+                                <span class="text-muted">N/A</span>
+                            }
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Export and Actions *@
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-download"></i> Export & Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Export Options</h6>
+                            <div class="btn-group mb-3">
+                                <button type="button" class="btn btn-outline-success" onclick="exportToCSV()">
+                                    <i class="fas fa-file-csv"></i> Export to CSV
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+                                    <i class="fas fa-print"></i> Print Report
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Related Reports</h6>
+                            <div class="btn-group mb-3">
+                                <a href="/AccountsReceivable/Reports" class="btn btn-outline-info">
+                                    <i class="fas fa-file-invoice-dollar"></i> A/R Reports
+                                </a>
+                                <a href="/Sales/Reports" class="btn btn-outline-warning">
+                                    <i class="fas fa-chart-bar"></i> Sales Reports
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="text-center py-5">
+        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">No Payment Data Available</h4>
+        <p class="text-muted">
+            No customer payments found for the selected date range 
+            (@Model.DateRangeDisplay).
+        </p>
+        <div class="btn-group">
+            <a href="/CustomerPayments" class="btn btn-primary">
+                <i class="fas fa-money-bill-wave"></i> View All Payments
+            </a>
+            <a href="/Sales" class="btn btn-outline-secondary">
+                <i class="fas fa-shopping-cart"></i> View Sales
+            </a>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        function exportToCSV() {
+            // This is a basic implementation - you might want to implement server-side export
+            alert('CSV export feature would be implemented here');
+        }
+
+        // Auto-submit form when dates change
+        document.getElementById('startDate').addEventListener('change', function() {
+            if (document.getElementById('endDate').value) {
+                this.form.submit();
+            }
+        });
+
+        document.getElementById('endDate').addEventListener('change', function() {
+            if (document.getElementById('startDate').value) {
+                this.form.submit();
+            }
+        });
+    </script>
+}

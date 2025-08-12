@@ -12,9 +12,13 @@
     <a href="/Sales/Edit/@Model.Id" class="btn btn-outline-primary">
       <i class="fas fa-edit"></i> Edit
     </a>
-    <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
-      <i class="fas fa-plus"></i> Add Item
-    </a>
+    @* Only show Add Item button for modifiable sales *@
+    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+    {
+      <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
+        <i class="fas fa-plus"></i> Add Item
+      </a>
+    }
     <a href="@Url.Action("InvoiceReport", new { saleId = Model.Id })"
        class="btn btn-primary">
       <i class="fas fa-file-invoice-dollar"></i> View Invoice
@@ -204,9 +208,34 @@
     <div class="card mt-4">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5><i class="fas fa-list"></i> Sale Items</h5>
-        <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-sm btn-success">
-          <i class="fas fa-plus"></i> Add Item
-        </a>
+        @* Only show Add Item button for modifiable sales *@
+        @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+        {
+          <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-sm btn-success">
+            <i class="fas fa-plus"></i> Add Item
+          </a>
+        }
+        else
+        {
+          <span class="text-muted small">
+            @if (Model.SaleStatus == SaleStatus.Shipped)
+            {
+              <text><i class="fas fa-info-circle"></i> Items cannot be modified - sale has been shipped</text>
+            }
+            else if (Model.SaleStatus == SaleStatus.Delivered)
+            {
+              <text><i class="fas fa-info-circle"></i> Items cannot be modified - sale has been delivered</text>
+            }
+            else if (Model.SaleStatus == SaleStatus.Cancelled)
+            {
+              <text><i class="fas fa-info-circle"></i> Items cannot be modified - sale has been cancelled</text>
+            }
+            else if (Model.SaleStatus == SaleStatus.Returned)
+            {
+              <text><i class="fas fa-info-circle"></i> Items cannot be modified - sale has been returned</text>
+            }
+          </span>
+        }
       </div>
       <div class="card-body">
         @if (Model.SaleItems?.Any() == true)
@@ -221,7 +250,11 @@
                   <th>Unit Cost</th>
                   <th>Total Price</th>
                   <th>Profit</th>
-                  <th>Actions</th>
+                  @* Only show Actions column for modifiable sales *@
+                  @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                  {
+                    <th>Actions</th>
+                  }
                 </tr>
               </thead>
               <tbody>
@@ -252,16 +285,20 @@
                         <small class="text-muted">(@item.ProfitMargin.ToString("F1")%)</small>
                       }
                     </td>
-                    <td>
-                      <form asp-action="RemoveItem" method="post" style="display: inline;">
-                        <input type="hidden" name="saleItemId" value="@item.Id" />
-                        <input type="hidden" name="saleId" value="@Model.Id" />
-                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                onclick="return confirm('Are you sure you want to remove this item?')">
-                          <i class="fas fa-trash"></i>
-                        </button>
-                      </form>
-                    </td>
+                    @* Only show remove button for modifiable sales *@
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td>
+                        <form asp-action="RemoveItem" method="post" style="display: inline;">
+                          <input type="hidden" name="saleItemId" value="@item.Id" />
+                          <input type="hidden" name="saleId" value="@Model.Id" />
+                          <button type="submit" class="btn btn-sm btn-outline-danger"
+                                  onclick="return confirm('Are you sure you want to remove this item?')">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </form>
+                      </td>
+                    }
                   </tr>
                 }
               </tbody>
@@ -273,9 +310,13 @@
           <div class="text-center py-3">
             <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
             <p class="text-muted">No items added to this sale yet.</p>
-            <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
-              <i class="fas fa-plus"></i> Add First Item
-            </a>
+            @* Only show Add First Item button for modifiable sales *@
+            @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+            {
+              <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add First Item
+              </a>
+            }
           </div>
         }
       </div>
@@ -325,13 +366,9 @@
         @if (Model.SaleStatus == SaleStatus.Processing && Model.SaleItems?.Any() == true)
         {
           <hr>
-          <form asp-action="ProcessSale" method="post">
-            <input type="hidden" name="id" value="@Model.Id" />
-            <button type="submit" class="btn btn-warning w-100"
-                    onclick="return confirm('This will reduce inventory. Are you sure?')">
-              <i class="fas fa-shipping-fast"></i> Process & Ship Sale
-            </button>
-          </form>
+          <button type="button" class="btn btn-warning w-100" onclick="checkInventoryAndProcess(@Model.Id)">
+            <i class="fas fa-shipping-fast"></i> Process & Ship Sale
+          </button>
         }
       </div>
     </div>
@@ -488,6 +525,57 @@
   </div>
 }
 
+<!-- Process Sale Confirmation Modal -->
+<div class="modal fade" id="processSaleModal" tabindex="-1" aria-labelledby="processSaleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="processSaleModalLabel">
+          <i class="fas fa-shipping-fast"></i> Process & Ship Sale
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" id="inventoryWarning" style="display: none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <strong>Inventory Impact:</strong>
+          <p class="mb-2">This sale contains <span id="inventoryItemCount"></span> that will reduce inventory levels:</p>
+          <ul id="inventoryItemsList" class="mb-0"></ul>
+        </div>
+        
+        <div class="alert alert-info" id="noInventoryInfo" style="display: none;">
+          <i class="fas fa-info-circle"></i>
+          <strong>No Inventory Impact:</strong>
+          <p class="mb-0">This sale contains only services and virtual items. No inventory will be reduced.</p>
+        </div>
+        
+        <div class="alert alert-primary" id="mixedItemsInfo" style="display: none;">
+          <i class="fas fa-info-circle"></i>
+          <strong>Mixed Items:</strong>
+          <p class="mb-2">This sale contains both inventory and non-inventory items:</p>
+          <ul class="mb-0">
+            <li><span id="inventoryItemCountMixed"></span> will reduce inventory</li>
+            <li><span id="nonInventoryItemCount"></span> (services/virtual) will not affect inventory</li>
+          </ul>
+        </div>
+
+        <p class="mt-3">
+          <strong>Are you sure you want to process this sale and mark it as shipped?</strong>
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form asp-action="ProcessSale" method="post" style="display: inline;">
+          <input type="hidden" name="id" value="@Model.Id" />
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-shipping-fast"></i> Yes, Process Sale
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // Payment amount validation for Sales Details modal
 document.addEventListener('DOMContentLoaded', function() {
@@ -510,4 +598,92 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Check inventory impact and show appropriate modal for processing sale
+async function checkInventoryAndProcess(saleId) {
+    try {
+        // Get information about which items track inventory
+        const response = await fetch(`/Sales/GetSaleInventoryInfo?saleId=${saleId}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            alert('Error checking sale items: ' + data.message);
+            return;
+        }
+        
+        const inventoryItems = data.inventoryItems || [];
+        const nonInventoryItems = data.nonInventoryItems || [];
+        
+        // Get modal elements
+        const modal = new bootstrap.Modal(document.getElementById('processSaleModal'));
+        const inventoryWarning = document.getElementById('inventoryWarning');
+        const noInventoryInfo = document.getElementById('noInventoryInfo');
+        const mixedItemsInfo = document.getElementById('mixedItemsInfo');
+        const inventoryItemCount = document.getElementById('inventoryItemCount');
+        const inventoryItemsList = document.getElementById('inventoryItemsList');
+        const inventoryItemCountMixed = document.getElementById('inventoryItemCountMixed');
+        const nonInventoryItemCount = document.getElementById('nonInventoryItemCount');
+        
+        // Hide all alert types first
+        inventoryWarning.style.display = 'none';
+        noInventoryInfo.style.display = 'none';
+        mixedItemsInfo.style.display = 'none';
+        
+        if (inventoryItems.length === 0) {
+            // No inventory items - safe to process without warning
+            noInventoryInfo.style.display = 'block';
+        } else if (nonInventoryItems.length === 0) {
+            // Only inventory items - show inventory warning
+            inventoryWarning.style.display = 'block';
+            inventoryItemCount.textContent = `${inventoryItems.length} item${inventoryItems.length > 1 ? 's' : ''}`;
+            
+            // Build list of inventory items
+            inventoryItemsList.innerHTML = '';
+            inventoryItems.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${item.partNumber}</strong> - ${item.description} (Qty: ${item.quantity})`;
+                inventoryItemsList.appendChild(li);
+            });
+        } else {
+            // Mixed items - show both types
+            mixedItemsInfo.style.display = 'block';
+            inventoryItemCountMixed.textContent = `${inventoryItems.length} item${inventoryItems.length > 1 ? 's' : ''}`;
+            nonInventoryItemCount.textContent = `${nonInventoryItems.length} item${nonInventoryItems.length > 1 ? 's' : ''}`;
+        }
+        
+        // Show the modal
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error checking inventory info:', error);
+        // Fallback to simple confirmation if AJAX fails
+        if (confirm('Process this sale and mark it as shipped?')) {
+            // Create and submit the form programmatically since the form doesn't have an ID
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/Sales/ProcessSale';
+            
+            // Add CSRF token
+            const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '__RequestVerificationToken';
+                csrfInput.value = csrfToken.value;
+                form.appendChild(csrfInput);
+            }
+            
+            // Add sale ID
+            const idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = 'id';
+            idInput.value = saleId;
+            form.appendChild(idInput);
+            
+            // Append to body and submit
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+}
 </script>

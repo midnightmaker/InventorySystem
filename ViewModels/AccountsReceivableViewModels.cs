@@ -36,12 +36,60 @@ namespace InventorySystem.ViewModels
         public List<AgingReportItem> Days61To90 { get; set; } = new();
         public List<AgingReportItem> Over90Days { get; set; } = new();
 
-        public decimal CurrentTotal => Current.Sum(i => i.Amount);
-        public decimal Days1To30Total => Days1To30.Sum(i => i.Amount);
-        public decimal Days31To60Total => Days31To60.Sum(i => i.Amount);
-        public decimal Days61To90Total => Days61To90.Sum(i => i.Amount);
-        public decimal Over90DaysTotal => Over90Days.Sum(i => i.Amount);
-        public decimal GrandTotal => CurrentTotal + Days1To30Total + Days31To60Total + Days61To90Total + Over90DaysTotal;
+        // Cached totals to prevent repeated calculations that can cause performance issues
+        private decimal? _currentTotal;
+        private decimal? _days1To30Total;
+        private decimal? _days31To60Total;
+        private decimal? _days61To90Total;
+        private decimal? _over90DaysTotal;
+        private decimal? _grandTotal;
+
+        public decimal CurrentTotal
+        {
+            get => _currentTotal ??= Current?.Sum(i => i.Amount) ?? 0;
+            set => _currentTotal = value;
+        }
+
+        public decimal Days1To30Total
+        {
+            get => _days1To30Total ??= Days1To30?.Sum(i => i.Amount) ?? 0;
+            set => _days1To30Total = value;
+        }
+
+        public decimal Days31To60Total
+        {
+            get => _days31To60Total ??= Days31To60?.Sum(i => i.Amount) ?? 0;
+            set => _days31To60Total = value;
+        }
+
+        public decimal Days61To90Total
+        {
+            get => _days61To90Total ??= Days61To90?.Sum(i => i.Amount) ?? 0;
+            set => _days61To90Total = value;
+        }
+
+        public decimal Over90DaysTotal
+        {
+            get => _over90DaysTotal ??= Over90Days?.Sum(i => i.Amount) ?? 0;
+            set => _over90DaysTotal = value;
+        }
+
+        public decimal GrandTotal
+        {
+            get => _grandTotal ??= CurrentTotal + Days1To30Total + Days31To60Total + Days61To90Total + Over90DaysTotal;
+            set => _grandTotal = value;
+        }
+
+        // Method to recalculate all totals (call this when collections are modified)
+        public void RecalculateTotals()
+        {
+            _currentTotal = null;
+            _days1To30Total = null;
+            _days31To60Total = null;
+            _days61To90Total = null;
+            _over90DaysTotal = null;
+            _grandTotal = null;
+        }
     }
 
     public class AgingReportItem

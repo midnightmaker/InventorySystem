@@ -1,0 +1,398 @@
+@model List<InventorySystem.ViewModels.CustomerPaymentRecord>
+@{
+    ViewData["Title"] = "Customer Payments";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-money-bill-wave"></i> Customer Payments</h1>
+    <div class="btn-group">
+        <a href="/CustomerPayments/Reports" class="btn btn-outline-info">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+        <a href="/AccountsReceivable" class="btn btn-outline-secondary">
+            <i class="fas fa-file-invoice-dollar"></i> A/R Dashboard
+        </a>
+    </div>
+</div>
+
+@* Success/Error Messages *@
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (ViewBag.ErrorMessage != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @ViewBag.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* Summary Statistics Card *@
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-light">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h4 class="text-success">@ViewBag.TotalPaymentsAmount.ToString("C")</h4>
+                        <small class="text-muted">Total Payments</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-primary">@ViewBag.TotalPaymentCount</h4>
+                        <small class="text-muted">Payment Transactions</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-info">@ViewBag.AveragePaymentAmount.ToString("C")</h4>
+                        <small class="text-muted">Average Payment</small>
+                    </div>
+                    <div class="col-md-3">
+                        @if (ViewBag.IsFiltered)
+                        {
+                            <h4 class="text-warning">@ViewBag.SearchResultsCount</h4>
+                            <small class="text-muted">Filtered Results</small>
+                        }
+                        else
+                        {
+                            <h4 class="text-secondary">@DateTime.Now.ToString("MMM yyyy")</h4>
+                            <small class="text-muted">Current Period</small>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Search and Filters *@
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-search"></i> Search & Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" action="/CustomerPayments">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="@ViewBag.SearchTerm" 
+                           placeholder="Customer, Sale #, Amount, Notes...">
+                </div>
+                <div class="col-md-3">
+                    <label for="customerFilter" class="form-label">Customer</label>
+                    @Html.DropDownList("customerFilter", ViewBag.CustomerOptions as SelectList, 
+                        "All Customers", new { @class = "form-select" })
+                </div>
+                <div class="col-md-2">
+                    <label for="paymentMethodFilter" class="form-label">Payment Method</label>
+                    @Html.DropDownList("paymentMethodFilter", ViewBag.PaymentMethodOptions as SelectList, 
+                        "All Methods", new { @class = "form-select" })
+                </div>
+                <div class="col-md-2">
+                    <label for="startDate" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate" name="startDate" 
+                           value="@ViewBag.StartDate">
+                </div>
+                <div class="col-md-2">
+                    <label for="endDate" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDate" name="endDate" 
+                           value="@ViewBag.EndDate">
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-8">
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                        <a href="/CustomerPayments" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-inline-flex align-items-center">
+                        <label for="pageSize" class="form-label me-2 mb-0">Show:</label>
+                        <select name="pageSize" id="pageSize" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                            @foreach (var size in ViewBag.AllowedPageSizes as int[])
+                            {
+                                var selected = ViewBag.PageSize == size ? "selected" : "";
+                                <option value="@size" selected="@selected">@size</option>
+                            }
+                        </select>
+                        <input type="hidden" name="sortOrder" value="@ViewBag.SortOrder" />
+                        <input type="hidden" name="page" value="1" />
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Results *@
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-list"></i> Payment Records</h5>
+        @if (ViewBag.TotalCount > 0)
+        {
+            <span class="badge bg-primary">
+                Showing @ViewBag.ShowingFrom-@ViewBag.ShowingTo of @ViewBag.TotalCount
+            </span>
+        }
+    </div>
+    <div class="card-body">
+        @if (Model?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>
+                                @{
+                                    var currentQuery = Context.Request.QueryString.ToString();
+                                    var dateSort = ViewBag.SortOrder == "date_asc" ? "date_desc" : "date_asc";
+                                }
+                                <a href="?@Html.Raw(currentQuery)&sortOrder=@dateSort&page=1" class="text-white text-decoration-none">
+                                    Payment Date
+                                    @if (ViewBag.SortOrder.ToString().StartsWith("date"))
+                                    {
+                                        <i class="fas fa-sort-@(ViewBag.SortOrder == "date_asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>
+                                @{
+                                    var customerSort = ViewBag.SortOrder == "customer_asc" ? "customer_desc" : "customer_asc";
+                                }
+                                <a href="?@Html.Raw(currentQuery)&sortOrder=@customerSort&page=1" class="text-white text-decoration-none">
+                                    Customer
+                                    @if (ViewBag.SortOrder.ToString().StartsWith("customer"))
+                                    {
+                                        <i class="fas fa-sort-@(ViewBag.SortOrder == "customer_asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>
+                                @{
+                                    var saleSort = ViewBag.SortOrder == "sale_asc" ? "sale_desc" : "sale_asc";
+                                }
+                                <a href="?@Html.Raw(currentQuery)&sortOrder=@saleSort&page=1" class="text-white text-decoration-none">
+                                    Sale #
+                                    @if (ViewBag.SortOrder.ToString().StartsWith("sale"))
+                                    {
+                                        <i class="fas fa-sort-@(ViewBag.SortOrder == "sale_asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>
+                                @{
+                                    var amountSort = ViewBag.SortOrder == "amount_asc" ? "amount_desc" : "amount_asc";
+                                }
+                                <a href="?@Html.Raw(currentQuery)&sortOrder=@amountSort&page=1" class="text-white text-decoration-none">
+                                    Amount
+                                    @if (ViewBag.SortOrder.ToString().StartsWith("amount"))
+                                    {
+                                        <i class="fas fa-sort-@(ViewBag.SortOrder == "amount_asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>
+                                @{
+                                    var methodSort = ViewBag.SortOrder == "method_asc" ? "method_desc" : "method_asc";
+                                }
+                                <a href="?@Html.Raw(currentQuery)&sortOrder=@methodSort&page=1" class="text-white text-decoration-none">
+                                    Payment Method
+                                    @if (ViewBag.SortOrder.ToString().StartsWith("method"))
+                                    {
+                                        <i class="fas fa-sort-@(ViewBag.SortOrder == "method_asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var payment in Model)
+                        {
+                            <tr>
+                                <td>
+                                    @payment.PaymentDate.ToString("MM/dd/yyyy")
+                                    <br>
+                                    <small class="text-muted">@payment.PaymentDate.ToString("h:mm tt")</small>
+                                </td>
+                                <td>
+                                    <strong>@payment.CustomerName</strong>
+                                    <br>
+                                    <small class="text-muted">ID: @payment.CustomerId</small>
+                                </td>
+                                <td>
+                                    <a href="/Sales/Details/@payment.SaleId" class="text-decoration-none">
+                                        @payment.SaleNumber
+                                    </a>
+                                </td>
+                                <td>
+                                    <strong class="text-success">@payment.Amount.ToString("C")</strong>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(payment.PaymentMethod))
+                                    {
+                                        <span class="badge bg-info">@payment.PaymentMethod</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Unknown</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(payment.PaymentNotes))
+                                    {
+                                        <span title="@payment.PaymentNotes">
+                                            @(payment.PaymentNotes.Length > 50 ? payment.PaymentNotes.Substring(0, 50) + "..." : payment.PaymentNotes)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No notes</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/CustomerPayments/Details/@payment.SaleId" 
+                                           class="btn btn-outline-primary" 
+                                           title="View Payment Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/Sales/Details/@payment.SaleId" 
+                                           class="btn btn-outline-info" 
+                                           title="View Sale">
+                                            <i class="fas fa-shopping-cart"></i>
+                                        </a>
+                                        <a href="/Sales/InvoiceReport?saleId=@payment.SaleId" 
+                                           class="btn btn-outline-secondary" 
+                                           title="View Invoice">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                        <a href="/Customers/Details/@payment.CustomerId" 
+                                           class="btn btn-outline-warning" 
+                                           title="View Customer">
+                                            <i class="fas fa-user"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Pagination *@
+            @if (ViewBag.TotalPages > 1)
+            {
+                var queryString = Context.Request.QueryString.ToString();
+                <nav aria-label="Payment records pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        @if (ViewBag.HasPreviousPage)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" href="?@Html.Raw(queryString)&page=1">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?@Html.Raw(queryString)&page=@(ViewBag.CurrentPage - 1)">Previous</a>
+                            </li>
+                        }
+
+                        @{
+                            int startPage = Math.Max(1, ViewBag.CurrentPage - 2);
+                            int endPage = Math.Min((int)ViewBag.TotalPages, ViewBag.CurrentPage + 2);
+                        }
+
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link" href="?@Html.Raw(queryString)&page=@i">@i</a>
+                            </li>
+                        }
+
+                        @if (ViewBag.HasNextPage)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" href="?@Html.Raw(queryString)&page=@(ViewBag.CurrentPage + 1)">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?@Html.Raw(queryString)&page=@ViewBag.TotalPages">Last</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+
+                <div class="text-center text-muted">
+                    <small>
+                        Page @ViewBag.CurrentPage of @ViewBag.TotalPages 
+                        (@ViewBag.TotalCount total payment records)
+                    </small>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center py-5">
+                @if (ViewBag.IsFiltered)
+                {
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No payments found matching your search criteria</h4>
+                    <p class="text-muted">Try adjusting your filters or search terms.</p>
+                    <a href="/CustomerPayments" class="btn btn-outline-primary">
+                        <i class="fas fa-times"></i> Clear Filters
+                    </a>
+                }
+                else
+                {
+                    <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No customer payments found</h4>
+                    <p class="text-muted">Customer payments will appear here when sales are marked as paid.</p>
+                    <a href="/Sales" class="btn btn-primary">
+                        <i class="fas fa-shopping-cart"></i> View Sales
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-submit form when page size changes
+        document.getElementById('pageSize').addEventListener('change', function() {
+            this.form.submit();
+        });
+
+        // Auto-focus search field
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchField = document.getElementById('search');
+            if (searchField && !searchField.value) {
+                searchField.focus();
+            }
+        });
+
+        // Handle enter key in search field
+        document.getElementById('search').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.form.submit();
+            }
+        });
+    </script>
+}

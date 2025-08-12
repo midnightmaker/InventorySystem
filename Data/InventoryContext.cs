@@ -45,6 +45,10 @@ namespace InventorySystem.Data
 		// Add these new DbSets
 		public DbSet<Customer> Customers { get; set; }
 		public DbSet<CustomerDocument> CustomerDocuments { get; set; }
+    public DbSet<CustomerPayment> CustomerPayments { get; set; }
+
+    // NEW: Add Projects DbSet for R&D project tracking
+    public DbSet<Project> Projects { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -112,6 +116,35 @@ namespace InventorySystem.Data
           .HasIndex(vi => new { vi.VendorId, vi.ItemId })
           .IsUnique();
 
+      // NEW: Project configuration for R&D tracking
+      modelBuilder.Entity<Project>(entity =>
+      {
+          entity.HasKey(p => p.Id);
+          entity.Property(p => p.ProjectCode).IsRequired().HasMaxLength(50);
+          entity.Property(p => p.ProjectName).IsRequired().HasMaxLength(200);
+          entity.Property(p => p.Description).HasMaxLength(1000);
+          entity.Property(p => p.ProjectManager).HasMaxLength(100);
+          entity.Property(p => p.Department).HasMaxLength(100);
+          entity.Property(p => p.Notes).HasMaxLength(2000);
+          entity.Property(p => p.CreatedBy).HasMaxLength(100);
+          entity.Property(p => p.LastModifiedBy).HasMaxLength(100);
+          entity.Property(p => p.Budget).HasColumnType("decimal(18,2)");
+          
+          // Configure enums
+          entity.Property(p => p.ProjectType).HasConversion<int>();
+          entity.Property(p => p.Status).HasConversion<int>();
+          entity.Property(p => p.Priority).HasConversion<int>();
+          
+          // Configure unique constraint on project code
+          entity.HasIndex(p => p.ProjectCode).IsUnique();
+          
+          // Configure relationship with purchases
+          entity.HasMany(p => p.Purchases)
+                .WithOne(pu => pu.Project)
+                .HasForeignKey(pu => pu.ProjectId)
+                .OnDelete(DeleteBehavior.SetNull);
+      });
+
       // CompanyInfo configuration
       modelBuilder.Entity<CompanyInfo>(entity =>
       {
@@ -133,6 +166,10 @@ namespace InventorySystem.Data
         entity.Property(e => e.PartNumber).IsRequired().HasMaxLength(100);
         entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
         entity.HasIndex(e => e.PartNumber).IsUnique();
+
+        // Configure SalePrice as decimal with proper precision
+        entity.Property(e => e.SalePrice)
+              .HasColumnType("decimal(18,2)");
 
         // Configure self-referencing relationships for Item versioning
         entity.HasOne(i => i.BaseItem)

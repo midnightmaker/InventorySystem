@@ -1,0 +1,376 @@
+@model InventorySystem.ViewModels.CreateProjectViewModel
+@{
+    ViewData["Title"] = ViewBag.IsEdit == true ? "Edit Project" : "Create New Project";
+    var isEdit = ViewBag.IsEdit == true;
+    var projectId = ViewBag.ProjectId;
+    var currentStatus = ViewBag.CurrentStatus;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-@(isEdit ? "edit" : "plus") text-primary"></i> 
+        @ViewData["Title"]
+    </h1>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Projects
+    </a>
+</div>
+
+@if (ViewBag.ErrorMessage != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @ViewBag.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>
+                    <i class="fas fa-info-circle"></i> 
+                    Project Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="@(isEdit ? "Edit" : "Create")" method="post">
+                    @if (isEdit)
+                    {
+                        <input type="hidden" name="id" value="@projectId" />
+                    }
+
+                    <div class="row">
+                        <!-- Project Code -->
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ProjectCode" class="form-label">
+                                Project Code <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="ProjectCode" class="form-control" placeholder="e.g., RD-2024-001" maxlength="50" />
+                            <span asp-validation-for="ProjectCode" class="text-danger"></span>
+                            <div class="form-text">
+                                Unique identifier for this project (alphanumeric, dashes allowed)
+                            </div>
+                        </div>
+
+                        <!-- Project Type -->
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ProjectType" class="form-label">
+                                Project Type <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="ProjectType" class="form-select" asp-items="ViewBag.ProjectTypeOptions">
+                                <option value="">Select project type...</option>
+                            </select>
+                            <span asp-validation-for="ProjectType" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Project Name -->
+                    <div class="mb-3">
+                        <label asp-for="ProjectName" class="form-label">
+                            Project Name <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="ProjectName" class="form-control" placeholder="Descriptive name for the project" maxlength="200" />
+                        <span asp-validation-for="ProjectName" class="text-danger"></span>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">Description</label>
+                        <textarea asp-for="Description" class="form-control" rows="3" 
+                                  placeholder="Detailed description of the project goals and scope"></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="row">
+                        <!-- Budget -->
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="Budget" class="form-label">
+                                Budget <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input asp-for="Budget" class="form-control" type="number" step="0.01" min="0" placeholder="0.00" />
+                            </div>
+                            <span asp-validation-for="Budget" class="text-danger"></span>
+                        </div>
+
+                        <!-- Priority -->
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="Priority" class="form-label">Priority</label>
+                            <select asp-for="Priority" class="form-select" asp-items="ViewBag.PriorityOptions">
+                            </select>
+                            <span asp-validation-for="Priority" class="text-danger"></span>
+                        </div>
+
+                        <!-- Project Manager -->
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="ProjectManager" class="form-label">Project Manager</label>
+                            <input asp-for="ProjectManager" class="form-control" placeholder="Manager's name" maxlength="100" />
+                            <span asp-validation-for="ProjectManager" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Department -->
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Department" class="form-label">Department</label>
+                            <input asp-for="Department" class="form-control" placeholder="e.g., Engineering, Research" maxlength="100" />
+                            <span asp-validation-for="Department" class="text-danger"></span>
+                        </div>
+
+                        <!-- Status Display (for edit only) -->
+                        @if (isEdit && currentStatus != null)
+                        {
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Current Status</label>
+                                <div class="form-control-plaintext">
+                                    <span class="badge bg-@(GetStatusBadgeColor(currentStatus)) fs-6">
+                                        @currentStatus.ToString().Replace("_", " ")
+                                    </span>
+                                    <div class="form-text">
+                                        Status can be changed from the project details page
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="row">
+                        <!-- Start Date -->
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="StartDate" class="form-label">Start Date</label>
+                            <input asp-for="StartDate" class="form-control" type="date" />
+                            <span asp-validation-for="StartDate" class="text-danger"></span>
+                        </div>
+
+                        <!-- Expected End Date -->
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ExpectedEndDate" class="form-label">Expected End Date</label>
+                            <input asp-for="ExpectedEndDate" class="form-control" type="date" />
+                            <span asp-validation-for="ExpectedEndDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label">Notes</label>
+                        <textarea asp-for="Notes" class="form-control" rows="4" 
+                                  placeholder="Additional notes, milestones, or important information"></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a asp-action="Index" class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-@(isEdit ? "save" : "plus")"></i> 
+                            @(isEdit ? "Update Project" : "Create Project")
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar with Guidelines -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Project Guidelines</h6>
+            </div>
+            <div class="card-body">
+                <h6>Project Code Format</h6>
+                <ul class="small">
+                    <li><strong>Research:</strong> R-YYYY-### (e.g., R-2024-001)</li>
+                    <li><strong>Development:</strong> D-YYYY-### (e.g., D-2024-001)</li>
+                    <li><strong>R&D:</strong> RD-YYYY-### (e.g., RD-2024-001)</li>
+                    <li><strong>Product Dev:</strong> PD-YYYY-### (e.g., PD-2024-001)</li>
+                </ul>
+
+                <hr>
+
+                <h6>Priority Levels</h6>
+                <ul class="small">
+                    <li><span class="badge bg-success">Low</span> - Nice to have, flexible timing</li>
+                    <li><span class="badge bg-info">Medium</span> - Important, standard priority</li>
+                    <li><span class="badge bg-warning">High</span> - Urgent, high impact</li>
+                    <li><span class="badge bg-danger">Critical</span> - Business critical</li>
+                    <li><span class="badge bg-primary">Strategic</span> - Long-term strategic</li>
+                </ul>
+
+                <hr>
+
+                <h6>Budget Planning</h6>
+                <ul class="small">
+                    <li>Include all anticipated costs</li>
+                    <li>Equipment, materials, services</li>
+                    <li>External consulting fees</li>
+                    <li>Testing and validation costs</li>
+                    <li>Add 10-20% contingency</li>
+                </ul>
+
+                @if (isEdit)
+                {
+                    <hr>
+                    <h6>Status Management</h6>
+                    <p class="small">
+                        Project status can be updated from the details page. 
+                        Use status changes to track project progression and communicate updates to stakeholders.
+                    </p>
+                }
+            </div>
+        </div>
+
+        @if (!isEdit)
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-forward"></i> Next Steps</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small">After creating your project:</p>
+                    <ol class="small">
+                        <li>Review and update project details</li>
+                        <li>Set project status to "Active" when ready</li>
+                        <li>Start recording project expenses</li>
+                        <li>Monitor budget utilization</li>
+                        <li>Update status as project progresses</li>
+                    </ol>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@functions {
+    private string GetStatusBadgeColor(object status)
+    {
+        if (status == null) return "secondary";
+        
+        return status.ToString() switch
+        {
+            "Planning" => "secondary",
+            "Active" => "success",
+            "On_Hold" => "warning",
+            "Completed" => "primary",
+            "Cancelled" => "danger",
+            "Suspended" => "dark",
+            "Under_Review" => "info",
+            _ => "secondary"
+        };
+    }
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-generate project code suggestion based on type
+            const projectTypeSelect = document.querySelector('select[name="ProjectType"]');
+            const projectCodeInput = document.querySelector('input[name="ProjectCode"]');
+            
+            if (projectTypeSelect && projectCodeInput) {
+                projectTypeSelect.addEventListener('change', function() {
+                    if (!projectCodeInput.value) { // Only suggest if field is empty
+                        const year = new Date().getFullYear();
+                        let prefix = '';
+                        
+                        switch(this.value) {
+                            case 'Research':
+                                prefix = 'R';
+                                break;
+                            case 'Development':
+                                prefix = 'D';
+                                break;
+                            case 'ResearchAndDevelopment':
+                                prefix = 'RD';
+                                break;
+                            case 'ProductDevelopment':
+                                prefix = 'PD';
+                                break;
+                            case 'ProcessImprovement':
+                                prefix = 'PI';
+                                break;
+                            case 'Prototyping':
+                                prefix = 'PT';
+                                break;
+                            case 'Testing':
+                                prefix = 'T';
+                                break;
+                            case 'Validation':
+                                prefix = 'V';
+                                break;
+                            case 'Proof_of_Concept':
+                                prefix = 'POC';
+                                break;
+                            case 'Feasibility_Study':
+                                prefix = 'FS';
+                                break;
+                            default:
+                                prefix = 'P';
+                        }
+                        
+                        // Generate suggestion (user can modify)
+                        projectCodeInput.placeholder = `${prefix}-${year}-001`;
+                    }
+                });
+            }
+
+            // Set expected end date when start date changes (6 months later by default)
+            const startDateInput = document.querySelector('input[name="StartDate"]');
+            const endDateInput = document.querySelector('input[name="ExpectedEndDate"]');
+            
+            if (startDateInput && endDateInput) {
+                startDateInput.addEventListener('change', function() {
+                    if (this.value && !endDateInput.value) {
+                        const startDate = new Date(this.value);
+                        const endDate = new Date(startDate);
+                        endDate.setMonth(endDate.getMonth() + 6); // Add 6 months
+                        
+                        endDateInput.value = endDate.toISOString().split('T')[0];
+                    }
+                });
+            }
+
+            // Format budget input
+            const budgetInput = document.querySelector('input[name="Budget"]');
+            if (budgetInput) {
+                budgetInput.addEventListener('blur', function() {
+                    if (this.value) {
+                        this.value = parseFloat(this.value).toFixed(2);
+                    }
+                });
+            }
+
+            // Character count for description and notes
+            const descriptionTextarea = document.querySelector('textarea[name="Description"]');
+            if (descriptionTextarea) {
+                addCharacterCount(descriptionTextarea, 1000);
+            }
+
+            const notesTextarea = document.querySelector('textarea[name="Notes"]');
+            if (notesTextarea) {
+                addCharacterCount(notesTextarea, 2000);
+            }
+        });
+
+        function addCharacterCount(element, maxLength) {
+            const countElement = document.createElement('div');
+            countElement.className = 'form-text text-end';
+            countElement.style.fontSize = '0.8rem';
+            element.parentNode.appendChild(countElement);
+
+            function updateCount() {
+                const remaining = maxLength - element.value.length;
+                countElement.textContent = `${element.value.length}/${maxLength} characters`;
+                countElement.className = remaining < 50 ? 'form-text text-end text-warning' : 'form-text text-end text-muted';
+            }
+
+            element.addEventListener('input', updateCount);
+            updateCount(); // Initial count
+        }
+    </script>
+}

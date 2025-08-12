@@ -75,12 +75,22 @@
             </div>
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="UnitPrice" class="form-label">Unit Price *</label>
+                <label asp-for="UnitPrice" class="form-label">
+                  Unit Price * 
+                  <span id="priceAutoFillIndicator" class="badge bg-success ms-1" style="display: none;">Auto-filled</span>
+                </label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
                   <input asp-for="UnitPrice" class="form-control" step="0.01" id="unitPriceInput" />
+                  <button type="button" class="btn btn-outline-info" id="clearPriceButton" style="display: none;" onclick="clearUnitPrice()" title="Clear price">
+                    <i class="fas fa-times"></i>
+                  </button>
                 </div>
                 <span asp-validation-for="UnitPrice" class="text-danger"></span>
+                <div class="form-text" id="priceHelp" style="display: none;">
+                  <i class="fas fa-info-circle"></i>
+                  <span id="priceHelpText">Price automatically filled from item settings</span>
+                </div>
               </div>
             </div>
           </div>
@@ -130,7 +140,15 @@
               </tr>
               <tr>
                 <td>Suggested Price:</td>
-                <td class="text-end" id="suggestedPrice">$0.00</td>
+                <td class="text-end">
+                  <div class="d-flex align-items-center justify-content-end">
+                    <span id="suggestedPrice" class="me-2">$0.00</span>
+                    <span id="priceSource" class="badge bg-info ms-1" style="display: none;"></span>
+                  </div>
+                  <button type="button" class="btn btn-outline-success btn-sm mt-1" id="setPriceButton" style="display: none;" onclick="setSuggestedPrice()">
+                    <i class="fas fa-tag"></i> Use This Price
+                  </button>
+                </td>
               </tr>
             </table>
           </div>
@@ -158,6 +176,9 @@
 
 @section Scripts {
   <script>
+    // Global variables
+    let currentSuggestedPrice = 0;
+
     document.addEventListener('DOMContentLoaded', function() {
       const productTypeSelect = document.getElementById('productTypeSelect');
       const itemSelect = document.getElementById('itemSelect');
@@ -198,6 +219,7 @@
         validateForm();
       }
 
+      // Enhanced updateProductInfo with better visual feedback and safety checks
       function updateProductInfo(data) {
         const productInfo = document.getElementById('productInfo');
         const productName = document.getElementById('productName');
@@ -205,14 +227,77 @@
         const stockInfo = document.getElementById('stockInfo');
         const availableStock = document.getElementById('availableStock');
         const suggestedPrice = document.getElementById('suggestedPrice');
+        const priceSource = document.getElementById('priceSource');
+        const setPriceButton = document.getElementById('setPriceButton');
+        const priceAutoFillIndicator = document.getElementById('priceAutoFillIndicator');
+        const clearPriceButton = document.getElementById('clearPriceButton');
+        const priceHelp = document.getElementById('priceHelp');
+        const priceHelpText = document.getElementById('priceHelpText');
 
-        productName.textContent = data.productName;
-        productDetails.innerHTML = `Current Stock: <span class="badge bg-${data.available ? 'success' : 'warning'}">${data.currentStock}</span>`;
-        availableStock.textContent = data.currentStock;
-        suggestedPrice.textContent = '$' + data.suggestedPrice.toFixed(2);
+        // SAFETY CHECK: Ensure suggested price is a valid number
+        const safeSuggestedPrice = (data.productInfo && typeof data.productInfo.suggestedPrice === 'number' && !isNaN(data.productInfo.suggestedPrice)) 
+          ? data.productInfo.suggestedPrice 
+          : 25.00; // Default fallback price
+
+        // Store the suggested price for later use
+        currentSuggestedPrice = safeSuggestedPrice;
+
+        // SAFETY CHECK: Ensure product name exists
+        const safeProductName = (data.productInfo && data.productInfo.partNumber && data.productInfo.description) 
+          ? `${data.productInfo.partNumber} - ${data.productInfo.description}`
+          : 'Selected Product';
+
+        productName.textContent = safeProductName;
+        
+        // Different display for inventory vs non-inventory items
+        const tracksInventory = data.productInfo && data.productInfo.tracksInventory;
+        const currentStock = (data.productInfo && typeof data.productInfo.currentStock === 'number') 
+          ? data.productInfo.currentStock : 0;
+        const canFulfill = data.stockInfo && data.stockInfo.canFulfill;
+
+        if (tracksInventory) {
+          productDetails.innerHTML = `Current Stock: <span class="badge bg-${canFulfill ? 'success' : 'warning'}">${currentStock}</span>`;
+          availableStock.textContent = currentStock;
+        } else {
+          productDetails.innerHTML = `<span class="badge bg-info">Service/Virtual Item</span> - No stock tracking required`;
+          availableStock.textContent = 'N/A';
+        }
+        
+        suggestedPrice.textContent = '$' + safeSuggestedPrice.toFixed(2);
+
+        // Show price source indicator and button with enhanced styling
+        const hasSalePrice = data.productInfo && data.productInfo.hasSalePrice;
+        if (hasSalePrice) {
+          priceSource.textContent = 'Set Price';
+          priceSource.className = 'badge bg-success ms-1';
+          priceSource.style.display = 'inline';
+          setPriceButton.innerHTML = '<i class="fas fa-tag"></i> Use Set Price';
+          setPriceButton.className = 'btn btn-success btn-sm mt-1';
+          priceHelpText.textContent = 'Price auto-filled from predefined item sale price';
+        } else {
+          priceSource.textContent = 'Calculated';
+          priceSource.className = 'badge bg-info ms-1';
+          priceSource.style.display = 'inline';
+          setPriceButton.innerHTML = '<i class="fas fa-calculator"></i> Use Calculated Price';
+          setPriceButton.className = 'btn btn-outline-primary btn-sm mt-1';
+          priceHelpText.textContent = 'Price auto-calculated based on item cost and type';
+        }
+
+        // Always show the set price button
+        setPriceButton.style.display = 'block';
 
         productInfo.style.display = 'block';
         stockInfo.style.display = 'block';
+
+        // ENHANCED: Always auto-fill the suggested price when item is selected
+        unitPriceInput.value = safeSuggestedPrice.toFixed(2);
+        
+        // Show visual indicators that price was auto-filled
+        priceAutoFillIndicator.style.display = 'inline';
+        clearPriceButton.style.display = 'block';
+        priceHelp.style.display = 'block';
+        
+        updateTotalPrice();
       }
 
       function updateStockAlert(data) {
@@ -220,15 +305,25 @@
         const stockAlert = document.getElementById('stockAlert');
         const stockMessage = document.getElementById('stockMessage');
 
-        if (data.available) {
+        // SAFETY CHECK: Ensure availability message exists
+        const availabilityMessage = data.availabilityMessage || 'Product availability unknown';
+        const canFulfill = data.stockInfo && data.stockInfo.canFulfill;
+        const tracksInventory = data.productInfo && data.productInfo.tracksInventory;
+
+        if (canFulfill) {
           stockAlert.className = 'alert alert-success';
-          stockMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${data.availabilityMessage}`;
+          stockMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${availabilityMessage}`;
+        } else if (tracksInventory) {
+          // Only show backorder warning for inventory-tracked items
+          stockAlert.className = 'alert alert-warning';
+          stockMessage.innerHTML = `<i class="fas fa-info-circle"></i> ${availabilityMessage}`;
         } else {
-          stockAlert.className = 'alert alert-warning'; // Changed from danger to warning
-          stockMessage.innerHTML = `<i class="fas fa-info-circle"></i> ${data.availabilityMessage}`;
+          // For non-inventory items, show success message
+          stockAlert.className = 'alert alert-success';
+          stockMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${availabilityMessage}`;
         }
 
-        // NEW - Always enable the button (allow backorders)
+        // Always enable the button
         addItemButton.disabled = false;
         availabilityAlert.style.display = 'block';
       }
@@ -237,22 +332,25 @@
         document.getElementById('productInfo').style.display = 'none';
         document.getElementById('stockInfo').style.display = 'none';
         document.getElementById('availabilityAlert').style.display = 'none';
+        document.getElementById('setPriceButton').style.display = 'none';
+        document.getElementById('priceAutoFillIndicator').style.display = 'none';
+        document.getElementById('clearPriceButton').style.display = 'none';
+        document.getElementById('priceHelp').style.display = 'none';
+        
+        // Clear the unit price when no product is selected
+        unitPriceInput.value = '';
+        currentSuggestedPrice = 0;
+        updateTotalPrice();
       }
 
-      function updateTotalPrice() {
-        const quantity = parseInt(quantityInput.value) || 0;
-        const unitPrice = parseFloat(unitPriceInput.value) || 0;
-        const totalPrice = quantity * unitPrice;
-
-        document.getElementById('displayQuantity').textContent = quantity;
-        document.getElementById('displayUnitPrice').textContent = '$' + unitPrice.toFixed(2);
-        document.getElementById('displayTotalPrice').textContent = '$' + totalPrice.toFixed(2);
-      }
-
+      // MISSING FUNCTION: validateForm - checks product availability and updates UI
       function validateForm() {
         const productType = productTypeSelect.value;
         const productId = productType === 'Item' ? itemSelect.value : finishedGoodSelect.value;
         const quantity = parseInt(quantityInput.value) || 0;
+
+        // Reset button state
+        addItemButton.disabled = true;
 
         if (productId && quantity > 0) {
           fetch(`/Sales/CheckProductAvailability?productType=${productType}&productId=${productId}&quantity=${quantity}`)
@@ -261,21 +359,48 @@
               if (data.success) {
                 updateProductInfo(data);
                 updateStockAlert(data);
-
-                // Auto-fill suggested price if unit price is empty
-                if (!unitPriceInput.value && data.suggestedPrice > 0) {
-                  unitPriceInput.value = data.suggestedPrice.toFixed(2);
-                  updateTotalPrice();
-                }
+                // Button is enabled in updateStockAlert
+              } else {
+                clearProductInfo();
+                console.error('Product availability check failed:', data.message);
               }
             })
-            .catch(error => console.error('Error checking availability:', error));
+            .catch(error => {
+              console.error('Error checking availability:', error);
+              clearProductInfo();
+            });
+        } else {
+          clearProductInfo();
         }
       }
 
-      // NEW - Add backorder warning on form submission
+      // Function to set the suggested price into the unit price field
+      function setSuggestedPrice() {
+        const unitPriceInput = document.getElementById('unitPriceInput');
+        
+        if (currentSuggestedPrice > 0) {
+          unitPriceInput.value = currentSuggestedPrice.toFixed(2);
+          updateTotalPrice();
+          
+          // Optional: Show a brief confirmation
+          const button = document.getElementById('setPriceButton');
+          const originalText = button.innerHTML;
+          button.innerHTML = '<i class="fas fa-check"></i> Price Set!';
+          
+          setTimeout(() => {
+            button.innerHTML = originalText;
+          }, 1500);
+        }
+      }
+
+      // Make setSuggestedPrice available globally for the onclick handler
+      window.setSuggestedPrice = setSuggestedPrice;
+
+      // Updated form submission logic for non-inventory items
       document.querySelector('form').addEventListener('submit', function(e) {
         const stockAlert = document.getElementById('stockAlert');
+        
+        // Only show backorder confirmation for inventory-tracked items
         if (stockAlert && stockAlert.classList.contains('alert-warning')) {
           const confirmed = confirm('This item will be backordered. Do you want to continue?');
           if (!confirmed) {
@@ -284,5 +409,30 @@
         }
       });
     });
+
+    // Global function to update total price calculation
+    function updateTotalPrice() {
+      const quantityInput = document.getElementById('quantityInput');
+      const unitPriceInput = document.getElementById('unitPriceInput');
+      
+      const quantity = parseInt(quantityInput.value) || 0;
+      const unitPrice = parseFloat(unitPriceInput.value) || 0;
+      const totalPrice = quantity * unitPrice;
+
+      document.getElementById('displayQuantity').textContent = quantity;
+      document.getElementById('displayUnitPrice').textContent = '$' + unitPrice.toFixed(2);
+      document.getElementById('displayTotalPrice').textContent = '$' + totalPrice.toFixed(2);
+    }
+
+    // Global function to clear unit price manually
+    function clearUnitPrice() {
+      const unitPriceInput = document.getElementById('unitPriceInput');
+      
+      unitPriceInput.value = '';
+      document.getElementById('priceHelp').style.display = 'none';
+      document.getElementById('priceAutoFillIndicator').style.display = 'none';
+      document.getElementById('clearPriceButton').style.display = 'none';
+      updateTotalPrice();
+    }
   </script>
 }
