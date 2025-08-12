@@ -4,6 +4,7 @@ using InventorySystem.Domain.Enums;
 using InventorySystem.Models;
 using InventorySystem.Models.Accounting;
 using InventorySystem.Models.Enums;
+using InventorySystem.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Data
@@ -73,6 +74,7 @@ namespace InventorySystem.Data
 		/// </summary>
 		public DbSet<VendorPayment> VendorPayments { get; set; } = null!;
 
+		public DbSet<CustomerBalanceAdjustment> CustomerBalanceAdjustments { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -179,7 +181,49 @@ namespace InventorySystem.Data
           entity.Property(e => e.LogoContentType).HasMaxLength(100);
           entity.Property(e => e.LogoFileName).HasMaxLength(255);
       });
-    }
+			// Configure CustomerBalanceAdjustment entity
+			modelBuilder.Entity<CustomerBalanceAdjustment>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+
+				entity.Property(e => e.AdjustmentAmount)
+						.HasColumnType("decimal(18,2)")
+						.IsRequired();
+
+				entity.Property(e => e.AdjustmentType)
+						.HasMaxLength(50)
+						.IsRequired();
+
+				entity.Property(e => e.Reason)
+						.HasMaxLength(500)
+						.IsRequired();
+
+				entity.Property(e => e.CreatedBy)
+						.HasMaxLength(100)
+						.IsRequired();
+
+				// Configure relationships
+				entity.HasOne(e => e.Customer)
+						.WithMany(c => c.BalanceAdjustments)
+						.HasForeignKey(e => e.CustomerId)
+						.OnDelete(DeleteBehavior.Cascade);
+
+				entity.HasOne(e => e.Sale)
+						.WithMany()
+						.HasForeignKey(e => e.SaleId)
+						.OnDelete(DeleteBehavior.SetNull);
+
+				// Configure indexes
+				entity.HasIndex(e => e.CustomerId)
+						.HasDatabaseName("IX_CustomerBalanceAdjustments_CustomerId");
+
+				entity.HasIndex(e => e.SaleId)
+						.HasDatabaseName("IX_CustomerBalanceAdjustments_SaleId");
+
+				entity.HasIndex(e => e.AdjustmentDate)
+						.HasDatabaseName("IX_CustomerBalanceAdjustments_AdjustmentDate");
+			});
+		}
 
     private void ConfigureExistingEntities(ModelBuilder modelBuilder)
     {

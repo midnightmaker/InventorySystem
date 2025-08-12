@@ -57,6 +57,7 @@ namespace InventorySystem.Models.Accounting
 
 		public bool IsActive { get; set; } = true;
 		public bool IsSystemAccount { get; set; } = false;  // Can't be deleted
+		public bool IsContraAccount { get; set; } = false;
 
 		// Balance tracking
 		[Column(TypeName = "decimal(18,2)")]

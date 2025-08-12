@@ -610,5 +610,410 @@ namespace InventorySystem.Controllers
 				return RedirectToAction(nameof(ChartOfAccounts));
 			}
 		}
+
+		// ============= MANUAL JOURNAL ENTRIES =============
+		// GET: Accounting/CreateManualJournalEntry
+		public async Task<IActionResult> CreateManualJournalEntry()
+		{
+			try
+			{
+				var accounts = await _accountingService.GetActiveAccountsAsync();
+				var viewModel = new ManualJournalEntryViewModel
+				{
+					AvailableAccounts = accounts.OrderBy(a => a.AccountCode).ToList(),
+					JournalEntries = new List<JournalEntryLineViewModel>
+						{
+								new JournalEntryLineViewModel { LineNumber = 1 },
+								new JournalEntryLineViewModel { LineNumber = 2 }
+						}
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading manual journal entry form");
+				TempData["ErrorMessage"] = "Error loading journal entry form";
+				return RedirectToAction(nameof(GeneralLedger));
+			}
+		}
+
+		// POST: Accounting/CreateManualJournalEntry
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreateManualJournalEntry(ManualJournalEntryViewModel model)
+		{
+			try
+			{
+				// Remove empty lines
+				model.JournalEntries = model.JournalEntries.Where(e => e.AccountId > 0).ToList();
+
+				// Validate the journal entry
+				var validationResult = ValidateManualJournalEntry(model);
+				if (!validationResult.IsValid)
+				{
+					foreach (var error in validationResult.Errors)
+					{
+						ModelState.AddModelError("", error);
+					}
+				}
+
+				if (!ModelState.IsValid)
+				{
+					// Reload accounts for dropdown
+					var accounts = await _accountingService.GetActiveAccountsAsync();
+					model.AvailableAccounts = accounts.OrderBy(a => a.AccountCode).ToList();
+
+					// Populate account display names
+					foreach (var entry in model.JournalEntries)
+					{
+						var account = accounts.FirstOrDefault(a => a.Id == entry.AccountId);
+						entry.AccountDisplay = account != null ? $"{account.AccountCode} - {account.AccountName}" : "";
+					}
+
+					return View(model);
+				}
+
+				// Create the manual journal entry
+				var success = await _accountingService.CreateManualJournalEntryAsync(model);
+
+				if (success)
+				{
+					TempData["SuccessMessage"] = $"Manual journal entry {model.ReferenceNumber} created successfully";
+					return RedirectToAction(nameof(GeneralLedger));
+				}
+				else
+				{
+					TempData["ErrorMessage"] = "Failed to create manual journal entry";
+					var accounts = await _accountingService.GetActiveAccountsAsync();
+					model.AvailableAccounts = accounts.OrderBy(a => a.AccountCode).ToList();
+					return View(model);
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating manual journal entry");
+				TempData["ErrorMessage"] = $"Error creating journal entry: {ex.Message}";
+
+				var accounts = await _accountingService.GetActiveAccountsAsync();
+				model.AvailableAccounts = accounts.OrderBy(a => a.AccountCode).ToList();
+				return View(model);
+			}
+		}
+
+		// POST: Accounting/PreviewManualJournalEntry
+		[HttpPost]
+		public async Task<IActionResult> PreviewManualJournalEntry([FromBody] ManualJournalEntryViewModel model)
+		{
+			try
+			{
+				var accounts = await _accountingService.GetActiveAccountsAsync();
+				var nextJournalNumber = await _accountingService.GenerateNextJournalNumberAsync("JE-MAN");
+
+				// Remove empty lines
+				model.JournalEntries = model.JournalEntries.Where(e => e.AccountId > 0).ToList();
+
+				// Populate account display names
+				foreach (var entry in model.JournalEntries)
+				{
+					var account = accounts.FirstOrDefault(a => a.Id == entry.AccountId);
+					entry.AccountDisplay = account != null ? $"{account.AccountCode} - {account.AccountName}" : "Invalid Account";
+				}
+
+				var preview = new JournalEntryPreviewViewModel
+				{
+					TransactionNumber = nextJournalNumber,
+					TransactionDate = model.TransactionDate,
+					ReferenceNumber = model.ReferenceNumber,
+					Description = model.Description,
+					JournalEntries = model.JournalEntries,
+					TotalDebits = model.TotalDebits,
+					TotalCredits = model.TotalCredits,
+					IsBalanced = model.IsBalanced
+				};
+
+				return Json(new { success = true, preview });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error generating journal entry preview");
+				return Json(new { success = false, message = ex.Message });
+			}
+		}
+
+		// Helper method for validation
+		private (bool IsValid, List<string> Errors) ValidateManualJournalEntry(ManualJournalEntryViewModel model)
+		{
+			var errors = new List<string>();
+
+			if (!model.JournalEntries.Any())
+			{
+				errors.Add("At least one journal entry line is required");
+				return (false, errors);
+			}
+
+			if (model.JournalEntries.Count < 2)
+			{
+				errors.Add("At least two journal entry lines are required");
+			}
+
+			foreach (var entry in model.JournalEntries)
+			{
+				if (entry.AccountId <= 0)
+				{
+					errors.Add($"Line {entry.LineNumber}: Account is required");
+				}
+
+				if (!entry.DebitAmount.HasValue && !entry.CreditAmount.HasValue)
+				{
+					errors.Add($"Line {entry.LineNumber}: Either debit or credit amount is required");
+				}
+
+				if (entry.DebitAmount.HasValue && entry.CreditAmount.HasValue &&
+						entry.DebitAmount > 0 && entry.CreditAmount > 0)
+				{
+					errors.Add($"Line {entry.LineNumber}: Cannot have both debit and credit amounts");
+				}
+
+				if ((entry.DebitAmount ?? 0) < 0 || (entry.CreditAmount ?? 0) < 0)
+				{
+					errors.Add($"Line {entry.LineNumber}: Amounts cannot be negative");
+				}
+			}
+
+			if (!model.IsBalanced)
+			{
+				errors.Add($"Journal entry is not balanced. Debits: {model.TotalDebits:C}, Credits: {model.TotalCredits:C}");
+			}
+
+			return (errors.Count == 0, errors);
+		}
+		// ============= CUSTOMER BALANCE ADJUSTMENTS =============
+
+		// GET: Accounting/CreateCustomerAdjustment
+		public async Task<IActionResult> CreateCustomerAdjustment(int? customerId = null, int? saleId = null)
+		{
+			try
+			{
+				var accounts = await _accountingService.GetActiveAccountsAsync();
+				var customers = await _context.Customers.Where(c => c.OutstandingBalance > 0).ToListAsync();
+				var unpaidSales = await _context.Sales
+						.Include(s => s.Customer)
+						.Where(s => s.PaymentStatus != PaymentStatus.Paid && s.SaleStatus != SaleStatus.Cancelled)
+						.ToListAsync();
+
+				var viewModel = new EnhancedManualJournalEntryViewModel
+				{
+					IsCustomerAdjustment = true,
+					CustomerId = customerId,
+					SaleId = saleId,
+					AvailableAccounts = accounts.OrderBy(a => a.AccountCode).ToList(),
+					AvailableCustomers = customers.OrderBy(c => c.CustomerName).ToList(),
+					AvailableSales = unpaidSales.OrderByDescending(s => s.SaleDate).ToList(),
+					JournalEntries = new List<JournalEntryLineViewModel>
+						{
+								new JournalEntryLineViewModel { LineNumber = 1 },
+								new JournalEntryLineViewModel { LineNumber = 2 }
+						}
+				};
+
+				// Pre-populate if specific customer/sale provided
+				if (saleId.HasValue)
+				{
+					var sale = unpaidSales.FirstOrDefault(s => s.Id == saleId.Value);
+					if (sale != null)
+					{
+						viewModel.CustomerId = sale.CustomerId;
+						viewModel.Description = $"Adjustment for Invoice {sale.SaleNumber}";
+						viewModel.ReferenceNumber = $"ADJ-{sale.SaleNumber}-{DateTime.Now:yyyyMMdd}";
+					}
+				}
+
+				return View("CreateCustomerAdjustment", viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading customer adjustment form");
+				TempData["ErrorMessage"] = "Error loading customer adjustment form";
+				return RedirectToAction(nameof(GeneralLedger));
+			}
+		}
+
+		// POST: Accounting/CreateCustomerAdjustment
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreateCustomerAdjustment(EnhancedManualJournalEntryViewModel model)
+		{
+			try
+			{
+				// Validate customer adjustment specific fields
+				if (model.IsCustomerAdjustment)
+				{
+					if (!model.CustomerId.HasValue)
+					{
+						ModelState.AddModelError("CustomerId", "Customer is required for customer adjustments");
+					}
+
+					if (string.IsNullOrWhiteSpace(model.AdjustmentType))
+					{
+						ModelState.AddModelError("AdjustmentType", "Adjustment type is required");
+					}
+
+					if (string.IsNullOrWhiteSpace(model.AdjustmentReason))
+					{
+						ModelState.AddModelError("AdjustmentReason", "Adjustment reason is required");
+					}
+				}
+
+				// Remove empty lines
+				model.JournalEntries = model.JournalEntries.Where(e => e.AccountId > 0).ToList();
+
+				// Validate the journal entry
+				var validationResult = ValidateManualJournalEntry(model);
+				if (!validationResult.IsValid)
+				{
+					foreach (var error in validationResult.Errors)
+					{
+						ModelState.AddModelError("", error);
+					}
+				}
+
+				if (!ModelState.IsValid)
+				{
+					// Reload dropdowns
+					await ReloadCustomerAdjustmentDropdowns(model);
+					return View("CreateCustomerAdjustment", model);
+				}
+
+				// Create the manual journal entry
+				var success = await _accountingService.CreateManualJournalEntryAsync(model);
+
+				if (success && model.IsCustomerAdjustment && model.CustomerId.HasValue)
+				{
+					// Update customer balance
+					var customerBalanceService = HttpContext.RequestServices.GetRequiredService<ICustomerBalanceService>();
+					var adjustmentAmount = model.JournalEntries
+							.Where(e => e.AccountId == await GetAccountsReceivableAccountId()) // A/R account
+							.Sum(e => e.CreditAmount ?? 0); // Credit to A/R reduces the balance
+
+					if (adjustmentAmount > 0)
+					{
+						if (model.AdjustmentType == "Bad Debt Write-off")
+						{
+							await customerBalanceService.UpdateCustomerBalanceForBadDebtAsync(
+									model.CustomerId.Value,
+									model.SaleId ?? 0,
+									adjustmentAmount,
+									model.AdjustmentReason ?? "Manual adjustment");
+						}
+						else
+						{
+							await customerBalanceService.UpdateCustomerBalanceForAllowanceAsync(
+									model.CustomerId.Value,
+									model.SaleId ?? 0,
+									adjustmentAmount,
+									model.AdjustmentReason ?? "Manual adjustment");
+						}
+					}
+				}
+
+				if (success)
+				{
+					TempData["SuccessMessage"] = $"Customer adjustment {model.ReferenceNumber} created successfully. Customer balance updated.";
+					return RedirectToAction("Details", "Customers", new { id = model.CustomerId });
+				}
+				else
+				{
+					TempData["ErrorMessage"] = "Failed to create customer adjustment";
+					await ReloadCustomerAdjustmentDropdowns(model);
+					return View("CreateCustomerAdjustment", model);
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating customer adjustment");
+				TempData["ErrorMessage"] = $"Error creating customer adjustment: {ex.Message}";
+
+				await ReloadCustomerAdjustmentDropdowns(model);
+				return View("CreateCustomerAdjustment", model);
+			}
+		}
+
+		// POST: Accounting/LoadCustomerAdjustmentTemplate
+		[HttpPost]
+		public async Task<IActionResult> LoadCustomerAdjustmentTemplate([FromBody] CustomerAdjustmentTemplateRequest request)
+		{
+			try
+			{
+				var template = CustomerAdjustmentTemplate.GetTemplates()
+						.FirstOrDefault(t => t.AdjustmentType == request.AdjustmentType);
+
+				if (template == null)
+				{
+					return Json(new { success = false, message = "Template not found" });
+				}
+
+				var accounts = await _accountingService.GetActiveAccountsAsync();
+				var debitAccount = accounts.FirstOrDefault(a => a.AccountCode == template.DebitAccount);
+				var creditAccount = accounts.FirstOrDefault(a => a.AccountCode == template.CreditAccount);
+
+				var response = new
+				{
+					success = true,
+					template = new
+					{
+						debitAccountId = debitAccount?.Id,
+						creditAccountId = creditAccount?.Id,
+						debitDescription = template.DebitDescription,
+						creditDescription = template.CreditDescription,
+						referenceNumber = $"{request.AdjustmentType.Replace(" ", "").ToUpper()}-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+						description = template.Description
+					}
+				};
+
+				return Json(response);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading customer adjustment template");
+				return Json(new { success = false, message = ex.Message });
+			}
+		}
+
+		// Helper methods
+		private async Task<int> GetAccountsReceivableAccountId()
+		{
+			var arAccount = await _accountingService.GetAccountByCodeAsync("1100");
+			return arAccount?.Id ?? 0;
+		}
+
+		private async Task ReloadCustomerAdjustmentDropdowns(EnhancedManualJournalEntryViewModel model)
+		{
+			var accounts = await _accountingService.GetActiveAccountsAsync();
+			var customers = await _context.Customers.Where(c => c.OutstandingBalance > 0).ToListAsync();
+			var unpaidSales = await _context.Sales
+					.Include(s => s.Customer)
+					.Where(s => s.PaymentStatus != PaymentStatus.Paid && s.SaleStatus != SaleStatus.Cancelled)
+					.ToListAsync();
+
+			model.AvailableAccounts = accounts.OrderBy(a => a.AccountCode).ToList();
+			model.AvailableCustomers = customers.OrderBy(c => c.CustomerName).ToList();
+			model.AvailableSales = unpaidSales.OrderByDescending(s => s.SaleDate).ToList();
+
+			// Populate account display names
+			foreach (var entry in model.JournalEntries)
+			{
+				var account = accounts.FirstOrDefault(a => a.Id == entry.AccountId);
+				entry.AccountDisplay = account != null ? $"{account.AccountCode} - {account.AccountName}" : "";
+			}
+		}
+
+		public class CustomerAdjustmentTemplateRequest
+		{
+			public string AdjustmentType { get; set; } = string.Empty;
+			public int? CustomerId { get; set; }
+			public int? SaleId { get; set; }
+			public decimal? Amount { get; set; }
+		}
 	}
 }

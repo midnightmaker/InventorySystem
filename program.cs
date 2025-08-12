@@ -87,6 +87,8 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 // Register the main accounting service
 builder.Services.AddScoped<IAccountingService, AccountingService>();
 
+builder.Services.AddScoped<ICustomerBalanceService, CustomerBalanceService>();
+
 // Configure file upload limits and request sizes
 builder.Services.Configure<FormOptions>(options =>
 {

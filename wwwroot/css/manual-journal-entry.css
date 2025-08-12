@@ -1,0 +1,218 @@
+﻿/* Manual Journal Entry Styles */
+
+.journal-line-row {
+  transition: background-color 0.2s ease;
+}
+
+  .journal-line-row:hover {
+    background-color: #f8f9fa;
+  }
+
+.line-number {
+  font-weight: bold;
+  color: #6c757d;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.account-select {
+  font-size: 0.875rem;
+}
+
+.debit-amount, .credit-amount {
+  font-family: 'Courier New', monospace;
+}
+
+  .debit-amount:focus, .credit-amount:focus {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+  }
+
+  /* Prevent negative numbers in amount fields */
+  .debit-amount:invalid, .credit-amount:invalid {
+    border-color: #dc3545;
+    background-color: #f8d7da;
+  }
+
+/* Balance indicators */
+.balance-indicator {
+  font-weight: bold;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+  .balance-indicator.balanced {
+    background-color: #d1edff;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+  }
+
+  .balance-indicator.unbalanced {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+/* Template buttons */
+.template-section {
+  border-left: 3px solid #dee2e6;
+  padding-left: 1rem;
+  margin-bottom: 1rem;
+}
+
+  .template-section:hover {
+    border-left-color: #007bff;
+    background-color: #f8f9fa;
+  }
+
+  .template-section h6 {
+    margin-bottom: 0.5rem;
+  }
+
+  .template-section .small {
+    color: #6c757d;
+    line-height: 1.2;
+  }
+
+    .template-section .small div {
+      margin-bottom: 0.25rem;
+    }
+
+/* Journal entry table improvements */
+#journalLinesTable {
+  font-size: 0.875rem;
+}
+
+  #journalLinesTable th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+  }
+
+  #journalLinesTable tfoot {
+    font-weight: bold;
+  }
+
+  #journalLinesTable .form-control-sm {
+    padding: 0.25rem 0.5rem;
+  }
+
+/* Modal improvements */
+.modal-lg {
+  max-width: 900px;
+}
+
+#previewModal .table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+#previewModal .table-sm td,
+#previewModal .table-sm th {
+  padding: 0.5rem;
+}
+
+/* Help panel styling */
+.help-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+  .help-panel .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .help-panel .card-body {
+    padding: 1rem;
+  }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .table-responsive {
+    font-size: 0.75rem;
+  }
+
+  .form-control-sm {
+    font-size: 0.75rem;
+  }
+
+  .btn-sm {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .line-number {
+    font-size: 0.75rem;
+  }
+}
+
+/* Animation for adding/removing rows */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.journal-line-row {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Focus states for better accessibility */
+.form-control:focus,
+.form-select:focus {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Error states */
+.is-invalid {
+  border-color: #dc3545;
+}
+
+  .is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+  }
+
+/* Success states */
+.is-valid {
+  border-color: #198754;
+}
+
+  .is-valid:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+  }
+
+/* Print styles */
+@media print {
+  .btn,
+  .help-panel,
+  .modal,
+  .navbar {
+    display: none !important;
+  }
+
+  .card {
+    border: 1px solid #000;
+    break-inside: avoid;
+  }
+
+  .table {
+    border-collapse: collapse;
+  }
+
+    .table th,
+    .table td {
+      border: 1px solid #000;
+    }
+}

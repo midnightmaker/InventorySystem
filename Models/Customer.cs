@@ -1,6 +1,8 @@
+using InventorySystem.Models.Enums;
+using InventorySystem.Services;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Models
 {
@@ -155,10 +157,6 @@ namespace InventorySystem.Models
         }
 
         [NotMapped]
-        [Display(Name = "Outstanding Balance")]
-        public decimal OutstandingBalance => Sales?.Where(s => s.PaymentStatus == PaymentStatus.Pending || s.PaymentStatus == PaymentStatus.Overdue).Sum(s => s.TotalAmount) ?? 0;
-
-        [NotMapped]
         [Display(Name = "Customer Since")]
         public string CustomerSince => CreatedDate.ToString("MMMM yyyy");
 
@@ -219,8 +217,42 @@ namespace InventorySystem.Models
                 var paidSales = Sales?.Where(s => s.PaymentStatus == PaymentStatus.Paid);
                 return paidSales?.Any() == true ? paidSales.Max(s => s.SaleDate) : null;
             }
-        }
-    }
+		}
+    
+  	public virtual ICollection<CustomerBalanceAdjustment> BalanceAdjustments { get; set; } = new List<CustomerBalanceAdjustment>();
+
+		[NotMapped]
+		[Display(Name = "Outstanding Balance")]
+		public decimal OutstandingBalance
+		{
+			get
+			{
+				// Calculate base amount from unpaid sales
+				var salesAmount = Sales?.Where(s =>
+						s.PaymentStatus == PaymentStatus.Pending ||
+						s.PaymentStatus == PaymentStatus.Overdue)
+						.Sum(s => s.TotalAmount) ?? 0;
+
+				// Subtract any balance adjustments (allowances, bad debt write-offs)
+				var adjustments = BalanceAdjustments?.Sum(ba => ba.AdjustmentAmount) ?? 0;
+
+				// Calculate final balance (ensure it doesn't go negative)
+				var finalBalance = salesAmount - adjustments;
+				return Math.Max(0, finalBalance);
+			}
+		}
+
+		// Add a method to get the raw balance without adjustments (for comparison)
+		[NotMapped]
+		public decimal RawOutstandingBalance => Sales?.Where(s =>
+				s.PaymentStatus == PaymentStatus.Pending ||
+				s.PaymentStatus == PaymentStatus.Overdue)
+				.Sum(s => s.TotalAmount) ?? 0;
+
+		// Add a method to get total adjustments
+		[NotMapped]
+		public decimal TotalAdjustments => BalanceAdjustments?.Sum(ba => ba.AdjustmentAmount) ?? 0;
+	}
 
     public class CustomerDocument
     {

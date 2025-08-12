@@ -561,6 +561,7 @@ namespace InventorySystem.Services
 
 			var defaultAccounts = DefaultChartOfAccounts.GetDefaultAccounts();
 			_context.Accounts.AddRange(defaultAccounts);
+			
 			await _context.SaveChangesAsync();
 
 			_logger.LogInformation("Seeded {Count} default accounts", defaultAccounts.Count);
@@ -1102,6 +1103,167 @@ namespace InventorySystem.Services
 				"square" => "1032",        // Square Account
 				_ => "1000"                // Default to Cash
 			};
+		}
+		// ============= MANUAL JOURNAL ENTRIES =============
+
+		public async Task<bool> CreateManualJournalEntryAsync(ManualJournalEntryViewModel model)
+		{
+			try
+			{
+				var journalNumber = await GenerateNextJournalNumberAsync("JE-MAN");
+				var entries = new List<GeneralLedgerEntry>();
+
+				// Create journal entries from the model
+				foreach (var line in model.JournalEntries.Where(e => e.AccountId > 0))
+				{
+					var account = await GetAccountByIdAsync(line.AccountId);
+					if (account == null)
+					{
+						_logger.LogError("Account {AccountId} not found for manual journal entry", line.AccountId);
+						throw new InvalidOperationException($"Account with ID {line.AccountId} not found");
+					}
+
+					var entry = new GeneralLedgerEntry
+					{
+						TransactionDate = model.TransactionDate,
+						TransactionNumber = journalNumber,
+						AccountId = line.AccountId,
+						Description = !string.IsNullOrWhiteSpace(line.LineDescription)
+									? line.LineDescription
+									: model.Description ?? "Manual journal entry",
+						DebitAmount = line.DebitAmount ?? 0,
+						CreditAmount = line.CreditAmount ?? 0,
+						ReferenceType = "ManualJournalEntry",
+						ReferenceId = null, // No specific reference ID for manual entries
+						CreatedBy = "Manual Entry",
+						CreatedDate = DateTime.Now
+					};
+
+					entries.Add(entry);
+				}
+
+				// Validate that debits equal credits
+				var totalDebits = entries.Sum(e => e.DebitAmount);
+				var totalCredits = entries.Sum(e => e.CreditAmount);
+
+				if (Math.Abs(totalDebits - totalCredits) > 0.01m)
+				{
+					throw new InvalidOperationException($"Journal entry is not balanced. Debits: {totalDebits:C}, Credits: {totalCredits:C}");
+				}
+
+				// Create the journal entries
+				await CreateJournalEntriesAsync(entries);
+
+				_logger.LogInformation("Created manual journal entry {JournalNumber} with {EntryCount} lines. Reference: {Reference}",
+						journalNumber, entries.Count, model.ReferenceNumber);
+
+				return true;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating manual journal entry");
+				throw;
+			}
+		}
+
+		public async Task<List<GeneralLedgerEntry>> GetManualJournalEntriesAsync(DateTime? startDate = null, DateTime? endDate = null)
+		{
+			try
+			{
+				var query = _context.GeneralLedgerEntries
+						.Include(e => e.Account)
+						.Where(e => e.ReferenceType == "ManualJournalEntry");
+
+				if (startDate.HasValue)
+				{
+					query = query.Where(e => e.TransactionDate >= startDate.Value);
+				}
+
+				if (endDate.HasValue)
+				{
+					query = query.Where(e => e.TransactionDate <= endDate.Value);
+				}
+
+				return await query
+						.OrderByDescending(e => e.TransactionDate)
+						.ThenBy(e => e.TransactionNumber)
+						.ToListAsync();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error retrieving manual journal entries");
+				throw;
+			}
+		}
+
+		public async Task<bool> ReverseManualJournalEntryAsync(string transactionNumber, string reason)
+		{
+			try
+			{
+				var originalEntries = await _context.GeneralLedgerEntries
+						.Include(e => e.Account)
+						.Where(e => e.TransactionNumber == transactionNumber && e.ReferenceType == "ManualJournalEntry")
+						.ToListAsync();
+
+				if (!originalEntries.Any())
+				{
+					throw new InvalidOperationException($"Manual journal entry {transactionNumber} not found");
+				}
+
+				var reversalNumber = await GenerateNextJournalNumberAsync("JE-REV");
+				var reversalEntries = new List<GeneralLedgerEntry>();
+
+				// Create reversal entries (swap debits and credits)
+				foreach (var originalEntry in originalEntries)
+				{
+					var reversalEntry = new GeneralLedgerEntry
+					{
+						TransactionDate = DateTime.Today,
+						TransactionNumber = reversalNumber,
+						AccountId = originalEntry.AccountId,
+						Description = $"REVERSAL: {reason} (Original: {originalEntry.TransactionNumber})",
+						DebitAmount = originalEntry.CreditAmount, // Swap credit to debit
+						CreditAmount = originalEntry.DebitAmount, // Swap debit to credit
+						ReferenceType = "ManualJournalEntryReversal",
+						ReferenceId = null,
+						CreatedBy = "System Reversal",
+						CreatedDate = DateTime.Now
+					};
+
+					reversalEntries.Add(reversalEntry);
+				}
+
+				await CreateJournalEntriesAsync(reversalEntries);
+
+				_logger.LogInformation("Created reversal journal entry {ReversalNumber} for original entry {OriginalNumber}. Reason: {Reason}",
+						reversalNumber, transactionNumber, reason);
+
+				return true;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error reversing manual journal entry {TransactionNumber}", transactionNumber);
+				throw;
+			}
+		}
+
+		public async Task<decimal> GetManualJournalEntriesTotalAsync(DateTime startDate, DateTime endDate)
+		{
+			try
+			{
+				var total = await _context.GeneralLedgerEntries
+						.Where(e => e.ReferenceType == "ManualJournalEntry" &&
+											 e.TransactionDate >= startDate &&
+											 e.TransactionDate <= endDate)
+						.SumAsync(e => e.DebitAmount);
+
+				return total;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error calculating manual journal entries total");
+				return 0;
+			}
 		}
 
 

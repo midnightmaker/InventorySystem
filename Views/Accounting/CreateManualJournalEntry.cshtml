@@ -1,0 +1,629 @@
+﻿@model InventorySystem.ViewModels.Accounting.ManualJournalEntryViewModel
+@{
+  ViewData["Title"] = "Create Manual Journal Entry";
+}
+@section Styles {
+  <link rel="stylesheet" href="~/css/manual-journal-entry.css" />
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1><i class="fas fa-plus-circle"></i> Create Manual Journal Entry</h1>
+    <p class="text-muted mb-0">Record adjusting entries, owner investments, and other manual transactions</p>
+  </div>
+  <div class="btn-group">
+    <a href="/Accounting/GeneralLedger" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to General Ledger
+    </a>
+    <button type="button" class="btn btn-outline-info" onclick="showPreview()">
+      <i class="fas fa-eye"></i> Preview Entry
+    </button>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <div class="col-lg-8">
+    <form asp-action="CreateManualJournalEntry" method="post" id="journalEntryForm">
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-file-alt"></i> Journal Entry Details</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <!-- Transaction Date -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="TransactionDate" class="form-label">
+                <i class="fas fa-calendar"></i> Transaction Date <span class="text-danger">*</span>
+              </label>
+              <input asp-for="TransactionDate" class="form-control" type="date" />
+              <span asp-validation-for="TransactionDate" class="text-danger"></span>
+            </div>
+
+            <!-- Reference Number -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="ReferenceNumber" class="form-label">
+                <i class="fas fa-hashtag"></i> Reference Number <span class="text-danger">*</span>
+              </label>
+              <input asp-for="ReferenceNumber" class="form-control" placeholder="e.g., OWNER-INV-001" />
+              <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">
+              <i class="fas fa-align-left"></i> Entry Description
+            </label>
+            <textarea asp-for="Description" class="form-control" rows="2"
+                      placeholder="e.g., Owner investment in business"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Journal Entry Lines -->
+      <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-list"></i> Journal Entry Lines</h5>
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="addJournalLine()">
+            <i class="fas fa-plus"></i> Add Line
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-bordered" id="journalLinesTable">
+              <thead class="table-light">
+                <tr>
+                  <th width="5%">#</th>
+                  <th width="35%">Account</th>
+                  <th width="30%">Description</th>
+                  <th width="12%">Debit</th>
+                  <th width="12%">Credit</th>
+                  <th width="6%">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="journalLinesBody">
+                @for (int i = 0; i < Model.JournalEntries.Count; i++)
+                {
+                  <tr class="journal-line-row" data-line-number="@(i + 1)">
+                    <td class="line-number">@(i + 1)</td>
+                    <td>
+                      <input type="hidden" asp-for="JournalEntries[i].LineNumber" value="@(i + 1)" />
+                      <select asp-for="JournalEntries[i].AccountId" class="form-select account-select">
+                        <option value="">-- Select Account --</option>
+                        @foreach (var account in Model.AvailableAccounts)
+                        {
+                          <option value="@account.Id">@account.AccountCode - @account.AccountName</option>
+                        }
+                      </select>
+                    </td>
+                    <td>
+                      <input asp-for="JournalEntries[i].LineDescription" class="form-control form-control-sm"
+                             placeholder="Line description" />
+                    </td>
+                    <td>
+                      <input asp-for="JournalEntries[i].DebitAmount" class="form-control form-control-sm text-end debit-amount"
+                             type="number" step="0.01" placeholder="0.00" onchange="updateTotals()" />
+                    </td>
+                    <td>
+                      <input asp-for="JournalEntries[i].CreditAmount" class="form-control form-control-sm text-end credit-amount"
+                             type="number" step="0.01" placeholder="0.00" onchange="updateTotals()" />
+                    </td>
+                    <td class="text-center">
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeJournalLine(this)">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot class="table-light">
+                <tr>
+                  <td colspan="3" class="text-end"><strong>Totals:</strong></td>
+                  <td class="text-end">
+                    <strong id="totalDebits">$0.00</strong>
+                  </td>
+                  <td class="text-end">
+                    <strong id="totalCredits">$0.00</strong>
+                  </td>
+                  <td></td>
+                </tr>
+                <tr id="balanceRow" class="d-none">
+                  <td colspan="6" class="text-center">
+                    <span id="balanceMessage" class="badge bg-danger">Not Balanced</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Balance Check -->
+          <div class="row mt-3">
+            <div class="col-md-6">
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Remember:</strong> Total debits must equal total credits
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div id="balanceAlert" class="alert alert-warning d-none">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="balanceText">Entry is not balanced</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex justify-content-between mt-4">
+        <div>
+          <a href="/Accounting/GeneralLedger" class="btn btn-outline-secondary">
+            <i class="fas fa-times"></i> Cancel
+          </a>
+        </div>
+        <div>
+          <button type="button" class="btn btn-outline-info me-2" onclick="showPreview()">
+            <i class="fas fa-eye"></i> Preview
+          </button>
+          <button type="submit" class="btn btn-primary" id="submitButton">
+            <i class="fas fa-save"></i> Create Journal Entry
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Help Panel -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-question-circle"></i> Common Journal Entries</h6>
+      </div>
+      <div class="card-body">
+        <!-- Owner Investment -->
+        <div class="mb-3">
+          <h6 class="text-success"><i class="fas fa-money-bill-wave"></i> Owner Investment</h6>
+          <small class="text-muted">When owner invests money</small>
+          <div class="small mt-1">
+            <div>Debit: Cash (1000)</div>
+            <div>Credit: Owner's Equity (3000)</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-success mt-1"
+                  onclick="loadTemplate('ownerInvestment')">
+            Load Template
+          </button>
+        </div>
+
+        <!-- Owner Withdrawal -->
+        <div class="mb-3">
+          <h6 class="text-warning"><i class="fas fa-hand-holding-usd"></i> Owner Withdrawal</h6>
+          <small class="text-muted">When owner withdraws money</small>
+          <div class="small mt-1">
+            <div>Debit: Owner's Equity (3000)</div>
+            <div>Credit: Cash (1000)</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-warning mt-1"
+                  onclick="loadTemplate('ownerWithdrawal')">
+            Load Template
+          </button>
+        </div>
+
+        <!-- Loan Received -->
+        <div class="mb-3">
+          <h6 class="text-info"><i class="fas fa-university"></i> Loan Received</h6>
+          <small class="text-muted">When receiving a loan</small>
+          <div class="small mt-1">
+            <div>Debit: Cash (1000)</div>
+            <div>Credit: Notes Payable (2300)</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-info mt-1"
+                  onclick="loadTemplate('loanReceived')">
+            Load Template
+          </button>
+        </div>
+
+        <!-- Depreciation -->
+        <div class="mb-3">
+          <h6 class="text-secondary"><i class="fas fa-chart-line-down"></i> Depreciation</h6>
+          <small class="text-muted">Monthly depreciation expense</small>
+          <div class="small mt-1">
+            <div>Debit: Depreciation Expense (6100)</div>
+            <div>Credit: Accumulated Depreciation (1601)</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mt-1"
+                  onclick="loadTemplate('depreciation')">
+            Load Template
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Balance Rules -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-balance-scale"></i> Accounting Rules</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <strong>Debits Increase:</strong>
+          <ul class="small mb-2">
+            <li>Assets (Cash, Inventory, Equipment)</li>
+            <li>Expenses (Operating, Utilities)</li>
+          </ul>
+        </div>
+        <div class="mb-2">
+          <strong>Credits Increase:</strong>
+          <ul class="small mb-0">
+            <li>Liabilities (Accounts Payable, Loans)</li>
+            <li>Equity (Owner's Equity, Retained Earnings)</li>
+            <li>Revenue (Sales, Service Revenue)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-eye"></i> Journal Entry Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="previewContent">
+        <!-- Preview content will be loaded here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" onclick="submitForm()">Create Entry</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let lineCounter = @Model.JournalEntries.Count;
+
+  // Add new journal line
+  function addJournalLine() {
+      lineCounter++;
+      const tbody = document.getElementById('journalLinesBody');
+      const newRow = document.createElement('tr');
+      newRow.className = 'journal-line-row';
+      newRow.setAttribute('data-line-number', lineCounter);
+
+      newRow.innerHTML = `
+          <td class="line-number">${lineCounter}</td>
+          <td>
+              <input type="hidden" name="JournalEntries[${lineCounter-1}].LineNumber" value="${lineCounter}" />
+              <select name="JournalEntries[${lineCounter-1}].AccountId" class="form-select account-select">
+                  <option value="">-- Select Account --</option>
+                  @foreach (var account in Model.AvailableAccounts)
+                  {
+                        <option value="@account.Id">@account.AccountCode - @account.AccountName</option>
+                  }
+              </select>
+          </td>
+          <td>
+              <input name="JournalEntries[${lineCounter-1}].LineDescription" class="form-control form-control-sm" placeholder="Line description" />
+          </td>
+          <td>
+              <input name="JournalEntries[${lineCounter-1}].DebitAmount" class="form-control form-control-sm text-end debit-amount" type="number" step="0.01" placeholder="0.00" onchange="updateTotals()" />
+          </td>
+          <td>
+              <input name="JournalEntries[${lineCounter-1}].CreditAmount" class="form-control form-control-sm text-end credit-amount" type="number" step="0.01" placeholder="0.00" onchange="updateTotals()" />
+          </td>
+          <td class="text-center">
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeJournalLine(this)">
+                  <i class="fas fa-trash"></i>
+              </button>
+          </td>
+      `;
+
+      tbody.appendChild(newRow);
+      updateTotals();
+  }
+
+  // Remove journal line
+  function removeJournalLine(button) {
+      const row = button.closest('tr');
+      if (document.querySelectorAll('.journal-line-row').length > 2) {
+          row.remove();
+          renumberLines();
+          updateTotals();
+      } else {
+          alert('At least two journal entry lines are required.');
+      }
+  }
+
+  // Renumber lines after removal
+  function renumberLines() {
+      const rows = document.querySelectorAll('.journal-line-row');
+      rows.forEach((row, index) => {
+          const lineNumber = index + 1;
+          row.setAttribute('data-line-number', lineNumber);
+          row.querySelector('.line-number').textContent = lineNumber;
+
+          // Update form field names
+          const inputs = row.querySelectorAll('input, select');
+          inputs.forEach(input => {
+              if (input.name && input.name.includes('JournalEntries[')) {
+                  input.name = input.name.replace(/JournalEntries\[\d+\]/, `JournalEntries[${index}]`);
+              }
+          });
+      });
+      lineCounter = rows.length;
+  }
+
+  // Update totals
+  function updateTotals() {
+      let totalDebits = 0;
+      let totalCredits = 0;
+
+      document.querySelectorAll('.debit-amount').forEach(input => {
+          const value = parseFloat(input.value) || 0;
+          totalDebits += value;
+      });
+
+      document.querySelectorAll('.credit-amount').forEach(input => {
+          const value = parseFloat(input.value) || 0;
+          totalCredits += value;
+      });
+
+      document.getElementById('totalDebits').textContent = `$${totalDebits.toFixed(2)}`;
+      document.getElementById('totalCredits').textContent = `$${totalCredits.toFixed(2)}`;
+
+      // Check balance
+      const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01;
+      const balanceAlert = document.getElementById('balanceAlert');
+      const balanceRow = document.getElementById('balanceRow');
+      const balanceMessage = document.getElementById('balanceMessage');
+      const submitButton = document.getElementById('submitButton');
+
+      if (totalDebits > 0 || totalCredits > 0) {
+          balanceRow.classList.remove('d-none');
+          if (isBalanced && totalDebits > 0) {
+              balanceMessage.className = 'badge bg-success';
+              balanceMessage.textContent = 'Balanced ✓';
+              balanceAlert.classList.add('d-none');
+              submitButton.disabled = false;
+          } else {
+              balanceMessage.className = 'badge bg-danger';
+              balanceMessage.textContent = `Not Balanced (Difference: $${Math.abs(totalDebits - totalCredits).toFixed(2)})`;
+              balanceAlert.classList.remove('d-none');
+              document.getElementById('balanceText').textContent = `Entry is not balanced. Difference: $${Math.abs(totalDebits - totalCredits).toFixed(2)}`;
+              submitButton.disabled = true;
+          }
+      } else {
+          balanceRow.classList.add('d-none');
+          balanceAlert.classList.add('d-none');
+          submitButton.disabled = false;
+      }
+  }
+
+  // Load templates
+  function loadTemplate(templateType) {
+      clearJournalLines();
+
+      switch(templateType) {
+          case 'ownerInvestment':
+              loadOwnerInvestmentTemplate();
+              break;
+          case 'ownerWithdrawal':
+              loadOwnerWithdrawalTemplate();
+              break;
+          case 'loanReceived':
+              loadLoanReceivedTemplate();
+              break;
+          case 'depreciation':
+              loadDepreciationTemplate();
+              break;
+      }
+
+      updateTotals();
+  }
+
+  function clearJournalLines() {
+      const tbody = document.getElementById('journalLinesBody');
+      tbody.innerHTML = '';
+      lineCounter = 0;
+  }
+
+  function loadOwnerInvestmentTemplate() {
+      document.getElementById('ReferenceNumber').value = 'OWNER-INV-' + new Date().toISOString().slice(0,10).replace(/-/g,'');
+      document.getElementById('Description').value = 'Owner investment in business';
+
+      addJournalLine();
+      addJournalLine();
+
+      // Set descriptions
+      document.querySelector('input[name="JournalEntries[0].LineDescription"]').value = 'Owner investment - cash';
+      document.querySelector('input[name="JournalEntries[1].LineDescription"]').value = 'Owner investment - equity';
+  }
+
+  function loadOwnerWithdrawalTemplate() {
+      document.getElementById('ReferenceNumber').value = 'OWNER-WD-' + new Date().toISOString().slice(0,10).replace(/-/g,'');
+      document.getElementById('Description').value = 'Owner withdrawal from business';
+
+      addJournalLine();
+      addJournalLine();
+
+      document.querySelector('input[name="JournalEntries[0].LineDescription"]').value = 'Owner withdrawal - equity';
+      document.querySelector('input[name="JournalEntries[1].LineDescription"]').value = 'Owner withdrawal - cash';
+  }
+
+  function loadLoanReceivedTemplate() {
+      document.getElementById('ReferenceNumber').value = 'LOAN-' + new Date().toISOString().slice(0,10).replace(/-/g,'');
+      document.getElementById('Description').value = 'Loan received from bank';
+
+      addJournalLine();
+      addJournalLine();
+
+      document.querySelector('input[name="JournalEntries[0].LineDescription"]').value = 'Loan proceeds received';
+      document.querySelector('input[name="JournalEntries[1].LineDescription"]').value = 'Notes payable to bank';
+  }
+
+  function loadDepreciationTemplate() {
+      document.getElementById('ReferenceNumber').value = 'DEPR-' + new Date().toISOString().slice(0,10).replace(/-/g,'');
+      document.getElementById('Description').value = 'Monthly depreciation expense';
+
+      addJournalLine();
+      addJournalLine();
+
+      document.querySelector('input[name="JournalEntries[0].LineDescription"]').value = 'Depreciation expense';
+      document.querySelector('input[name="JournalEntries[1].LineDescription"]').value = 'Accumulated depreciation';
+  }
+
+  // Show preview
+  function showPreview() {
+      const formData = new FormData(document.getElementById('journalEntryForm'));
+      const data = {};
+
+      // Convert FormData to object
+      for (let [key, value] of formData.entries()) {
+          if (key.includes('JournalEntries')) {
+              if (!data.JournalEntries) data.JournalEntries = [];
+              const match = key.match(/JournalEntries\[(\d+)\]\.(.+)/);
+              if (match) {
+                  const index = parseInt(match[1]);
+                  const field = match[2];
+                  if (!data.JournalEntries[index]) data.JournalEntries[index] = {};
+                  data.JournalEntries[index][field] = value;
+              }
+          } else {
+              data[key] = value;
+          }
+      }
+
+      fetch('/Accounting/PreviewManualJournalEntry', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+          },
+          body: JSON.stringify(data)
+      })
+      .then(response => response.json())
+      .then(result => {
+          if (result.success) {
+              showPreviewModal(result.preview);
+          } else {
+              alert('Error generating preview: ' + result.message);
+          }
+      })
+      .catch(error => {
+          console.error('Error:', error);
+          alert('Error generating preview');
+      });
+  }
+
+  function showPreviewModal(preview) {
+      const content = document.getElementById('previewContent');
+      let html = `
+          <div class="card">
+              <div class="card-header">
+                  <h6>Journal Entry: ${preview.transactionNumber}</h6>
+              </div>
+              <div class="card-body">
+                  <div class="row mb-3">
+                      <div class="col-md-4"><strong>Date:</strong> ${new Date(preview.transactionDate).toLocaleDateString()}</div>
+                      <div class="col-md-4"><strong>Reference:</strong> ${preview.referenceNumber}</div>
+                      <div class="col-md-4"><strong>Status:</strong> ${preview.isBalanced ? '<span class="badge bg-success">Balanced</span>' : '<span class="badge bg-danger">Not Balanced</span>'}</div>
+                  </div>
+                  <div class="mb-3">
+                      <strong>Description:</strong> ${preview.description || 'No description'}
+                  </div>
+                  <div class="table-responsive">
+                      <table class="table table-sm table-bordered">
+                          <thead>
+                              <tr>
+                                  <th>Account</th>
+                                  <th>Description</th>
+                                  <th class="text-end">Debit</th>
+                                  <th class="text-end">Credit</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+      `;
+
+      preview.journalEntries.forEach(entry => {
+          html += `
+              <tr>
+                  <td>${entry.accountDisplay}</td>
+                  <td>${entry.lineDescription || ''}</td>
+                  <td class="text-end">${entry.debitAmount > 0 ? '$' + entry.debitAmount.toFixed(2) : ''}</td>
+                  <td class="text-end">${entry.creditAmount > 0 ? '$' + entry.creditAmount.toFixed(2) : ''}</td>
+              </tr>
+          `;
+      });
+
+      html += `
+                          </tbody>
+                          <tfoot class="table-light">
+                              <tr>
+                                  <td colspan="2"><strong>Totals:</strong></td>
+                                  <td class="text-end"><strong>$${preview.totalDebits.toFixed(2)}</strong></td>
+                                  <td class="text-end"><strong>$${preview.totalCredits.toFixed(2)}</strong></td>
+                              </tr>
+                          </tfoot>
+                      </table>
+                  </div>
+              </div>
+          </div>
+      `;
+
+      content.innerHTML = html;
+      new bootstrap.Modal(document.getElementById('previewModal')).show();
+  }
+
+  function submitForm() {
+      document.getElementById('journalEntryForm').submit();
+  }
+
+  // Initialize totals on page load
+  document.addEventListener('DOMContentLoaded', function() {
+      updateTotals();
+
+      // Prevent both debit and credit on same line
+      document.addEventListener('input', function(e) {
+          if (e.target.classList.contains('debit-amount') || e.target.classList.contains('credit-amount')) {
+              const row = e.target.closest('tr');
+              const debitInput = row.querySelector('.debit-amount');
+              const creditInput = row.querySelector('.credit-amount');
+
+              if (e.target.classList.contains('debit-amount') && e.target.value) {
+                  creditInput.value = '';
+              } else if (e.target.classList.contains('credit-amount') && e.target.value) {
+                  debitInput.value = '';
+              }
+
+              updateTotals();
+          }
+      });
+  });
+</script>
+
+@section Scripts {
+  @{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+  }
+}

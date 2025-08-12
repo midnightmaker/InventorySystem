@@ -1,0 +1,336 @@
+﻿@model InventorySystem.ViewModels.Accounting.EditAccountViewModel
+@{
+  ViewData["Title"] = "Edit Account";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1><i class="fas fa-edit"></i> Edit Account</h1>
+    <p class="text-muted mb-0">Modify account information - @Model.AccountCode</p>
+  </div>
+  <div class="btn-group">
+    <a href="/Accounting/ChartOfAccounts" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Chart of Accounts
+    </a>
+    <a href="/Accounting/AccountDetails/@Model.Id" class="btn btn-outline-info">
+      <i class="fas fa-eye"></i> View Details
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-edit"></i> Account Information</h5>
+      </div>
+      <div class="card-body">
+        <form asp-action="EditAccount" method="post">
+          <input asp-for="Id" type="hidden" />
+          <input asp-for="IsSystemAccount" type="hidden" />
+
+          @if (Model.IsSystemAccount)
+          {
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>System Account:</strong> Some fields are restricted for system accounts.
+            </div>
+          }
+
+          <div class="row">
+            <!-- Account Code -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="AccountCode" class="form-label">
+                <i class="fas fa-hashtag"></i> Account Code <span class="text-danger">*</span>
+              </label>
+              <input asp-for="AccountCode"
+                     class="form-control"
+                     placeholder="e.g., 1100"
+                     readonly="@Model.IsSystemAccount" />
+              <span asp-validation-for="AccountCode" class="text-danger"></span>
+              @if (!Model.IsSystemAccount)
+              {
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i> Unique identifier for this account
+                </div>
+              }
+            </div>
+
+            <!-- Account Name -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="AccountName" class="form-label">
+                <i class="fas fa-tag"></i> Account Name <span class="text-danger">*</span>
+              </label>
+              <input asp-for="AccountName"
+                     class="form-control"
+                     placeholder="e.g., Cash in Bank" />
+              <span asp-validation-for="AccountName" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">
+              <i class="fas fa-align-left"></i> Description
+            </label>
+            <textarea asp-for="Description"
+                      class="form-control"
+                      rows="3"
+                      placeholder="Optional description of this account"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+
+          <div class="row">
+            <!-- Account Type -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="AccountType" class="form-label">
+                <i class="fas fa-layer-group"></i> Account Type <span class="text-danger">*</span>
+              </label>
+              <select asp-for="AccountType"
+                      class="form-select"
+                      id="accountTypeSelect"
+                      disabled="@Model.IsSystemAccount">
+                <option value="">-- Select Account Type --</option>
+                <option value="1">1 - Asset</option>
+                <option value="2">2 - Liability</option>
+                <option value="3">3 - Equity</option>
+                <option value="4">4 - Revenue</option>
+                <option value="5">5 - Expense</option>
+              </select>
+              <span asp-validation-for="AccountType" class="text-danger"></span>
+            </div>
+
+            <!-- Account Sub Type -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="AccountSubType" class="form-label">
+                <i class="fas fa-sitemap"></i> Account Sub Type
+              </label>
+              <select asp-for="AccountSubType"
+                      class="form-select"
+                      id="accountSubTypeSelect"
+                      disabled="@Model.IsSystemAccount">
+                <option value="">-- Select Sub Type --</option>
+              </select>
+              <span asp-validation-for="AccountSubType" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Parent Account -->
+          <div class="mb-3">
+            <label asp-for="ParentAccountId" class="form-label">
+              <i class="fas fa-arrow-up"></i> Parent Account (Optional)
+            </label>
+            <select asp-for="ParentAccountId" class="form-select">
+              <option value="">-- No Parent Account --</option>
+              <!-- This would be populated by the controller with available parent accounts -->
+            </select>
+            <span asp-validation-for="ParentAccountId" class="text-danger"></span>
+            <div class="form-text">
+              <i class="fas fa-info-circle"></i> Select a parent account to create a sub-account
+            </div>
+          </div>
+
+          <!-- Status -->
+          @if (!Model.IsSystemAccount)
+          {
+            <div class="mb-4">
+              <div class="form-check form-switch">
+                <input asp-for="IsActive" class="form-check-input" type="checkbox" id="isActiveSwitch">
+                <label class="form-check-label" for="isActiveSwitch">
+                  <i class="fas fa-toggle-on"></i> Account is Active
+                </label>
+              </div>
+              <div class="form-text">
+                <i class="fas fa-info-circle"></i> Inactive accounts cannot be used in new transactions
+              </div>
+            </div>
+          }
+          else
+          {
+            <input asp-for="IsActive" type="hidden" />
+            <div class="mb-4">
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                System accounts cannot be deactivated.
+              </div>
+            </div>
+          }
+
+          <!-- Action Buttons -->
+          <div class="d-flex justify-content-between">
+            <div>
+              <a href="/Accounting/ChartOfAccounts" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Cancel
+              </a>
+            </div>
+            <div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Update Account
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Section -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-question-circle"></i> Account Types Guide</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <h6 class="text-success"><i class="fas fa-coins"></i> Assets (1000-1999)</h6>
+          <small class="text-muted">What your company owns</small>
+          <ul class="small mt-1">
+            <li>Cash accounts</li>
+            <li>Accounts receivable</li>
+            <li>Inventory</li>
+            <li>Equipment</li>
+          </ul>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-danger"><i class="fas fa-credit-card"></i> Liabilities (2000-2999)</h6>
+          <small class="text-muted">What your company owes</small>
+          <ul class="small mt-1">
+            <li>Accounts payable</li>
+            <li>Loans</li>
+            <li>Accrued expenses</li>
+          </ul>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-primary"><i class="fas fa-chart-pie"></i> Equity (3000-3999)</h6>
+          <small class="text-muted">Owner's stake in the company</small>
+          <ul class="small mt-1">
+            <li>Owner's equity</li>
+            <li>Retained earnings</li>
+          </ul>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-info"><i class="fas fa-arrow-up"></i> Revenue (4000-4999)</h6>
+          <small class="text-muted">Money coming in</small>
+          <ul class="small mt-1">
+            <li>Product sales</li>
+            <li>Service revenue</li>
+          </ul>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-warning"><i class="fas fa-arrow-down"></i> Expenses (5000-6999)</h6>
+          <small class="text-muted">Money going out</small>
+          <ul class="small mt-1">
+            <li>Cost of goods sold</li>
+            <li>Operating expenses</li>
+            <li>Utilities</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    @if (Model.IsSystemAccount)
+    {
+      <div class="card mt-3 border-warning">
+        <div class="card-header bg-warning text-dark">
+          <h6><i class="fas fa-shield-alt"></i> System Account Protection</h6>
+        </div>
+        <div class="card-body">
+          <p class="small mb-2">
+            This is a system account that is protected from certain modifications:
+          </p>
+          <ul class="small">
+            <li>Account code cannot be changed</li>
+            <li>Account type cannot be modified</li>
+            <li>Account cannot be deactivated</li>
+            <li>Account cannot be deleted</li>
+          </ul>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      const accountTypeSelect = document.getElementById('accountTypeSelect');
+      const accountSubTypeSelect = document.getElementById('accountSubTypeSelect');
+
+      const subTypeOptions = {
+          '1': [ // Asset
+              { value: '101', text: 'Current Asset' },
+              { value: '102', text: 'Fixed Asset' },
+              { value: '103', text: 'Inventory Asset' }
+          ],
+          '2': [ // Liability
+              { value: '201', text: 'Current Liability' },
+              { value: '202', text: 'Long Term Liability' }
+          ],
+          '3': [ // Equity
+              { value: '301', text: 'Owner Equity' },
+              { value: '302', text: 'Retained Earnings' }
+          ],
+          '4': [ // Revenue
+              { value: '401', text: 'Sales Revenue' },
+              { value: '402', text: 'Service Revenue' }
+          ],
+          '5': [ // Expense
+              { value: '501', text: 'Cost of Goods Sold' },
+              { value: '502', text: 'Operating Expense' },
+              { value: '503', text: 'Utility Expense' },
+              { value: '504', text: 'Subscription Expense' }
+          ]
+      };
+
+      function updateSubTypes() {
+          const accountType = accountTypeSelect.value;
+          const currentSubType = accountSubTypeSelect.value;
+
+          // Clear existing options but keep the current selection
+          accountSubTypeSelect.innerHTML = '<option value="">-- Select Sub Type --</option>';
+
+          if (accountType && subTypeOptions[accountType]) {
+              subTypeOptions[accountType].forEach(option => {
+                  const optionElement = document.createElement('option');
+                  optionElement.value = option.value;
+                  optionElement.textContent = option.text;
+                  if (option.value === currentSubType) {
+                      optionElement.selected = true;
+                  }
+                  accountSubTypeSelect.appendChild(optionElement);
+              });
+          }
+      }
+
+      // Initialize sub-types on page load
+      updateSubTypes();
+
+      // Update sub-types when account type changes
+      accountTypeSelect.addEventListener('change', updateSubTypes);
+  });
+</script>
+
+@section Scripts {
+  @{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+  }
+}

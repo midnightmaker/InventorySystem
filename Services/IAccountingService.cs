@@ -74,6 +74,39 @@ namespace InventorySystem.Services
 		Task SeedDefaultAccountsAsync();
 		Task<bool> IsSystemInitializedAsync();
 		Task<AccountingDashboardViewModel> GetAccountingDashboardAsync();
+
+		// ============= MANUAL JOURNAL ENTRIES =============
+
+		/// <summary>
+		/// Creates a manual journal entry from the provided view model
+		/// </summary>
+		/// <param name="model">The manual journal entry view model</param>
+		/// <returns>True if successful, false otherwise</returns>
+		Task<bool> CreateManualJournalEntryAsync(ManualJournalEntryViewModel model);
+
+		/// <summary>
+		/// Retrieves all manual journal entries within the specified date range
+		/// </summary>
+		/// <param name="startDate">Start date for filtering (optional)</param>
+		/// <param name="endDate">End date for filtering (optional)</param>
+		/// <returns>List of manual journal entries</returns>
+		Task<List<GeneralLedgerEntry>> GetManualJournalEntriesAsync(DateTime? startDate = null, DateTime? endDate = null);
+
+		/// <summary>
+		/// Reverses a manual journal entry by creating offsetting entries
+		/// </summary>
+		/// <param name="transactionNumber">The transaction number to reverse</param>
+		/// <param name="reason">Reason for the reversal</param>
+		/// <returns>True if successful, false otherwise</returns>
+		Task<bool> ReverseManualJournalEntryAsync(string transactionNumber, string reason);
+
+		/// <summary>
+		/// Calculates the total amount of manual journal entries for a date range
+		/// </summary>
+		/// <param name="startDate">Start date</param>
+		/// <param name="endDate">End date</param>
+		/// <returns>Total debit amount of manual journal entries</returns>
+		Task<decimal> GetManualJournalEntriesTotalAsync(DateTime startDate, DateTime endDate);
 	}
 
 	public class AccountValidationResult

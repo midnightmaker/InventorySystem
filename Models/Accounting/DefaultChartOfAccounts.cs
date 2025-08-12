@@ -176,6 +176,26 @@ namespace InventorySystem.Models.Accounting
 										AccountSubType = AccountSubType.SalesRevenue,
 										IsSystemAccount = true
 								},
+				new()
+				{
+										AccountCode = "4900",
+										AccountName = "Sales Allowances",
+										Description = "Allowance for customer concession, damaged goods, service issue",
+										AccountType = AccountType.Revenue,
+										AccountSubType = AccountSubType.SalesRevenue,
+										IsContraAccount = true,
+										IsSystemAccount = true
+				},
+				new()
+				{
+										AccountCode = "4910",
+										AccountName = "Sales Discounts",
+										Description = "Discounts for early payment for example. These are discounts granted after original invoice",
+										AccountType = AccountType.Revenue,
+										AccountSubType = AccountSubType.SalesRevenue,
+										IsContraAccount = true,
+										IsSystemAccount = true
+				},
 
                 // ============= COST OF GOODS SOLD (5000-5999) =============
                 new() {
@@ -228,6 +248,15 @@ namespace InventorySystem.Models.Accounting
 										AccountSubType = AccountSubType.OperatingExpense,
 										IsSystemAccount = true
 								},
+								new() {
+										AccountCode = "6200",
+										AccountName = "Bad Debt Expense",
+										Description = "Miscellaneous operating expenses",
+										AccountType = AccountType.Expense,
+										AccountSubType = AccountSubType.OperatingExpense,
+										IsSystemAccount = true
+								},
+
 								new() {
 										AccountCode = "6210",
 										AccountName = "Electricity",
