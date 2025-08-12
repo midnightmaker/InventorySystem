@@ -1,0 +1,416 @@
+﻿@model InventorySystem.ViewModels.Accounting.AccountDetailsViewModel
+@{
+  ViewData["Title"] = $"Account Details - {Model.Account.AccountCode}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1><i class="fas fa-chart-line"></i> Account Details</h1>
+    <p class="text-muted mb-0">@Model.Account.AccountCode - @Model.Account.AccountName</p>
+  </div>
+  <div class="btn-group">
+    <a href="/Accounting/ChartOfAccounts" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Chart of Accounts
+    </a>
+    <a href="/Accounting/EditAccount/@Model.Account.Id" class="btn btn-primary">
+      <i class="fas fa-edit"></i> Edit Account
+    </a>
+    <a href="/Accounting/GeneralLedger?accountCode=@Model.Account.AccountCode" class="btn btn-info">
+      <i class="fas fa-book"></i> View General Ledger
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Account Information Cards -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card @(Model.CurrentBalance >= 0 ? "bg-success" : "bg-danger") text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4>@Model.CurrentBalance.ToString("C")</h4>
+            <p class="mb-0">Current Balance</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-balance-scale fa-2x"></i>
+          </div>
+        </div>
+        <small>As of @DateTime.Today.ToString("MM/dd/yyyy")</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4>@Model.Account.AccountType</h4>
+            <p class="mb-0">Account Type</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-tag fa-2x"></i>
+          </div>
+        </div>
+        <small>@Model.Account.AccountSubType</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4>@Model.LedgerEntries.Count</h4>
+            <p class="mb-0">Total Transactions</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-list fa-2x"></i>
+          </div>
+        </div>
+        <small>All time</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card @(Model.Account.IsActive ? "bg-success" : "bg-secondary") text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h4>@(Model.Account.IsActive ? "Active" : "Inactive")</h4>
+            <p class="mb-0">Account Status</p>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-@(Model.Account.IsActive ? "check-circle" : "times-circle") fa-2x"></i>
+          </div>
+        </div>
+        <small>@(Model.Account.IsSystemAccount ? "System Account" : "User Account")</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Account Information -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> Account Information</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-5">Account Code:</dt>
+          <dd class="col-sm-7"><code>@Model.Account.AccountCode</code></dd>
+
+          <dt class="col-sm-5">Account Name:</dt>
+          <dd class="col-sm-7">@Model.Account.AccountName</dd>
+
+          <dt class="col-sm-5">Description:</dt>
+          <dd class="col-sm-7">
+            @if (!string.IsNullOrEmpty(Model.Account.Description))
+            {
+              @Model.Account.Description
+            }
+            else
+            {
+              <span class="text-muted">No description</span>
+            }
+          </dd>
+
+          <dt class="col-sm-5">Account Type:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-primary">@Model.Account.AccountType</span>
+          </dd>
+
+          <dt class="col-sm-5">Sub Type:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-secondary">@Model.Account.AccountSubType</span>
+          </dd>
+
+          <dt class="col-sm-5">Parent Account:</dt>
+          <dd class="col-sm-7">
+            @if (Model.Account.ParentAccountId.HasValue)
+            {
+              <span class="text-info">Has parent account</span>
+            }
+            else
+            {
+              <span class="text-muted">Top-level account</span>
+            }
+          </dd>
+
+          <dt class="col-sm-5">System Account:</dt>
+          <dd class="col-sm-7">
+            @if (Model.Account.IsSystemAccount)
+            {
+              <span class="badge bg-warning">System Account</span>
+            }
+            else
+            {
+              <span class="badge bg-success">User Account</span>
+            }
+          </dd>
+
+          <dt class="col-sm-5">Created:</dt>
+          <dd class="col-sm-7">@Model.Account.CreatedDate.ToString("MM/dd/yyyy")</dd>
+
+          @if (!string.IsNullOrEmpty(Model.Account.CreatedBy))
+          {
+            <dt class="col-sm-5">Created By:</dt>
+            <dd class="col-sm-7">@Model.Account.CreatedBy</dd>
+          }
+        </dl>
+      </div>
+    </div>
+
+    <!-- Account Balance Summary -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5><i class="fas fa-calculator"></i> Balance Summary</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="d-flex justify-content-between">
+            <span>Current Balance:</span>
+            <strong class="@(Model.CurrentBalance >= 0 ? "text-success" : "text-danger")">
+              @Model.CurrentBalance.ToString("C")
+            </strong>
+          </div>
+        </div>
+
+        @if (Model.LedgerEntries.Any())
+        {
+          var totalDebits = Model.LedgerEntries.Sum(e => e.DebitAmount);
+          var totalCredits = Model.LedgerEntries.Sum(e => e.CreditAmount);
+
+          <div class="mb-3">
+            <div class="d-flex justify-content-between">
+              <span>Total Debits:</span>
+              <strong class="text-info">@totalDebits.ToString("C")</strong>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="d-flex justify-content-between">
+              <span>Total Credits:</span>
+              <strong class="text-warning">@totalCredits.ToString("C")</strong>
+            </div>
+          </div>
+
+          <hr>
+          <div class="d-flex justify-content-between">
+            <strong>Net Activity:</strong>
+            <strong class="@((totalDebits - totalCredits) >= 0 ? "text-success" : "text-danger")">
+              @((totalDebits - totalCredits).ToString("C"))
+            </strong>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Transactions -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-list"></i> Recent Transactions (@Model.LedgerEntries.Count)</h5>
+        <a href="/Accounting/GeneralLedger?accountCode=@Model.Account.AccountCode" class="btn btn-outline-primary btn-sm">
+          <i class="fas fa-eye"></i> View All
+        </a>
+      </div>
+      <div class="card-body">
+        @if (Model.LedgerEntries.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Transaction #</th>
+                  <th>Description</th>
+                  <th class="text-end">Debit</th>
+                  <th class="text-end">Credit</th>
+                  <th class="text-end">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                @{
+                  decimal runningBalance = 0m;
+                }
+                @foreach (var entry in Model.LedgerEntries.Take(20))
+                {
+                  runningBalance += entry.DebitAmount - entry.CreditAmount;
+                  <tr>
+                    <td>@entry.TransactionDate.ToString("MM/dd/yyyy")</td>
+                    <td>
+                      <code>@entry.TransactionNumber</code>
+                    </td>
+                    <td>
+                      <div>@entry.Description</div>
+                      @if (!string.IsNullOrEmpty(entry.ReferenceType) && entry.ReferenceId.HasValue)
+                      {
+                        <small class="text-muted">Ref: @entry.ReferenceType #@entry.ReferenceId</small>
+                      }
+                    </td>
+                    <td class="text-end">
+                      @if (entry.DebitAmount > 0m)
+                      {
+                        <span class="text-info">@entry.DebitAmount.ToString("C")</span>
+                      }
+                      else
+                      {
+                        <span class="text-muted">—</span>
+                      }
+                    </td>
+                    <td class="text-end">
+                      @if (entry.CreditAmount > 0m)
+                      {
+                        <span class="text-warning">@entry.CreditAmount.ToString("C")</span>
+                      }
+                      else
+                      {
+                        <span class="text-muted">—</span>
+                      }
+                    </td>
+                    <td class="text-end">
+                      <strong class="@(runningBalance >= 0 ? "text-success" : "text-danger")">
+                        @runningBalance.ToString("C")
+                      </strong>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (Model.LedgerEntries.Count > 20)
+          {
+            <div class="text-center mt-3">
+              <p class="text-muted">Showing 20 of @Model.LedgerEntries.Count transactions</p>
+              <a href="/Accounting/GeneralLedger?accountCode=@Model.Account.AccountCode" class="btn btn-outline-primary">
+                <i class="fas fa-eye"></i> View All Transactions
+              </a>
+            </div>
+          }
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+            <h5>No Transactions</h5>
+            <p class="text-muted">This account has no recorded transactions.</p>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    @if (Model.Account.IsActive)
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h6><i class="fas fa-lightning-bolt"></i> Quick Actions</h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2 d-md-flex">
+            <a href="/Accounting/GeneralLedger?accountCode=@Model.Account.AccountCode" class="btn btn-outline-primary">
+              <i class="fas fa-book"></i> View Ledger
+            </a>
+            <a href="/Accounting/EditAccount/@Model.Account.Id" class="btn btn-outline-secondary">
+              <i class="fas fa-edit"></i> Edit Account
+            </a>
+            @if (!Model.Account.IsSystemAccount)
+            {
+              <button type="button" class="btn btn-outline-warning" onclick="toggleAccountStatus(@Model.Account.Id, false)">
+                <i class="fas fa-pause-circle"></i> Deactivate
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+    else
+    {
+      <div class="card mt-3 border-warning">
+        <div class="card-header bg-warning text-dark">
+          <h6><i class="fas fa-exclamation-triangle"></i> Account Inactive</h6>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">This account is currently inactive and cannot be used in new transactions.</p>
+          @if (!Model.Account.IsSystemAccount)
+          {
+            <button type="button" class="btn btn-success" onclick="toggleAccountStatus(@Model.Account.Id, true)">
+              <i class="fas fa-play-circle"></i> Reactivate Account
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    function toggleAccountStatus(accountId, activate) {
+        const action = activate ? 'activate' : 'deactivate';
+        const confirmMessage = `Are you sure you want to ${action} this account?`;
+
+        if (confirm(confirmMessage)) {
+            // This would need to be implemented as an action in the controller
+            fetch(`/Accounting/ToggleAccountStatus/${accountId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                },
+                body: JSON.stringify({ isActive: activate })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating account status: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating the account status.');
+            });
+        }
+    }
+  </script>
+}
+
+<style>
+  .table th {
+    border-top: none;
+  }
+
+  .table td {
+    vertical-align: middle;
+  }
+
+  code {
+    font-size: 0.875em;
+  }
+
+  .card-header h5, .card-header h6 {
+    margin-bottom: 0;
+  }
+</style>
