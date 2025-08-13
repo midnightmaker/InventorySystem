@@ -4,6 +4,13 @@
   ViewData["Title"] = "Sale Details";
 }
 
+@{
+  // Get adjustments for this sale using the new navigation property
+  var saleAdjustments = Model.RelatedAdjustments?.ToList() ?? new List<CustomerBalanceAdjustment>();
+  var totalAdjustments = saleAdjustments.Sum(a => a.AdjustmentAmount);
+  var effectiveAmount = Model.TotalAmount - totalAdjustments;
+}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1><i class="fas fa-shopping-cart"></i> Sale @Model.SaleNumber</h1>
   <div class="btn-group">
@@ -54,17 +61,10 @@
             <i class="fas fa-percentage"></i> Sales Discount
           </a>
 
-          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id&type=baddebt"
+          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id&type=writeoff"
              class="btn btn-outline-danger btn-sm">
-            <i class="fas fa-exclamation-triangle"></i> Write Off
+            <i class="fas fa-exclamation-triangle"></i> Bad Debt Write-off
           </a>
-        </div>
-
-        <div class="mt-2">
-          <small class="text-muted">
-            <i class="fas fa-info-circle"></i>
-            Adjustments will update the customer's balance and create proper journal entries
-          </small>
         </div>
       </div>
     </div>
@@ -74,7 +74,7 @@
 @if (TempData["SuccessMessage"] != null)
 {
   <div class="alert alert-success alert-dismissible fade show">
-    @TempData["SuccessMessage"]
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 }
@@ -82,257 +82,312 @@
 @if (TempData["ErrorMessage"] != null)
 {
   <div class="alert alert-danger alert-dismissible fade show">
-    @TempData["ErrorMessage"]
+    <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Sale Information Header -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3">
+            <dl class="row">
+              <dt class="col-sm-6">Sale Date:</dt>
+              <dd class="col-sm-6">@Model.SaleDate.ToString("MM/dd/yyyy")</dd>
+              <dt class="col-sm-6">Due Date:</dt>
+              <dd class="col-sm-6">@Model.PaymentDueDate.ToString("MM/dd/yyyy")</dd>
+              <dt class="col-sm-6">Terms:</dt>
+              <dd class="col-sm-6">@Model.Terms</dd>
+            </dl>
+          </div>
+          <div class="col-md-3">
+            <dl class="row">
+              <dt class="col-sm-6">Sale Status:</dt>
+              <dd class="col-sm-6">
+                <span class="badge bg-@(Model.SaleStatus switch {
+                  SaleStatus.Processing => "primary",
+                  SaleStatus.Shipped => "success",
+                  SaleStatus.Delivered => "info",
+                  SaleStatus.Cancelled => "danger",
+                  SaleStatus.Backordered => "warning",
+                  _ => "secondary"
+                })">@Model.SaleStatus</span>
+              </dd>
+              <dt class="col-sm-6">Payment:</dt>
+              <dd class="col-sm-6">
+                <span class="badge bg-@(Model.PaymentStatus switch {
+                  PaymentStatus.Paid => "success",
+                  PaymentStatus.Pending => "warning",
+                  PaymentStatus.Overdue => "danger",
+                  PaymentStatus.PartiallyPaid => "info",
+                  _ => "secondary"
+                })">@Model.PaymentStatus</span>
+              </dd>
+              @if (Model.IsOverdue)
+              {
+                <dt class="col-sm-6">Days Overdue:</dt>
+                <dd class="col-sm-6"><span class="badge bg-danger">@Model.DaysOverdue</span></dd>
+              }
+            </dl>
+          </div>
+          <div class="col-md-3">
+            @if (!string.IsNullOrEmpty(Model.OrderNumber))
+            {
+              <dl class="row">
+                <dt class="col-sm-6">Order Number:</dt>
+                <dd class="col-sm-6">@Model.OrderNumber</dd>
+              </dl>
+            }
+            @if (!string.IsNullOrEmpty(Model.PaymentMethod))
+            {
+              <dl class="row">
+                <dt class="col-sm-6">Payment Method:</dt>
+                <dd class="col-sm-6">@Model.PaymentMethod</dd>
+              </dl>
+            }
+          </div>
+          <div class="col-md-3">
+            @if (!string.IsNullOrEmpty(Model.Notes))
+            {
+              <dl class="row">
+                <dt class="col-sm-12">Notes:</dt>
+                <dd class="col-sm-12"><small class="text-muted">@Model.Notes</small></dd>
+              </dl>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (saleAdjustments.Any())
+{
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-warning">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0">
+            <i class="fas fa-adjust"></i> Invoice Adjustments
+            <span class="badge bg-dark ms-2">@saleAdjustments.Count Applied</span>
+          </h5>
+        </div>
+        <div class="card-body">
+          <!-- Adjustment Summary -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <h6>Financial Impact:</h6>
+              <table class="table table-sm">
+                <tr>
+                  <td><strong>Original Invoice Amount:</strong></td>
+                  <td class="text-end">@Model.TotalAmount.ToString("C")</td>
+                </tr>
+                <tr>
+                  <td><strong>Total Adjustments:</strong></td>
+                  <td class="text-end text-success">-@totalAdjustments.ToString("C")</td>
+                </tr>
+                <tr class="table-light">
+                  <td><strong>Effective Amount:</strong></td>
+                  <td class="text-end"><strong>@effectiveAmount.ToString("C")</strong></td>
+                </tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <h6>Quick Actions:</h6>
+              <div class="btn-group-vertical d-grid gap-2">
+                <a href="/Sales/GenerateRevisedInvoice/@Model.Id" class="btn btn-outline-primary btn-sm">
+                  <i class="fas fa-file-invoice"></i> Generate Revised Invoice
+                </a>
+                <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id" class="btn btn-outline-success btn-sm">
+                  <i class="fas fa-plus"></i> Add New Adjustment
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Adjustments List -->
+          <h6>Applied Adjustments:</h6>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Reason</th>
+                  <th>Applied By</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var adjustment in saleAdjustments.OrderByDescending(a => a.AdjustmentDate))
+                {
+                  <tr>
+                    <td>@adjustment.AdjustmentDate.ToString("MM/dd/yyyy")</td>
+                    <td>
+                      <span class="badge bg-@(adjustment.AdjustmentType == "Bad Debt Write-off" ? "danger" : "warning")">
+                        @adjustment.AdjustmentType
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <strong class="text-success">@adjustment.AdjustmentAmount.ToString("C")</strong>
+                    </td>
+                    <td>
+                      @if (adjustment.Reason.Length > 40)
+                      {
+                        <span title="@adjustment.Reason">
+                          @adjustment.Reason.Substring(0, 40)...
+                        </span>
+                      }
+                      else
+                      {
+                        @adjustment.Reason
+                      }
+                    </td>
+                    <td>@adjustment.CreatedBy</td>
+                    <td class="text-center">
+                      <div class="btn-group btn-group-sm">
+                        <a href="/Sales/GenerateRevisedInvoice/@Model.Id?adjustmentId=@adjustment.Id"
+                           class="btn btn-outline-primary btn-sm" title="Revised Invoice for this adjustment">
+                          <i class="fas fa-file-invoice"></i>
+                        </a>
+                        <a href="/Sales/GenerateCreditMemo?adjustmentId=@adjustment.Id"
+                           class="btn btn-outline-success btn-sm" title="Generate Credit Memo">
+                          <i class="fas fa-receipt"></i>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Impact Notice (FIXED STRING FORMATTING) -->
+          <div class="alert alert-info mt-3">
+            <h6><i class="fas fa-info-circle"></i> Payment Status Impact</h6>
+            <p class="mb-0">
+              Due to applied adjustments, the customer now owes
+              <strong>@effectiveAmount.ToString("C")</strong>
+              for this invoice instead of the original @Model.TotalAmount.ToString("C").
+              @if (Model.PaymentStatus == PaymentStatus.Paid && effectiveAmount < Model.TotalAmount)
+              {
+                <span class="text-success">
+                  <br><strong>Note:</strong> This invoice may be eligible for refund due to adjustments exceeding payments received.
+                </span>
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+else
+{
+  <!-- No Adjustments - Show Option to Create -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-light">
+        <div class="card-body text-center py-3">
+          <div class="text-muted mb-2">
+            <i class="fas fa-info-circle"></i>
+            No adjustments have been applied to this invoice.
+          </div>
+          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id"
+             class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-plus"></i> Apply Customer Adjustment
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 }
 
 <div class="row">
   <div class="col-md-8">
+    <!-- Sale Items -->
     <div class="card">
-      <div class="card-header">
-        <h5><i class="fas fa-info-circle"></i> Sale Information</h5>
-      </div>
-      <div class="card-body">
-        <dl class="row">
-          <dt class="col-sm-3">Sale Number:</dt>
-          <dd class="col-sm-9">@Model.SaleNumber</dd>
-
-          <dt class="col-sm-3">Sale Date:</dt>
-          <dd class="col-sm-9">@Model.SaleDate.ToString("MMMM dd, yyyy")</dd>
-
-          <dt class="col-sm-3">Customer:</dt>
-          <dd class="col-sm-9">
-            @* FIXED: Use Customer relationship instead of legacy properties *@
-            @if (Model.Customer != null)
-            {
-              <div>
-                <strong>
-                  <a href="/Customers/Details/@Model.Customer.Id" class="text-decoration-none">
-                    @Model.Customer.CustomerName
-                  </a>
-                </strong>
-                @if (!string.IsNullOrEmpty(Model.Customer.CompanyName))
-                {
-                  <br><small class="text-muted"><i class="fas fa-building"></i> @Model.Customer.CompanyName</small>
-                }
-                @if (!string.IsNullOrEmpty(Model.Customer.Email))
-                {
-                  <br><small class="text-muted"><i class="fas fa-envelope"></i> <a href="mailto:@Model.Customer.Email">@Model.Customer.Email</a></small>
-                }
-                @if (!string.IsNullOrEmpty(Model.Customer.Phone))
-                {
-                  <br><small class="text-muted"><i class="fas fa-phone"></i> @Model.Customer.Phone</small>
-                }
-              </div>
-            }
-            else
-            {
-              <span class="text-muted">Unknown Customer</span>
-            }
-          </dd>
-
-          @if (!string.IsNullOrEmpty(Model.OrderNumber))
-          {
-            <dt class="col-sm-3">Order Number:</dt>
-            <dd class="col-sm-9">@Model.OrderNumber</dd>
-          }
-
-          @if (!string.IsNullOrEmpty(Model.ShippingAddress))
-          {
-            <dt class="col-sm-3">Shipping Address:</dt>
-            <dd class="col-sm-9">@Model.ShippingAddress</dd>
-          }
-          else if (Model.Customer?.FullShippingAddress != null)
-          {
-            <dt class="col-sm-3">Shipping Address:</dt>
-            <dd class="col-sm-9">
-              <small class="text-muted">Using customer default:</small><br>
-              @Model.Customer.FullShippingAddress
-            </dd>
-          }
-
-          <dt class="col-sm-3">Payment Status:</dt>
-          <dd class="col-sm-9">
-            @if (Model.PaymentStatus == PaymentStatus.Paid)
-            {
-              <span class="badge bg-success">Paid</span>
-            }
-            else if (Model.PaymentStatus == PaymentStatus.Pending)
-            {
-              <span class="badge bg-warning">Pending</span>
-            }
-            else
-            {
-              <span class="badge bg-danger">@Model.PaymentStatus</span>
-            }
-          </dd>
-
-          <dt class="col-sm-3">Sale Status:</dt>
-          <dd class="col-sm-9">
-            @if (Model.SaleStatus == SaleStatus.Processing)
-            {
-              <span class="badge bg-primary">Processing</span>
-            }
-            else if (Model.SaleStatus == SaleStatus.Shipped)
-            {
-              <span class="badge bg-success">Shipped</span>
-            }
-            else if (Model.SaleStatus == SaleStatus.Delivered)
-            {
-              <span class="badge bg-info">Delivered</span>
-            }
-            else if (Model.SaleStatus == SaleStatus.Backordered)
-            {
-              <span class="badge bg-warning">Backordered</span>
-            }
-            else
-            {
-              <span class="badge bg-secondary">@Model.SaleStatus</span>
-            }
-          </dd>
-
-          @if (!string.IsNullOrEmpty(Model.PaymentMethod))
-          {
-            <dt class="col-sm-3">Payment Method:</dt>
-            <dd class="col-sm-9">@Model.PaymentMethod</dd>
-          }
-
-          <dt class="col-sm-3">Created Date:</dt>
-          <dd class="col-sm-9">@Model.CreatedDate.ToString("MMMM dd, yyyy hh:mm tt")</dd>
-
-          @if (!string.IsNullOrEmpty(Model.Notes))
-          {
-            <dt class="col-sm-3">Notes:</dt>
-            <dd class="col-sm-9">@Model.Notes</dd>
-          }
-
-          <dt class="col-sm-3">Payment Terms:</dt>
-          <dd class="col-sm-9">
-            <span class="badge bg-info">@Model.Terms.ToString().Replace("Net", "Net ")</span>
-          </dd>
-
-          <dt class="col-sm-3">Payment Due Date:</dt>
-          <dd class="col-sm-9">
-            @Model.PaymentDueDate.ToString("MMMM dd, yyyy")
-            @if (Model.IsOverdue)
-            {
-              <br>
-              <span class="badge bg-danger">
-                <i class="fas fa-exclamation-triangle"></i>
-                OVERDUE by @Model.DaysOverdue days
-              </span>
-            }
-            else if (Model.PaymentDueDate.Date == DateTime.Today)
-            {
-              <br>
-              <span class="badge bg-warning text-dark">
-                <i class="fas fa-clock"></i>
-                Due Today
-              </span>
-            }
-            else if (Model.PaymentDueDate.Date <= DateTime.Today.AddDays(7))
-            {
-              <br>
-              <span class="badge bg-warning text-dark">
-                <i class="fas fa-clock"></i>
-                Due in @((Model.PaymentDueDate.Date - DateTime.Today).Days) days
-              </span>
-            }
-          </dd>
-        </dl>
-      </div>
-    </div>
-
-    <div class="card mt-4">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5><i class="fas fa-list"></i> Sale Items</h5>
+        <h5 class="mb-0">
+          <i class="fas fa-list"></i> Sale Items
+          @if (Model.SaleItems?.Any() == true)
+          {
+            <span class="badge bg-primary ms-2">@Model.SaleItems.Count items</span>
+          }
+        </h5>
         @* Only show Add Item button for modifiable sales *@
         @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
         {
-          <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-sm btn-success">
+          <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success btn-sm">
             <i class="fas fa-plus"></i> Add Item
           </a>
-        }
-        else
-        {
-          <span class="text-muted small">
-            @if (Model.SaleStatus == SaleStatus.Shipped)
-            {
-              <text><i class="fas fa-info-circle"></i> Items cannot be modified - sale has been shipped</text>
-            }
-            else if (Model.SaleStatus == SaleStatus.Delivered)
-            {
-              <text><i class="fas fa-info-circle"></i> Items cannot be modified - sale has been delivered</text>
-            }
-            else if (Model.SaleStatus == SaleStatus.Cancelled)
-            {
-              <text><i class="fas fa-info-circle"></i> Items cannot be modified - sale has been cancelled</text>
-            }
-            else if (Model.SaleStatus == SaleStatus.Returned)
-            {
-              <text><i class="fas fa-info-circle"></i> Items cannot be modified - sale has been returned</text>
-            }
-          </span>
         }
       </div>
       <div class="card-body">
         @if (Model.SaleItems?.Any() == true)
         {
           <div class="table-responsive">
-            <table class="table table-sm">
+            <table class="table table-hover">
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Quantity</th>
-                  <th>Unit Price</th>
-                  <th>Unit Cost</th>
-                  <th>Total Price</th>
-                  <th>Profit</th>
-                  @* Only show Actions column for modifiable sales *@
+                  <th>Part Number</th>
+                  <th>Description</th>
+                  <th>Type</th>
+                  <th class="text-center">Qty</th>
+                  <th class="text-end">Unit Price</th>
+                  <th class="text-end">Total</th>
                   @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
                   {
-                    <th>Actions</th>
+                    <th class="text-center">Actions</th>
                   }
                 </tr>
               </thead>
               <tbody>
                 @foreach (var item in Model.SaleItems)
                 {
-                  <tr class="@(item.QuantityBackordered > 0 ? "table-warning" : "")">
+                  <tr>
                     <td>
-                      <strong>@item.ProductPartNumber</strong><br>
-                      <small class="text-muted">@item.ProductName</small>
+                      <code>@item.ProductPartNumber</code>
                       @if (item.QuantityBackordered > 0)
                       {
-                        <br><span class="badge bg-warning text-dark">
-                          <i class="fas fa-hourglass-half"></i> @item.QuantityBackordered backordered
-                        </span>
+                        <span class="badge bg-warning text-dark ms-1">Backordered</span>
                       }
                     </td>
-                    <td>@item.QuantitySold</td>
-                    <td>@item.UnitPrice.ToString("C")</td>
-                    <td>@item.UnitCost.ToString("C")</td>
-                    <td>@item.TotalPrice.ToString("C")</td>
                     <td>
-                      <span class="text-@(item.Profit >= 0 ? "success" : "danger")">
-                        @item.Profit.ToString("C")
-                      </span>
-                      @if (item.TotalPrice > 0)
+                      <strong>@item.ProductName</strong>
+                      @if (!string.IsNullOrEmpty(item.Notes))
                       {
-                        <br>
-                        <small class="text-muted">(@item.ProfitMargin.ToString("F1")%)</small>
+                        <br><small class="text-muted">@item.Notes</small>
                       }
                     </td>
-                    @* Only show remove button for modifiable sales *@
+                    <td>
+                      <span class="badge bg-secondary">
+                        @(item.ItemId.HasValue ? "Item" : "Finished Good")
+                      </span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-primary">@item.QuantitySold</span>
+                      @if (item.QuantityBackordered > 0)
+                      {
+                        <br><small class="text-warning">(@item.QuantityBackordered backord.)</small>
+                      }
+                    </td>
+                    <td class="text-end">@item.UnitPrice.ToString("C")</td>
+                    <td class="text-end"><strong>@item.TotalPrice.ToString("C")</strong></td>
                     @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
                     {
-                      <td>
-                        <form asp-action="RemoveItem" method="post" style="display: inline;">
+                      <td class="text-center">
+                        <form method="post" action="/Sales/RemoveItem" style="display: inline;"
+                              onsubmit="return confirm('Remove this item from the sale?')">
+                          @Html.AntiForgeryToken()
                           <input type="hidden" name="saleItemId" value="@item.Id" />
                           <input type="hidden" name="saleId" value="@Model.Id" />
                           <button type="submit" class="btn btn-sm btn-outline-danger"
-                                  onclick="return confirm('Are you sure you want to remove this item?')">
+                                  title="Remove Item">
                             <i class="fas fa-trash"></i>
                           </button>
                         </form>
@@ -362,151 +417,123 @@
     </div>
   </div>
 
-  @{
-    // Get adjustments for this sale using the new navigation property
-    var saleAdjustments = Model.RelatedAdjustments?.ToList() ?? new List<CustomerBalanceAdjustment>();
-    var totalAdjustments = saleAdjustments.Sum(a => a.AdjustmentAmount);
-    var effectiveAmount = Model.TotalAmount - totalAdjustments;
-  }
-
-  <!-- Sale Summary Card (show adjustments) -->
-  <div class="card">
-    <div class="card-header">
-      <h5><i class="fas fa-calculator"></i> Sale Summary</h5>
-    </div>
-    <div class="card-body">
-      <table class="table table-sm">
-        <tr>
-          <td>Subtotal:</td>
-          <td class="text-end">@Model.SubtotalAmount.ToString("C")</td>
-        </tr>
-        <tr>
-          <td>Tax Amount:</td>
-          <td class="text-end">@Model.TaxAmount.ToString("C")</td>
-        </tr>
-        <tr>
-          <td>Shipping:</td>
-          <td class="text-end">@Model.ShippingCost.ToString("C")</td>
-        </tr>
-
-        @* Show original total *@
-        <tr class="@(totalAdjustments > 0 ? "table-light" : "table-dark")">
-          <td><strong>@(totalAdjustments > 0 ? "Original Total:" : "Total:")</strong></td>
-          <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
-        </tr>
-
-        @* Show adjustments if any exist *@
-        @if (totalAdjustments > 0)
-        {
-          <tr class="table-warning">
-            <td><strong>Adjustments:</strong></td>
-            <td class="text-end text-success"><strong>-@totalAdjustments.ToString("C")</strong></td>
-          </tr>
-          <tr class="table-dark">
-            <td><strong>Effective Total:</strong></td>
-            <td class="text-end"><strong>@effectiveAmount.ToString("C")</strong></td>
-          </tr>
-        }
-      </table>
-
-      @if (Model.SaleItems?.Any() == true)
-      {
-        <hr>
+  <div class="col-md-4">
+    <!-- Sale Summary Card (UPDATED with adjustments) -->
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-calculator"></i> Sale Summary</h5>
+      </div>
+      <div class="card-body">
         <table class="table table-sm">
           <tr>
-            <td>Total Cost:</td>
-            <td class="text-end">@Model.SaleItems.Sum(si => si.TotalCost).ToString("C")</td>
+            <td>Subtotal:</td>
+            <td class="text-end">@Model.SubtotalAmount.ToString("C")</td>
           </tr>
-          <tr class="@(Model.SaleItems.Sum(si => si.Profit) >= 0 ? "table-success" : "table-danger")">
-            <td><strong>Gross Profit:</strong></td>
-            <td class="text-end"><strong>@Model.SaleItems.Sum(si => si.Profit).ToString("C")</strong></td>
+          <tr>
+            <td>Tax Amount:</td>
+            <td class="text-end">@Model.TaxAmount.ToString("C")</td>
           </tr>
-
-          @* Show adjusted profit if adjustments exist *@
+          <tr>
+            <td>Shipping:</td>
+            <td class="text-end">@Model.ShippingCost.ToString("C")</td>
+          </tr>
+          
           @if (totalAdjustments > 0)
           {
-            var adjustedProfit = Model.SaleItems.Sum(si => si.Profit) - totalAdjustments;
-            <tr class="@(adjustedProfit >= 0 ? "table-info" : "table-danger")">
-              <td><strong>Adjusted Profit:</strong></td>
-              <td class="text-end"><strong>@adjustedProfit.ToString("C")</strong></td>
+            <tr class="table-light">
+              <td><strong>Original Total:</strong></td>
+              <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
+            </tr>
+            <tr class="table-warning">
+              <td><strong>Adjustments:</strong></td>
+              <td class="text-end text-success"><strong>-@totalAdjustments.ToString("C")</strong></td>
+            </tr>
+            <tr class="table-dark">
+              <td><strong>Effective Total:</strong></td>
+              <td class="text-end"><strong>@effectiveAmount.ToString("C")</strong></td>
+            </tr>
+          }
+          else
+          {
+            <tr class="table-dark">
+              <td><strong>Total:</strong></td>
+              <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
             </tr>
           }
         </table>
-      }
-    </div>
-  </div>
 
-    @* Backorder Information Card *@
-    @if (Model.SaleItems?.Any(si => si.QuantityBackordered > 0) == true)
-    {
-      <div class="card mt-3">
-        <div class="card-header bg-warning text-dark">
-          <h5><i class="fas fa-hourglass-half"></i> Backorder Information</h5>
-        </div>
-        <div class="card-body">
-          <div class="alert alert-warning">
-            <i class="fas fa-info-circle"></i>
-            <strong>This sale has backordered items.</strong> Production may be needed to fulfill the complete order.
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Total Ordered</th>
-                  <th>Available</th>
-                  <th>Backordered</th>
-                  <th>Backorder Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                @foreach (var item in Model.SaleItems.Where(si => si.QuantityBackordered > 0))
-                {
-                  <tr>
-                    <td>
-                      <strong>@item.ProductPartNumber</strong>
-                      <br>
-                      <small class="text-muted">@item.ProductName</small>
-                    </td>
-                    <td>@item.QuantitySold</td>
-                    <td>@item.QuantityAvailable</td>
-                    <td>
-                      <span class="badge bg-danger">@item.QuantityBackordered</span>
-                    </td>
-                    <td>@((item.QuantityBackordered * item.UnitPrice).ToString("C"))</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-
-          <div class="mt-3">
-            <strong>Total Backorder Value: </strong>
-            <span class="text-danger">
-              @Model.SaleItems.Where(si => si.QuantityBackordered > 0).Sum(si => si.QuantityBackordered * si.UnitPrice).ToString("C")
-            </span>
-          </div>
-        </div>
-      </div>
-    }
-
-    @* Customer Credit Status Card *@
-    @if (Model.Customer != null && Model.Customer.CreditLimit > 0)
-    {
-      <div class="card mt-3">
-        <div class="card-header">
-          <h5><i class="fas fa-credit-card"></i> Customer Credit Status</h5>
-        </div>
-        <div class="card-body">
+        @if (Model.SaleItems?.Any() == true)
+        {
+          <hr>
           <table class="table table-sm">
             <tr>
-              <td>Credit Limit:</td>
-              <td class="text-end">@Model.Customer.CreditLimit.ToString("C")</td>
+              <td>Total Cost:</td>
+              <td class="text-end">@Model.SaleItems.Sum(si => si.TotalCost).ToString("C")</td>
+            </tr>
+            <tr class="@(Model.SaleItems.Sum(si => si.Profit) >= 0 ? "table-success" : "table-danger")">
+              <td><strong>Gross Profit:</strong></td>
+              <td class="text-end"><strong>@Model.SaleItems.Sum(si => si.Profit).ToString("C")</strong></td>
+            </tr>
+            
+            @if (totalAdjustments > 0)
+            {
+              var adjustedProfit = Model.SaleItems.Sum(si => si.Profit) - totalAdjustments;
+              <tr class="@(adjustedProfit >= 0 ? "table-info" : "table-danger")">
+                <td><strong>Adjusted Profit:</strong></td>
+                <td class="text-end"><strong>@adjustedProfit.ToString("C")</strong></td>
+              </tr>
+            }
+          </table>
+        }
+      </div>
+    </div>
+
+    <!-- Customer Information -->
+    @if (Model.Customer != null)
+    {
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5><i class="fas fa-user"></i> Customer Information</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-5">Name:</dt>
+            <dd class="col-sm-7">
+              <a href="/Customers/Details/@Model.Customer.Id" class="text-decoration-none">
+                @Model.Customer.CustomerName
+              </a>
+            </dd>
+            
+            @if (!string.IsNullOrEmpty(Model.Customer.CompanyName))
+            {
+              <dt class="col-sm-5">Company:</dt>
+              <dd class="col-sm-7">@Model.Customer.CompanyName</dd>
+            }
+            
+            @if (!string.IsNullOrEmpty(Model.Customer.Email))
+            {
+              <dt class="col-sm-5">Email:</dt>
+              <dd class="col-sm-7">
+                <a href="mailto:@Model.Customer.Email">@Model.Customer.Email</a>
+              </dd>
+            }
+            
+            @if (!string.IsNullOrEmpty(Model.Customer.Phone))
+            {
+              <dt class="col-sm-5">Phone:</dt>
+              <dd class="col-sm-7">@Model.Customer.Phone</dd>
+            }
+          </dl>
+          
+          <hr>
+          <table class="table table-sm">
+            <tr class="@(Model.Customer.OutstandingBalance > 0 ? "table-warning" : "table-success")">
+              <td><strong>Outstanding Balance:</strong></td>
+              <td class="text-end"><strong>@Model.Customer.OutstandingBalance.ToString("C")</strong></td>
             </tr>
             <tr>
-              <td>Outstanding Balance:</td>
-              <td class="text-end">@Model.Customer.OutstandingBalance.ToString("C")</td>
+              <td><strong>Credit Limit:</strong></td>
+              <td class="text-end">@Model.Customer.CreditLimit.ToString("C")</td>
             </tr>
             <tr class="@(Model.Customer.CreditAvailable > 0 ? "table-success" : "table-danger")">
               <td><strong>Available Credit:</strong></td>
@@ -550,21 +577,21 @@
               <label class="form-label">Sale Total</label>
               @if (totalAdjustments > 0)
               {
-                <input type="text" class="form-control"
-                       value="$@effectiveAmount.ToString("N2") (Adjusted from $@Model.TotalAmount.ToString("N2"))" readonly />
+                <input type="text" class="form-control" 
+                       value="@effectiveAmount.ToString("C") (Adjusted from @Model.TotalAmount.ToString("C"))" readonly />
                 <div class="form-text text-warning">
                   <i class="fas fa-info-circle"></i>
-                  This sale has adjustments totaling $@totalAdjustments.ToString("N2")
+                  This sale has adjustments totaling @totalAdjustments.ToString("C")
                 </div>
               }
               else
               {
-                <input type="text" class="form-control" value="$@Model.TotalAmount.ToString("N2")" readonly />
+                <input type="text" class="form-control" value="@Model.TotalAmount.ToString("C")" readonly />
               }
             </div>
             <div class="mb-3">
               <label for="paymentAmount" class="form-label">Payment Amount *</label>
-              <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount"
+              <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount" 
                      value="@effectiveAmount" max="@effectiveAmount" min="0.01" required />
               <div class="form-text">Enter the amount received from the customer</div>
             </div>
@@ -582,13 +609,13 @@
             </div>
             <div class="mb-3">
               <label for="paymentDate" class="form-label">Payment Date *</label>
-              <input type="date" class="form-control" id="paymentDate" name="paymentDate"
+              <input type="date" class="form-control" id="paymentDate" name="paymentDate" 
                      value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
             </div>
             <div class="mb-3">
               <label for="paymentNotes" class="form-label">Payment Notes</label>
-              <textarea class="form-control" id="paymentNotes" name="paymentNotes" rows="2"
-                      placeholder="Check number, transaction ID, reference number, etc."></textarea>
+              <textarea class="form-control" id="paymentNotes" name="paymentNotes" rows="2" 
+                        placeholder="Check number, transaction ID, reference number, etc."></textarea>
               <div class="form-text">Optional notes about this payment</div>
             </div>
           </div>
@@ -604,148 +631,6 @@
   </div>
 }
 
-@if (saleAdjustments.Any())
-{
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card border-warning">
-        <div class="card-header bg-warning text-dark">
-          <h5 class="mb-0">
-            <i class="fas fa-adjust"></i> Invoice Adjustments
-            <span class="badge bg-dark ms-2">@saleAdjustments.Count Applied</span>
-          </h5>
-        </div>
-        <div class="card-body">
-          <!-- Adjustment Summary -->
-          <div class="row mb-3">
-            <div class="col-md-6">
-              <h6>Financial Impact:</h6>
-              <table class="table table-sm">
-                <tr>
-                  <td><strong>Original Invoice Amount:</strong></td>
-                  <td class="text-end">$@Model.TotalAmount.ToString("N2")</td>
-                </tr>
-                <tr>
-                  <td><strong>Total Adjustments:</strong></td>
-                  <td class="text-end text-success">($@saleAdjustments.Sum(a => a.AdjustmentAmount).ToString("N2"))</td>
-                </tr>
-                <tr class="table-light">
-                  <td><strong>Effective Amount:</strong></td>
-                  <td class="text-end"><strong>$@(Model.TotalAmount - saleAdjustments.Sum(a => a.AdjustmentAmount)).ToString("N2")</strong></td>
-                </tr>
-              </table>
-            </div>
-            <div class="col-md-6">
-              <h6>Quick Actions:</h6>
-              <div class="btn-group-vertical d-grid gap-2">
-                <a href="/Sales/GenerateRevisedInvoice/@Model.Id" class="btn btn-outline-primary btn-sm">
-                  <i class="fas fa-file-invoice"></i> Generate Revised Invoice
-                </a>
-                <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id" class="btn btn-outline-success btn-sm">
-                  <i class="fas fa-plus"></i> Add New Adjustment
-                </a>
-                <button class="btn btn-outline-info btn-sm" onclick="showAdjustmentHistory()">
-                  <i class="fas fa-history"></i> View Full History
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Adjustments List -->
-          <h6>Applied Adjustments:</h6>
-          <div class="table-responsive">
-            <table class="table table-hover table-sm">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Amount</th>
-                  <th>Reason</th>
-                  <th>Applied By</th>
-                  <th class="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                @foreach (var adjustment in saleAdjustments.OrderByDescending(a => a.AdjustmentDate))
-                {
-                  <tr>
-                    <td>@adjustment.AdjustmentDate.ToString("MM/dd/yyyy")</td>
-                    <td>
-                      <span class="badge bg-@(adjustment.AdjustmentType == "Bad Debt Write-off" ? "danger" : "warning")">
-                        @adjustment.AdjustmentType
-                      </span>
-                    </td>
-                    <td class="text-end">
-                      <strong class="text-success">$@adjustment.AdjustmentAmount.ToString("N2")</strong>
-                    </td>
-                    <td>
-                      @if (adjustment.Reason.Length > 40)
-                      {
-                        <span title="@adjustment.Reason">
-                          @adjustment.Reason.Substring(0, 40)...
-                        </span>
-                      }
-                      else
-                      {
-                        @adjustment.Reason
-                      }
-                    </td>
-                    <td>@adjustment.CreatedBy</td>
-                    <td class="text-center">
-                      <div class="btn-group btn-group-sm">
-                        <a href="/Sales/GenerateRevisedInvoice/@Model.Id?adjustmentId=@adjustment.Id"
-                           class="btn btn-outline-primary btn-sm" title="Revised Invoice for this adjustment">
-                          <i class="fas fa-file-invoice"></i>
-                        </a>
-                        <a href="/Sales/GenerateCreditMemo?adjustmentId=@adjustment.Id"
-                           class="btn btn-outline-success btn-sm" title="Generate Credit Memo">
-                          <i class="fas fa-receipt"></i>
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Impact Notice -->
-          <div class="alert alert-info mt-3">
-            <h6><i class="fas fa-info-circle"></i> Payment Status Impact</h6>
-            <p class="mb-0">
-              Due to applied adjustments, the customer now owes
-              <strong>$@(Model.TotalAmount - saleAdjustments.Sum(a => a.AdjustmentAmount)).ToString("N2")</strong>
-              for this invoice instead of the original $@Model.TotalAmount.ToString("N2").
-              @if (Model.PaymentStatus == PaymentStatus.Paid && (Model.TotalAmount - saleAdjustments.Sum(a => a.AdjustmentAmount)) < Model.TotalAmount)
-              {
-                <span class="text-success">
-                  <br><strong>Note:</strong> This invoice may be eligible for refund due to adjustments exceeding payments received.
-                </span>
-              }
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
-else
-{
-  <!-- No Adjustments - Show Option to Create -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card border-light">
-        <div class="card-body text-center py-2">
-          <p class="mb-2 text-muted">No adjustments have been applied to this invoice.</p>
-          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id"
-             class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-plus"></i> Apply Customer Adjustment
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-}
 <!-- Process Sale Confirmation Modal -->
 <div class="modal fade" id="processSaleModal" tabindex="-1" aria-labelledby="processSaleModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -769,146 +654,23 @@ else
           <strong>No Inventory Impact:</strong>
           <p class="mb-0">This sale contains only services and virtual items. No inventory will be reduced.</p>
         </div>
-        
-        <div class="alert alert-primary" id="mixedItemsInfo" style="display: none;">
-          <i class="fas fa-info-circle"></i>
-          <strong>Mixed Items:</strong>
-          <p class="mb-2">This sale contains both inventory and non-inventory items:</p>
-          <ul class="mb-0">
-            <li><span id="inventoryItemCountMixed"></span> will reduce inventory</li>
-            <li><span id="nonInventoryItemCount"></span> (services/virtual) will not affect inventory</li>
-          </ul>
-        </div>
 
-        <p class="mt-3">
-          <strong>Are you sure you want to process this sale and mark it as shipped?</strong>
-        </p>
+        <p>Are you sure you want to process and ship this sale? This action will:</p>
+        <ul>
+          <li>Mark the sale as <strong>Shipped</strong></li>
+          <li>Reduce inventory levels for physical items</li>
+          <li>Cannot be undone</li>
+        </ul>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form asp-action="ProcessSale" method="post" style="display: inline;">
-          <input type="hidden" name="id" value="@Model.Id" />
-          <button type="submit" class="btn btn-warning">
-            <i class="fas fa-shipping-fast"></i> Yes, Process Sale
+        <form method="post" action="/Sales/ProcessSale/@Model.Id" style="display: inline;">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-shipping-fast"></i> Process & Ship Sale
           </button>
         </form>
       </div>
     </div>
   </div>
-</div>
-
-<script>
-// Payment amount validation for Sales Details modal
-document.addEventListener('DOMContentLoaded', function() {
-    const paymentAmountInput = document.getElementById('paymentAmount');
-    
-    if (paymentAmountInput) {
-        paymentAmountInput.addEventListener('change', function() {
-            const paymentAmount = parseFloat(this.value);
-            const maxAmount = parseFloat(this.max);
-            
-            if (paymentAmount > maxAmount) {
-                alert('Payment amount cannot exceed sale total of $' + maxAmount.toFixed(2));
-                this.value = maxAmount.toFixed(2);
-            }
-            
-            if (paymentAmount <= 0) {
-                alert('Payment amount must be greater than zero');
-                this.value = maxAmount.toFixed(2);
-            }
-        });
-    }
-});
-
-// Check inventory impact and show appropriate modal for processing sale
-async function checkInventoryAndProcess(saleId) {
-    try {
-        // Get information about which items track inventory
-        const response = await fetch(`/Sales/GetSaleInventoryInfo?saleId=${saleId}`);
-        const data = await response.json();
-        
-        if (!data.success) {
-            alert('Error checking sale items: ' + data.message);
-            return;
-        }
-        
-        const inventoryItems = data.inventoryItems || [];
-        const nonInventoryItems = data.nonInventoryItems || [];
-        
-        // Get modal elements
-        const modal = new bootstrap.Modal(document.getElementById('processSaleModal'));
-        const inventoryWarning = document.getElementById('inventoryWarning');
-        const noInventoryInfo = document.getElementById('noInventoryInfo');
-        const mixedItemsInfo = document.getElementById('mixedItemsInfo');
-        const inventoryItemCount = document.getElementById('inventoryItemCount');
-        const inventoryItemsList = document.getElementById('inventoryItemsList');
-        const inventoryItemCountMixed = document.getElementById('inventoryItemCountMixed');
-        const nonInventoryItemCount = document.getElementById('nonInventoryItemCount');
-        
-        // Hide all alert types first
-        inventoryWarning.style.display = 'none';
-        noInventoryInfo.style.display = 'none';
-        mixedItemsInfo.style.display = 'none';
-        
-        if (inventoryItems.length === 0) {
-            // No inventory items - safe to process without warning
-            noInventoryInfo.style.display = 'block';
-        } else if (nonInventoryItems.length === 0) {
-            // Only inventory items - show inventory warning
-            inventoryWarning.style.display = 'block';
-            inventoryItemCount.textContent = `${inventoryItems.length} item${inventoryItems.length > 1 ? 's' : ''}`;
-            
-            // Build list of inventory items
-            inventoryItemsList.innerHTML = '';
-            inventoryItems.forEach(item => {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${item.partNumber}</strong> - ${item.description} (Qty: ${item.quantity})`;
-                inventoryItemsList.appendChild(li);
-            });
-        } else {
-            // Mixed items - show both types
-            mixedItemsInfo.style.display = 'block';
-            inventoryItemCountMixed.textContent = `${inventoryItems.length} item${inventoryItems.length > 1 ? 's' : ''}`;
-            nonInventoryItemCount.textContent = `${nonInventoryItems.length} item${nonInventoryItems.length > 1 ? 's' : ''}`;
-        }
-        
-        // Show the modal
-        modal.show();
-        
-    } catch (error) {
-        console.error('Error checking inventory info:', error);
-        // Fallback to simple confirmation if AJAX fails
-        if (confirm('Process this sale and mark it as shipped?')) {
-            // Create and submit the form programmatically since the form doesn't have an ID
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/Sales/ProcessSale';
-            
-            // Add CSRF token
-            const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]');
-            if (csrfToken) {
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = '__RequestVerificationToken';
-                csrfInput.value = csrfToken.value;
-                form.appendChild(csrfInput);
-            }
-            
-            // Add sale ID
-            const idInput = document.createElement('input');
-            idInput.type = 'hidden';
-            idInput.name = 'id';
-            idInput.value = saleId;
-            form.appendChild(idInput);
-            
-            // Append to body and submit
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
 }
-    function showAdjustmentHistory() {
-          // Redirect to customer details with focus on adjustments
-          window.location.href = '/Customers/Details/@Model.CustomerId#adjustments';
-      }
-</script>
