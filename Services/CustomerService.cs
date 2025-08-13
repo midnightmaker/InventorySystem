@@ -19,44 +19,75 @@ namespace InventorySystem.Services
             _logger = logger;
         }
 
-        // Basic CRUD operations
-        public async Task<IEnumerable<Customer>> GetAllCustomersAsync()
-        {
-            return await _context.Customers
-                .Include(c => c.Sales)
-                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
-                .OrderBy(c => c.CustomerName)
-                .ToListAsync();
-        }
+		// Basic CRUD operations
+		public async Task<IEnumerable<Customer>> GetAllCustomersAsync()
+		{
+			return await _context.Customers
+					.Include(c => c.Sales)
+							.ThenInclude(s => s.SaleItems)
+					.Include(c => c.BalanceAdjustments) // ? ADD THIS LINE
+					.OrderBy(c => c.CustomerName)
+					.ToListAsync();
+		}
 
-        public async Task<IEnumerable<Customer>> GetActiveCustomersAsync()
-        {
-            return await _context.Customers
-                .Include(c => c.Sales)
-                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
-                .Where(c => c.IsActive)
-                .OrderBy(c => c.CustomerName)
-                .ToListAsync();
-        }
+		public async Task<IEnumerable<Customer>> GetActiveCustomersAsync()
+		{
+			return await _context.Customers
+					.Include(c => c.Sales)
+							.ThenInclude(s => s.SaleItems)
+					.Include(c => c.BalanceAdjustments) // ? ADD THIS LINE
+					.Where(c => c.IsActive)
+					.OrderBy(c => c.CustomerName)
+					.ToListAsync();
+		}
 
-        public async Task<Customer?> GetCustomerByIdAsync(int id)
-        {
-            return await _context.Customers
-                .Include(c => c.Sales)
-                    .ThenInclude(s => s.SaleItems)
-                .Include(c => c.Documents)
-                .FirstOrDefaultAsync(c => c.Id == id);
-        }
+		public async Task<Customer?> GetCustomerByIdAsync(int id)
+		{
+			return await _context.Customers
+					.Include(c => c.Sales)
+							.ThenInclude(s => s.SaleItems)
+					.Include(c => c.Documents)
+					.Include(c => c.BalanceAdjustments) // ? ADD THIS LINE
+					.FirstOrDefaultAsync(c => c.Id == id);
+		}
 
-        public async Task<Customer?> GetCustomerByEmailAsync(string email)
-        {
-            return await _context.Customers
-                .Include(c => c.Sales)
-                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
-                .FirstOrDefaultAsync(c => c.Email.ToLower() == email.ToLower());
-        }
+		public async Task<Customer?> GetCustomerByEmailAsync(string email)
+		{
+			return await _context.Customers
+					.Include(c => c.Sales)
+							.ThenInclude(s => s.SaleItems)
+					.Include(c => c.BalanceAdjustments) // ? ADD THIS LINE
+					.FirstOrDefaultAsync(c => c.Email.ToLower() == email.ToLower());
+		}
+		public async Task<IEnumerable<Customer>> GetCustomersWithOutstandingBalanceAsync()
+		{
+			var customers = await _context.Customers
+					.Include(c => c.Sales)
+							.ThenInclude(s => s.SaleItems)
+					.Include(c => c.BalanceAdjustments) // ? ADD THIS LINE
+					.Where(c => c.IsActive && c.Sales.Any(s =>
+							s.PaymentStatus == PaymentStatus.Pending ||
+							s.PaymentStatus == PaymentStatus.Overdue))
+					.ToListAsync();
 
-        public async Task<Customer> CreateCustomerAsync(Customer customer)
+			// Then sort in memory using computed property
+			return customers.OrderByDescending(c => c.OutstandingBalance).ToList();
+		}
+
+		public async Task<IEnumerable<Customer>> GetCustomersOverCreditLimitAsync()
+		{
+			var customers = await _context.Customers
+					.Include(c => c.Sales)
+							.ThenInclude(s => s.SaleItems)
+					.Include(c => c.BalanceAdjustments) // ? ADD THIS LINE
+					.Where(c => c.IsActive && c.CreditLimit > 0)
+					.ToListAsync();
+
+			// Then filter in memory using computed property
+			return customers.Where(c => c.OutstandingBalance > c.CreditLimit).ToList();
+		}
+
+		public async Task<Customer> CreateCustomerAsync(Customer customer)
         {
             customer.CreatedDate = DateTime.Now;
             customer.LastUpdated = DateTime.Now;
@@ -152,32 +183,7 @@ namespace InventorySystem.Services
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Customer>> GetCustomersWithOutstandingBalanceAsync()
-        {
-            var customers = await _context.Customers
-                .Include(c => c.Sales)
-                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
-                .Where(c => c.IsActive && c.Sales.Any(s => 
-                    s.PaymentStatus == PaymentStatus.Pending || 
-                    s.PaymentStatus == PaymentStatus.Overdue))
-                .ToListAsync(); // First get the data from database
-                
-            // Then sort in memory using computed property
-            return customers.OrderByDescending(c => c.OutstandingBalance).ToList();
-        }
-
-        // FIXED: Problem 1 - Added await keyword
-        public async Task<IEnumerable<Customer>> GetCustomersOverCreditLimitAsync()
-        {
-            var customers = await _context.Customers
-                .Include(c => c.Sales)
-                    .ThenInclude(s => s.SaleItems)  // FIXED: Added SaleItems for TotalAmount calculation
-                .Where(c => c.IsActive && c.CreditLimit > 0)
-                .ToListAsync(); // First get the data from database
-
-            // Then filter in memory using computed property
-            return customers.Where(c => c.OutstandingBalance > c.CreditLimit).ToList();
-        }
+        
 
         // Customer analytics
         public async Task<CustomerAnalytics> GetCustomerAnalyticsAsync(int customerId)
@@ -410,57 +416,72 @@ namespace InventorySystem.Services
             return customer.OutstandingBalance + amount <= customer.CreditLimit;
         }
 
-        public async Task<ValidationResult> ValidateCustomerCreditAsync(int customerId, decimal purchaseAmount)
-        {
-            var customer = await GetCustomerByIdAsync(customerId);
-            if (customer == null)
-            {
-                return new ValidationResult
-                {
-                    IsValid = false,
-                    Message = "Customer not found",
-                    AvailableCredit = 0,
-                    RequestedAmount = purchaseAmount
-                };
-            }
+		public async Task<CreditValidationResult> ValidateCustomerCreditAsync(int customerId, decimal purchaseAmount)
+		{
+			var customer = await GetCustomerByIdAsync(customerId);
+			if (customer == null)
+			{
+				return new CreditValidationResult
+				{
+					IsValid = false,
+					Message = "Customer not found",
+					AvailableCredit = 0,
+					RequestedAmount = purchaseAmount,
+					Errors = { "Customer not found" }
+				};
+			}
 
-            if (!customer.IsActive)
-            {
-                return new ValidationResult
-                {
-                    IsValid = false,
-                    Message = "Customer account is inactive",
-                    AvailableCredit = 0,
-                    RequestedAmount = purchaseAmount
-                };
-            }
+			if (!customer.IsActive)
+			{
+				return new CreditValidationResult
+				{
+					IsValid = false,
+					Message = "Customer account is inactive",
+					AvailableCredit = 0,
+					RequestedAmount = purchaseAmount,
+					Errors = { "Customer account is inactive" }
+				};
+			}
 
-            if (customer.CreditLimit <= 0)
-            {
-                return new ValidationResult
-                {
-                    IsValid = true,
-                    Message = "No credit limit - approved",
-                    AvailableCredit = decimal.MaxValue,
-                    RequestedAmount = purchaseAmount
-                };
-            }
+			if (customer.CreditLimit <= 0)
+			{
+				return new CreditValidationResult
+				{
+					IsValid = true,
+					Message = "No credit limit - approved",
+					AvailableCredit = decimal.MaxValue,
+					RequestedAmount = purchaseAmount
+				};
+			}
 
-            var availableCredit = customer.CreditAvailable;
-            var isValid = purchaseAmount <= availableCredit;
+			var availableCredit = customer.CreditAvailable;
+			var isValid = purchaseAmount <= availableCredit;
 
-            return new ValidationResult
-            {
-                IsValid = isValid,
-                Message = isValid ? "Credit approved" : 
-                    $"Purchase amount exceeds available credit by ${purchaseAmount - availableCredit:F2}",
-                AvailableCredit = availableCredit,
-                RequestedAmount = purchaseAmount
-            };
-        }
+			var result = new CreditValidationResult
+			{
+				IsValid = isValid,
+				AvailableCredit = availableCredit,
+				RequestedAmount = purchaseAmount
+			};
 
-        // Import/Export (simplified implementation)
-        public async Task<BulkImportResult> ImportCustomersFromCsvAsync(Stream csvStream, bool skipHeaderRow = true)
+			if (isValid)
+			{
+				result.Message = $"Approved - ${availableCredit:N2} available credit";
+				if (purchaseAmount > availableCredit * 0.9m) // Warning if using >90% of available credit
+				{
+					result.Warnings.Add("This purchase will use most of the available credit");
+				}
+			}
+			else
+			{
+				result.Message = $"Declined - Exceeds available credit by ${purchaseAmount - availableCredit:N2}";
+				result.Errors.Add($"Purchase amount ${purchaseAmount:N2} exceeds available credit ${availableCredit:N2}");
+			}
+
+			return result;
+		}
+		// Import/Export (simplified implementation)
+		public async Task<BulkImportResult> ImportCustomersFromCsvAsync(Stream csvStream, bool skipHeaderRow = true)
         {
             var result = new BulkImportResult();
             

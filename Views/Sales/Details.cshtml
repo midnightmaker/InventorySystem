@@ -1,4 +1,5 @@
-﻿@model InventorySystem.Models.Sale
+﻿@using InventorySystem.Services
+@model InventorySystem.Models.Sale
 @{
   ViewData["Title"] = "Sale Details";
 }
@@ -562,7 +563,153 @@
     </div>
   </div>
 }
+@{
+  // Get adjustments for this sale using the new navigation property
+  var saleAdjustments = Model.RelatedAdjustments?.ToList() ?? new List<CustomerBalanceAdjustment>();
+}
 
+@if (saleAdjustments.Any())
+{
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-warning">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0">
+            <i class="fas fa-adjust"></i> Invoice Adjustments
+            <span class="badge bg-dark ms-2">@saleAdjustments.Count Applied</span>
+          </h5>
+        </div>
+        <div class="card-body">
+          <!-- Adjustment Summary -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <h6>Financial Impact:</h6>
+              <table class="table table-sm">
+                <tr>
+                  <td><strong>Original Invoice Amount:</strong></td>
+                  <td class="text-end">$@Model.TotalAmount.ToString("N2")</td>
+                </tr>
+                <tr>
+                  <td><strong>Total Adjustments:</strong></td>
+                  <td class="text-end text-success">($@saleAdjustments.Sum(a => a.AdjustmentAmount).ToString("N2"))</td>
+                </tr>
+                <tr class="table-light">
+                  <td><strong>Effective Amount:</strong></td>
+                  <td class="text-end"><strong>$@(Model.TotalAmount - saleAdjustments.Sum(a => a.AdjustmentAmount)).ToString("N2")</strong></td>
+                </tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <h6>Quick Actions:</h6>
+              <div class="btn-group-vertical d-grid gap-2">
+                <a href="/Sales/GenerateRevisedInvoice/@Model.Id" class="btn btn-outline-primary btn-sm">
+                  <i class="fas fa-file-invoice"></i> Generate Revised Invoice
+                </a>
+                <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id" class="btn btn-outline-success btn-sm">
+                  <i class="fas fa-plus"></i> Add New Adjustment
+                </a>
+                <button class="btn btn-outline-info btn-sm" onclick="showAdjustmentHistory()">
+                  <i class="fas fa-history"></i> View Full History
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Adjustments List -->
+          <h6>Applied Adjustments:</h6>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Reason</th>
+                  <th>Applied By</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var adjustment in saleAdjustments.OrderByDescending(a => a.AdjustmentDate))
+                {
+                  <tr>
+                    <td>@adjustment.AdjustmentDate.ToString("MM/dd/yyyy")</td>
+                    <td>
+                      <span class="badge bg-@(adjustment.AdjustmentType == "Bad Debt Write-off" ? "danger" : "warning")">
+                        @adjustment.AdjustmentType
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <strong class="text-success">$@adjustment.AdjustmentAmount.ToString("N2")</strong>
+                    </td>
+                    <td>
+                      @if (adjustment.Reason.Length > 40)
+                      {
+                        <span title="@adjustment.Reason">
+                          @adjustment.Reason.Substring(0, 40)...
+                        </span>
+                      }
+                      else
+                      {
+                        @adjustment.Reason
+                      }
+                    </td>
+                    <td>@adjustment.CreatedBy</td>
+                    <td class="text-center">
+                      <div class="btn-group btn-group-sm">
+                        <a href="/Sales/GenerateRevisedInvoice/@Model.Id?adjustmentId=@adjustment.Id"
+                           class="btn btn-outline-primary btn-sm" title="Revised Invoice for this adjustment">
+                          <i class="fas fa-file-invoice"></i>
+                        </a>
+                        <a href="/Sales/GenerateCreditMemo?adjustmentId=@adjustment.Id"
+                           class="btn btn-outline-success btn-sm" title="Generate Credit Memo">
+                          <i class="fas fa-receipt"></i>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Impact Notice -->
+          <div class="alert alert-info mt-3">
+            <h6><i class="fas fa-info-circle"></i> Payment Status Impact</h6>
+            <p class="mb-0">
+              Due to applied adjustments, the customer now owes
+              <strong>$@(Model.TotalAmount - saleAdjustments.Sum(a => a.AdjustmentAmount)).ToString("N2")</strong>
+              for this invoice instead of the original $@Model.TotalAmount.ToString("N2").
+              @if (Model.PaymentStatus == PaymentStatus.Paid && (Model.TotalAmount - saleAdjustments.Sum(a => a.AdjustmentAmount)) < Model.TotalAmount)
+              {
+                <span class="text-success">
+                  <br><strong>Note:</strong> This invoice may be eligible for refund due to adjustments exceeding payments received.
+                </span>
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+else
+{
+  <!-- No Adjustments - Show Option to Create -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-light">
+        <div class="card-body text-center py-2">
+          <p class="mb-2 text-muted">No adjustments have been applied to this invoice.</p>
+          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id"
+             class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-plus"></i> Apply Customer Adjustment
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+}
 <!-- Process Sale Confirmation Modal -->
 <div class="modal fade" id="processSaleModal" tabindex="-1" aria-labelledby="processSaleModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -724,4 +871,8 @@ async function checkInventoryAndProcess(saleId) {
         }
     }
 }
+    function showAdjustmentHistory() {
+          // Redirect to customer details with focus on adjustments
+          window.location.href = '/Customers/Details/@Model.CustomerId#adjustments';
+      }
 </script>

@@ -1,0 +1,232 @@
+﻿@model RevisedInvoiceViewModel
+@{
+  ViewData["Title"] = $"Revised Invoice - {Model.Sale.SaleNumber}";
+}
+
+<div class="container-fluid">
+  <!-- Print Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <h2>
+      <i class="fas fa-file-invoice"></i> Revised Invoice
+    </h2>
+    <div>
+      <button onclick="window.print()" class="btn btn-primary">
+        <i class="fas fa-print"></i> Print
+      </button>
+      <a href="/Sales/Details/@Model.Sale.Id" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Invoice
+      </a>
+    </div>
+  </div>
+
+  <!-- Revision Alert -->
+  <div class="alert alert-warning mb-4">
+    <h5><i class="fas fa-exclamation-triangle"></i> REVISED INVOICE</h5>
+    <p class="mb-1"><strong>Revision Number:</strong> @Model.RevisionNumber</p>
+    <p class="mb-1"><strong>Original Invoice:</strong> @Model.Sale.SaleNumber</p>
+    <p class="mb-1"><strong>Revision Date:</strong> @Model.GeneratedDate.ToString("MMMM dd, yyyy")</p>
+    <p class="mb-0"><strong>Reason:</strong> @Model.RevisionReason</p>
+  </div>
+
+  <!-- Invoice Content -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <!-- Company Header -->
+          <div class="row mb-4">
+            <div class="col-6">
+              <h3>Your Company Name</h3>
+              <p class="mb-0">
+                123 Business Street<br>
+                City, State 12345<br>
+                Phone: (555) 123-4567
+              </p>
+            </div>
+            <div class="col-6 text-end">
+              <h4 class="text-danger">REVISED INVOICE</h4>
+              <p class="mb-0">
+                <strong>Revision #:</strong> @Model.RevisionNumber<br>
+                <strong>Original Invoice #:</strong> @Model.Sale.SaleNumber<br>
+                <strong>Date:</strong> @Model.GeneratedDate.ToString("MM/dd/yyyy")
+              </p>
+            </div>
+          </div>
+
+          <!-- Customer Information -->
+          <div class="row mb-4">
+            <div class="col-6">
+              <h5>Bill To:</h5>
+              <div class="border rounded p-3">
+                <strong>@(Model.Sale.Customer?.CompanyName ?? Model.Sale.Customer?.ContactPerson)</strong><br>
+                @if (!string.IsNullOrEmpty(Model.Sale.Customer?.CompanyName))
+                {
+                  @Model.Sale.Customer.CompanyName
+                
+                  <br>
+                }
+                @if (!string.IsNullOrEmpty(Model.Sale.Customer?.FullBillingAddress))
+                {
+                  @Model.Sale.Customer.FullBillingAddress
+                }
+              </div>
+            </div>
+            <div class="col-6">
+              <h5>Invoice Details:</h5>
+              <table class="table table-sm">
+                <tr>
+                  <td><strong>Original Date:</strong></td>
+                  <td>@Model.Sale.SaleDate.ToString("MM/dd/yyyy")</td>
+                </tr>
+                <tr>
+                  <td><strong>Due Date:</strong></td>
+                  <td>@Model.Sale.PaymentDueDate.ToString("MM/dd/yyyy")</td>
+                </tr>
+                <tr>
+                  <td><strong>Terms:</strong></td>
+                  <td>@Model.Sale.Terms</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <div class="table-responsive mb-4">
+            <table class="table table-bordered">
+              <thead class="table-light">
+                <tr>
+                  <th>Item</th>
+                  <th>Description</th>
+                  <th class="text-center">Qty</th>
+                  <th class="text-end">Unit Price</th>
+                  <th class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var item in Model.Sale.SaleItems)
+                {
+                  <tr>
+                    <td>@item.Item.PartNumber</td>
+                    <td>@item.Item.Description</td>
+                    <td class="text-center">@item.QuantitySold</td>
+                    <td class="text-end">$@item.UnitPrice.ToString("N2")</td>
+                    <td class="text-end">$@item.TotalPrice.ToString("N2")</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Totals Section -->
+          <div class="row">
+            <div class="col-8"></div>
+            <div class="col-4">
+              <table class="table table-sm">
+                <tr>
+                  <td><strong>Original Subtotal:</strong></td>
+                  <td class="text-end">$@(Model.Sale.TotalAmount - Model.Sale.TaxAmount - Model.Sale.ShippingCost).ToString("N2")</td>
+                </tr>
+                @if (Model.Sale.TaxAmount > 0)
+                {
+                  <tr>
+                    <td><strong>Tax:</strong></td>
+                    <td class="text-end">$@Model.Sale.TaxAmount.ToString("N2")</td>
+                  </tr>
+                }
+                @if (Model.Sale.ShippingCost > 0)
+                {
+                  <tr>
+                    <td><strong>Shipping:</strong></td>
+                    <td class="text-end">$@Model.Sale.ShippingCost.ToString("N2")</td>
+                  </tr>
+                }
+                <tr class="table-light">
+                  <td><strong>Original Total:</strong></td>
+                  <td class="text-end"><strong>$@Model.OriginalAmount.ToString("N2")</strong></td>
+                </tr>
+
+                <!-- Adjustments Section -->
+                @foreach (var adjustment in Model.Adjustments)
+                {
+                  <tr class="text-success">
+                    <td><strong>@adjustment.AdjustmentType:</strong></td>
+                    <td class="text-end"><strong>($@adjustment.AdjustmentAmount.ToString("N2"))</strong></td>
+                  </tr>
+                }
+
+                <tr class="table-warning">
+                  <td><strong>Revised Total:</strong></td>
+                  <td class="text-end"><strong>$@Model.RevisedAmount.ToString("N2")</strong></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- Adjustment Details -->
+          @if (Model.Adjustments.Any())
+          {
+            <div class="mt-4">
+              <h5>Adjustment Details:</h5>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Amount</th>
+                      <th>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var adjustment in Model.Adjustments)
+                    {
+                      <tr>
+                        <td>@adjustment.AdjustmentDate.ToString("MM/dd/yyyy")</td>
+                        <td>@adjustment.AdjustmentType</td>
+                        <td class="text-end">$@adjustment.AdjustmentAmount.ToString("N2")</td>
+                        <td>@adjustment.Reason</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          <!-- Footer -->
+          <div class="row mt-4">
+            <div class="col-12">
+              <div class="alert alert-info">
+                <p class="mb-0">
+                  <strong>Note:</strong> This revised invoice supersedes the original invoice @Model.Sale.SaleNumber.
+                  Please remit payment based on the revised total amount of <strong>$@Model.RevisedAmount.ToString("N2")</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @@media print {
+    .no-print
+
+  {
+    display: none !important;
+  }
+
+  .container-fluid {
+    margin: 0;
+    padding: 0;
+  }
+
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  }
+</style>

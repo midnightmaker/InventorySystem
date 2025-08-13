@@ -1,6 +1,8 @@
 ﻿using InventorySystem.Data;
 using InventorySystem.Models;
+using InventorySystem.Models.Enums;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace InventorySystem.Services
 {
@@ -16,6 +18,51 @@ namespace InventorySystem.Services
 			_context = context;
 			_logger = logger;
 		}
+
+		public async Task<string> DebugCustomerAdjustments(int customerId)
+		{
+			var customer = await _context.Customers
+					.Include(c => c.Sales)
+					.Include(c => c.BalanceAdjustments)  // Make sure this is included
+					.FirstOrDefaultAsync(c => c.Id == customerId);
+
+			if (customer == null)
+				return "Customer not found";
+
+			var debug = new StringBuilder();
+			debug.AppendLine($"=== Customer Debug: {customer.CustomerName} (ID: {customerId}) ===");
+
+			// Check sales
+			var unpaidSales = customer.Sales?.Where(s =>
+					s.PaymentStatus == PaymentStatus.Pending ||
+					s.PaymentStatus == PaymentStatus.Overdue ||
+					s.PaymentStatus == PaymentStatus.PartiallyPaid) ?? new List<Sale>();
+
+			debug.AppendLine($"Unpaid Sales Count: {unpaidSales.Count()}");
+			debug.AppendLine($"Total Sales Amount: {unpaidSales.Sum(s => s.TotalAmount):C}");
+
+			// Check adjustments
+			debug.AppendLine($"Adjustments Count: {customer.BalanceAdjustments?.Count ?? 0}");
+			debug.AppendLine($"Total Adjustments: {customer.BalanceAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0:C}");
+
+			// List adjustments
+			if (customer.BalanceAdjustments?.Any() == true)
+			{
+				debug.AppendLine("Adjustment Details:");
+				foreach (var adj in customer.BalanceAdjustments.OrderByDescending(a => a.AdjustmentDate))
+				{
+					debug.AppendLine($"  - {adj.AdjustmentDate:yyyy-MM-dd}: {adj.AdjustmentType} ${adj.AdjustmentAmount} - {adj.Reason}");
+				}
+			}
+
+			// Check computed balance
+			debug.AppendLine($"Computed Outstanding Balance: {customer.OutstandingBalance:C}");
+			debug.AppendLine($"Raw Outstanding Balance: {customer.RawOutstandingBalance:C}");
+			debug.AppendLine($"Total Adjustments Property: {customer.TotalAdjustments:C}");
+
+			return debug.ToString();
+		}
+
 
 		/// <summary>
 		/// Updates customer balance when a sales allowance is applied

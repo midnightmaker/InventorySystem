@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Data;
 
+
 namespace InventorySystem.Controllers
 {
 	public class SalesController : Controller
@@ -1620,5 +1621,127 @@ namespace InventorySystem.Controllers
 				return View(sale);
 			}
 		}
+
+		// GET: Sales/GenerateCreditMemo?adjustmentId=123
+		public async Task<IActionResult> GenerateCreditMemo(int adjustmentId)
+		{
+			try
+			{
+				var adjustment = await _context.CustomerBalanceAdjustments
+						.Include(a => a.Customer)
+						.Include(a => a.Sale)
+						.FirstOrDefaultAsync(a => a.Id == adjustmentId);
+
+				if (adjustment == null)
+				{
+					TempData["ErrorMessage"] = "Adjustment not found.";
+					return RedirectToAction("Index", "Customers");
+				}
+
+				var creditMemoViewModel = new CreditMemoViewModel
+				{
+					Adjustment = adjustment,
+					Customer = adjustment.Customer,
+					RelatedSale = adjustment.Sale,
+					CreditMemoNumber = $"CM-{DateTime.Now:yyyyMMdd}-{adjustment.Id:D4}",
+					CreditAmount = adjustment.AdjustmentAmount,
+					GeneratedDate = DateTime.Now,
+					Reason = adjustment.Reason
+				};
+
+				return View("CreditMemo", creditMemoViewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error generating credit memo for adjustment {AdjustmentId}", adjustmentId);
+				TempData["ErrorMessage"] = $"Error generating credit memo: {ex.Message}";
+				return RedirectToAction("Index", "Customers");
+			}
+		}
+
+		// GET: Sales/GenerateRevisedInvoice/5?adjustmentId=123
+		public async Task<IActionResult> GenerateRevisedInvoice(int id, int? adjustmentId = null)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(id);
+				if (sale == null)
+				{
+					TempData["ErrorMessage"] = "Sale not found.";
+					return RedirectToAction("Index");
+				}
+
+				// Get all adjustments for this sale
+				var adjustments = await _context.CustomerBalanceAdjustments
+						.Where(a => a.SaleId == id)
+						.OrderBy(a => a.AdjustmentDate)
+						.ToListAsync();
+
+				// If specific adjustment requested, filter to that one
+				if (adjustmentId.HasValue)
+				{
+					adjustments = adjustments.Where(a => a.Id == adjustmentId.Value).ToList();
+				}
+
+				var revisedInvoiceViewModel = new RevisedInvoiceViewModel
+				{
+					Sale = sale,
+					Adjustments = adjustments,
+					OriginalAmount = sale.TotalAmount,
+					AdjustmentAmount = adjustments.Sum(a => a.AdjustmentAmount),
+					RevisedAmount = sale.TotalAmount - adjustments.Sum(a => a.AdjustmentAmount),
+					GeneratedDate = DateTime.Now,
+					RevisionReason = adjustments.FirstOrDefault()?.Reason ?? "Customer adjustment applied"
+				};
+
+				return View("RevisedInvoice", revisedInvoiceViewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error generating revised invoice for sale {SaleId}", id);
+				TempData["ErrorMessage"] = $"Error generating revised invoice: {ex.Message}";
+				return RedirectToAction("Details", new { id });
+			}
+		}
+		[HttpGet]
+		public async Task<JsonResult> GetAdjustmentDetails(int id)
+		{
+			try
+			{
+				var adjustment = await _context.CustomerBalanceAdjustments
+						.Include(a => a.Customer)
+						.Include(a => a.Sale)
+						.FirstOrDefaultAsync(a => a.Id == id);
+
+				if (adjustment == null)
+				{
+					return Json(new { success = false, error = "Adjustment not found" });
+				}
+
+				return Json(new
+				{
+					success = true,
+					id = adjustment.Id,
+					adjustmentType = adjustment.AdjustmentType,
+					amount = adjustment.AdjustmentAmount,
+					adjustmentDate = adjustment.AdjustmentDate,
+					reason = adjustment.Reason,
+					createdBy = adjustment.CreatedBy,
+					relatedSale = adjustment.Sale != null ? new
+					{
+						id = adjustment.Sale.Id,
+						saleNumber = adjustment.Sale.SaleNumber,
+						saleDate = adjustment.Sale.SaleDate,
+						totalAmount = adjustment.Sale.TotalAmount
+					} : null
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting adjustment details: {AdjustmentId}", id);
+				return Json(new { success = false, error = ex.Message });
+			}
+		}
+
 	}
 }

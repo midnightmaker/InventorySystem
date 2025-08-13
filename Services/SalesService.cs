@@ -31,30 +31,50 @@ namespace InventorySystem.Services
       _purchaseService = purchaseService;
     }
 
-    public async Task<IEnumerable<Sale>> GetAllSalesAsync()
-    {
-      return await _context.Sales
-          .Include(s => s.Customer) // ADDED: Include Customer for clean relationship
-          .Include(s => s.SaleItems)
-              .ThenInclude(si => si.Item)
-          .Include(s => s.SaleItems)
-              .ThenInclude(si => si.FinishedGood)
-          .OrderByDescending(s => s.SaleDate)
-          .ToListAsync();
-    }
+    
+		public async Task<Sale?> GetSaleByIdAsync(int id)
+		{
+			return await _context.Sales
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.Item)
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.Customer)
+							.ThenInclude(c => c.BalanceAdjustments) // ✅ Include customer adjustments
+					.Include(s => s.RelatedAdjustments) // ✅ Include sale-specific adjustments
+					.FirstOrDefaultAsync(s => s.Id == id);
+		}
 
-    public async Task<Sale?> GetSaleByIdAsync(int id)
-    {
-      return await _context.Sales
-          .Include(s => s.Customer) // ADDED: Include Customer for clean relationship
-          .Include(s => s.SaleItems)
-              .ThenInclude(si => si.Item)
-          .Include(s => s.SaleItems)
-              .ThenInclude(si => si.FinishedGood)
-          .FirstOrDefaultAsync(s => s.Id == id);
-    }
+		// Also update other methods that load sales to include adjustments:
 
-    public async Task<Sale> CreateSaleAsync(Sale sale)
+		public async Task<IEnumerable<Sale>> GetAllSalesAsync()
+		{
+			return await _context.Sales
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.Item)
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.Customer)
+					.Include(s => s.RelatedAdjustments) // ✅ Add this
+					.OrderByDescending(s => s.SaleDate)
+					.ToListAsync();
+		}
+
+		public async Task<IEnumerable<Sale>> GetSalesByCustomerAsync(int customerId)
+		{
+			return await _context.Sales
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.Item)
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.Customer)
+					.Include(s => s.RelatedAdjustments) // ✅ Add this
+					.Where(s => s.CustomerId == customerId)
+					.OrderByDescending(s => s.SaleDate)
+					.ToListAsync();
+		}
+
+		public async Task<Sale> CreateSaleAsync(Sale sale)
     {
       if (string.IsNullOrEmpty(sale.SaleNumber))
       {
@@ -287,17 +307,7 @@ namespace InventorySystem.Services
           .CountAsync(s => s.SaleStatus != SaleStatus.Cancelled);
     }
 
-    // UPDATED: Clean method to use Customer relationship instead of legacy CustomerName field
-    public async Task<IEnumerable<Sale>> GetSalesByCustomerAsync(int customerId)
-    {
-      return await _context.Sales
-          .Include(s => s.Customer)
-          .Include(s => s.SaleItems)
-          .Where(s => s.CustomerId == customerId)
-          .OrderByDescending(s => s.SaleDate)
-          .ToListAsync();
-    }
-
+    
     public async Task<IEnumerable<Sale>> GetCustomerSalesAsync(int customerId)
     {
         return await GetSalesByCustomerAsync(customerId);

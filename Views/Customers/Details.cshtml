@@ -323,6 +323,177 @@
         </div>
     </div>
 </div>
+<!-- Balance Breakdown Section -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-calculator"></i> Balance Breakdown
+        </h5>
+        @if (Model.TotalAdjustments > 0)
+        {
+          <span class="badge bg-info">
+            @Model.BalanceAdjustments.Count Adjustments Applied
+          </span>
+        }
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <table class="table table-sm">
+              <tr>
+                <td><strong>Original Invoice Amount:</strong></td>
+                <td class="text-end">$@Model.RawOutstandingBalance.ToString("N2")</td>
+              </tr>
+              @if (Model.TotalAdjustments > 0)
+              {
+                <tr>
+                  <td><strong>Less: Adjustments Applied:</strong></td>
+                  <td class="text-end text-success">($@Model.TotalAdjustments.ToString("N2"))</td>
+                </tr>
+                <tr class="table-light">
+                  <td><strong>Current Outstanding Balance:</strong></td>
+                  <td class="text-end"><strong>$@Model.OutstandingBalance.ToString("N2")</strong></td>
+                </tr>
+              }
+              else
+              {
+                <tr class="table-light">
+                  <td><strong>Current Outstanding Balance:</strong></td>
+                  <td class="text-end"><strong>$@Model.OutstandingBalance.ToString("N2")</strong></td>
+                </tr>
+              }
+            </table>
+          </div>
+          <div class="col-md-6">
+            @if (Model.LatestAdjustment != null)
+            {
+              <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle"></i> Most Recent Adjustment</h6>
+                <p class="mb-1"><strong>@Model.LatestAdjustment.AdjustmentType:</strong> $@Model.LatestAdjustment.AdjustmentAmount.ToString("N2")</p>
+                <p class="mb-1"><strong>Date:</strong> @Model.LatestAdjustment.AdjustmentDate.ToString("MM/dd/yyyy")</p>
+                <p class="mb-0"><strong>Reason:</strong> @Model.LatestAdjustment.Reason</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Balance Adjustments History -->
+@if (Model.BalanceAdjustments.Any())
+{
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-history"></i> Adjustment History
+          </h5>
+          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Id" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-plus"></i> New Adjustment
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Related Invoice</th>
+                  <th>Amount</th>
+                  <th>Reason</th>
+                  <th>Created By</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var adjustment in Model.BalanceAdjustments.OrderByDescending(a => a.AdjustmentDate))
+                {
+                  <tr>
+                    <td>@adjustment.AdjustmentDate.ToString("MM/dd/yyyy")</td>
+                    <td>
+                      <span class="badge bg-@(adjustment.AdjustmentType == "Bad Debt Write-off" ? "danger" : "warning")">
+                        @adjustment.AdjustmentType
+                      </span>
+                    </td>
+                    <td>
+                      @if (adjustment.Sale != null)
+                      {
+                        <a href="/Sales/Details/@adjustment.Sale.Id" class="text-decoration-none">
+                          @adjustment.Sale.SaleNumber
+                        </a>
+                      }
+                      else
+                      {
+                        <span class="text-muted">General Adjustment</span>
+                      }
+                    </td>
+                    <td class="text-end">
+                      <strong class="text-success">$@adjustment.AdjustmentAmount.ToString("N2")</strong>
+                    </td>
+                    <td>
+                      @if (adjustment.Reason.Length > 50)
+                      {
+                        <span title="@adjustment.Reason">
+                          @adjustment.Reason.Substring(0, 50)...
+                        </span>
+                      }
+                      else
+                      {
+                        @adjustment.Reason
+                      }
+                    </td>
+                    <td>@adjustment.CreatedBy</td>
+                    <td class="text-center">
+                      <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-info" onclick="viewAdjustmentDetails(@adjustment.Id)" title="View Details">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        @if (adjustment.Sale != null)
+                        {
+                          <a href="/Sales/GenerateRevisedInvoice/@adjustment.Sale.Id?adjustmentId=@adjustment.Id"
+                             class="btn btn-outline-primary" title="Generate Revised Invoice">
+                            <i class="fas fa-file-invoice"></i>
+                          </a>
+                        }
+                        <button class="btn btn-outline-secondary" onclick="generateCreditMemo(@adjustment.Id)" title="Generate Credit Memo">
+                          <i class="fas fa-receipt"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal for Adjustment Details -->
+<div class="modal fade" id="adjustmentDetailsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Adjustment Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="adjustmentDetailsContent">
+        <!-- Content loaded dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 @section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -369,6 +540,69 @@
                     'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
                 }
             }).then(() => location.reload());
+        }
+    }
+    function viewAdjustmentDetails(adjustmentId) {
+        // Load adjustment details via AJAX
+        fetch(`/Customers/GetAdjustmentDetails/${adjustmentId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('adjustmentDetailsContent').innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Adjustment Information</h6>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Type:</dt>
+                                    <dd class="col-sm-8"><span class="badge bg-primary">${data.adjustmentType}</span></dd>
+
+                                    <dt class="col-sm-4">Amount:</dt>
+                                    <dd class="col-sm-8"><strong>$${data.amount.toLocaleString()}</strong></dd>
+
+                                    <dt class="col-sm-4">Date:</dt>
+                                    <dd class="col-sm-8">${new Date(data.adjustmentDate).toLocaleDateString()}</dd>
+
+                                    <dt class="col-sm-4">Created By:</dt>
+                                    <dd class="col-sm-8">${data.createdBy}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                ${data.relatedSale ? `
+                                    <h6>Related Invoice</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Invoice #:</dt>
+                                        <dd class="col-sm-8"><a href="/Sales/Details/${data.relatedSale.id}">${data.relatedSale.saleNumber}</a></dd>
+
+                                        <dt class="col-sm-4">Date:</dt>
+                                        <dd class="col-sm-8">${new Date(data.relatedSale.saleDate).toLocaleDateString()}</dd>
+
+                                        <dt class="col-sm-4">Amount:</dt>
+                                        <dd class="col-sm-8">$${data.relatedSale.totalAmount.toLocaleString()}</dd>
+                                    </dl>
+                                ` : '<p class="text-muted">General customer adjustment (not related to specific invoice)</p>'}
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6>Reason</h6>
+                                <p class="border rounded p-3 bg-light">${data.reason}</p>
+                            </div>
+                        </div>
+                    `;
+                    new bootstrap.Modal(document.getElementById('adjustmentDetailsModal')).show();
+                } else {
+                    alert('Error loading adjustment details: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading adjustment details');
+            });
+    }
+
+    function generateCreditMemo(adjustmentId) {
+        if (confirm('Generate a credit memo for this adjustment?')) {
+            window.open(`/Sales/GenerateCreditMemo?adjustmentId=${adjustmentId}`, '_blank');
         }
     }
 </script>

@@ -208,8 +208,9 @@ namespace InventorySystem.Data
 						.HasForeignKey(e => e.CustomerId)
 						.OnDelete(DeleteBehavior.Cascade);
 
+				// ? ADD THIS RELATIONSHIP - This was missing!
 				entity.HasOne(e => e.Sale)
-						.WithMany()
+						.WithMany(s => s.RelatedAdjustments)  // Link to Sale.RelatedAdjustments
 						.HasForeignKey(e => e.SaleId)
 						.OnDelete(DeleteBehavior.SetNull);
 
@@ -227,6 +228,11 @@ namespace InventorySystem.Data
 			// Ensure Customer includes BalanceAdjustments in queries
 			modelBuilder.Entity<Customer>()
 					.Navigation(c => c.BalanceAdjustments)
+					.EnableLazyLoading();
+
+			// ? ADD THIS - Ensure Sale includes RelatedAdjustments in queries
+			modelBuilder.Entity<Sale>()
+					.Navigation(s => s.RelatedAdjustments)
 					.EnableLazyLoading();
 		}
 

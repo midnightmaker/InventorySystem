@@ -1,5 +1,6 @@
 ﻿// Models/Sale.cs
 using InventorySystem.Models.Enums;
+using InventorySystem.Services;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -302,5 +303,33 @@ namespace InventorySystem.Models
 				_ => "Loss"
 			};
 		}
+		// Add navigation property for related adjustments
+		public virtual ICollection<CustomerBalanceAdjustment> RelatedAdjustments { get; set; } = new List<CustomerBalanceAdjustment>();
+
+		// Add computed properties for adjustment calculations
+		[NotMapped]
+		public decimal TotalAdjustments => RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
+
+		[NotMapped]
+		public decimal EffectiveAmount => TotalAmount - TotalAdjustments;
+
+		[NotMapped]
+		public bool HasAdjustments => RelatedAdjustments?.Any() == true;
+
+		[NotMapped]
+		public CustomerBalanceAdjustment? LatestAdjustment => RelatedAdjustments?
+				.OrderByDescending(a => a.AdjustmentDate)
+				.FirstOrDefault();
+
+		// Add computed property to check if adjustments affect payment status
+		[NotMapped]
+		public bool AdjustmentsAffectBalance => TotalAdjustments > 0 &&
+				(PaymentStatus == PaymentStatus.Pending || PaymentStatus == PaymentStatus.Overdue);
+
+		// Helper method to get adjustment summary
+		[NotMapped]
+		public string AdjustmentSummary => HasAdjustments
+				? $"{RelatedAdjustments.Count} adjustment{(RelatedAdjustments.Count > 1 ? "s" : "")} totaling ${TotalAdjustments:N2}"
+				: "No adjustments applied";
 	}
 }

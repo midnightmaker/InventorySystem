@@ -1,0 +1,224 @@
+﻿@model CreditMemoViewModel
+@{
+  ViewData["Title"] = $"Credit Memo - {Model.CreditMemoNumber}";
+}
+
+<div class="container-fluid">
+  <!-- Print Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <h2>
+      <i class="fas fa-receipt"></i> Credit Memo
+    </h2>
+    <div>
+      <button onclick="window.print()" class="btn btn-primary">
+        <i class="fas fa-print"></i> Print
+      </button>
+      <a href="/Customers/Details/@Model.Customer.Id" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Customer
+      </a>
+    </div>
+  </div>
+
+  <!-- Credit Memo Content -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <!-- Company Header -->
+          <div class="row mb-4">
+            <div class="col-6">
+              <h3>Your Company Name</h3>
+              <p class="mb-0">
+                123 Business Street<br>
+                City, State 12345<br>
+                Phone: (555) 123-4567<br>
+                Email: billing@yourcompany.com
+              </p>
+            </div>
+            <div class="col-6 text-end">
+              <h4 class="text-success">CREDIT MEMO</h4>
+              <p class="mb-0">
+                <strong>Credit Memo #:</strong> @Model.CreditMemoNumber<br>
+                <strong>Date:</strong> @Model.GeneratedDate.ToString("MM/dd/yyyy")<br>
+                @if (Model.RelatedSale != null)
+                {
+                  <strong>Related Invoice:</strong> 
+                  @Model.RelatedSale.SaleNumber
+                
+                  <br>
+                }
+              </p>
+            </div>
+          </div>
+
+          <!-- Customer Information -->
+          <div class="row mb-4">
+            <div class="col-6">
+              <h5>Credit To:</h5>
+              <div class="border rounded p-3">
+                <strong>@Model.CustomerDisplayName</strong><br>
+                @if (!string.IsNullOrEmpty(Model.Customer.Email))
+                {
+                  @Model.Customer.Email
+                
+                  <br>
+                }
+                @if (!string.IsNullOrEmpty(Model.Customer.Phone))
+                {
+                  @Model.Customer.Phone
+                
+                  <br>
+                }
+                @if (!string.IsNullOrEmpty(Model.Customer.FullBillingAddress))
+                {
+                  @Model.Customer.FullBillingAddress
+                }
+              </div>
+            </div>
+            <div class="col-6">
+              @if (Model.RelatedSale != null)
+              {
+                <h5>Original Invoice Details:</h5>
+                <table class="table table-sm">
+                  <tr>
+                    <td><strong>Invoice #:</strong></td>
+                    <td>@Model.RelatedSale.SaleNumber</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Invoice Date:</strong></td>
+                    <td>@Model.RelatedSale.SaleDate.ToString("MM/dd/yyyy")</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Invoice Amount:</strong></td>
+                    <td>$@Model.RelatedSale.TotalAmount.ToString("N2")</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Payment Terms:</strong></td>
+                    <td>@Model.RelatedSale.Terms</td>
+                  </tr>
+                </table>
+              }
+            </div>
+          </div>
+
+          <!-- Credit Details -->
+          <div class="row mb-4">
+            <div class="col-12">
+              <h5>Credit Details:</h5>
+              <div class="table-responsive">
+                <table class="table table-bordered">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Description</th>
+                      <th>Type</th>
+                      <th>Date Applied</th>
+                      <th class="text-end">Credit Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>@Model.Reason</td>
+                      <td>
+                        <span class="badge bg-@(Model.Adjustment.AdjustmentType == "Bad Debt Write-off" ? "danger" : "warning")">
+                          @Model.Adjustment.AdjustmentType
+                        </span>
+                      </td>
+                      <td>@Model.Adjustment.AdjustmentDate.ToString("MM/dd/yyyy")</td>
+                      <td class="text-end"><strong>$@Model.CreditAmount.ToString("N2")</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Credit Summary -->
+          <div class="row">
+            <div class="col-8"></div>
+            <div class="col-4">
+              <table class="table table-sm">
+                <tr class="table-success">
+                  <td><strong>Total Credit Amount:</strong></td>
+                  <td class="text-end"><strong>$@Model.CreditAmount.ToString("N2")</strong></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- Impact on Customer Account -->
+          <div class="alert alert-success mt-4">
+            <h6><i class="fas fa-info-circle"></i> Account Impact</h6>
+            <p class="mb-0">
+              This credit memo has been applied to your account, reducing your outstanding balance by
+              <strong>$@Model.CreditAmount.ToString("N2")</strong>.
+              @if (Model.RelatedSale != null)
+              {
+                <text> The credit has been applied against invoice @Model.RelatedSale.SaleNumber.</text>
+              }
+            </p>
+          </div>
+
+          <!-- Adjustment Information -->
+          <div class="row mt-4">
+            <div class="col-12">
+              <h6>Adjustment Information:</h6>
+              <table class="table table-sm table-bordered">
+                <tr>
+                  <td class="bg-light" style="width: 25%;"><strong>Adjustment ID:</strong></td>
+                  <td>@Model.Adjustment.Id</td>
+                </tr>
+                <tr>
+                  <td class="bg-light"><strong>Applied By:</strong></td>
+                  <td>@Model.Adjustment.CreatedBy</td>
+                </tr>
+                <tr>
+                  <td class="bg-light"><strong>Applied Date:</strong></td>
+                  <td>@Model.Adjustment.AdjustmentDate.ToString("MMMM dd, yyyy")</td>
+                </tr>
+                <tr>
+                  <td class="bg-light"><strong>Reason:</strong></td>
+                  <td>@Model.Reason</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="row mt-4">
+            <div class="col-12 text-center">
+              <hr>
+              <p class="text-muted">
+                <small>
+                  This credit memo was generated automatically by the system.<br>
+                  For questions regarding this credit, please contact our billing department.<br>
+                  Credit Memo Generated: @Model.GeneratedDate.ToString("MMMM dd, yyyy 'at' h:mm tt")
+                </small>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @@media print {
+    .no-print
+
+  {
+    display: none !important;
+  }
+
+  .container-fluid {
+    margin: 0;
+    padding: 0;
+  }
+
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  }
+</style>

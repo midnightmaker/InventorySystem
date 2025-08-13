@@ -6,48 +6,48 @@ using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Services
 {
-    public interface ICustomerService
-    {
-        // Basic CRUD operations
-        Task<IEnumerable<Customer>> GetAllCustomersAsync();
-        Task<IEnumerable<Customer>> GetActiveCustomersAsync();
-        Task<Customer?> GetCustomerByIdAsync(int id);
-        Task<Customer?> GetCustomerByEmailAsync(string email);
-        Task<Customer> CreateCustomerAsync(Customer customer);
-        Task<Customer> UpdateCustomerAsync(Customer customer);
-        Task DeleteCustomerAsync(int id);
+	public interface ICustomerService
+	{
+		// Basic CRUD operations
+		Task<IEnumerable<Customer>> GetAllCustomersAsync();
+		Task<IEnumerable<Customer>> GetActiveCustomersAsync();
+		Task<Customer?> GetCustomerByIdAsync(int id);
+		Task<Customer?> GetCustomerByEmailAsync(string email);
+		Task<Customer> CreateCustomerAsync(Customer customer);
+		Task<Customer> UpdateCustomerAsync(Customer customer);
+		Task DeleteCustomerAsync(int id);
 
-        // Customer search and filtering
-        Task<IEnumerable<Customer>> SearchCustomersAsync(string searchTerm);
-        Task<IEnumerable<Customer>> GetCustomersByTypeAsync(CustomerType customerType);
-        Task<IEnumerable<Customer>> GetCustomersWithOutstandingBalanceAsync();
-        Task<IEnumerable<Customer>> GetCustomersOverCreditLimitAsync();
+		// Customer search and filtering
+		Task<IEnumerable<Customer>> SearchCustomersAsync(string searchTerm);
+		Task<IEnumerable<Customer>> GetCustomersByTypeAsync(CustomerType customerType);
+		Task<IEnumerable<Customer>> GetCustomersWithOutstandingBalanceAsync();
+		Task<IEnumerable<Customer>> GetCustomersOverCreditLimitAsync();
 
-        // Customer analytics
-        Task<CustomerAnalytics> GetCustomerAnalyticsAsync(int customerId);
-        Task<IEnumerable<TopCustomer>> GetTopCustomersAsync(int count = 10);
-        Task<decimal> GetCustomerTotalSalesAsync(int customerId);
-        Task<decimal> GetCustomerOutstandingBalanceAsync(int customerId);
-        Task<IEnumerable<Sale>> GetCustomerSalesHistoryAsync(int customerId);
-        Task<CustomerSalesReport> GetCustomerSalesReportAsync(int customerId, DateTime? startDate = null, DateTime? endDate = null);
+		// Customer analytics
+		Task<CustomerAnalytics> GetCustomerAnalyticsAsync(int customerId);
+		Task<IEnumerable<TopCustomer>> GetTopCustomersAsync(int count = 10);
+		Task<decimal> GetCustomerTotalSalesAsync(int customerId);
+		Task<decimal> GetCustomerOutstandingBalanceAsync(int customerId);
+		Task<IEnumerable<Sale>> GetCustomerSalesHistoryAsync(int customerId);
+		Task<CustomerSalesReport> GetCustomerSalesReportAsync(int customerId, DateTime? startDate = null, DateTime? endDate = null);
 
-        // Customer documents
-        Task<CustomerDocument> UploadCustomerDocumentAsync(CustomerDocument document);
-        Task<CustomerDocument?> GetCustomerDocumentAsync(int documentId);
-        Task<IEnumerable<CustomerDocument>> GetCustomerDocumentsAsync(int customerId);
-        Task DeleteCustomerDocumentAsync(int documentId);
+		// Customer documents
+		Task<CustomerDocument> UploadCustomerDocumentAsync(CustomerDocument document);
+		Task<CustomerDocument?> GetCustomerDocumentAsync(int documentId);
+		Task<IEnumerable<CustomerDocument>> GetCustomerDocumentsAsync(int customerId);
+		Task DeleteCustomerDocumentAsync(int documentId);
 
-        // Customer validation and business rules
-        Task<bool> IsEmailUniqueAsync(string email, int? excludeCustomerId = null);
-        Task<bool> CanCustomerPurchaseAsync(int customerId, decimal amount);
-        Task<ValidationResult> ValidateCustomerCreditAsync(int customerId, decimal purchaseAmount);
+		// Customer validation and business rules
+		Task<bool> IsEmailUniqueAsync(string email, int? excludeCustomerId = null);
+		Task<bool> CanCustomerPurchaseAsync(int customerId, decimal amount);
+		Task<CreditValidationResult> ValidateCustomerCreditAsync(int customerId, decimal purchaseAmount); // ? Updated
 
-        // Import/Export
-        Task<BulkImportResult> ImportCustomersFromCsvAsync(Stream csvStream, bool skipHeaderRow = true);
-        Task<byte[]> ExportCustomersToExcelAsync();
-    }
+		// Import/Export
+		Task<BulkImportResult> ImportCustomersFromCsvAsync(Stream csvStream, bool skipHeaderRow = true);
+		Task<byte[]> ExportCustomersToExcelAsync();
+	}
 
-    public class CustomerAnalytics
+	public class CustomerAnalytics
     {
         public int CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
@@ -96,15 +96,17 @@ namespace InventorySystem.Services
         public int OrderCount { get; set; }
     }
 
-    public class ValidationResult
-    {
-        public bool IsValid { get; set; }
-        public string Message { get; set; } = string.Empty;
-        public decimal AvailableCredit { get; set; }
-        public decimal RequestedAmount { get; set; }
-    }
+	public class CreditValidationResult
+	{
+		public bool IsValid { get; set; }
+		public string Message { get; set; } = string.Empty;
+		public decimal AvailableCredit { get; set; }
+		public decimal RequestedAmount { get; set; }
+		public List<string> Errors { get; set; } = new List<string>();
+		public List<string> Warnings { get; set; } = new List<string>();
+	}
 
-    public class BulkImportResult
+	public class BulkImportResult
     {
         public int SuccessfulImports { get; set; }
         public int FailedImports { get; set; }

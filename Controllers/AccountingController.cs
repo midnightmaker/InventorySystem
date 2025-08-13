@@ -24,6 +24,33 @@ namespace InventorySystem.Controllers
 			_logger = logger;
 		}
 
+		[HttpGet]
+		public async Task<IActionResult> DebugCustomerBalance(int customerId)
+		{
+			try
+			{
+				var customerBalanceService = HttpContext.RequestServices.GetRequiredService<ICustomerBalanceService>();
+
+				// If you added the debug method above
+				var debugInfo = await ((CustomerBalanceService)customerBalanceService).DebugCustomerAdjustments(customerId);
+
+				// Also check database directly
+				var adjustments = await _context.CustomerBalanceAdjustments
+						.Where(a => a.CustomerId == customerId)
+						.OrderByDescending(a => a.AdjustmentDate)
+						.ToListAsync();
+
+				ViewBag.DebugInfo = debugInfo;
+				ViewBag.DirectAdjustments = adjustments;
+
+				return View("Debug", adjustments);
+			}
+			catch (Exception ex)
+			{
+				ViewBag.Error = ex.Message;
+				return View("Debug");
+			}
+		}
 		// ============= DASHBOARD =============
 
 		// GET: Accounting
