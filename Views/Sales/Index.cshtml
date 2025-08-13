@@ -1,15 +1,15 @@
 ﻿@model IEnumerable<InventorySystem.Models.Sale>
 @using Microsoft.AspNetCore.Routing
 @{
-    ViewData["Title"] = "Sales";
-    var searchTerm = ViewBag.SearchTerm as string;
-    var customerFilter = ViewBag.CustomerFilter as string;
-    var statusFilter = ViewBag.StatusFilter as string;
-    var paymentStatusFilter = ViewBag.PaymentStatusFilter as string;
-    var startDate = ViewBag.StartDate as string;
-    var endDate = ViewBag.EndDate as string;
-    var sortOrder = ViewBag.SortOrder as string ?? "date_desc";
-    var isFiltered = ViewBag.IsFiltered as bool? ?? false;
+  ViewData["Title"] = "Sales";
+  var searchTerm = ViewBag.SearchTerm as string;
+  var customerFilter = ViewBag.CustomerFilter as string;
+  var statusFilter = ViewBag.StatusFilter as string;
+  var paymentStatusFilter = ViewBag.PaymentStatusFilter as string;
+  var startDate = ViewBag.StartDate as string;
+  var endDate = ViewBag.EndDate as string;
+  var sortOrder = ViewBag.SortOrder as string ?? "date_desc";
+  var isFiltered = ViewBag.IsFiltered as bool? ?? false;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -36,355 +36,392 @@
 
 @if (TempData["SuccessMessage"] != null)
 {
-    <div class="alert alert-success alert-dismissible fade show">
-        @TempData["SuccessMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+  <div class="alert alert-success alert-dismissible fade show">
+    @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
 }
 
 @if (TempData["ErrorMessage"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show">
-        @TempData["ErrorMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+  <div class="alert alert-danger alert-dismissible fade show">
+    @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
 }
 
 <!-- Enhanced Search Form -->
 <div class="card mb-4">
-    <div class="card-header">
-      <h6 class="mb-0">
-        <button class="btn btn-link text-decoration-none p-0 text-start w-100"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#searchCollapse"
-                aria-expanded="@(isFiltered ? "true" : "false")"
-                aria-controls="searchCollapse">
-          <i class="fas fa-search"></i> Search & Filter Sales
-          <i class="fas fa-chevron-@(isFiltered ? "up" : "down") float-end"></i>
-        </button>
-      </h6>
+  <div class="card-header">
+    <h6 class="mb-0">
+      <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#searchCollapse"
+              aria-expanded="@(isFiltered ? "true" : "false")"
+              aria-controls="searchCollapse">
+        <i class="fas fa-search"></i> Search & Filter Sales
+        <i class="fas fa-chevron-@(isFiltered ? "up" : "down") float-end"></i>
+      </button>
+    </h6>
+  </div>
+  <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
+    <div class="card-body">
+      <!-- Search Form -->
+      <form method="get" class="row g-3">
+        <div class="col-md-4">
+          <label for="search" class="form-label">
+            <i class="fas fa-search"></i> Search Term
+          </label>
+          <input type="text"
+                 class="form-control"
+                 id="search"
+                 name="search"
+                 value="@searchTerm"
+                 placeholder="Sale number, customer name, order number... (use * and ? for wildcards)">
+          <div class="form-text">Use * for multiple chars, ? for single char</div>
+        </div>
+
+        <div class="col-md-3">
+          <label for="customerFilter" class="form-label">
+            <i class="fas fa-user"></i> Customer
+          </label>
+          <select class="form-select" id="customerFilter" name="customerFilter" asp-items="ViewBag.CustomerOptions">
+            <option value="">All Customers</option>
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label for="statusFilter" class="form-label">
+            <i class="fas fa-flag"></i> Status
+          </label>
+          <select class="form-select" id="statusFilter" name="statusFilter" asp-items="ViewBag.StatusOptions">
+            <option value="">All Statuses</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="paymentStatusFilter" class="form-label">
+            <i class="fas fa-credit-card"></i> Payment Status
+          </label>
+          <select class="form-select" id="paymentStatusFilter" name="paymentStatusFilter" asp-items="ViewBag.PaymentStatusOptions">
+            <option value="">All Payment Status</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="startDate" class="form-label">
+            <i class="fas fa-calendar"></i> From Date
+          </label>
+          <input type="date" class="form-control" id="startDate" name="startDate" value="@startDate">
+        </div>
+
+        <div class="col-md-3">
+          <label for="endDate" class="form-label">To Date</label>
+          <input type="date" class="form-control" id="endDate" name="endDate" value="@endDate">
+        </div>
+
+        <div class="col-md-12">
+          <div class="btn-group">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-search"></i> Search
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+              <i class="fas fa-times"></i> Clear
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
-    <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
-      <div class="card-body">
-        <!-- Search Form -->
-        <form method="get" class="row g-3">
-          <div class="col-md-4">
-            <label for="search" class="form-label">
-              <i class="fas fa-search"></i> Search Term
-            </label>
-            <input type="text"
-                   class="form-control"
-                   id="search"
-                   name="search"
-                   value="@searchTerm"
-                   placeholder="Sale number, customer name, order number... (use * and ? for wildcards)">
-            <div class="form-text">Use * for multiple chars, ? for single char</div>
-          </div>
-
-          <div class="col-md-3">
-            <label for="customerFilter" class="form-label">
-              <i class="fas fa-user"></i> Customer
-            </label>
-            <select class="form-select" id="customerFilter" name="customerFilter" asp-items="ViewBag.CustomerOptions">
-              <option value="">All Customers</option>
-            </select>
-          </div>
-
-          <div class="col-md-2">
-            <label for="statusFilter" class="form-label">
-              <i class="fas fa-flag"></i> Status
-            </label>
-            <select class="form-select" id="statusFilter" name="statusFilter" asp-items="ViewBag.StatusOptions">
-              <option value="">All Statuses</option>
-            </select>
-          </div>
-
-          <div class="col-md-3">
-            <label for="paymentStatusFilter" class="form-label">
-              <i class="fas fa-credit-card"></i> Payment Status
-            </label>
-            <select class="form-select" id="paymentStatusFilter" name="paymentStatusFilter" asp-items="ViewBag.PaymentStatusOptions">
-              <option value="">All Payment Status</option>
-            </select>
-          </div>
-
-          <div class="col-md-3">
-            <label for="startDate" class="form-label">
-              <i class="fas fa-calendar"></i> From Date
-            </label>
-            <input type="date" class="form-control" id="startDate" name="startDate" value="@startDate">
-          </div>
-
-          <div class="col-md-3">
-            <label for="endDate" class="form-label">To Date</label>
-            <input type="date" class="form-control" id="endDate" name="endDate" value="@endDate">
-          </div>
-
-          <div class="col-md-12">
-            <div class="btn-group">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-search"></i> Search
-              </button>
-              <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
-                <i class="fas fa-times"></i> Clear
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+  </div>
 </div>
 
 <!-- Search Results Summary -->
 @if (isFiltered)
 {
-    <div class="alert alert-info">
-      <i class="fas fa-info-circle"></i>
-      Found <strong>@(ViewBag.TotalCount ?? Model.Count())</strong> sale(s)
-      @if (!string.IsNullOrEmpty(searchTerm))
-      {
-        <span>matching "<strong>@searchTerm</strong>"</span>
-      }
-      <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
-        <i class="fas fa-times"></i> Clear All Filters
-      </a>
-    </div>
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    Found <strong>@(ViewBag.TotalCount ?? Model.Count())</strong> sale(s)
+    @if (!string.IsNullOrEmpty(searchTerm))
+    {
+      <span>matching "<strong>@searchTerm</strong>"</span>
+    }
+    <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-secondary ms-2">
+      <i class="fas fa-times"></i> Clear All Filters
+    </a>
+  </div>
 }
 
 <div class="card">
-    <div class="card-header">
-        <h5><i class="fas fa-list"></i> Sales Records
-            <span class="badge bg-primary ms-2">@(ViewBag.TotalCount ?? Model.Count()) records</span>
-        </h5>
+  <div class="card-header">
+    <h5>
+      <i class="fas fa-list"></i> Sales Records
+      <span class="badge bg-primary ms-2">@(ViewBag.TotalCount ?? Model.Count()) records</span>
+    </h5>
 
-        <!-- Sort Options, Page Size, and Pagination Controls -->
-        <div class="d-flex align-items-center gap-3">
-          <!-- Page Size Controls -->
-          @if ((int)(ViewBag.TotalPages ?? 1) > 1)
-          {
-            <div class="btn-group">
-              <label class="btn btn-outline-secondary btn-sm">
-                Sales per page:
-                <select class="form-select form-select-sm d-inline-block w-auto ms-1" 
-                        onchange="changePageSize(this.value)">
-                  @{
-                    var allowedPageSizes = ViewBag.AllowedPageSizes as int[] ?? new int[] { 10, 25, 50, 100 };
-                    var currentPageSize = (int)(ViewBag.PageSize ?? 25);
-                  }
-                  @foreach (var size in allowedPageSizes)
-                  {
-                    <option value="@size" selected="@(size == currentPageSize)">@size</option>
-                  }
-                </select>
-              </label>
-            </div>
-          }
-
-          <!-- Sort Options -->
-          <div class="dropdown">
-            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-              <i class="fas fa-sort"></i> Sort
-            </button>
-            <ul class="dropdown-menu">
-              <li>
-                <a class="dropdown-item @(sortOrder == "date_desc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "date_desc" })">
-                  <i class="fas fa-calendar"></i> Date (Newest First)
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item @(sortOrder == "date_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "date_asc" })">
-                  <i class="fas fa-calendar"></i> Date (Oldest First)
-                </a>
-              </li>
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <a class="dropdown-item @(sortOrder == "customer_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "customer_asc" })">
-                  <i class="fas fa-user"></i> Customer (A-Z)
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item @(sortOrder == "amount_desc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "amount_desc" })">
-                  <i class="fas fa-dollar-sign"></i> Amount (High-Low)
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item @(sortOrder == "payment_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "payment_asc" })">
-                  <i class="fas fa-credit-card"></i> Payment Status
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Pagination Navigation -->
-          @if ((int)(ViewBag.TotalPages ?? 1) > 1)
-          {
-            <nav aria-label="Sales pagination">
-              <ul class="pagination pagination-sm mb-0">
-                <!-- Previous Page -->
-                <li class="page-item @((bool)(ViewBag.HasPreviousPage ?? false) ? "" : "disabled")">
-                  <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = (int)(ViewBag.CurrentPage ?? 1) - 1, pageSize = ViewBag.PageSize })">Previous</a>
-                </li>
-                
-                @{
-                  int currentPage = (int)(ViewBag.CurrentPage ?? 1);
-                  int totalPages = (int)(ViewBag.TotalPages ?? 1);
-                  int startPage = Math.Max(1, currentPage - 2);
-                  int endPage = Math.Min(totalPages, currentPage + 2);
-                }
-
-                @for (int i = startPage; i <= endPage; i++)
-                {
-                  <li class="page-item @(i == currentPage ? "active" : "")">
-                    <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = i, pageSize = ViewBag.PageSize })">@i</a>
-                  </li>
-                }
-                
-                <!-- Next Page -->
-                <li class="page-item @((bool)(ViewBag.HasNextPage ?? false) ? "" : "disabled")">
-                  <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = (int)(ViewBag.CurrentPage ?? 1) + 1, pageSize = ViewBag.PageSize })">Next</a>
-                </li>
-              </ul>
-            </nav>
-          }
+    <!-- Sort Options, Page Size, and Pagination Controls -->
+    <div class="d-flex align-items-center gap-3">
+      <!-- Page Size Controls -->
+      @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+      {
+        <div class="btn-group">
+          <label class="btn btn-outline-secondary btn-sm">
+            Sales per page:
+            <select class="form-select form-select-sm d-inline-block w-auto ms-1"
+                    onchange="changePageSize(this.value)">
+              @{
+                var allowedPageSizes = ViewBag.AllowedPageSizes as int[] ?? new int[] { 10, 25, 50, 100 };
+                var currentPageSize = (int)(ViewBag.PageSize ?? 25);
+              }
+              @foreach (var size in allowedPageSizes)
+              {
+                <option value="@size" selected="@(size == currentPageSize)">@size</option>
+              }
+            </select>
+          </label>
         </div>
-        <small class="text-muted">Click on any row to view sale details</small>
+      }
+
+      <!-- Sort Options -->
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+          <i class="fas fa-sort"></i> Sort
+        </button>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item @(sortOrder == "date_desc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "date_desc" })">
+              <i class="fas fa-calendar"></i> Date (Newest First)
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item @(sortOrder == "date_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "date_asc" })">
+              <i class="fas fa-calendar"></i> Date (Oldest First)
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item @(sortOrder == "customer_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "customer_asc" })">
+              <i class="fas fa-user"></i> Customer (A-Z)
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item @(sortOrder == "amount_desc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "amount_desc" })">
+              <i class="fas fa-dollar-sign"></i> Amount (High-Low)
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item @(sortOrder == "payment_asc" ? "active" : "")" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder = "payment_asc" })">
+              <i class="fas fa-credit-card"></i> Payment Status
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Pagination Navigation -->
+      @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+      {
+        <nav aria-label="Sales pagination">
+          <ul class="pagination pagination-sm mb-0">
+            <!-- Previous Page -->
+            <li class="page-item @((bool)(ViewBag.HasPreviousPage ?? false) ? "" : "disabled")">
+              <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = (int)(ViewBag.CurrentPage ?? 1) - 1, pageSize = ViewBag.PageSize })">Previous</a>
+            </li>
+
+            @{
+              int currentPage = (int)(ViewBag.CurrentPage ?? 1);
+              int totalPages = (int)(ViewBag.TotalPages ?? 1);
+              int startPage = Math.Max(1, currentPage - 2);
+              int endPage = Math.Min(totalPages, currentPage + 2);
+            }
+
+            @for (int i = startPage; i <= endPage; i++)
+            {
+              <li class="page-item @(i == currentPage ? "active" : "")">
+                <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = i, pageSize = ViewBag.PageSize })">@i</a>
+              </li>
+            }
+
+            <!-- Next Page -->
+            <li class="page-item @((bool)(ViewBag.HasNextPage ?? false) ? "" : "disabled")">
+              <a class="page-link" href="@Url.Action("Index", new { search = searchTerm, customerFilter, statusFilter, paymentStatusFilter, startDate, endDate, sortOrder, page = (int)(ViewBag.CurrentPage ?? 1) + 1, pageSize = ViewBag.PageSize })">Next</a>
+            </li>
+          </ul>
+        </nav>
+      }
     </div>
-    <div class="card-body">
-        @if (Model?.Any() == true)
-        {
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Sale #</th>
-                            <th>Date</th>
-                            <th>Customer</th>
-                            <th>Items</th>
-                            <th>Total</th>
-                            <th>Payment Status</th>
-                            <th>Sale Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var sale in Model.OrderByDescending(s => s.SaleDate))
-                        {
-                            <tr class="clickable-row" data-href="/Sales/Details/@sale.Id" style="cursor: pointer;">
-                                <td>
-                                    <strong>@sale.SaleNumber</strong>
-                                    @if (!string.IsNullOrEmpty(sale.OrderNumber))
-                                    {
-                                        <br><small class="text-muted">Order: @sale.OrderNumber</small>
-                                    }
-                                </td>
-                                <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
-                                <td>
-                                    @* FIXED: Use Customer relationship instead of legacy properties *@
-                                    @if (sale.Customer != null)
-                                    {
-                                        <strong>
-                                            <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none" onclick="event.stopPropagation();">
-                                                @sale.Customer.CustomerName
-                                            </a>
-                                        </strong>
-                                        @if (!string.IsNullOrEmpty(sale.Customer.CompanyName))
-                                        {
-                                            <br><small class="text-muted">@sale.Customer.CompanyName</small>
-                                        }
-                                        @if (!string.IsNullOrEmpty(sale.Customer.Email))
-                                        {
-                                            <br><small class="text-muted">@sale.Customer.Email</small>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">Unknown Customer</span>
-                                    }
-                                </td>
-                                <td>
-                                    <span class="badge bg-info">@sale.SaleItems.Count() items</span>
-                                    @if (sale.HasBackorders)
-                                    {
-                                        <br><span class="badge bg-warning text-dark">
-                                            <i class="fas fa-hourglass-half"></i> @sale.TotalBackorders backordered
-                                        </span>
-                                    }
-                                </td>
-                                <td>@sale.TotalAmount.ToString("C")</td>
-                                <td>
-                                    @if (sale.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
-                                    {
-                                        <span class="badge bg-success">Paid</span>
-                                    }
-                                    else if (sale.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Pending)
-                                    {
-                                        <span class="badge bg-warning">Pending</span>
-                                        @if (sale.IsOverdue)
-                                        {
-                                            <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> @sale.DaysOverdue days overdue</small>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-danger">@sale.PaymentStatus</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Processing)
-                                    {
-                                        <span class="badge bg-primary">Processing</span>
-                                    }
-                                    else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Shipped)
-                                    {
-                                        <span class="badge bg-success">Shipped</span>
-                                    }
-                                    else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Delivered)
-                                    {
-                                        <span class="badge bg-info">Delivered</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-danger">@sale.SaleStatus</span>
-                                    }
-                                </td>
-                                <td>
-                                    <!-- Action Buttons -->
-                                    <div class="btn-group">
-                                      <!-- View Details -->
-                                      <a href="/Sales/Details/@sale.Id" class="btn btn-sm btn-info" title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                      </a>
-                                      <!-- Edit -->
-                                      <a href="/Sales/Edit/@sale.Id" class="btn btn-sm btn-warning" title="Edit Sale">
-                                        <i class="fas fa-pencil-alt"></i>
-                                      </a>
-                                      <!-- Delete -->
-                                      <button class="btn btn-sm btn-danger" title="Delete Sale" onclick="deleteSale(@sale.Id, '@sale.SaleNumber')">
-                                        <i class="fas fa-trash"></i>
-                                      </button>
-                                      <!-- Payment -->
-                                      @if (sale.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
-                                      {
-                                        <button class="btn btn-sm btn-success" title="Record Payment" onclick="openPaymentModal(@sale.Id, '@sale.SaleNumber', @sale.TotalAmount)">
-                                          <i class="fas fa-dollar-sign"></i>
-                                        </button>
-                                      }
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else
-        {
-            <div class="alert alert-warning text-center">
-                <i class="fas fa-exclamation-triangle"></i> No sales records found.
-            </div>
-        }
-    </div>
+    <small class="text-muted">Click on any row to view sale details</small>
+  </div>
+  <div class="card-body">
+    @if (Model?.Any() == true)
+    {
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead class="table-dark">
+            <tr>
+              <th>Sale #</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Items</th>
+              <th>Total</th>
+              <th>Payment Status</th>
+              <th>Sale Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var sale in Model.OrderByDescending(s => s.SaleDate))
+            {
+              <tr class="clickable-row" data-href="/Sales/Details/@sale.Id" style="cursor: pointer;">
+                <td>
+                  <strong>@sale.SaleNumber</strong>
+                  @if (!string.IsNullOrEmpty(sale.OrderNumber))
+                  {
+                    <br>
+              
+                    <small class="text-muted">Order: @sale.OrderNumber</small>
+                  }
+                </td>
+                <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
+                <td>
+                  @* FIXED: Use Customer relationship instead of legacy properties *@
+                  @if (sale.Customer != null)
+                  {
+                    <strong>
+                      <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none" onclick="event.stopPropagation();">
+                        @sale.Customer.CustomerName
+                      </a>
+                    </strong>
+                    @if (!string.IsNullOrEmpty(sale.Customer.CompanyName))
+                    {
+                      <br>
+              
+                      <small class="text-muted">@sale.Customer.CompanyName</small>
+                    }
+                    @if (!string.IsNullOrEmpty(sale.Customer.Email))
+                    {
+                      <br>
+              
+                      <small class="text-muted">@sale.Customer.Email</small>
+                    }
+                  }
+                  else
+                  {
+                    <span class="text-muted">Unknown Customer</span>
+                  }
+                </td>
+                <td>
+                  <span class="badge bg-info">@sale.SaleItems.Count() items</span>
+                  @if (sale.HasBackorders)
+                  {
+                    <br>
+              
+                    <span class="badge bg-warning text-dark">
+                      <i class="fas fa-hourglass-half"></i> @sale.TotalBackorders backordered
+                    </span>
+                  }
+                </td>
+                <!-- Amount column in Sales Index table -->
+                <td class="text-end">
+                  @{
+                    var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
+                    var effectiveAmount = sale.TotalAmount - totalAdjustments;
+                  }
+
+                  @if (totalAdjustments > 0)
+                  {
+                    <div class="text-muted small">
+                      <s>@sale.TotalAmount.ToString("C")</s>
+                    </div>
+                    <div class="fw-bold text-success">
+                      @effectiveAmount.ToString("C")
+                    </div>
+                    <div class="text-muted small">
+                      <span class="badge bg-warning text-dark">Adjusted</span>
+                    </div>
+                  }
+                  else
+                  {
+                    <div class="fw-bold">
+                      @sale.TotalAmount.ToString("C")
+                    </div>
+                  }
+                </td>
+                <td>
+                  @if (sale.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                  {
+                    <span class="badge bg-success">Paid</span>
+                  }
+                  else if (sale.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Pending)
+                  {
+                    <span class="badge bg-warning">Pending</span>
+                    @if (sale.IsOverdue)
+                    {
+                      <br>
+              
+                      <small class="text-danger"><i class="fas fa-exclamation-triangle"></i> @sale.DaysOverdue days overdue</small>
+                    }
+                  }
+                  else
+                  {
+                    <span class="badge bg-danger">@sale.PaymentStatus</span>
+                  }
+                </td>
+                <td>
+                  @if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Processing)
+                  {
+                    <span class="badge bg-primary">Processing</span>
+                  }
+                  else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Shipped)
+                  {
+                    <span class="badge bg-success">Shipped</span>
+                  }
+                  else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Delivered)
+                  {
+                    <span class="badge bg-info">Delivered</span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-danger">@sale.SaleStatus</span>
+                  }
+                </td>
+                <td>
+                  <!-- Action Buttons -->
+                  <div class="btn-group">
+                    <!-- View Details -->
+                    <a href="/Sales/Details/@sale.Id" class="btn btn-sm btn-info" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <!-- Edit -->
+                    <a href="/Sales/Edit/@sale.Id" class="btn btn-sm btn-warning" title="Edit Sale">
+                      <i class="fas fa-pencil-alt"></i>
+                    </a>
+                    <!-- Delete -->
+                    <button class="btn btn-sm btn-danger" title="Delete Sale" onclick="deleteSale(@sale.Id, '@sale.SaleNumber')">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                    <!-- Payment -->
+                    @if (sale.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
+                    {
+                      <button class="btn btn-sm btn-success" title="Record Payment"
+                              onclick="openPaymentModalWithAdjustments(@sale.Id, '@sale.SaleNumber')">
+                        <i class="fas fa-dollar-sign"></i>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    else
+    {
+      <div class="alert alert-warning text-center">
+        <i class="fas fa-exclamation-triangle"></i> No sales records found.
+      </div>
+    }
+  </div>
 </div>
 
 <!-- MODAL: Record Payment (enhanced example) -->
@@ -402,7 +439,7 @@
           @* Anti-forgery token for security *@
           <input type="hidden" name="__RequestVerificationToken" value="@Html.AntiForgeryToken().ToString()" />
           <input type="hidden" id="modalSaleId" name="saleId" value="" />
-          
+
           <div class="row g-3">
             <div class="col-md-6">
               <label for="modalSaleNumber" class="form-label">
@@ -471,47 +508,94 @@
 </div>
 
 @section Scripts {
-    @* Existing scripts... *@
-    <script>
-      function setStatusFilter(status) {
-    if (status === 'Pending') {
-        document.getElementById('paymentStatusFilter').value = 'Pending';
-    } else if (status === 'Backordered') {
-        document.getElementById('statusFilter').value = 'Backordered';
+  @* Existing scripts... *@
+  <script>
+          function setStatusFilter(status) {
+        if (status === 'Pending') {
+            document.getElementById('paymentStatusFilter').value = 'Pending';
+        } else if (status === 'Backordered') {
+            document.getElementById('statusFilter').value = 'Backordered';
+        }
+
+        // Trigger search
+        document.querySelector('form').submit();
     }
-    
-    // Trigger search
-    document.querySelector('form').submit();
-}
 
-function changePageSize(size) {
-    const params = new URLSearchParams(window.location.search);
-    params.set('pageSize', size);
-    params.set('page', 1); // Reset to first page on page size change
+    function changePageSize(size) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('pageSize', size);
+        params.set('page', 1); // Reset to first page on page size change
 
-    window.location.search = params.toString();
-}
+        window.location.search = params.toString();
+    }
 
-function openPaymentModal(saleId, saleNumber, saleTotal) {
-    // Set the sale information in the modal
-    document.getElementById('modalSaleId').value = saleId;
-    document.getElementById('modalSaleNumber').value = saleNumber;
-    document.getElementById('modalSaleTotal').value = '$' + saleTotal.toFixed(2);
-    document.getElementById('modalPaymentAmount').value = saleTotal.toFixed(2);
-    document.getElementById('modalPaymentAmount').max = saleTotal;
-    
-    // Reset other fields
-    document.getElementById('modalPaymentMethod').value = '';
-    document.getElementById('modalPaymentNotes').value = '';
-    document.getElementById('modalPaymentDate').value = '@DateTime.Today.ToString("yyyy-MM-dd")';
-    
-    // Update modal title
-    document.getElementById('recordPaymentModalIndexLabel').innerHTML = 
-        '<i class="fas fa-dollar-sign"></i> Record Payment - Sale ' + saleNumber;
-    
-    // Show the modal
-    var modal = new bootstrap.Modal(document.getElementById('recordPaymentModalIndex'));
-    modal.show();
-}
-    </script>
+    function openPaymentModal(saleId, saleNumber, saleTotal) {
+        // Set the sale information in the modal
+        document.getElementById('modalSaleId').value = saleId;
+        document.getElementById('modalSaleNumber').value = saleNumber;
+        document.getElementById('modalSaleTotal').value = '$' + saleTotal.toFixed(2);
+        document.getElementById('modalPaymentAmount').value = saleTotal.toFixed(2);
+        document.getElementById('modalPaymentAmount').max = saleTotal;
+
+        // Reset other fields
+        document.getElementById('modalPaymentMethod').value = '';
+        document.getElementById('modalPaymentNotes').value = '';
+        document.getElementById('modalPaymentDate').value = '@DateTime.Today.ToString("yyyy-MM-dd")';
+
+        // Update modal title
+        document.getElementById('recordPaymentModalIndexLabel').innerHTML =
+            '<i class="fas fa-dollar-sign"></i> Record Payment - Sale ' + saleNumber;
+
+        // Show the modal
+        var modal = new bootstrap.Modal(document.getElementById('recordPaymentModalIndex'));
+        modal.show();
+    }
+        function openPaymentModalWithAdjustments(saleId, saleNumber) {
+        // Get the effective sale amount via AJAX
+        fetch(`/Sales/GetSaleEffectiveAmount?id=${saleId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Set the sale information in the modal
+                    document.getElementById('modalSaleId').value = saleId;
+                    document.getElementById('modalSaleNumber').value = saleNumber;
+
+                    // Show appropriate total based on adjustments
+                    if (data.hasAdjustments) {
+                        document.getElementById('modalSaleTotal').value =
+                            `$${data.effectiveAmount.toFixed(2)} (Adjusted from $${data.originalAmount.toFixed(2)})`;
+                        document.getElementById('modalPaymentAmount').value = data.effectiveAmount.toFixed(2);
+                        document.getElementById('modalPaymentAmount').max = data.effectiveAmount;
+                    } else {
+                        document.getElementById('modalSaleTotal').value = '$' + data.originalAmount.toFixed(2);
+                        document.getElementById('modalPaymentAmount').value = data.originalAmount.toFixed(2);
+                        document.getElementById('modalPaymentAmount').max = data.originalAmount;
+                    }
+
+                    // Reset other fields
+                    document.getElementById('modalPaymentMethod').value = '';
+                    document.getElementById('modalPaymentNotes').value = '';
+                    document.getElementById('modalPaymentDate').value = '@DateTime.Today.ToString("yyyy-MM-dd")';
+
+                    // Update modal title
+                    let titleText = `<i class="fas fa-dollar-sign"></i> Record Payment - Sale ${saleNumber}`;
+                    if (data.hasAdjustments) {
+                        titleText += ' <span class="badge bg-warning text-dark">Adjusted</span>';
+                    }
+                    document.getElementById('recordPaymentModalIndexLabel').innerHTML = titleText;
+
+                    // Show the modal
+                    var modal = new bootstrap.Modal(document.getElementById('recordPaymentModalIndex'));
+                    modal.show();
+                } else {
+                    alert('Error loading sale information: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading sale information. Please try again.');
+            });
+    }
+
+  </script>
 }

@@ -333,6 +333,9 @@ namespace InventorySystem.Controllers
 					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
 				};
 
+				// ? NEW: Calculate adjustments
+				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
+
 				var viewModel = new InvoiceReportViewModel
 				{
 					InvoiceNumber = sale.SaleNumber,
@@ -365,16 +368,21 @@ namespace InventorySystem.Controllers
 					OrderNumber = sale.OrderNumber ?? string.Empty,
 					TotalShipping = sale.ShippingCost,
 					TotalTax = sale.TaxAmount,
+					// ? NEW: Add adjustments to view model
+					TotalAdjustments = totalAdjustments,
+					OriginalAmount = sale.TotalAmount,
 					// Calculate amount paid using CustomerPaymentService
 					AmountPaid = await GetTotalPaymentsBySaleAsync(sale.Id)
 				};
 
-				ViewBag.SaleId = sale.Id;
+				// ? Pass sale ID to view for other actions
+				ViewBag.SaleId = saleId;
+
 				return View(viewModel);
 			}
 			catch (Exception ex)
 			{
-				TempData["ErrorMessage"] = $"Error generating invoice: {ex.Message}";
+				TempData["ErrorMessage"] = $"Error generating printable invoice: {ex.Message}";
 				return RedirectToAction("Index");
 			}
 		}
@@ -591,14 +599,14 @@ namespace InventorySystem.Controllers
 		}
 
 		// Helper method to get company information
-		private async Task<ViewModels.CompanyInfo> GetCompanyInfo()
+		private async Task<InventorySystem.Models.CompanyInfo> GetCompanyInfo()
 		{
 			try
 			{
 				var companyInfoService = HttpContext.RequestServices.GetRequiredService<ICompanyInfoService>();
 				var dbCompanyInfo = await companyInfoService.GetCompanyInfoAsync();
 
-				return new ViewModels.CompanyInfo
+				return new InventorySystem.Models.CompanyInfo
 				{
 					CompanyName = dbCompanyInfo.CompanyName,
 					Address = dbCompanyInfo.Address,
@@ -608,7 +616,6 @@ namespace InventorySystem.Controllers
 					Phone = dbCompanyInfo.Phone,
 					Email = dbCompanyInfo.Email,
 					Website = dbCompanyInfo.Website,
-					HasLogo = dbCompanyInfo.HasLogo,
 					LogoData = dbCompanyInfo.LogoData,
 					LogoContentType = dbCompanyInfo.LogoContentType,
 					LogoFileName = dbCompanyInfo.LogoFileName
@@ -616,7 +623,7 @@ namespace InventorySystem.Controllers
 			}
 			catch
 			{
-				return new ViewModels.CompanyInfo
+				return new InventorySystem.Models.CompanyInfo
 				{
 					CompanyName = "Your Inventory Management Company",
 					Address = "123 Business Drive",
@@ -626,7 +633,6 @@ namespace InventorySystem.Controllers
 					Phone = "(336) 555-0123",
 					Email = "sales@yourcompany.com",
 					Website = "www.yourcompany.com",
-					HasLogo = false
 				};
 			}
 		}
@@ -1739,6 +1745,43 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error getting adjustment details: {AdjustmentId}", id);
+				return Json(new { success = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>
+		/// API endpoint to get sale details including effective amount after adjustments
+		/// Used by JavaScript for payment modals and other AJAX calls
+		/// </summary>
+		[HttpGet]
+		public async Task<JsonResult> GetSaleEffectiveAmount(int id)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(id);
+				if (sale == null)
+				{
+					return Json(new { success = false, error = "Sale not found" });
+				}
+
+				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
+				var effectiveAmount = sale.TotalAmount - totalAdjustments;
+
+				return Json(new
+				{
+					success = true,
+					saleId = sale.Id,
+					saleNumber = sale.SaleNumber,
+					originalAmount = sale.TotalAmount,
+					totalAdjustments = totalAdjustments,
+					effectiveAmount = effectiveAmount,
+					hasAdjustments = totalAdjustments > 0,
+					paymentStatus = sale.PaymentStatus.ToString()
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting effective amount for sale {SaleId}", id);
 				return Json(new { success = false, error = ex.Message });
 			}
 		}

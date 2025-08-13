@@ -192,69 +192,102 @@
                             lineNumber++;
                         }
                     </tbody>
-                    <tfoot class="table-secondary">
-                        <tr>
-                            <th colspan="5" class="text-end">Subtotal (@Model.LineItemCount items, @Model.TotalQuantity total qty):</th>
-                            <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
-                            <th></th>
-                        </tr>
-                        @if (Model.TotalShipping > 0)
-                        {
-                            <tr>
-                                <th colspan="5" class="text-end">Shipping:</th>
-                                <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
-                                <th></th>
-                            </tr>
-                        }
-                        @if (Model.TotalTax > 0)
-                        {
-                            <tr>
-                                <th colspan="5" class="text-end">Tax:</th>
-                                <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
-                                <th></th>
-                            </tr>
-                        }
-                        <tr class="table-info">
-                            <th colspan="5" class="text-end"><strong>INVOICE TOTAL:</strong></th>
-                            <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
-                            <th></th>
-                        </tr>
-                        @if (Model.AmountPaid > 0)
-                        {
-                            <tr class="table-success">
-                                <th colspan="5" class="text-end">Amount Paid:</th>
-                                <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
-                                <th></th>
-                            </tr>
-                        }
-                        <tr class="table-dark">
-                            <th colspan="5" class="text-end">
-                                <strong>
-                                    @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
-                                    {
-                                        <span>PAID IN FULL</span>
-                                    }
-                                    else
-                                    {
-                                        <span>AMOUNT DUE:</span>
-                                    }
-                                </strong>
-                            </th>
-                            <th class="text-end">
-                                <strong>
-                                    @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
-                                    {
-                                        <span class="text-success">$0.00</span>
-                                    }
-                                    else
-                                    {
-                                        <span>$@Model.AmountDue.ToString("N2")</span>
-                                    }
-                                </strong>
-                            </th>
-                            <th></th>
-                        </tr>
-                    </tfoot>
+
+          <!-- Invoice Total Section (UPDATED to show adjustments) -->
+          <tfoot class="table-secondary">
+            <tr>
+              <th colspan="5" class="text-end">Subtotal (@Model.LineItemCount items, @Model.TotalQuantity total qty):</th>
+              <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
+              <th></th>
+            </tr>
+            @if (Model.TotalShipping > 0)
+            {
+              <tr>
+                <th colspan="5" class="text-end">Shipping:</th>
+                <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
+                <th></th>
+              </tr>
+            }
+            @if (Model.TotalTax > 0)
+            {
+              <tr>
+                <th colspan="5" class="text-end">Tax:</th>
+                <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
+                <th></th>
+              </tr>
+            }
+
+            @* Show original total if adjustments exist *@
+            @if (Model.HasAdjustments)
+            {
+              <tr class="table-light">
+                <th colspan="5" class="text-end">Original Invoice Total:</th>
+                <th class="text-end">$@Model.UnadjustedTotal.ToString("N2")</th>
+                <th></th>
+              </tr>
+              <tr class="table-warning">
+                <th colspan="5" class="text-end">Invoice Adjustments:</th>
+                <th class="text-end text-success">-$@Model.TotalAdjustments.ToString("N2")</th>
+                <th></th>
+              </tr>
+              <tr class="table-info">
+                <th colspan="5" class="text-end"><strong>ADJUSTED INVOICE TOTAL:</strong></th>
+                <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+                <th></th>
+              </tr>
+            }
+            else
+            {
+              <tr class="table-info">
+                <th colspan="5" class="text-end"><strong>INVOICE TOTAL:</strong></th>
+                <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+                <th></th>
+              </tr>
+            }
+
+            @if (Model.AmountPaid > 0)
+            {
+              <tr class="table-success">
+                <th colspan="5" class="text-end">Amount Paid:</th>
+                <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
+                <th></th>
+              </tr>
+              <tr class="@(Model.AmountDue > 0 ? "table-warning" : "table-success")">
+                <th colspan="5" class="text-end"><strong>AMOUNT DUE:</strong></th>
+                <th class="text-end"><strong>$@Model.AmountDue.ToString("N2")</strong></th>
+                <th></th>
+              </tr>
+            }
+          </tfoot>
+
+          @* Add adjustment details section if adjustments exist *@
+          @if (Model.HasAdjustments)
+          {
+            <div class="row mt-4">
+              <div class="col-12">
+                <div class="card border-warning">
+                  <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                      <i class="fas fa-adjust"></i> Invoice Adjustments Applied
+                      <span class="badge bg-dark ms-2">$@Model.TotalAdjustments.ToString("N2") Total</span>
+                    </h6>
+                  </div>
+                  <div class="card-body">
+                    <p class="text-muted mb-0">
+                      <i class="fas fa-info-circle"></i>
+                      This invoice has been adjusted from the original amount of
+                      <strong>$@Model.UnadjustedTotal.ToString("N2")</strong> to
+                      <strong>$@Model.InvoiceTotal.ToString("N2")</strong>.
+                    </p>
+                    <small class="text-muted">
+                      For detailed adjustment information, please contact our accounting department.
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+
                 </table>
             </div>
 
