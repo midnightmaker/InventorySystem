@@ -1,0 +1,1513 @@
+﻿@model InventorySystem.ViewModels.Accounting.EnhancedManualJournalEntryViewModel
+@{
+  ViewData["Title"] = "Create Customer Adjustment";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1><i class="fas fa-user-edit"></i> Create Customer Adjustment</h1>
+    <p class="text-muted mb-0">Record sales allowances, discounts, and bad debt write-offs</p>
+  </div>
+  <div class="btn-group">
+    <a href="/Accounting/GeneralLedger" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to General Ledger
+    </a>
+    <button type="button" class="btn btn-outline-info" onclick="showPreview()">
+      <i class="fas fa-eye"></i> Preview Entry
+    </button>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <div class="col-lg-8">
+    <form asp-action="CreateCustomerAdjustment" method="post" id="customerAdjustmentForm">
+      <input type="hidden" asp-for="IsCustomerAdjustment" value="true" />
+
+      <!-- Customer Adjustment Details -->
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-user-cog"></i> Customer Adjustment Details</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <!-- Customer Selection -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="CustomerId" class="form-label">
+                <i class="fas fa-user"></i> Customer <span class="text-danger">*</span>
+              </label>
+              <select asp-for="CustomerId" class="form-select" id="customerSelect" onchange="loadCustomerSales()">
+                <option value="">-- Select Customer --</option>
+                @foreach (var customer in Model.AvailableCustomers)
+                {
+                  <option value="@customer.Id" data-balance="@customer.OutstandingBalance">
+                    @customer.CustomerName - Balance: @customer.OutstandingBalance.ToString("C")
+                  </option>
+                }
+              </select>
+              <span asp-validation-for="CustomerId" class="text-danger"></span>
+            </div>
+
+            <!-- Sale/Invoice Selection -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="SaleId" class="form-label">
+                <i class="fas fa-file-invoice"></i> Invoice (Optional)
+              </label>
+              <select asp-for="SaleId" class="form-select" id="saleSelect">
+                <option value="">-- Select Invoice (Optional) --</option>
+                @foreach (var sale in Model.AvailableSales)
+                {
+                  <option value="@sale.Id" data-customer="@sale.CustomerId" data-amount="@sale.TotalAmount">
+                    @sale.SaleNumber - @sale.TotalAmount.ToString("C") (@sale.SaleDate.ToString("MM/dd/yyyy"))
+                  </option>
+                }
+              </select>
+              <span asp-validation-for="SaleId" class="text-danger"></span>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- Adjustment Type -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="AdjustmentType" class="form-label">
+                <i class="fas fa-tags"></i> Adjustment Type <span class="text-danger">*</span>
+              </label>
+              <select asp-for="AdjustmentType" class="form-select" id="adjustmentTypeSelect" onchange="loadAdjustmentTemplate()">
+                <option value="">-- Select Adjustment Type --</option>
+                @foreach (var type in Model.AdjustmentTypes)
+                {
+                  <option value="@type">@type</option>
+                }
+              </select>
+              <span asp-validation-for="AdjustmentType" class="text-danger"></span>
+            </div>
+
+            <!-- Transaction Date -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="TransactionDate" class="form-label">
+                <i class="fas fa-calendar"></i> Transaction Date <span class="text-danger">*</span>
+              </label>
+              <input asp-for="TransactionDate" class="form-control" type="date" />
+              <span asp-validation-for="TransactionDate" class="text-danger"></span>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- Reference Number -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="ReferenceNumber" class="form-label">
+                <i class="fas fa-hashtag"></i> Reference Number <span class="text-danger">*</span>
+              </label>
+              <input asp-for="ReferenceNumber" class="form-control" placeholder="e.g., ALLOW-2025-001" />
+              <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+            </div>
+
+            <!-- Amount (for convenience) -->
+            <div class="col-md-6 mb-3">
+              <label class="form-label">
+                <i class="fas fa-dollar-sign"></i> Adjustment Amount
+              </label>
+              <input type="number" step="0.01" class="form-control" id="adjustmentAmount" placeholder="0.00" onchange="distributeAmount()" />
+              <div class="form-text">This amount will be distributed to the journal entry lines</div>
+            </div>
+          </div>
+
+          <!-- Adjustment Reason -->
+          <div class="mb-3">
+            <label asp-for="AdjustmentReason" class="form-label">
+              <i class="fas fa-comment"></i> Adjustment Reason <span class="text-danger">*</span>
+            </label>
+            <textarea asp-for="AdjustmentReason" class="form-control" rows="2"
+                      placeholder="e.g., Damaged goods returned by customer"></textarea>
+            <span asp-validation-for="AdjustmentReason" class="text-danger"></span>
+          </div>
+
+          <!-- Description -->
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">
+              <i class="fas fa-align-left"></i> Entry Description
+            </label>
+            <textarea asp-for="Description" class="form-control" rows="2"
+                      placeholder="e.g., Sales allowance for customer quality issue"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Journal Entry Lines -->
+      <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-list"></i> Journal Entry Lines</h5>
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="addJournalLine()">
+            <i class="fas fa-plus"></i> Add Line
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-bordered" id="journalLinesTable">
+              <thead class="table-light">
+                <tr>
+                  <th width="5%">#</th>
+                  <th width="35%">Account</th>
+                  <th width="30%">Description</th>
+                  <th width="12%">Debit</th>
+                  <th width="12%">Credit</th>
+                  <th width="6%">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="journalLinesBody">
+                @for (int i = 0; i < Model.JournalEntries.Count; i++)
+                {
+                  <tr class="journal-line-row" data-line-number="@(i + 1)">
+                    <td class="line-number">@(i + 1)</td>
+                    <td>
+                      <input type="hidden" asp-for="JournalEntries[i].LineNumber" value="@(i + 1)" />
+                      <select asp-for="JournalEntries[i].AccountId" class="form-select account-select">
+                        <option value="">-- Select Account --</option>
+                        @foreach (var account in Model.AvailableAccounts)
+                        {
+                          <option value="@account.Id">@account.AccountCode - @account.AccountName</option>
+                        }
+                      </select>
+                    </td>
+                    <td>
+                      <input asp-for="JournalEntries[i].LineDescription" class="form-control form-control-sm"
+                             placeholder="Line description" />
+                    </td>
+                    <td>
+                      <input asp-for="JournalEntries[i].DebitAmount" class="form-control form-control-sm text-end debit-amount"
+                             type="number" step="0.01" placeholder="0.00" onchange="updateTotals()" />
+                    </td>
+                    <td>
+                      <input asp-for="JournalEntries[i].CreditAmount" class="form-control form-control-sm text-end credit-amount"
+                             type="number" step="0.01" placeholder="0.00" onchange="updateTotals()" />
+                    </td>
+                    <td class="text-center">
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeJournalLine(this)">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot class="table-light">
+                <tr>
+                  <td colspan="3" class="text-end"><strong>Totals:</strong></td>
+                  <td class="text-end">
+                    <strong id="totalDebits">$0.00</strong>
+                  </td>
+                  <td class="text-end">
+                    <strong id="totalCredits">$0.00</strong>
+                  </td>
+                  <td></td>
+                </tr>
+                <tr id="balanceRow" class="d-none">
+                  <td colspan="6" class="text-center">
+                    <span id="balanceMessage" class="badge bg-danger">Not Balanced</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex justify-content-between mt-4">
+        <div>
+          <a href="/Accounting/GeneralLedger" class="btn btn-outline-secondary">
+            <i class="fas fa-times"></i> Cancel
+          </a>
+        </div>
+        <div>
+          <button type="button" class="btn btn-outline-info me-2" onclick="showPreview()">
+            <i class="fas fa-eye"></i> Preview
+          </button>
+          <button type="submit" class="btn btn-primary" id="submitButton">
+            <i class="fas fa-save"></i> Create Adjustment
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Help Panel -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-info-circle"></i> Adjustment Types</h6>
+      </div>
+      <div class="card-body">
+        <!-- Sales Allowance -->
+        <div class="mb-3">
+          <h6 class="text-primary"><i class="fas fa-hand-holding-usd"></i> Sales Allowance</h6>
+          <small class="text-muted">Customer concession for quality issues</small>
+          <div class="small mt-1">
+            <div>Debit: Sales Allowances (4900)</div>
+            <div>Credit: Accounts Receivable (1100)</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-primary mt-1"
+                  onclick="loadTemplate('Sales Allowance')">
+            Load Template
+          </button>
+        </div>
+
+        <!-- Sales Discount -->
+        <div class="mb-3">
+          <h6 class="text-success"><i class="fas fa-percentage"></i> Sales Discount</h6>
+          <small class="text-muted">Early payment or promotional discount</small>
+          <div class="small mt-1">
+            <div>Debit: Sales Discounts (4910)</div>
+            <div>Credit: Accounts Receivable (1100)</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-success mt-1"
+                  onclick="loadTemplate('Sales Discount')">
+            Load Template
+          </button>
+        </div>
+
+        <!-- Bad Debt Write-off -->
+        <div class="mb-3">
+          <h6 class="text-danger"><i class="fas fa-exclamation-triangle"></i> Bad Debt Write-off</h6>
+          <small class="text-muted">Write off uncollectible debt</small>
+          <div class="small mt-1">
+            <div>Debit: Bad Debt Expense (6200)</div>
+            <div>Credit: Accounts Receivable (1100)</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-danger mt-1"
+                  onclick="loadTemplate('Bad Debt Write-off')">
+            Load Template
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selected Customer Info -->
+    <div class="card mt-3" id="customerInfoCard" style="display: none;">
+      <div class="card-header">
+        <h6><i class="fas fa-user"></i> Customer Information</h6>
+      </div>
+      <div class="card-body" id="customerInfo">
+        <!-- Customer details will be populated here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Enhanced Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title">
+          <i class="fas fa-eye text-primary"></i> Customer Adjustment Preview
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="previewContent">
+        <!-- Preview content will be loaded here -->
+      </div>
+      <div class="modal-footer bg-light">
+        <div class="d-flex justify-content-between w-100">
+          <div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-arrow-left"></i> Back to Edit
+            </button>
+          </div>
+          <div>
+            <div class="btn-group">
+              <button type="button" class="btn btn-outline-info" onclick="printPreviewCSS()">
+                <i class="fas fa-print"></i> Print
+              </button>
+              <button type="button" class="btn btn-outline-info dropdown-toggle dropdown-toggle-split"
+                      data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Print Options</span>
+              </button>
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item" href="#" onclick="printPreviewCSS()">
+                    <i class="fas fa-print"></i> Quick Print
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="#" onclick="printPreview()">
+                    <i class="fas fa-external-link-alt"></i> Print in New Window
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="#" onclick="exportToPDF()">
+                    <i class="fas fa-file-pdf"></i> Export to PDF
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-primary ms-2" onclick="submitForm()" id="previewSubmitButton">
+              <i class="fas fa-save"></i> Create Adjustment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let lineCounter = @Model.JournalEntries.Count;
+
+  // Load customer sales when customer is selected
+  function loadCustomerSales() {
+      const customerSelect = document.getElementById('customerSelect');
+      const saleSelect = document.getElementById('saleSelect');
+      const customerId = customerSelect.value;
+
+      // Clear sale options
+      saleSelect.innerHTML = '<option value="">-- Select Invoice (Optional) --</option>';
+
+      if (customerId) {
+          // Filter sales for selected customer
+          const saleOptions = saleSelect.querySelectorAll('option[data-customer]');
+          @foreach (var sale in Model.AvailableSales)
+          {
+                <text>
+                if('@sale.CustomerId' === customerId) {
+                    const option = document.createElement('option');
+                    option.value = '@sale.Id';
+                    option.textContent = '@sale.SaleNumber - @sale.TotalAmount.ToString("C") (@sale.SaleDate.ToString("MM/dd/yyyy"))';
+                    option.setAttribute('data-amount', '@sale.TotalAmount');
+                    saleSelect.appendChild(option);
+                }
+                </text>
+          }
+
+          // Show customer info
+          showCustomerInfo(customerId);
+      } else {
+          hideCustomerInfo();
+      }
+  }
+
+  // Show customer information
+  function showCustomerInfo(customerId) {
+      const customerSelect = document.getElementById('customerSelect');
+      const selectedOption = customerSelect.options[customerSelect.selectedIndex];
+      const balance = selectedOption.getAttribute('data-balance');
+      const customerName = selectedOption.text.split(' - Balance:')[0];
+
+      const customerInfoCard = document.getElementById('customerInfoCard');
+      const customerInfo = document.getElementById('customerInfo');
+
+      customerInfo.innerHTML = `
+          <p><strong>Customer:</strong> ${customerName}</p>
+          <p><strong>Outstanding Balance:</strong> $${parseFloat(balance || 0).toFixed(2)}</p>
+          <div class="alert alert-info alert-sm">
+              <i class="fas fa-info-circle"></i>
+              Adjustments will reduce this customer's outstanding balance.
+          </div>
+      `;
+
+      customerInfoCard.style.display = 'block';
+  }
+
+  // Hide customer information
+  function hideCustomerInfo() {
+      const customerInfoCard = document.getElementById('customerInfoCard');
+      customerInfoCard.style.display = 'none';
+  }
+
+  // Load adjustment template
+  function loadTemplate(adjustmentType) {
+      document.getElementById('adjustmentTypeSelect').value = adjustmentType;
+      loadAdjustmentTemplate();
+  }
+
+  // Load adjustment template based on selection
+  function loadAdjustmentTemplate() {
+      const adjustmentType = document.getElementById('adjustmentTypeSelect').value;
+
+      if (!adjustmentType) return;
+
+      // Clear existing journal lines
+      clearJournalLines();
+
+      // Generate reference number
+      const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      const prefix = adjustmentType.replace(/\s+/g, '').toUpperCase().substring(0, 5);
+      document.getElementById('ReferenceNumber').value = `${prefix}-${today}`;
+
+      // Set description
+      document.getElementById('Description').value = `${adjustmentType} adjustment`;
+
+      // Add two lines for the adjustment
+      addJournalLine();
+      addJournalLine();
+
+      // Set account descriptions based on type
+      const lines = document.querySelectorAll('.journal-line-row');
+      if (lines.length >= 2) {
+          const firstLineDesc = lines[0].querySelector('input[name*="LineDescription"]');
+          const secondLineDesc = lines[1].querySelector('input[name*="LineDescription"]');
+
+          switch(adjustmentType) {
+              case 'Sales Allowance':
+                  firstLineDesc.value = 'Sales allowance granted';
+                  secondLineDesc.value = 'Reduce accounts receivable';
+                  break;
+              case 'Sales Discount':
+                  firstLineDesc.value = 'Sales discount given';
+                  secondLineDesc.value = 'Reduce accounts receivable';
+                  break;
+              case 'Bad Debt Write-off':
+                  firstLineDesc.value = 'Bad debt expense';
+                  secondLineDesc.value = 'Write off uncollectible account';
+                  break;
+          }
+      }
+  }
+
+  // Distribute adjustment amount to journal lines
+  function distributeAmount() {
+      const amount = parseFloat(document.getElementById('adjustmentAmount').value) || 0;
+      const lines = document.querySelectorAll('.journal-line-row');
+
+      if (amount > 0 && lines.length >= 2) {
+          // Set first line debit amount
+          const firstDebit = lines[0].querySelector('.debit-amount');
+          if (firstDebit) firstDebit.value = amount.toFixed(2);
+
+          // Set second line credit amount
+          const secondCredit = lines[1].querySelector('.credit-amount');
+          if (secondCredit) secondCredit.value = amount.toFixed(2);
+
+          updateTotals();
+      }
+  }
+
+  // Clear all journal lines
+  function clearJournalLines() {
+      const tbody = document.getElementById('journalLinesBody');
+      tbody.innerHTML = '';
+      lineCounter = 0;
+  }
+
+  // Add new journal line (reuse from manual journal entry)
+  function addJournalLine() {
+      lineCounter++;
+      const tbody = document.getElementById('journalLinesBody');
+      const newRow = document.createElement('tr');
+      newRow.className = 'journal-line-row';
+      newRow.setAttribute('data-line-number', lineCounter);
+
+      newRow.innerHTML = `
+          <td class="line-number">${lineCounter}</td>
+          <td>
+              <input type="hidden" name="JournalEntries[${lineCounter-1}].LineNumber" value="${lineCounter}" />
+              <select name="JournalEntries[${lineCounter-1}].AccountId" class="form-select account-select">
+                  <option value="">-- Select Account --</option>
+                  @foreach (var account in Model.AvailableAccounts)
+                  {
+                        <option value="@account.Id">@account.AccountCode - @account.AccountName</option>
+                  }
+              </select>
+          </td>
+          <td>
+              <input name="JournalEntries[${lineCounter-1}].LineDescription" class="form-control form-control-sm" placeholder="Line description" />
+          </td>
+          <td>
+              <input name="JournalEntries[${lineCounter-1}].DebitAmount" class="form-control form-control-sm text-end debit-amount" type="number" step="0.01" placeholder="0.00" onchange="updateTotals()" />
+          </td>
+          <td>
+              <input name="JournalEntries[${lineCounter-1}].CreditAmount" class="form-control form-control-sm text-end credit-amount" type="number" step="0.01" placeholder="0.00" onchange="updateTotals()" />
+          </td>
+          <td class="text-center">
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeJournalLine(this)">
+                  <i class="fas fa-trash"></i>
+              </button>
+          </td>
+      `;
+
+      tbody.appendChild(newRow);
+      updateTotals();
+  }
+
+  // Remove journal line
+  function removeJournalLine(button) {
+      const row = button.closest('tr');
+      if (document.querySelectorAll('.journal-line-row').length > 2) {
+          row.remove();
+          renumberLines();
+          updateTotals();
+      } else {
+          alert('At least two journal entry lines are required.');
+      }
+  }
+
+  // Renumber lines after removal
+  function renumberLines() {
+      const rows = document.querySelectorAll('.journal-line-row');
+      rows.forEach((row, index) => {
+          const lineNumber = index + 1;
+          row.setAttribute('data-line-number', lineNumber);
+          row.querySelector('.line-number').textContent = lineNumber;
+
+          // Update form field names
+          const inputs = row.querySelectorAll('input, select');
+          inputs.forEach(input => {
+              if (input.name && input.name.includes('JournalEntries[')) {
+                  input.name = input.name.replace(/JournalEntries\[\d+\]/, `JournalEntries[${index}]`);
+              }
+          });
+      });
+      lineCounter = rows.length;
+  }
+
+  // Update totals (reuse from manual journal entry)
+  function updateTotals() {
+      let totalDebits = 0;
+      let totalCredits = 0;
+
+      document.querySelectorAll('.debit-amount').forEach(input => {
+          const value = parseFloat(input.value) || 0;
+          totalDebits += value;
+      });
+
+      document.querySelectorAll('.credit-amount').forEach(input => {
+          const value = parseFloat(input.value) || 0;
+          totalCredits += value;
+      });
+
+      document.getElementById('totalDebits').textContent = `$${totalDebits.toFixed(2)}`;
+      document.getElementById('totalCredits').textContent = `$${totalCredits.toFixed(2)}`;
+
+      // Check balance
+      const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01;
+      const balanceRow = document.getElementById('balanceRow');
+      const balanceMessage = document.getElementById('balanceMessage');
+      const submitButton = document.getElementById('submitButton');
+
+      if (totalDebits > 0 || totalCredits > 0) {
+          balanceRow.classList.remove('d-none');
+          if (isBalanced && totalDebits > 0) {
+              balanceMessage.className = 'badge bg-success';
+              balanceMessage.textContent = 'Balanced ✓';
+              submitButton.disabled = false;
+          } else {
+              balanceMessage.className = 'badge bg-danger';
+              balanceMessage.textContent = `Not Balanced (Difference: $${Math.abs(totalDebits - totalCredits).toFixed(2)})`;
+              submitButton.disabled = true;
+          }
+      } else {
+          balanceRow.classList.add('d-none');
+          submitButton.disabled = false;
+      }
+  }
+
+  // Show preview functionality
+  function showPreview() {
+      // Validate form before showing preview
+      const errors = validateFormForPreview();
+
+      if (errors.length > 0) {
+          showValidationErrors(errors);
+          return;
+      }
+
+      // Clear any existing error messages
+      const existingAlert = document.querySelector('#customerAdjustmentForm .alert-danger');
+      if (existingAlert) {
+          existingAlert.remove();
+      }
+
+      // Collect form data
+      const formData = collectFormData();
+
+      // Generate preview content
+      generatePreviewContent(formData);
+
+      // Show the modal
+      const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+      modal.show();
+  }
+
+  // Collect all form data for preview
+  function collectFormData() {
+      const customerSelect = document.getElementById('customerSelect');
+      const saleSelect = document.getElementById('saleSelect');
+      const selectedCustomer = customerSelect.options[customerSelect.selectedIndex];
+      const selectedSale = saleSelect.value ? saleSelect.options[saleSelect.selectedIndex] : null;
+
+      // Get journal entry lines
+      const journalEntries = [];
+      document.querySelectorAll('.journal-line-row').forEach((row, index) => {
+          const accountSelect = row.querySelector('select[name*="AccountId"]');
+          const selectedAccount = accountSelect.value ? accountSelect.options[accountSelect.selectedIndex] : null;
+          const description = row.querySelector('input[name*="LineDescription"]').value;
+          const debitAmount = parseFloat(row.querySelector('.debit-amount').value) || 0;
+          const creditAmount = parseFloat(row.querySelector('.credit-amount').value) || 0;
+
+          if (selectedAccount && (debitAmount > 0 || creditAmount > 0)) {
+              journalEntries.push({
+                  lineNumber: index + 1,
+                  accountCode: selectedAccount.text.split(' - ')[0],
+                  accountName: selectedAccount.text.split(' - ')[1],
+                  description: description || 'No description',
+                  debitAmount: debitAmount,
+                  creditAmount: creditAmount
+              });
+          }
+      });
+
+      return {
+          customer: {
+              name: selectedCustomer ? selectedCustomer.text.split(' - Balance:')[0] : 'Unknown',
+              balance: selectedCustomer ? selectedCustomer.getAttribute('data-balance') : '0'
+          },
+          sale: selectedSale ? {
+              number: selectedSale.text.split(' - ')[0],
+              amount: selectedSale.getAttribute('data-amount')
+          } : null,
+          adjustmentType: document.getElementById('adjustmentTypeSelect').value,
+          transactionDate: document.getElementById('TransactionDate').value,
+          referenceNumber: document.getElementById('ReferenceNumber').value,
+          description: document.getElementById('Description').value,
+          adjustmentReason: document.getElementById('AdjustmentReason').value,
+          journalEntries: journalEntries
+      };
+  }
+
+  // Generate preview content and display in modal
+  function generatePreviewContent(data) {
+      const totalDebits = data.journalEntries.reduce((sum, entry) => sum + entry.debitAmount, 0);
+      const totalCredits = data.journalEntries.reduce((sum, entry) => sum + entry.creditAmount, 0);
+      const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01;
+      const adjustmentAmount = Math.max(totalDebits, totalCredits);
+
+      const previewContent = document.getElementById('previewContent');
+
+      let html = `
+          <div class="card">
+              <div class="card-header bg-light">
+                  <h6 class="mb-0"><i class="fas fa-file-invoice"></i> Customer Adjustment Preview</h6>
+              </div>
+              <div class="card-body">
+                  <!-- Adjustment Summary -->
+                  <div class="row mb-4">
+                      <div class="col-md-6">
+                          <h6 class="text-primary"><i class="fas fa-user"></i> Customer Information</h6>
+                          <table class="table table-sm table-borderless">
+                              <tr>
+                                  <td><strong>Customer:</strong></td>
+                                  <td>${data.customer.name}</td>
+                              </tr>
+                              <tr>
+                                  <td><strong>Current Balance:</strong></td>
+                                  <td>${parseFloat(data.customer.balance).toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</td>
+                              </tr>
+                              ${data.sale ? `
+                              <tr>
+                                  <td><strong>Invoice:</strong></td>
+                                  <td>${data.sale.number} (${parseFloat(data.sale.amount).toLocaleString('en-US', {style: 'currency', currency: 'USD'})})</td>
+                              </tr>
+                              ` : ''}
+                          </table>
+                      </div>
+                      <div class="col-md-6">
+                          <h6 class="text-warning"><i class="fas fa-edit"></i> Adjustment Details</h6>
+                          <table class="table table-sm table-borderless">
+                              <tr>
+                                  <td><strong>Type:</strong></td>
+                                  <td><span class="badge bg-secondary">${data.adjustmentType}</span></td>
+                              </tr>
+                              <tr>
+                                  <td><strong>Amount:</strong></td>
+                                  <td class="text-danger"><strong>${adjustmentAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</strong></td>
+                              </tr>
+                              <tr>
+                                  <td><strong>Date:</strong></td>
+                                  <td>${new Date(data.transactionDate).toLocaleDateString()}</td>
+                              </tr>
+                              <tr>
+                                  <td><strong>Reference:</strong></td>
+                                  <td>${data.referenceNumber}</td>
+                              </tr>
+                          </table>
+                      </div>
+                  </div>
+
+                  <!-- Impact Summary -->
+                  <div class="alert ${isBalanced ? 'alert-success' : 'alert-danger'} mb-4">
+                      <div class="row">
+                          <div class="col-md-8">
+                              <h6 class="alert-heading">
+                                  <i class="fas ${isBalanced ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
+                                  ${isBalanced ? 'Adjustment Ready' : 'Journal Entry Not Balanced'}
+                              </h6>
+                              <p class="mb-0">
+                                  ${isBalanced ?
+                                      `This adjustment will reduce the customer's balance by ${adjustmentAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}.` :
+                                      `Total debits (${totalDebits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}) must equal total credits (${totalCredits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}).`
+                                  }
+                              </p>
+                          </div>
+                          <div class="col-md-4 text-end">
+                              <div class="h5 mb-0">
+                                  New Balance:
+                                  <span class="text-primary">
+                                      ${(parseFloat(data.customer.balance) - adjustmentAmount).toLocaleString('en-US', {style: 'currency', currency: 'USD'})}
+                                  </span>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Adjustment Reason -->
+                  <div class="mb-4">
+                      <h6><i class="fas fa-comment"></i> Adjustment Reason</h6>
+                      <div class="alert alert-info">
+                          ${data.adjustmentReason}
+                      </div>
+                  </div>
+
+                  <!-- Journal Entry Details -->
+                  <h6><i class="fas fa-book"></i> Journal Entry Details</h6>
+                  <div class="table-responsive">
+                      <table class="table table-sm table-bordered">
+                          <thead class="table-light">
+                              <tr>
+                                  <th>Line</th>
+                                  <th>Account</th>
+                                  <th>Description</th>
+                                  <th class="text-end">Debit</th>
+                                  <th class="text-end">Credit</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+      `;
+
+      // Add journal entry lines
+      data.journalEntries.forEach(entry => {
+          html += `
+              <tr>
+                  <td>${entry.lineNumber}</td>
+                  <td>
+                      <strong>${entry.accountCode}</strong><br>
+                      <small class="text-muted">${entry.accountName}</small>
+                  </td>
+                  <td>${entry.description}</td>
+                  <td class="text-end">
+                      ${entry.debitAmount > 0 ? entry.debitAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}
+                  </td>
+                  <td class="text-end">
+                      ${entry.creditAmount > 0 ? entry.creditAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}
+                  </td>
+              </tr>
+          `;
+      });
+
+      html += `
+                          </tbody>
+                          <tfoot class="table-light">
+                              <tr>
+                                  <td colspan="3"><strong>Totals:</strong></td>
+                                  <td class="text-end">
+                                      <strong>${totalDebits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</strong>
+                                  </td>
+                                  <td class="text-end">
+                                      <strong>${totalCredits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</strong>
+                                  </td>
+                              </tr>
+                          </tfoot>
+                      </table>
+                  </div>
+
+                  <!-- Processing Note -->
+                  <div class="mt-3">
+                      <h6><i class="fas fa-cogs"></i> What happens when you submit:</h6>
+                      <ul class="list-unstyled">
+                          <li><i class="fas fa-check text-success"></i> Journal entry will be created with reference ${data.referenceNumber}</li>
+                          <li><i class="fas fa-check text-success"></i> Customer balance will be automatically updated</li>
+                          <li><i class="fas fa-check text-success"></i> Adjustment will be recorded for audit trail</li>
+                          <li><i class="fas fa-check text-success"></i> ${data.adjustmentType} will appear in financial reports</li>
+                      </ul>
+                  </div>
+              </div>
+          </div>
+      `;
+
+      previewContent.innerHTML = html;
+
+      // Update modal footer button state
+      const submitButton = document.querySelector('#previewSubmitButton');
+      if (isBalanced && data.journalEntries.length >= 2) {
+          submitButton.disabled = false;
+          submitButton.className = 'btn btn-primary';
+          submitButton.innerHTML = '<i class="fas fa-save"></i> Create Adjustment';
+      } else {
+          submitButton.disabled = true;
+          submitButton.className = 'btn btn-secondary';
+          submitButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Cannot Submit - Fix Issues';
+      }
+  }
+
+  // Modern print preview functionality - No document.write approach
+  function printPreview() {
+      const previewData = collectFormData();
+      const totalDebits = previewData.journalEntries.reduce((sum, entry) => sum + entry.debitAmount, 0);
+      const totalCredits = previewData.journalEntries.reduce((sum, entry) => sum + entry.creditAmount, 0);
+      const adjustmentAmount = Math.max(totalDebits, totalCredits);
+
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+
+      if (!printWindow) {
+          alert('Please allow popups for this site to enable printing.');
+          return;
+      }
+
+      // Create the document structure using DOM methods
+      const doc = printWindow.document;
+
+      // Create HTML structure
+      const html = doc.createElement('html');
+      const head = doc.createElement('head');
+      const body = doc.createElement('body');
+
+      // Set up head
+      const charset = doc.createElement('meta');
+      charset.setAttribute('charset', 'UTF-8');
+      head.appendChild(charset);
+
+      const viewport = doc.createElement('meta');
+      viewport.setAttribute('name', 'viewport');
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+      head.appendChild(viewport);
+
+      const title = doc.createElement('title');
+      title.textContent = 'Customer Adjustment Preview';
+      head.appendChild(title);
+
+      // Add Bootstrap CSS
+      const bootstrapLink = doc.createElement('link');
+      bootstrapLink.setAttribute('href', 'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css');
+      bootstrapLink.setAttribute('rel', 'stylesheet');
+      head.appendChild(bootstrapLink);
+
+      // Add Font Awesome
+      const fontAwesome = doc.createElement('link');
+      fontAwesome.setAttribute('href', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+      fontAwesome.setAttribute('rel', 'stylesheet');
+      head.appendChild(fontAwesome);
+
+      // Add our print CSS
+      const printCSS = doc.createElement('link');
+      printCSS.setAttribute('href', '/css/print-preview.css');
+      printCSS.setAttribute('rel', 'stylesheet');
+      head.appendChild(printCSS);
+
+      // Create body content using innerHTML (safe because it's in the new window)
+      body.innerHTML = createPrintContent(previewData, totalDebits, totalCredits, adjustmentAmount);
+
+      // Assemble document
+      html.appendChild(head);
+      html.appendChild(body);
+      doc.appendChild(html);
+
+      // Wait for styles to load, then print
+      printWindow.onload = function() {
+          setTimeout(() => {
+              printWindow.print();
+              printWindow.onafterprint = function() {
+                  printWindow.close();
+              };
+              // Fallback close
+              setTimeout(() => {
+                  if (!printWindow.closed) {
+                      printWindow.close();
+                  }
+              }, 1000);
+          }, 500); // Longer delay to ensure CSS loads
+      };
+  }
+
+  // Helper function to create print content
+  function createPrintContent(previewData, totalDebits, totalCredits, adjustmentAmount) {
+      const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01;
+
+      return `
+          <div class="print-preview-container">
+              <div class="print-preview-header">
+                  <h1>Customer Adjustment Preview</h1>
+                  <p class="text-muted">Generated on ${new Date().toLocaleString()}</p>
+              </div>
+
+              <div class="card page-break-avoid">
+                  <div class="card-header">
+                      <h6 class="mb-0">Customer Adjustment Summary</h6>
+                  </div>
+                  <div class="card-body">
+                      <div class="row mb-4">
+                          <div class="col-md-6">
+                              <h6 class="text-primary">Customer Information</h6>
+                              <table class="table table-sm table-borderless">
+                                  <tr>
+                                      <td><strong>Customer:</strong></td>
+                                      <td>${previewData.customer.name}</td>
+                                  </tr>
+                                  <tr>
+                                      <td><strong>Current Balance:</strong></td>
+                                      <td>${parseFloat(previewData.customer.balance).toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</td>
+                                  </tr>
+                                  ${previewData.sale ? `
+                                  <tr>
+                                      <td><strong>Invoice:</strong></td>
+                                      <td>${previewData.sale.number} (${parseFloat(previewData.sale.amount).toLocaleString('en-US', {style: 'currency', currency: 'USD'})})</td>
+                                  </tr>
+                                  ` : ''}
+                              </table>
+                          </div>
+                          <div class="col-md-6">
+                              <h6 class="text-warning">Adjustment Details</h6>
+                              <table class="table table-sm table-borderless">
+                                  <tr>
+                                      <td><strong>Type:</strong></td>
+                                      <td><span class="badge bg-secondary">${previewData.adjustmentType}</span></td>
+                                  </tr>
+                                  <tr>
+                                      <td><strong>Amount:</strong></td>
+                                      <td class="text-danger"><strong>${adjustmentAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</strong></td>
+                                  </tr>
+                                  <tr>
+                                      <td><strong>Date:</strong></td>
+                                      <td>${new Date(previewData.transactionDate).toLocaleDateString()}</td>
+                                  </tr>
+                                  <tr>
+                                      <td><strong>Reference:</strong></td>
+                                      <td>${previewData.referenceNumber}</td>
+                                  </tr>
+                              </table>
+                          </div>
+                      </div>
+
+                      <div class="alert ${isBalanced ? 'alert-success' : 'alert-danger'} page-break-avoid">
+                          <div class="row">
+                              <div class="col-md-8">
+                                  <h6 class="alert-heading">
+                                      ${isBalanced ? 'Adjustment Ready' : 'Journal Entry Not Balanced'}
+                                  </h6>
+                                  <p class="mb-0">
+                                      ${isBalanced ?
+                                          `This adjustment will reduce the customer's balance by ${adjustmentAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}.` :
+                                          `Total debits (${totalDebits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}) must equal total credits (${totalCredits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}).`
+                                      }
+                                  </p>
+                              </div>
+                              <div class="col-md-4 text-end">
+                                  <div class="h5 mb-0">
+                                      New Balance:
+                                      <span class="text-primary">
+                                          ${(parseFloat(previewData.customer.balance) - adjustmentAmount).toLocaleString('en-US', {style: 'currency', currency: 'USD'})}
+                                      </span>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="card page-break-avoid">
+                  <div class="card-header">
+                      <h6 class="mb-0">Adjustment Reason</h6>
+                  </div>
+                  <div class="card-body">
+                      <p>${previewData.adjustmentReason}</p>
+                  </div>
+              </div>
+
+              <div class="card page-break-avoid">
+                  <div class="card-header">
+                      <h6 class="mb-0">Journal Entry Details</h6>
+                  </div>
+                  <div class="card-body">
+                      <div class="table-responsive">
+                          <table class="table table-bordered">
+                              <thead class="table-light">
+                                  <tr>
+                                      <th>Line</th>
+                                      <th>Account</th>
+                                      <th>Description</th>
+                                      <th class="text-end">Debit</th>
+                                      <th class="text-end">Credit</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  ${previewData.journalEntries.map(entry => `
+                                      <tr>
+                                          <td>${entry.lineNumber}</td>
+                                          <td>
+                                              <strong>${entry.accountCode}</strong><br>
+                                              <small class="text-muted">${entry.accountName}</small>
+                                          </td>
+                                          <td>${entry.description}</td>
+                                          <td class="text-end">
+                                              ${entry.debitAmount > 0 ? entry.debitAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}
+                                          </td>
+                                          <td class="text-end">
+                                              ${entry.creditAmount > 0 ? entry.creditAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}
+                                          </td>
+                                      </tr>
+                                  `).join('')}
+                              </tbody>
+                              <tfoot class="table-light">
+                                  <tr>
+                                      <td colspan="3"><strong>Totals:</strong></td>
+                                      <td class="text-end">
+                                          <strong>${totalDebits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</strong>
+                                      </td>
+                                      <td class="text-end">
+                                          <strong>${totalCredits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</strong>
+                                      </td>
+                                  </tr>
+                              </tfoot>
+                          </table>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="card page-break-avoid">
+                  <div class="card-header">
+                      <h6 class="mb-0">Processing Summary</h6>
+                  </div>
+                  <div class="card-body">
+                      <h6>What happens when you submit:</h6>
+                      <ul>
+                          <li>Journal entry will be created with reference ${previewData.referenceNumber}</li>
+                          <li>Customer balance will be automatically updated</li>
+                          <li>Adjustment will be recorded for audit trail</li>
+                          <li>${previewData.adjustmentType} will appear in financial reports</li>
+                      </ul>
+                  </div>
+              </div>
+
+              <div class="print-preview-footer">
+                  <p class="mb-0">This is a preview of the customer adjustment. Please review carefully before submitting.</p>
+                  <p class="mb-0"><small>System: Inventory Management | User: ${getCurrentUser()} | Timestamp: ${new Date().toISOString()}</small></p>
+              </div>
+          </div>
+      `;
+  }
+
+  // Alternative: CSS-only print functionality (recommended for modern browsers)
+  function printPreviewCSS() {
+      // Create a hidden div with print-friendly content
+      const printContent = document.createElement('div');
+      printContent.className = 'print-only-content';
+      printContent.style.display = 'none';
+
+      // Copy the preview content
+      const previewData = collectFormData();
+      const totalDebits = previewData.journalEntries.reduce((sum, entry) => sum + entry.debitAmount, 0);
+      const totalCredits = previewData.journalEntries.reduce((sum, entry) => sum + entry.creditAmount, 0);
+      const adjustmentAmount = Math.max(totalDebits, totalCredits);
+
+      printContent.innerHTML = `
+          <div class="print-header">
+              <h1>Customer Adjustment Preview</h1>
+              <p>Generated on ${new Date().toLocaleString()}</p>
+          </div>
+
+          <div class="adjustment-summary">
+              <h2>Adjustment Summary</h2>
+              <table class="summary-table">
+                  <tr><td><strong>Customer:</strong></td><td>${previewData.customer.name}</td></tr>
+                  <tr><td><strong>Adjustment Type:</strong></td><td>${previewData.adjustmentType}</td></tr>
+                  <tr><td><strong>Amount:</strong></td><td>${adjustmentAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</td></tr>
+                  <tr><td><strong>Date:</strong></td><td>${new Date(previewData.transactionDate).toLocaleDateString()}</td></tr>
+                  <tr><td><strong>Reference:</strong></td><td>${previewData.referenceNumber}</td></tr>
+              </table>
+          </div>
+
+          <div class="journal-entries">
+              <h2>Journal Entry Details</h2>
+              <table class="journal-table">
+                  <thead>
+                      <tr>
+                          <th>Account</th>
+                          <th>Description</th>
+                          <th>Debit</th>
+                          <th>Credit</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      ${previewData.journalEntries.map(entry => `
+                          <tr>
+                              <td>${entry.accountCode} - ${entry.accountName}</td>
+                              <td>${entry.description}</td>
+                              <td>${entry.debitAmount > 0 ? entry.debitAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}</td>
+                              <td>${entry.creditAmount > 0 ? entry.creditAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}</td>
+                          </tr>
+                      `).join('')}
+                  </tbody>
+                  <tfoot>
+                      <tr>
+                          <td colspan="2"><strong>Totals:</strong></td>
+                          <td><strong>${totalDebits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</strong></td>
+                          <td><strong>${totalCredits.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</strong></td>
+                      </tr>
+                  </tfoot>
+              </table>
+          </div>
+
+          <div class="adjustment-reason">
+              <h2>Adjustment Reason</h2>
+              <p>${previewData.adjustmentReason}</p>
+          </div>
+      `;
+
+      // Add print styles
+      const printStyles = document.createElement('style');
+      printStyles.innerHTML = `
+          @@media print {
+              body * { visibility: hidden; }
+              .print-only-content, .print-only-content * { visibility: visible; }
+              .print-only-content {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  display: block !important;
+              }
+              .print-header { text-align: center; margin-bottom: 30px; }
+              .summary-table, .journal-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 20px;
+              }
+              .summary-table td, .journal-table th, .journal-table td {
+                  border: 1px solid #000;
+                  padding: 8px;
+              }
+              .journal-table th { background-color: #f0f0f0; }
+          }
+      `;
+
+      // Add to document
+      document.head.appendChild(printStyles);
+      document.body.appendChild(printContent);
+
+      // Print
+      window.print();
+
+      // Clean up
+      document.head.removeChild(printStyles);
+      document.body.removeChild(printContent);
+  }
+
+  // Helper function to get current user (you may need to adapt this)
+  function getCurrentUser() {
+      // Try to get user from various possible sources
+      const userElement = document.querySelector('[data-user]');
+      if (userElement) {
+          return userElement.getAttribute('data-user');
+      }
+
+      // Try to get from meta tag
+      const userMeta = document.querySelector('meta[name="user"]');
+      if (userMeta) {
+          return userMeta.getAttribute('content');
+      }
+
+      // Fallback to a generic user indicator
+      return 'System User';
+  }
+
+  // Export to PDF functionality (requires jsPDF library - fallback to print)
+  function exportToPDF() {
+      // Check if jsPDF is available
+      if (typeof window.jsPDF === 'undefined') {
+          // Fallback to print with instructions
+          if (confirm('PDF export requires additional libraries. Would you like to print instead?\n\nTip: You can "Print to PDF" from your browser\'s print dialog.')) {
+              printPreviewCSS();
+          }
+          return;
+      }
+
+      try {
+          const { jsPDF } = window.jsPDF;
+          const doc = new jsPDF();
+
+          // Get the preview data
+          const previewData = collectFormData();
+          const totalDebits = previewData.journalEntries.reduce((sum, entry) => sum + entry.debitAmount, 0);
+          const totalCredits = previewData.journalEntries.reduce((sum, entry) => sum + entry.creditAmount, 0);
+          const adjustmentAmount = Math.max(totalDebits, totalCredits);
+
+          // PDF content
+          let yPosition = 20;
+
+          // Header
+          doc.setFontSize(18);
+          doc.setFont(undefined, 'bold');
+          doc.text('Customer Adjustment Preview', 105, yPosition, { align: 'center' });
+
+          yPosition += 10;
+          doc.setFontSize(10);
+          doc.setFont(undefined, 'normal');
+          doc.text(`Generated on ${new Date().toLocaleString()}`, 105, yPosition, { align: 'center' });
+
+          yPosition += 20;
+
+          // Customer and Adjustment Details
+          doc.setFontSize(12);
+          doc.setFont(undefined, 'bold');
+          doc.text('Customer Information:', 20, yPosition);
+          doc.text('Adjustment Details:', 110, yPosition);
+
+          yPosition += 8;
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(10);
+
+          // Left column - Customer info
+          doc.text(`Customer: ${previewData.customer.name}`, 20, yPosition);
+          doc.text(`Type: ${previewData.adjustmentType}`, 110, yPosition);
+
+          yPosition += 6;
+          doc.text(`Current Balance: ${parseFloat(previewData.customer.balance).toLocaleString('en-US', {style: 'currency', currency: 'USD'})}`, 20, yPosition);
+          doc.text(`Amount: ${adjustmentAmount.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}`, 110, yPosition);
+
+          yPosition += 6;
+          if (previewData.sale) {
+              doc.text(`Invoice: ${previewData.sale.number}`, 20, yPosition);
+          }
+          doc.text(`Date: ${new Date(previewData.transactionDate).toLocaleDateString()}`, 110, yPosition);
+
+          yPosition += 6;
+          doc.text(`Reference: ${previewData.referenceNumber}`, 110, yPosition);
+
+          yPosition += 15;
+
+          // Adjustment Reason
+          doc.setFont(undefined, 'bold');
+          doc.text('Adjustment Reason:', 20, yPosition);
+          yPosition += 8;
+          doc.setFont(undefined, 'normal');
+
+          // Word wrap for reason
+          const reasonLines = doc.splitTextToSize(previewData.adjustmentReason, 170);
+          doc.text(reasonLines, 20, yPosition);
+          yPosition += reasonLines.length * 6 + 10;
+
+          // Journal Entries Table
+          doc.setFont(undefined, 'bold');
+          doc.text('Journal Entry Details:', 20, yPosition);
+          yPosition += 10;
+
+          // Table headers
+          doc.setFont(undefined, 'bold');
+          doc.setFontSize(9);
+          doc.text('Account', 20, yPosition);
+          doc.text('Description', 70, yPosition);
+          doc.text('Debit', 130, yPosition);
+          doc.text('Credit', 160, yPosition);
+
+          yPosition += 5;
+
+          // Table rows
+          doc.setFont(undefined, 'normal');
+          previewData.journalEntries.forEach(entry => {
+              doc.text(`${entry.accountCode} - ${entry.accountName}`, 20, yPosition);
+              doc.text(entry.description.substring(0, 25), 70, yPosition);
+              doc.text(entry.debitAmount > 0 ? entry.debitAmount.toFixed(2) : '', 130, yPosition);
+              doc.text(entry.creditAmount > 0 ? entry.creditAmount.toFixed(2) : '', 160, yPosition);
+              yPosition += 6;
+          });
+
+          // Totals
+          yPosition += 5;
+          doc.setFont(undefined, 'bold');
+          doc.text('Totals:', 70, yPosition);
+          doc.text(totalDebits.toFixed(2), 130, yPosition);
+          doc.text(totalCredits.toFixed(2), 160, yPosition);
+
+          // Save the PDF
+          const filename = `Customer_Adjustment_${previewData.referenceNumber}_${new Date().toISOString().slice(0,10)}.pdf`;
+          doc.save(filename);
+
+      } catch (error) {
+          console.error('PDF generation failed:', error);
+          alert('PDF generation failed. Please try printing instead.');
+          printPreviewCSS();
+      }
+  }
+
+  // Enhanced print detection for better UX
+  function setupPrintListeners() {
+      // Detect if user has a PDF printer
+      if ('mediaDevices' in navigator) {
+          // Modern browsers - suggest print to PDF option
+          const originalPrint = window.print;
+          window.print = function() {
+              const userAgent = navigator.userAgent.toLowerCase();
+              const isChrome = userAgent.includes('chrome');
+              const isFirefox = userAgent.includes('firefox');
+
+              if (isChrome || isFirefox) {
+                  console.log('Tip: Use "Save as PDF" in the print dialog to create a PDF file');
+              }
+
+              originalPrint.call(this);
+          };
+      }
+  }
+
+  // Enhanced form validation before preview
+  function validateFormForPreview() {
+      const errors = [];
+
+      // Check customer selection
+      if (!document.getElementById('customerSelect').value) {
+          errors.push('Customer must be selected');
+      }
+
+      // Check adjustment type
+      if (!document.getElementById('adjustmentTypeSelect').value) {
+          errors.push('Adjustment type must be selected');
+      }
+
+      // Check adjustment reason
+      const reason = document.getElementById('AdjustmentReason').value.trim();
+      if (!reason) {
+          errors.push('Adjustment reason is required');
+      } else if (reason.length < 10) {
+          errors.push('Adjustment reason must be at least 10 characters long');
+      }
+
+      // Check reference number
+      if (!document.getElementById('ReferenceNumber').value.trim()) {
+          errors.push('Reference number is required');
+      }
+
+      // Check journal entries
+      const journalLines = document.querySelectorAll('.journal-line-row');
+      let validLines = 0;
+
+      journalLines.forEach((row, index) => {
+          const accountSelect = row.querySelector('select[name*="AccountId"]');
+          const debitAmount = parseFloat(row.querySelector('.debit-amount').value) || 0;
+          const creditAmount = parseFloat(row.querySelector('.credit-amount').value) || 0;
+
+          if (accountSelect.value && (debitAmount > 0 || creditAmount > 0)) {
+              validLines++;
+          }
+      });
+
+      if (validLines < 2) {
+          errors.push('At least two valid journal entry lines are required');
+      }
+
+      // Check if amounts balance
+      let totalDebits = 0;
+      let totalCredits = 0;
+
+      document.querySelectorAll('.debit-amount').forEach(input => {
+          totalDebits += parseFloat(input.value) || 0;
+      });
+
+      document.querySelectorAll('.credit-amount').forEach(input => {
+          totalCredits += parseFloat(input.value) || 0;
+      });
+
+      if (Math.abs(totalDebits - totalCredits) > 0.01) {
+          errors.push(`Journal entry must be balanced (Debits: ${totalDebits.toFixed(2)}, Credits: ${totalCredits.toFixed(2)})`);
+      }
+
+      if (totalDebits === 0 && totalCredits === 0) {
+          errors.push('Journal entry amounts cannot all be zero');
+      }
+
+      return errors;
+  }
+
+  // Show errors if validation fails
+  function showValidationErrors(errors) {
+      const errorHtml = errors.map(error => `<li>${error}</li>`).join('');
+      const alertHtml = `
+          <div class="alert alert-danger alert-dismissible fade show">
+              <h6><i class="fas fa-exclamation-triangle"></i> Please fix the following issues:</h6>
+              <ul class="mb-0">${errorHtml}</ul>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+      `;
+
+      // Insert at the top of the form
+      const form = document.getElementById('customerAdjustmentForm');
+      const existingAlert = form.querySelector('.alert-danger');
+      if (existingAlert) {
+          existingAlert.remove();
+      }
+
+      form.insertAdjacentHTML('afterbegin', alertHtml);
+
+      // Scroll to top to show the errors
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Submit form
+  function submitForm() {
+      document.getElementById('customerAdjustmentForm').submit();
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+      updateTotals();
+      setupPrintListeners();
+
+      // Prevent both debit and credit on same line
+      document.addEventListener('input', function(e) {
+          if (e.target.classList.contains('debit-amount') || e.target.classList.contains('credit-amount')) {
+              const row = e.target.closest('tr');
+              const debitInput = row.querySelector('.debit-amount');
+              const creditInput = row.querySelector('.credit-amount');
+
+              if (e.target.classList.contains('debit-amount') && e.target.value) {
+                  creditInput.value = '';
+              } else if (e.target.classList.contains('credit-amount') && e.target.value) {
+                  debitInput.value = '';
+              }
+
+              updateTotals();
+          }
+      });
+
+      // Auto-focus first empty required field
+      const firstEmptyField = document.querySelector('#customerSelect:not([value]), #adjustmentTypeSelect:not([value])');
+      if (firstEmptyField) {
+          firstEmptyField.focus();
+      }
+  });
+</script>
+
+@section Styles {
+  <link rel="stylesheet" href="~/css/print-preview.css" />
+  <link rel="stylesheet" href="~/css/manual-journal-entry.css" />
+}
+
+@section Scripts {
+  @{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+  }
+}

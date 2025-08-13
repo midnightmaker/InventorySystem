@@ -796,10 +796,19 @@ namespace InventorySystem.Controllers
 			try
 			{
 				var accounts = await _accountingService.GetActiveAccountsAsync();
-				var customers = await _context.Customers.Where(c => c.OutstandingBalance > 0).ToListAsync();
+
+				var customersWithBalance = await _context.Customers
+		.Include(c => c.Sales)
+		.Include(c => c.BalanceAdjustments)
+		.Where(c => c.IsActive &&
+								c.Sales.Any(s => s.PaymentStatus == PaymentStatus.Pending ||
+															 s.PaymentStatus == PaymentStatus.Overdue))
+		.ToListAsync();
+
 				var unpaidSales = await _context.Sales
 						.Include(s => s.Customer)
 						.Where(s => s.PaymentStatus != PaymentStatus.Paid && s.SaleStatus != SaleStatus.Cancelled)
+						.OrderByDescending(s => s.SaleDate)
 						.ToListAsync();
 
 				var viewModel = new EnhancedManualJournalEntryViewModel
@@ -808,8 +817,8 @@ namespace InventorySystem.Controllers
 					CustomerId = customerId,
 					SaleId = saleId,
 					AvailableAccounts = accounts.OrderBy(a => a.AccountCode).ToList(),
-					AvailableCustomers = customers.OrderBy(c => c.CustomerName).ToList(),
-					AvailableSales = unpaidSales.OrderByDescending(s => s.SaleDate).ToList(),
+					AvailableCustomers = customersWithBalance,
+					AvailableSales = unpaidSales,
 					JournalEntries = new List<JournalEntryLineViewModel>
 						{
 								new JournalEntryLineViewModel { LineNumber = 1 },
@@ -892,8 +901,11 @@ namespace InventorySystem.Controllers
 				{
 					// Update customer balance
 					var customerBalanceService = HttpContext.RequestServices.GetRequiredService<ICustomerBalanceService>();
+
+					// FIX: Get the A/R account ID first, then use it in the Where clause
+					var arAccountId = await GetAccountsReceivableAccountId();
 					var adjustmentAmount = model.JournalEntries
-							.Where(e => e.AccountId == await GetAccountsReceivableAccountId()) // A/R account
+							.Where(e => e.AccountId == arAccountId) // ✅ Now using the pre-fetched value
 							.Sum(e => e.CreditAmount ?? 0); // Credit to A/R reduces the balance
 
 					if (adjustmentAmount > 0)

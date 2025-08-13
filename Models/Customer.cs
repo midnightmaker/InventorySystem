@@ -218,9 +218,11 @@ namespace InventorySystem.Models
                 return paidSales?.Any() == true ? paidSales.Max(s => s.SaleDate) : null;
             }
 		}
-    
-  	public virtual ICollection<CustomerBalanceAdjustment> BalanceAdjustments { get; set; } = new List<CustomerBalanceAdjustment>();
 
+		// Add this navigation property to your existing Customer model
+		public virtual ICollection<CustomerBalanceAdjustment> BalanceAdjustments { get; set; } = new List<CustomerBalanceAdjustment>();
+
+		// Update the existing OutstandingBalance property to include adjustments
 		[NotMapped]
 		[Display(Name = "Outstanding Balance")]
 		public decimal OutstandingBalance
@@ -230,7 +232,8 @@ namespace InventorySystem.Models
 				// Calculate base amount from unpaid sales
 				var salesAmount = Sales?.Where(s =>
 						s.PaymentStatus == PaymentStatus.Pending ||
-						s.PaymentStatus == PaymentStatus.Overdue)
+						s.PaymentStatus == PaymentStatus.Overdue ||
+						s.PaymentStatus == PaymentStatus.PartiallyPaid)
 						.Sum(s => s.TotalAmount) ?? 0;
 
 				// Subtract any balance adjustments (allowances, bad debt write-offs)
@@ -246,15 +249,22 @@ namespace InventorySystem.Models
 		[NotMapped]
 		public decimal RawOutstandingBalance => Sales?.Where(s =>
 				s.PaymentStatus == PaymentStatus.Pending ||
-				s.PaymentStatus == PaymentStatus.Overdue)
+				s.PaymentStatus == PaymentStatus.Overdue ||
+				s.PaymentStatus == PaymentStatus.PartiallyPaid)
 				.Sum(s => s.TotalAmount) ?? 0;
 
 		// Add a method to get total adjustments
 		[NotMapped]
 		public decimal TotalAdjustments => BalanceAdjustments?.Sum(ba => ba.AdjustmentAmount) ?? 0;
+
+		// Add a method to get the latest adjustment
+		[NotMapped]
+		public CustomerBalanceAdjustment? LatestAdjustment => BalanceAdjustments?
+				.OrderByDescending(ba => ba.AdjustmentDate)
+				.FirstOrDefault();
 	}
 
-    public class CustomerDocument
+	public class CustomerDocument
     {
         public int Id { get; set; }
 

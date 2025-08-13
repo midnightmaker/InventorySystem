@@ -7,8 +7,8 @@
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\customerbalanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\accountingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\accountingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\accountingcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\accountingcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\data\\inventorycontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -19,12 +19,36 @@
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\customer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\accounting\\defaultchartofaccounts.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\accounting\\defaultchartofaccounts.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\wwwroot\\css\\print-preview.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:wwwroot\\css\\print-preview.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\controllers\\accountingcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:controllers\\accountingcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\accounting\\createcustomeradjustment.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\accounting\\createcustomeradjustment.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\sales\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\sales\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\customers\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\customers\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\infrastructure\\services\\productionorchestrator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:infrastructure\\services\\productionorchestrator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\accountingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:services\\accountingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\accounting\\defaultchartofaccounts.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:models\\accounting\\defaultchartofaccounts.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\models\\accounting\\account.cs||{8B382828-6202-11D1-8870-0000F87579D2}",
@@ -55,10 +79,6 @@
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:wwwroot\\css\\manual-journal-entry.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\viewmodels\\manualjournalentryviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:viewmodels\\manualjournalentryviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -77,10 +97,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\sales\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\sales\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\views\\sales\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|solutionrelative:views\\sales\\details.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{39548828-E1F9-4FC6-ABFA-DB03FBABA0CB}|InventorySystem.csproj|c:\\inventorysystem\\services\\icustomerpaymentservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -114,7 +130,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 6,
           "Children": [
             {
               "$type": "Bookmark",
@@ -130,13 +146,39 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "print-preview.css",
+              "DocumentMoniker": "C:\\InventorySystem\\wwwroot\\css\\print-preview.css",
+              "RelativeDocumentMoniker": "wwwroot\\css\\print-preview.css",
+              "ToolTip": "C:\\InventorySystem\\wwwroot\\css\\print-preview.css",
+              "RelativeToolTip": "wwwroot\\css\\print-preview.css",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACAAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
+              "WhenOpened": "2025-08-13T13:45:22.603Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Details.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Customers\\Details.cshtml",
+              "RelativeDocumentMoniker": "Views\\Customers\\Details.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Customers\\Details.cshtml",
+              "RelativeToolTip": "Views\\Customers\\Details.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-13T12:38:38.278Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 3,
               "Title": "Customer.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Customer.cs",
               "RelativeDocumentMoniker": "Models\\Customer.cs",
               "ToolTip": "C:\\InventorySystem\\Models\\Customer.cs",
               "RelativeToolTip": "Models\\Customer.cs",
-              "ViewState": "AgIAAIkAAAAAAAAAAAAcwJ4AAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAHEAAAAAAAAAAAAgwAgBAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-12T23:49:51.65Z",
               "EditorCaption": ""
@@ -149,14 +191,14 @@
               "RelativeDocumentMoniker": "Services\\CustomerBalanceService.cs",
               "ToolTip": "C:\\InventorySystem\\Services\\CustomerBalanceService.cs",
               "RelativeToolTip": "Services\\CustomerBalanceService.cs",
-              "ViewState": "AgIAAA8AAAAAAAAAAAAuwCcAAAAFAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-12T23:18:18.266Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 13,
               "Title": "program.cs",
               "DocumentMoniker": "C:\\InventorySystem\\program.cs",
               "RelativeDocumentMoniker": "program.cs",
@@ -164,46 +206,19 @@
               "RelativeToolTip": "program.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAALkBAAAgAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T20:51:33.799Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T20:51:33.799Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 1,
               "Title": "AccountingController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\AccountingController.cs",
               "RelativeDocumentMoniker": "Controllers\\AccountingController.cs",
               "ToolTip": "C:\\InventorySystem\\Controllers\\AccountingController.cs",
               "RelativeToolTip": "Controllers\\AccountingController.cs",
-              "ViewState": "AgIAAEABAAAAAAAAAAAowFcBAAA2AAAAAAAAAA==",
+              "ViewState": "AgIAAIIDAAAAAAAAAAAuwJoDAAAkAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-12T18:14:33.896Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "AccountingService.cs",
-              "DocumentMoniker": "C:\\InventorySystem\\Services\\AccountingService.cs",
-              "RelativeDocumentMoniker": "Services\\AccountingService.cs",
-              "ToolTip": "C:\\InventorySystem\\Services\\AccountingService.cs",
-              "RelativeToolTip": "Services\\AccountingService.cs",
-              "ViewState": "AgIAABwCAAAAAAAAAAAuwDMCAAADAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T20:42:00.65Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "DefaultChartOfAccounts.cs",
-              "DocumentMoniker": "C:\\InventorySystem\\Models\\Accounting\\DefaultChartOfAccounts.cs",
-              "RelativeDocumentMoniker": "Models\\Accounting\\DefaultChartOfAccounts.cs",
-              "ToolTip": "C:\\InventorySystem\\Models\\Accounting\\DefaultChartOfAccounts.cs",
-              "RelativeToolTip": "Models\\Accounting\\DefaultChartOfAccounts.cs",
-              "ViewState": "AgIAAK4AAAAAAAAAAAAAALwAAAAJAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T20:46:43.746Z",
               "EditorCaption": ""
             },
             {
@@ -214,14 +229,89 @@
               "RelativeDocumentMoniker": "Data\\InventoryContext.cs",
               "ToolTip": "C:\\InventorySystem\\Data\\InventoryContext.cs",
               "RelativeToolTip": "Data\\InventoryContext.cs",
-              "ViewState": "AgIAAMcAAAAAAAAAAAAswOAAAAAGAAAAAAAAAA==",
+              "ViewState": "AgIAAMwAAAAAAAAAAAAgwOYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-12T20:36:59.727Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "CreateCustomerAdjustment.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\CreateCustomerAdjustment.cshtml",
+              "RelativeDocumentMoniker": "Views\\Accounting\\CreateCustomerAdjustment.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Accounting\\CreateCustomerAdjustment.cshtml",
+              "RelativeToolTip": "Views\\Accounting\\CreateCustomerAdjustment.cshtml",
+              "ViewState": "AgIAAMAFAAAAAAAAAAAqwOgFAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-13T13:01:18.887Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "AccountingService.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Services\\AccountingService.cs",
+              "RelativeDocumentMoniker": "Services\\AccountingService.cs",
+              "ToolTip": "C:\\InventorySystem\\Services\\AccountingService.cs",
+              "RelativeToolTip": "Services\\AccountingService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-12T20:42:00.65Z"
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 6,
+              "Title": "Details.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Details.cshtml",
+              "RelativeDocumentMoniker": "Views\\Sales\\Details.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Sales\\Details.cshtml",
+              "RelativeToolTip": "Views\\Sales\\Details.cshtml",
+              "ViewState": "AgIAABUAAAAAAAAAAAAWwDYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-12T20:56:36.399Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "ProductionOrchestrator.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Infrastructure\\Services\\ProductionOrchestrator.cs",
+              "RelativeDocumentMoniker": "Infrastructure\\Services\\ProductionOrchestrator.cs",
+              "ToolTip": "C:\\InventorySystem\\Infrastructure\\Services\\ProductionOrchestrator.cs",
+              "RelativeToolTip": "Infrastructure\\Services\\ProductionOrchestrator.cs",
+              "ViewState": "AgIAAPkAAAAAAAAAAAAawBABAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-12T23:59:55.305Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "_Layout.cshtml",
+              "DocumentMoniker": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
+              "RelativeDocumentMoniker": "Views\\Shared\\_Layout.cshtml",
+              "ToolTip": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
+              "RelativeToolTip": "Views\\Shared\\_Layout.cshtml",
+              "ViewState": "AgIAAG4AAAAAAAAAAAAmwIgAAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-12T21:39:28.257Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "DefaultChartOfAccounts.cs",
+              "DocumentMoniker": "C:\\InventorySystem\\Models\\Accounting\\DefaultChartOfAccounts.cs",
+              "RelativeDocumentMoniker": "Models\\Accounting\\DefaultChartOfAccounts.cs",
+              "ToolTip": "C:\\InventorySystem\\Models\\Accounting\\DefaultChartOfAccounts.cs",
+              "RelativeToolTip": "Models\\Accounting\\DefaultChartOfAccounts.cs",
+              "ViewState": "AgIAAK4AAAAAAAAAAAAAALwAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-12T20:46:43.746Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
               "Title": "Account.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\Accounting\\Account.cs",
               "RelativeDocumentMoniker": "Models\\Accounting\\Account.cs",
@@ -229,16 +319,11 @@
               "RelativeToolTip": "Models\\Accounting\\Account.cs",
               "ViewState": "AgIAAC0AAAAAAAAAAADwvzsAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T23:37:04.065Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+              "WhenOpened": "2025-08-12T23:37:04.065Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 14,
               "Title": "EnhancedManualJournalEntryViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\EnhancedManualJournalEntryViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\EnhancedManualJournalEntryViewModel.cs",
@@ -246,12 +331,11 @@
               "RelativeToolTip": "ViewModels\\EnhancedManualJournalEntryViewModel.cs",
               "ViewState": "AgIAACIAAAAAAAAAAAAgwC4AAAA/AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T23:23:44.286Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T23:23:44.286Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 15,
               "Title": "ICustomerBalanceService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\ICustomerBalanceService.cs",
               "RelativeDocumentMoniker": "Services\\ICustomerBalanceService.cs",
@@ -259,12 +343,11 @@
               "RelativeToolTip": "Services\\ICustomerBalanceService.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T23:17:10.049Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T23:17:10.049Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 16,
               "Title": "CreateManualJournalEntry.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\CreateManualJournalEntry.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\CreateManualJournalEntry.cshtml",
@@ -272,25 +355,11 @@
               "RelativeToolTip": "Views\\Accounting\\CreateManualJournalEntry.cshtml",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T21:39:06.736Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T21:39:06.736Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
-              "Title": "_Layout.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
-              "RelativeDocumentMoniker": "Views\\Shared\\_Layout.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Shared\\_Layout.cshtml",
-              "RelativeToolTip": "Views\\Shared\\_Layout.cshtml",
-              "ViewState": "AgIAAFcAAAAAAAAAAAAqwJcAAAARAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T21:39:28.257Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 18,
               "Title": "manual-journal-entry.css",
               "DocumentMoniker": "C:\\InventorySystem\\wwwroot\\css\\manual-journal-entry.css",
               "RelativeDocumentMoniker": "wwwroot\\css\\manual-journal-entry.css",
@@ -298,12 +367,11 @@
               "RelativeToolTip": "wwwroot\\css\\manual-journal-entry.css",
               "ViewState": "AgIAAKsAAAAAAAAAAAAowNoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
-              "WhenOpened": "2025-08-12T21:42:00.509Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T21:42:00.509Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 19,
               "Title": "ManualJournalEntryViewModel.cs",
               "DocumentMoniker": "C:\\InventorySystem\\ViewModels\\ManualJournalEntryViewModel.cs",
               "RelativeDocumentMoniker": "ViewModels\\ManualJournalEntryViewModel.cs",
@@ -311,12 +379,11 @@
               "RelativeToolTip": "ViewModels\\ManualJournalEntryViewModel.cs",
               "ViewState": "AgIAACIAAAAAAAAAAAAswFAAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T21:35:31.24Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T21:35:31.24Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 17,
               "Title": "IAccountingService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\IAccountingService.cs",
               "RelativeDocumentMoniker": "Services\\IAccountingService.cs",
@@ -324,12 +391,11 @@
               "RelativeToolTip": "Services\\IAccountingService.cs",
               "ViewState": "AgIAAFAAAAAAAAAAAAAswEgAAAA0AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T20:41:01.995Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T20:41:01.995Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 20,
               "Title": "EditAccount.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\EditAccount.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\EditAccount.cshtml",
@@ -337,25 +403,11 @@
               "RelativeToolTip": "Views\\Accounting\\EditAccount.cshtml",
               "ViewState": "AgIAACcBAAAAAAAAAAAcwE8BAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T21:23:50.588Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T21:23:50.588Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 19,
-              "Title": "Details.cshtml",
-              "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Details.cshtml",
-              "RelativeDocumentMoniker": "Views\\Sales\\Details.cshtml",
-              "ToolTip": "C:\\InventorySystem\\Views\\Sales\\Details.cshtml",
-              "RelativeToolTip": "Views\\Sales\\Details.cshtml",
-              "ViewState": "AgIAANsBAAAAAAAAAAAtwPMBAAAfAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T20:56:36.399Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 18,
+              "DocumentIndex": 23,
               "Title": "Edit.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Edit.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\Edit.cshtml",
@@ -363,12 +415,11 @@
               "RelativeToolTip": "Views\\Sales\\Edit.cshtml",
               "ViewState": "AgIAAEwAAAAAAAAAAAAtwGcAAAA2AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T20:57:57.35Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T20:57:57.35Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 17,
+              "DocumentIndex": 22,
               "Title": "Index.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\Index.cshtml",
@@ -376,12 +427,11 @@
               "RelativeToolTip": "Views\\Sales\\Index.cshtml",
               "ViewState": "AgIAAJsBAAAAAAAAAAAtwLkBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T20:58:24.662Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T20:58:24.662Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 21,
               "Title": "InvoiceReport.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Sales\\InvoiceReport.cshtml",
               "RelativeDocumentMoniker": "Views\\Sales\\InvoiceReport.cshtml",
@@ -389,12 +439,11 @@
               "RelativeToolTip": "Views\\Sales\\InvoiceReport.cshtml",
               "ViewState": "AgIAAF8BAAAAAAAAAAAuwHoBAAA+AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T18:53:26.298Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T18:53:26.298Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 20,
+              "DocumentIndex": 24,
               "Title": "ICustomerPaymentService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\ICustomerPaymentService.cs",
               "RelativeDocumentMoniker": "Services\\ICustomerPaymentService.cs",
@@ -402,12 +451,11 @@
               "RelativeToolTip": "Services\\ICustomerPaymentService.cs",
               "ViewState": "AgIAAAYAAAAAAAAAAADwvwcAAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T20:38:38.025Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T20:38:38.025Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 21,
+              "DocumentIndex": 25,
               "Title": "CustomerPayment.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Models\\CustomerPayment.cs",
               "RelativeDocumentMoniker": "Models\\CustomerPayment.cs",
@@ -415,12 +463,11 @@
               "RelativeToolTip": "Models\\CustomerPayment.cs",
               "ViewState": "AgIAADMAAAAAAAAAAADwv04AAABAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T20:36:25.12Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T20:36:25.12Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 23,
+              "DocumentIndex": 27,
               "Title": "CustomerPaymentService.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Services\\CustomerPaymentService.cs",
               "RelativeDocumentMoniker": "Services\\CustomerPaymentService.cs",
@@ -428,12 +475,11 @@
               "RelativeToolTip": "Services\\CustomerPaymentService.cs",
               "ViewState": "AgIAAEoAAAAAAAAAAAAowMEAAAA+AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T18:50:08.873Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T18:50:08.873Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 22,
+              "DocumentIndex": 26,
               "Title": "SalesController.cs",
               "DocumentMoniker": "C:\\InventorySystem\\Controllers\\SalesController.cs",
               "RelativeDocumentMoniker": "Controllers\\SalesController.cs",
@@ -441,12 +487,11 @@
               "RelativeToolTip": "Controllers\\SalesController.cs",
               "ViewState": "AgIAAKkBAAAAAAAAAAAcwNMBAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-12T18:47:17.436Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T18:47:17.436Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 25,
+              "DocumentIndex": 29,
               "Title": "BalanceSheet.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\BalanceSheet.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\BalanceSheet.cshtml",
@@ -454,12 +499,11 @@
               "RelativeToolTip": "Views\\Accounting\\BalanceSheet.cshtml",
               "ViewState": "AgIAAAAAAAAAAAAAAADwvwUAAABEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T18:11:33.213Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T18:11:33.213Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 24,
+              "DocumentIndex": 28,
               "Title": "AccountDetails.cshtml",
               "DocumentMoniker": "C:\\InventorySystem\\Views\\Accounting\\AccountDetails.cshtml",
               "RelativeDocumentMoniker": "Views\\Accounting\\AccountDetails.cshtml",
@@ -467,8 +511,7 @@
               "RelativeToolTip": "Views\\Accounting\\AccountDetails.cshtml",
               "ViewState": "AgIAAJ8BAAAAAAAAAAAAAJ8BAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-12T18:03:41.951Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-12T18:03:41.951Z"
             }
           ]
         }

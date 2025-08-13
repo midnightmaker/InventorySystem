@@ -29,7 +29,45 @@
         <i class="fas fa-dollar-sign"></i> Record Payment
       </button>
     }
+    
   </div>
+  @if (Model.SaleStatus == SaleStatus.Shipped && Model.SaleStatus != SaleStatus.Cancelled)
+  {
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-tools"></i> Invoice Adjustments</h6>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Create adjustments for this specific invoice (allowances, discounts, write-offs)
+        </p>
+
+        <div class="d-grid gap-2 d-md-flex">
+          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id&type=allowance"
+             class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-hand-holding-usd"></i> Sales Allowance
+          </a>
+
+          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id&type=discount"
+             class="btn btn-outline-success btn-sm">
+            <i class="fas fa-percentage"></i> Sales Discount
+          </a>
+
+          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id&type=baddebt"
+             class="btn btn-outline-danger btn-sm">
+            <i class="fas fa-exclamation-triangle"></i> Write Off
+          </a>
+        </div>
+
+        <div class="mt-2">
+          <small class="text-muted">
+            <i class="fas fa-info-circle"></i>
+            Adjustments will update the customer's balance and create proper journal entries
+          </small>
+        </div>
+      </div>
+    </div>
+  }
 </div>
 
 @if (TempData["SuccessMessage"] != null)

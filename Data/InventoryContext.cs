@@ -223,6 +223,11 @@ namespace InventorySystem.Data
 				entity.HasIndex(e => e.AdjustmentDate)
 						.HasDatabaseName("IX_CustomerBalanceAdjustments_AdjustmentDate");
 			});
+
+			// Ensure Customer includes BalanceAdjustments in queries
+			modelBuilder.Entity<Customer>()
+					.Navigation(c => c.BalanceAdjustments)
+					.EnableLazyLoading();
 		}
 
     private void ConfigureExistingEntities(ModelBuilder modelBuilder)

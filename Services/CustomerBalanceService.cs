@@ -1,10 +1,11 @@
 ﻿using InventorySystem.Data;
 using InventorySystem.Models;
-using InventorySystem.Models.Accounting;
 using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Services
 {
+	
+
 	public class CustomerBalanceService : ICustomerBalanceService
 	{
 		private readonly InventoryContext _context;
@@ -18,37 +19,34 @@ namespace InventorySystem.Services
 
 		/// <summary>
 		/// Updates customer balance when a sales allowance is applied
+		/// FIXED: Only creates adjustment record - balance is computed automatically
 		/// </summary>
 		public async Task UpdateCustomerBalanceForAllowanceAsync(int customerId, int saleId, decimal allowanceAmount, string reason)
 		{
 			try
 			{
 				var customer = await _context.Customers.FindAsync(customerId);
-				var sale = await _context.Sales.FindAsync(saleId);
-
-				if (customer == null || sale == null)
+				if (customer == null)
 				{
-					throw new InvalidOperationException("Customer or sale not found");
+					throw new InvalidOperationException("Customer not found");
 				}
 
-				// Reduce the customer's outstanding balance
-				customer.OutstandingBalance -= allowanceAmount;
-
-				// Ensure balance doesn't go negative
-				if (customer.OutstandingBalance < 0)
+				// Get sale for validation (optional - can be 0 for general adjustments)
+				Sale? sale = null;
+				if (saleId > 0)
 				{
-					customer.OutstandingBalance = 0;
+					sale = await _context.Sales.FindAsync(saleId);
+					if (sale == null)
+					{
+						throw new InvalidOperationException("Sale not found");
+					}
 				}
 
-				// Update the sale's effective amount (if you want to track this)
-				// You might add an "AdjustmentAmount" field to the Sale model
-				// sale.AdjustmentAmount = (sale.AdjustmentAmount ?? 0) + allowanceAmount;
-
-				// Create an adjustment record for audit trail
+				// Create an adjustment record - this will be included in the computed balance
 				var adjustment = new CustomerBalanceAdjustment
 				{
 					CustomerId = customerId,
-					SaleId = saleId,
+					SaleId = saleId > 0 ? saleId : null,
 					AdjustmentType = "Sales Allowance",
 					AdjustmentAmount = allowanceAmount,
 					Reason = reason,
@@ -59,49 +57,49 @@ namespace InventorySystem.Services
 				_context.CustomerBalanceAdjustments.Add(adjustment);
 				await _context.SaveChangesAsync();
 
-				_logger.LogInformation("Updated customer {CustomerId} balance for sales allowance. Amount: {Amount}, Reason: {Reason}",
-						customerId, allowanceAmount, reason);
+				// Get the new computed balance for logging
+				var newBalance = await GetCustomerActualBalanceAsync(customerId);
+
+				_logger.LogInformation("Created sales allowance adjustment for customer {CustomerId}. Amount: {Amount}, New Balance: {NewBalance}, Reason: {Reason}",
+						customerId, allowanceAmount, newBalance, reason);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error updating customer balance for allowance");
+				_logger.LogError(ex, "Error creating sales allowance adjustment for customer {CustomerId}", customerId);
 				throw;
 			}
 		}
 
 		/// <summary>
 		/// Updates customer balance when bad debt is written off
+		/// FIXED: Only creates adjustment record - balance is computed automatically
 		/// </summary>
 		public async Task UpdateCustomerBalanceForBadDebtAsync(int customerId, int saleId, decimal badDebtAmount, string reason)
 		{
 			try
 			{
 				var customer = await _context.Customers.FindAsync(customerId);
-				var sale = await _context.Sales.FindAsync(saleId);
-
-				if (customer == null || sale == null)
+				if (customer == null)
 				{
-					throw new InvalidOperationException("Customer or sale not found");
+					throw new InvalidOperationException("Customer not found");
 				}
 
-				// Reduce the customer's outstanding balance
-				customer.OutstandingBalance -= badDebtAmount;
-
-				// Ensure balance doesn't go negative
-				if (customer.OutstandingBalance < 0)
+				// Get sale for validation (optional - can be 0 for general adjustments)
+				Sale? sale = null;
+				if (saleId > 0)
 				{
-					customer.OutstandingBalance = 0;
+					sale = await _context.Sales.FindAsync(saleId);
+					if (sale == null)
+					{
+						throw new InvalidOperationException("Sale not found");
+					}
 				}
 
-				// Mark the sale as having bad debt (you might need to add this field)
-				// sale.HasBadDebt = true;
-				// sale.BadDebtAmount = badDebtAmount;
-
-				// Create an adjustment record for audit trail
+				// Create an adjustment record - this will be included in the computed balance
 				var adjustment = new CustomerBalanceAdjustment
 				{
 					CustomerId = customerId,
-					SaleId = saleId,
+					SaleId = saleId > 0 ? saleId : null,
 					AdjustmentType = "Bad Debt Write-off",
 					AdjustmentAmount = badDebtAmount,
 					Reason = reason,
@@ -112,111 +110,95 @@ namespace InventorySystem.Services
 				_context.CustomerBalanceAdjustments.Add(adjustment);
 				await _context.SaveChangesAsync();
 
-				_logger.LogInformation("Updated customer {CustomerId} balance for bad debt write-off. Amount: {Amount}, Reason: {Reason}",
-						customerId, badDebtAmount, reason);
+				// Get the new computed balance for logging
+				var newBalance = await GetCustomerActualBalanceAsync(customerId);
+
+				_logger.LogInformation("Created bad debt write-off adjustment for customer {CustomerId}. Amount: {Amount}, New Balance: {NewBalance}, Reason: {Reason}",
+						customerId, badDebtAmount, newBalance, reason);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error updating customer balance for bad debt");
+				_logger.LogError(ex, "Error creating bad debt adjustment for customer {CustomerId}", customerId);
 				throw;
 			}
 		}
 
 		/// <summary>
-		/// Recalculates customer balance from scratch based on sales and payments
+		/// Since OutstandingBalance is computed, this just ensures data integrity
+		/// and logs the current computed balance
 		/// </summary>
 		public async Task RecalculateCustomerBalanceAsync(int customerId)
 		{
 			try
 			{
-				var customer = await _context.Customers.FindAsync(customerId);
+				var customer = await _context.Customers
+						.Include(c => c.Sales)
+						.Include(c => c.BalanceAdjustments)
+						.FirstOrDefaultAsync(c => c.Id == customerId);
+
 				if (customer == null) return;
 
-				// Calculate total from sales
-				var totalSales = await _context.Sales
-						.Where(s => s.CustomerId == customerId && s.SaleStatus != SaleStatus.Cancelled)
-						.SumAsync(s => s.TotalAmount);
+				// Since OutstandingBalance is computed, we just need to ensure 
+				// the related data is fresh and log the current balance
+				var currentBalance = customer.OutstandingBalance; // This triggers the calculation
 
-				// Calculate total payments
-				var totalPayments = await _context.CustomerPayments
-						.Include(cp => cp.Sale)
-						.Where(cp => cp.Sale.CustomerId == customerId)
-						.SumAsync(cp => cp.Amount);
-
-				// Calculate total adjustments (allowances, bad debt)
-				var totalAdjustments = await _context.CustomerBalanceAdjustments
-						.Where(cba => cba.CustomerId == customerId)
-						.SumAsync(cba => cba.AdjustmentAmount);
-
-				// Update customer balance
-				customer.OutstandingBalance = totalSales - totalPayments - totalAdjustments;
-
-				// Ensure balance doesn't go negative
-				if (customer.OutstandingBalance < 0)
-				{
-					customer.OutstandingBalance = 0;
-				}
-
-				await _context.SaveChangesAsync();
-
-				_logger.LogInformation("Recalculated customer {CustomerId} balance. New balance: {Balance}",
-						customerId, customer.OutstandingBalance);
+				_logger.LogInformation("Customer {CustomerId} current computed balance: {Balance}",
+						customerId, currentBalance);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error recalculating customer {CustomerId} balance", customerId);
+				_logger.LogError(ex, "Error checking customer {CustomerId} balance", customerId);
 				throw;
 			}
 		}
 
 		/// <summary>
-		/// Recalculates all customer balances - useful for data cleanup
+		/// Recalculates all customer balances - mostly for logging/verification
+		/// since balances are computed automatically
 		/// </summary>
 		public async Task RecalculateAllCustomerBalancesAsync()
 		{
 			try
 			{
-				var customers = await _context.Customers.ToListAsync();
+				var customers = await _context.Customers
+						.Include(c => c.Sales)
+						.Include(c => c.BalanceAdjustments)
+						.ToListAsync();
 
 				foreach (var customer in customers)
 				{
-					await RecalculateCustomerBalanceAsync(customer.Id);
+					var balance = customer.OutstandingBalance; // Triggers computation
+					_logger.LogInformation("Customer {CustomerId} ({CustomerName}): {Balance}",
+							customer.Id, customer.CustomerName, balance);
 				}
 
-				_logger.LogInformation("Recalculated balances for {CustomerCount} customers", customers.Count);
+				_logger.LogInformation("Verified balances for {CustomerCount} customers", customers.Count);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error recalculating all customer balances");
+				_logger.LogError(ex, "Error verifying all customer balances");
 				throw;
 			}
 		}
 
 		/// <summary>
 		/// Gets the actual calculated balance for a customer
+		/// This manually calculates the same way the computed property does
 		/// </summary>
 		public async Task<decimal> GetCustomerActualBalanceAsync(int customerId)
 		{
 			try
 			{
-				// Calculate total from sales
-				var totalSales = await _context.Sales
-						.Where(s => s.CustomerId == customerId && s.SaleStatus != SaleStatus.Cancelled)
-						.SumAsync(s => s.TotalAmount);
+				// This should match the logic in Customer.OutstandingBalance computed property
+				var customer = await _context.Customers
+						.Include(c => c.Sales)
+						.Include(c => c.BalanceAdjustments)
+						.FirstOrDefaultAsync(c => c.Id == customerId);
 
-				// Calculate total payments
-				var totalPayments = await _context.CustomerPayments
-						.Include(cp => cp.Sale)
-						.Where(cp => cp.Sale.CustomerId == customerId)
-						.SumAsync(cp => cp.Amount);
+				if (customer == null) return 0;
 
-				// Calculate total adjustments
-				var totalAdjustments = await _context.CustomerBalanceAdjustments
-						.Where(cba => cba.CustomerId == customerId)
-						.SumAsync(cba => cba.AdjustmentAmount);
-
-				var actualBalance = totalSales - totalPayments - totalAdjustments;
-				return Math.Max(0, actualBalance); // Don't allow negative balances
+				// Use the computed property directly
+				return customer.OutstandingBalance;
 			}
 			catch (Exception ex)
 			{

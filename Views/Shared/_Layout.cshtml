@@ -94,7 +94,7 @@
                 <i class="fas fa-calculator"></i> Accounting
               </a>
               <ul class="dropdown-menu" aria-labelledby="accountingDropdown">
-                <!-- Existing menu items -->
+                <!-- Existing core menu items -->
                 <li>
                   <a class="dropdown-item" href="/Accounting/Index">
                     <i class="fas fa-tachometer-alt"></i> Dashboard
@@ -111,23 +111,37 @@
                   </a>
                 </li>
 
-                <!-- NEW: Manual Journal Entry -->
+                <!-- NEW: Journal Entries & Adjustments Section -->
                 <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Journal Entries</h6></li>
+                <li><h6 class="dropdown-header">Journal Entries & Adjustments</h6></li>
+
                 <li>
                   <a class="dropdown-item" href="/Accounting/CreateManualJournalEntry">
-                    <i class="fas fa-plus-circle"></i> Create Manual Entry
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" href="/Accounting/GeneralLedger?referenceType=ManualJournalEntry">
-                    <i class="fas fa-file-alt"></i> View Manual Entries
+                    <i class="fas fa-plus-circle text-primary"></i> Create Manual Entry
                   </a>
                 </li>
 
-                <!-- Existing menu items continue -->
+                <li>
+                  <a class="dropdown-item" href="/Accounting/CreateCustomerAdjustment">
+                    <i class="fas fa-user-edit text-warning"></i> Customer Adjustment
+                  </a>
+                </li>
+
+                <li>
+                  <a class="dropdown-item" href="/Accounting/GeneralLedger?referenceType=ManualJournalEntry">
+                    <i class="fas fa-file-alt text-info"></i> View Manual Entries
+                  </a>
+                </li>
+
+                <li>
+                  <a class="dropdown-item" href="/Accounting/GeneralLedger?referenceType=CustomerAdjustment">
+                    <i class="fas fa-users-cog text-secondary"></i> View Adjustments
+                  </a>
+                </li>
+
+                <!-- Existing reports section -->
                 <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Reports</h6></li>
+                <li><h6 class="dropdown-header">Financial Reports</h6></li>
                 <li>
                   <a class="dropdown-item" href="/Accounting/TrialBalance">
                     <i class="fas fa-balance-scale"></i> Trial Balance
