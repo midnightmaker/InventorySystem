@@ -2,6 +2,7 @@
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 
 namespace InventorySystem.Services
@@ -268,5 +269,9 @@ namespace InventorySystem.Services
 		public string Reason { get; set; } = string.Empty;
 		public DateTime AdjustmentDate { get; set; }
 		public string CreatedBy { get; set; } = string.Empty;
+		[StringLength(100)]
+		public string? ReferenceNumber { get; set; }
+
+		public bool IsReversed { get; set; } = false;
 	}
 }

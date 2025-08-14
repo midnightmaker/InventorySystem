@@ -84,6 +84,7 @@ namespace InventorySystem.ViewModels
 
 	public class CustomerInfo
 	{
+		public string CompanyName { get; set; } = string.Empty;
 		public string CustomerName { get; set; } = string.Empty;
 		public string CustomerEmail { get; set; } = string.Empty;
 		public string CustomerPhone { get; set; } = string.Empty;

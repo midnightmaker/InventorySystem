@@ -400,8 +400,14 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Index");
 				}
 
+				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
+
+				// Includes in view model:
+				
+
 				var customer = new CustomerInfo
 				{
+					CompanyName = sale.Customer?.CompanyName ?? "Unknown Company Name",
 					CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
 					CustomerEmail = sale.Customer?.Email ?? string.Empty,
 					CustomerPhone = sale.Customer?.Phone ?? string.Empty,
@@ -419,6 +425,8 @@ namespace InventorySystem.Controllers
 					PaymentTerms = sale.Terms,
 					Notes = sale.Notes ?? string.Empty,
 					Customer = customer,
+					TotalAdjustments = totalAdjustments,
+					OriginalAmount = sale.TotalAmount,
 					LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
 					{
 						ItemId = si.ItemId ?? si.FinishedGoodId ?? 0,
@@ -1783,6 +1791,456 @@ namespace InventorySystem.Controllers
 			{
 				_logger.LogError(ex, "Error getting effective amount for sale {SaleId}", id);
 				return Json(new { success = false, error = ex.Message });
+			}
+		}
+
+		// Controllers/SalesController.cs - Enhanced Methods (add these to existing controller)
+
+		// GET: Sales/CreateEnhanced
+		[HttpGet]
+		public async Task<IActionResult> CreateEnhanced(int? customerId = null)
+		{
+			try
+			{
+				var viewModel = new EnhancedCreateSaleViewModel();
+
+				if (customerId.HasValue)
+				{
+					viewModel.CustomerId = customerId.Value;
+
+					// Pre-populate customer info if available
+					var customer = await _customerService.GetCustomerByIdAsync(customerId.Value);
+					if (customer != null)
+					{
+						viewModel.ShippingAddress = customer.FullShippingAddress;
+						viewModel.Terms = customer.DefaultPaymentTerms;
+
+						// Calculate due date based on payment terms
+						viewModel.PaymentDueDate = viewModel.Terms switch
+						{
+							PaymentTerms.COD => viewModel.SaleDate,
+							PaymentTerms.Net10 => viewModel.SaleDate.AddDays(10),
+							PaymentTerms.Net15 => viewModel.SaleDate.AddDays(15),
+							PaymentTerms.Net30 => viewModel.SaleDate.AddDays(30),
+							PaymentTerms.Net60 => viewModel.SaleDate.AddDays(60),
+							
+							_ => viewModel.SaleDate.AddDays(30)
+						};
+					}
+				}
+				else
+				{
+					viewModel.PaymentDueDate = viewModel.SaleDate.AddDays(30); // Default Net30
+				}
+
+				await LoadDropdownsForEnhancedCreate(viewModel);
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading enhanced create sale form");
+				TempData["ErrorMessage"] = $"Error loading form: {ex.Message}";
+				return RedirectToAction("Index");
+			}
+		}
+
+		// POST: Sales/CreateEnhanced
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreateEnhanced(EnhancedCreateSaleViewModel viewModel)
+		{
+			try
+			{
+				// Remove navigation property validation errors
+				ModelState.Remove("Customer");
+
+				if (!ModelState.IsValid)
+				{
+					await LoadDropdownsForEnhancedCreate(viewModel);
+					return View(viewModel);
+				}
+
+				// Validate line items have sufficient stock
+				foreach (var lineItem in viewModel.LineItems)
+				{
+					var stockCheck = await ValidateLineItemStock(lineItem);
+					if (!stockCheck.IsValid)
+					{
+						ModelState.AddModelError("", stockCheck.ErrorMessage);
+					}
+				}
+
+				if (!ModelState.IsValid)
+				{
+					await LoadDropdownsForEnhancedCreate(viewModel);
+					return View(viewModel);
+				}
+
+				// Create the sale
+				var sale = new Sale
+				{
+					CustomerId = viewModel.CustomerId.Value,
+					SaleDate = viewModel.SaleDate,
+					OrderNumber = viewModel.OrderNumber,
+					PaymentStatus = viewModel.PaymentStatus,
+					SaleStatus = viewModel.SaleStatus,
+					Terms = viewModel.Terms,
+					PaymentDueDate = viewModel.PaymentDueDate,
+					ShippingAddress = viewModel.ShippingAddress,
+					Notes = viewModel.Notes,
+					PaymentMethod = viewModel.PaymentMethod,
+					ShippingCost = viewModel.ShippingCost,
+					TaxAmount = viewModel.TaxAmount,
+					SaleNumber = await _salesService.GenerateSaleNumberAsync(),
+					CreatedDate = DateTime.Now
+				};
+
+				var createdSale = await _salesService.CreateSaleAsync(sale);
+
+				// Add line items
+				var addedItems = new List<SaleItem>();
+				foreach (var lineItem in viewModel.LineItems)
+				{
+					var saleItem = new SaleItem
+					{
+						SaleId = createdSale.Id,
+						QuantitySold = lineItem.Quantity,
+						UnitPrice = lineItem.UnitPrice,
+						Notes = lineItem.Notes
+					};
+
+					if (lineItem.ProductType == "Item" && lineItem.ItemId.HasValue)
+					{
+						saleItem.ItemId = lineItem.ItemId.Value;
+					}
+					else if (lineItem.ProductType == "FinishedGood" && lineItem.FinishedGoodId.HasValue)
+					{
+						saleItem.FinishedGoodId = lineItem.FinishedGoodId.Value;
+					}
+
+					var addedItem = await _salesService.AddSaleItemAsync(saleItem);
+					addedItems.Add(addedItem);
+				}
+
+				// Apply discount if specified
+				if (viewModel.HasDiscount)
+				{
+					await ApplyDiscountAdjustment(createdSale.Id, viewModel);
+				}
+
+				// Generate success message with summary
+				var successMessage = $"Sale {createdSale.SaleNumber} created successfully!";
+				successMessage += $" {viewModel.LineItemCount} item(s), Total: {viewModel.TotalAmount:C}";
+
+				if (viewModel.HasDiscount)
+				{
+					successMessage += $" (Discount: {viewModel.DiscountCalculated:C})";
+				}
+
+				TempData["SuccessMessage"] = successMessage;
+				return RedirectToAction("Details", new { id = createdSale.Id });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating enhanced sale for customer {CustomerId}", viewModel.CustomerId);
+				TempData["ErrorMessage"] = $"Error creating sale: {ex.Message}";
+				await LoadDropdownsForEnhancedCreate(viewModel);
+				return View(viewModel);
+			}
+		}
+
+		// Helper method to apply discount adjustment
+		private async Task ApplyDiscountAdjustment(int saleId, EnhancedCreateSaleViewModel viewModel)
+		{
+			try
+			{
+				var discountReason = viewModel.DiscountReason ??
+						$"{viewModel.DiscountType} discount ({(viewModel.DiscountType == "Percentage" ?
+								viewModel.DiscountPercentage + "%" :
+								viewModel.DiscountAmount.ToString("C"))})";
+
+				// Create automatic discount adjustment
+				var adjustment = new CustomerBalanceAdjustment
+				{
+					CustomerId = viewModel.CustomerId.Value,
+					SaleId = saleId,
+					AdjustmentDate = DateTime.Now,
+					AdjustmentAmount = viewModel.DiscountCalculated,
+					AdjustmentType = "Sales Discount",
+					Reason = discountReason,
+					ReferenceNumber = $"DISC-{DateTime.Now:yyyyMMdd}-{saleId}",
+					CreatedBy = User.Identity?.Name ?? "System"
+				};
+
+				// Use existing accounting service to create the adjustment with proper journal entries
+				await _context.CustomerBalanceAdjustments.AddAsync(adjustment);
+				await _context.SaveChangesAsync();
+
+				_logger.LogInformation("Applied discount adjustment of {Amount:C} to sale {SaleId}",
+						viewModel.DiscountCalculated, saleId);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error applying discount adjustment to sale {SaleId}", saleId);
+				throw;
+			}
+		}
+
+		// Helper method to load dropdowns for enhanced create
+		private async Task LoadDropdownsForEnhancedCreate(EnhancedCreateSaleViewModel viewModel)
+		{
+			try
+			{
+				// Load customers
+				var customers = await _customerService.GetAllCustomersAsync();
+				ViewBag.Customers = customers
+						.Where(c => c.IsActive)
+						.Select(c => new SelectListItem
+						{
+							Value = c.Id.ToString(),
+							Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
+							Selected = c.Id == viewModel.CustomerId
+						})
+						.OrderBy(c => c.Text)
+						.ToList();
+
+				// Load items
+				var allItems = await _inventoryService.GetAllItemsAsync();
+				ViewBag.Items = allItems
+						.Where(i => i.IsSellable)
+						.Select(i => new SelectListItem
+						{
+							Value = i.Id.ToString(),
+							Text = $"{i.PartNumber} - {i.Description} (Stock: {i.CurrentStock})",
+							Group = new SelectListGroup { Name = i.TrackInventory ? "Inventory Items" : "Service Items" }
+						})
+						.OrderBy(i => i.Text)
+						.ToList();
+
+				// Load finished goods
+				var finishedGoods = await _context.FinishedGoods
+						.OrderBy(fg => fg.PartNumber)
+						.ToListAsync();
+
+				ViewBag.FinishedGoods = finishedGoods
+						.Select(fg => new SelectListItem
+						{
+							Value = fg.Id.ToString(),
+							Text = $"{fg.PartNumber} - {fg.Description} (Stock: {fg.CurrentStock})"
+						})
+						.ToList();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading dropdowns for enhanced create");
+				ViewBag.Customers = new List<SelectListItem>();
+				ViewBag.Items = new List<SelectListItem>();
+				ViewBag.FinishedGoods = new List<SelectListItem>();
+			}
+		}
+
+		// Helper method to validate line item stock
+		private async Task<(bool IsValid, string ErrorMessage)> ValidateLineItemStock(SaleLineItemViewModel lineItem)
+		{
+			try
+			{
+				if (lineItem.ProductType == "Item" && lineItem.ItemId.HasValue)
+				{
+					var item = await _inventoryService.GetItemByIdAsync(lineItem.ItemId.Value);
+					if (item == null)
+					{
+						return (false, $"Item with ID {lineItem.ItemId.Value} not found");
+					}
+
+					if (item.TrackInventory && lineItem.Quantity > item.CurrentStock)
+					{
+						return (false, $"Insufficient stock for {item.PartNumber}. Available: {item.CurrentStock}, Requested: {lineItem.Quantity}");
+					}
+				}
+				else if (lineItem.ProductType == "FinishedGood" && lineItem.FinishedGoodId.HasValue)
+				{
+					var finishedGood = await _context.FinishedGoods
+							.FirstOrDefaultAsync(fg => fg.Id == lineItem.FinishedGoodId.Value);
+
+					if (finishedGood == null)
+					{
+						return (false, $"Finished Good with ID {lineItem.FinishedGoodId.Value} not found");
+					}
+
+					if (lineItem.Quantity > finishedGood.CurrentStock)
+					{
+						return (false, $"Insufficient stock for {finishedGood.PartNumber}. Available: {finishedGood.CurrentStock}, Requested: {lineItem.Quantity}");
+					}
+				}
+
+				return (true, "");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error validating line item stock");
+				return (false, "Error validating stock availability");
+			}
+		}
+
+		// API endpoint for getting product information for line items
+		[HttpGet]
+		public async Task<JsonResult> GetProductInfoForLineItem(string productType, int productId)
+		{
+			try
+			{
+				if (productType == "Item")
+				{
+					var item = await _inventoryService.GetItemByIdAsync(productId);
+					if (item == null)
+					{
+						return Json(new { success = false, message = "Item not found" });
+					}
+
+					return Json(new
+					{
+						success = true,
+						productInfo = new
+						{
+							partNumber = item.PartNumber,
+							description = item.Description,
+							currentStock = item.CurrentStock,
+							tracksInventory = item.TrackInventory,
+							suggestedPrice = item.SuggestedSalePrice,
+							hasSalePrice = item.HasSalePrice,
+							unitOfMeasure = item.UnitOfMeasure
+						}
+					});
+				}
+				else if (productType == "FinishedGood")
+				{
+					var finishedGood = await _context.FinishedGoods
+							.FirstOrDefaultAsync(fg => fg.Id == productId);
+
+					if (finishedGood == null)
+					{
+						return Json(new { success = false, message = "Finished Good not found" });
+					}
+
+					// Calculate suggested price for finished goods (cost + markup)
+					var suggestedPrice = finishedGood.UnitCost > 0 ? finishedGood.UnitCost * 1.5m : finishedGood.SellingPrice > 0 ? finishedGood.SellingPrice : 100m;
+
+					return Json(new
+					{
+						success = true,
+						productInfo = new
+						{
+							partNumber = finishedGood.PartNumber,
+							description = finishedGood.Description,
+							currentStock = finishedGood.CurrentStock,
+							tracksInventory = true,
+							suggestedPrice = suggestedPrice,
+							hasSalePrice = false,
+							unitOfMeasure = "Each"
+						}
+					});
+				}
+
+				return Json(new { success = false, message = "Invalid product type" });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting product info for line item: ProductType={ProductType}, ProductId={ProductId}", productType, productId);
+				return Json(new { success = false, message = "Error retrieving product information" });
+			}
+		}
+
+		// API endpoint for getting items for sale dropdowns
+		[HttpGet]
+		public async Task<JsonResult> GetItemsForSale()
+		{
+			try
+			{
+				var items = await _inventoryService.GetAllItemsAsync();
+				var sellableItems = items
+						.Where(i => i.IsSellable)
+						.Select(i => new
+						{
+							id = i.Id,
+							partNumber = i.PartNumber,
+							description = i.Description,
+							currentStock = i.CurrentStock,
+							tracksInventory = i.TrackInventory,
+							suggestedPrice = i.SuggestedSalePrice,
+							hasSalePrice = i.HasSalePrice,
+							unitOfMeasure = i.UnitOfMeasure,
+							itemType = i.ItemType.ToString()
+						})
+						.OrderBy(i => i.partNumber)
+						.ToList();
+
+				return Json(new { success = true, items = sellableItems });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting items for sale");
+				return Json(new { success = false, message = "Error retrieving items" });
+			}
+		}
+
+		// API endpoint for getting finished goods for sale dropdowns
+		[HttpGet]
+		public async Task<JsonResult> GetFinishedGoodsForSale()
+		{
+			try
+			{
+				var finishedGoods = await _context.FinishedGoods
+						.Where(fg => fg.CurrentStock >= 0) // Include all, even out of stock for visibility
+						.OrderBy(fg => fg.PartNumber)
+						.ToListAsync();
+
+				var sellableFinishedGoods = finishedGoods
+						.Select(fg => new
+						{
+							id = fg.Id,
+							partNumber = fg.PartNumber,
+							description = fg.Description,
+							currentStock = fg.CurrentStock,
+							tracksInventory = true,
+							suggestedPrice = fg.SellingPrice > 0 ? fg.SellingPrice : fg.UnitCost * 1.5m,
+							hasSalePrice = fg.SellingPrice > 0,
+							unitOfMeasure = "Each"
+						})
+						.ToList();
+
+				return Json(new { success = true, finishedGoods = sellableFinishedGoods });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting finished goods for sale");
+				return Json(new { success = false, message = "Error retrieving finished goods" });
+			}
+		}
+
+		
+		
+
+		// API endpoint for updating payment due date based on terms
+		[HttpGet]
+		public JsonResult CalculatePaymentDueDate(DateTime saleDate, PaymentTerms terms)
+		{
+			try
+			{
+				var dueDate = terms switch
+				{
+					PaymentTerms.COD => saleDate,
+					PaymentTerms.Net10 => saleDate.AddDays(10),
+					PaymentTerms.Net15 => saleDate.AddDays(15),
+					PaymentTerms.Net30 => saleDate.AddDays(30),
+					PaymentTerms.Net60 => saleDate.AddDays(60),
+					_ => saleDate.AddDays(30)
+				};
+
+				return Json(new { success = true, dueDate = dueDate.ToString("yyyy-MM-dd") });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error calculating payment due date");
+				return Json(new { success = false, message = "Error calculating due date" });
 			}
 		}
 

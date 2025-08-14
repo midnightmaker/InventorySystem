@@ -446,5 +446,140 @@ namespace InventorySystem.Controllers
 				return Json(new { success = false, error = ex.Message });
 			}
 		}
+		// API endpoint for getting customer information (used by enhanced sales creation)
+		[HttpGet]
+		public async Task<JsonResult> GetCustomerInfo(int id)
+		{
+			try
+			{
+				var customer = await _customerService.GetCustomerByIdAsync(id);
+				if (customer == null)
+				{
+					return Json(new { success = false, message = "Customer not found" });
+				}
+
+				return Json(new
+				{
+					success = true,
+					customer = new
+					{
+						id = customer.Id,
+						customerName = customer.CustomerName,
+						companyName = customer.CompanyName,
+						email = customer.Email,
+						phone = customer.Phone,
+						fullBillingAddress = customer.FullBillingAddress,
+						fullShippingAddress = customer.FullShippingAddress,
+						paymentTerms = (int)customer.DefaultPaymentTerms,
+						paymentTermsName = customer.DefaultPaymentTerms.ToString(),
+						creditLimit = customer.CreditLimit,
+						currentBalance = customer.OutstandingBalance,
+						isActive = customer.IsActive,
+						// Additional fields that might be useful
+						taxExempt = customer.TaxExempt,
+						discountPercentage = customer.DiscountPercentage,
+						preferredPaymentMethod = customer.PreferredPaymentMethod,
+						// Calculated fields
+						availableCredit = customer.CreditLimit - customer.OutstandingBalance,
+						isOverCreditLimit = customer.OutstandingBalance > customer.CreditLimit
+					}
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting customer info for customer {CustomerId}", id);
+				return Json(new { success = false, message = "Error retrieving customer information" });
+			}
+		}
+
+		// API endpoint for customer search (enhanced dropdown functionality)
+		[HttpGet]
+		public async Task<JsonResult> SearchCustomers(string term, int limit = 10)
+		{
+			try
+			{
+				if (string.IsNullOrWhiteSpace(term))
+				{
+					return Json(new { success = true, customers = new List<object>() });
+				}
+
+				var customers = await _customerService.SearchCustomersAsync(term);
+
+				var results = customers.Select(c => new
+				{
+					id = c.Id,
+					text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
+					customerName = c.CustomerName,
+					companyName = c.CompanyName,
+					email = c.Email,
+					phone = c.Phone,
+					currentBalance = c.OutstandingBalance,
+					creditLimit = c.CreditLimit,
+					paymentTerms = c.DefaultPaymentTerms.ToString(),
+					isActive = c.IsActive,
+					// Additional display info
+					displayInfo = new
+					{
+						primaryInfo = c.CustomerName,
+						secondaryInfo = c.CompanyName ?? c.Email,
+						balanceInfo = $"Balance: {c.OutstandingBalance:C}",
+						creditInfo = c.CreditLimit > 0 ? $"Credit: {c.CreditLimit:C}" : "No Credit Limit",
+						statusBadge = c.IsActive ? "Active" : "Inactive",
+						statusClass = c.IsActive ? "success" : "warning"
+					}
+				}).ToList();
+
+				return Json(new { success = true, customers = results });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error searching customers with term '{Term}'", term);
+				return Json(new { success = false, message = "Error searching customers" });
+			}
+		}
+
+		// API endpoint for validating customer credit limit
+		[HttpGet]
+		public async Task<JsonResult> ValidateCustomerCredit(int customerId, decimal saleAmount)
+		{
+			try
+			{
+				var customer = await _customerService.GetCustomerByIdAsync(customerId);
+				if (customer == null)
+				{
+					return Json(new { success = false, message = "Customer not found" });
+				}
+
+				var newBalance = customer.OutstandingBalance + saleAmount;
+				var isOverLimit = customer.CreditLimit > 0 && newBalance > customer.CreditLimit;
+				var availableCredit = customer.CreditLimit > 0 ? customer.CreditLimit - customer.OutstandingBalance : decimal.MaxValue;
+
+				return Json(new
+				{
+					success = true,
+					validation = new
+					{
+						currentBalance = customer.OutstandingBalance,
+						creditLimit = customer.CreditLimit,
+						saleAmount = saleAmount,
+						newBalance = newBalance,
+						availableCredit = availableCredit,
+						isOverLimit = isOverLimit,
+						hasCreditLimit = customer.CreditLimit > 0,
+						warningMessage = isOverLimit
+										? $"This sale will exceed the customer's credit limit by {(newBalance - customer.CreditLimit):C}"
+										: null,
+						recommendedAction = isOverLimit
+										? "Consider requiring payment before delivery or getting management approval"
+										: "Credit check passed"
+					}
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error validating customer credit for customer {CustomerId}", customerId);
+				return Json(new { success = false, message = "Error validating customer credit" });
+			}
+		}
 	}
 }

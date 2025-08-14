@@ -1,0 +1,351 @@
+﻿/* wwwroot/css/enhanced-sales-creation.css */
+/* Enhanced Sales Creation Styling */
+
+/* Main form styling */
+#enhancedSaleForm {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* Card enhancements */
+.card {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  font-weight: 600;
+}
+
+  .card-header h5, .card-header h6 {
+    margin: 0;
+    color: #495057;
+  }
+
+/* Line items table styling */
+#lineItemsTable {
+  margin-bottom: 0;
+}
+
+  #lineItemsTable th {
+    background-color: #f8f9fa;
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    white-space: nowrap;
+  }
+
+.line-item-row {
+  transition: background-color 0.2s ease;
+}
+
+  .line-item-row:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+  }
+
+/* Product selection styling */
+.product-type-select {
+  min-width: 120px;
+}
+
+.product-info {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+/* Input styling */
+.quantity-input {
+  max-width: 80px;
+  text-align: center;
+}
+
+.unit-price-input {
+  text-align: right;
+}
+
+/* Suggested price button */
+.suggested-price-btn {
+  border-left: none;
+  white-space: nowrap;
+}
+
+  .suggested-price-btn:hover {
+    z-index: 3;
+  }
+
+/* Line total display */
+.line-total-display {
+  font-weight: 600;
+  font-size: 1.1em;
+  color: #28a745;
+}
+
+/* Summary section styling */
+.sale-summary-table {
+  margin-bottom: 0;
+}
+
+  .sale-summary-table td {
+    padding: 0.5rem 0.75rem;
+    border: none;
+  }
+
+  .sale-summary-table .table-dark td {
+    background-color: #343a40;
+    color: white;
+    font-weight: 600;
+  }
+
+/* Discount section */
+.discount-row {
+  border-top: 1px solid #dee2e6;
+}
+
+#discountDisplay {
+  font-weight: 600;
+  font-size: 1.05em;
+}
+
+/* Total display */
+#totalDisplay {
+  font-size: 1.25em;
+  font-weight: 700;
+  color: #007bff;
+}
+
+/* Validation styling */
+.is-invalid {
+  border-color: #dc3545;
+}
+
+.is-valid {
+  border-color: #28a745;
+}
+
+/* Stock status indicators */
+.stock-indicator {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+  .stock-indicator.in-stock {
+    color: #28a745;
+  }
+
+  .stock-indicator.low-stock {
+    color: #ffc107;
+  }
+
+  .stock-indicator.out-of-stock {
+    color: #dc3545;
+  }
+
+/* No items message */
+#noItemsMessage {
+  background-color: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 0.375rem;
+  color: #6c757d;
+  padding: 2rem;
+  text-align: center;
+}
+
+  #noItemsMessage i {
+    color: #adb5bd;
+  }
+
+/* Submit button styling */
+#createSaleBtn {
+  min-width: 200px;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+}
+
+  #createSaleBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+/* Form section spacing */
+.form-section {
+  margin-bottom: 2rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  /* Stack cards vertically on mobile */
+  .card {
+    margin-bottom: 1rem;
+  }
+
+  /* Adjust table for mobile */
+  #lineItemsTable {
+    font-size: 0.875rem;
+  }
+
+  .table-responsive {
+    border: none;
+  }
+
+  /* Stack form controls */
+  .input-group {
+    flex-wrap: wrap;
+  }
+
+  .suggested-price-btn {
+    margin-top: 0.25rem;
+    width: 100%;
+  }
+
+  /* Adjust quantity input */
+  .quantity-input {
+    max-width: 60px;
+  }
+
+  /* Make action buttons stack */
+  .btn-group {
+    flex-direction: column;
+  }
+
+    .btn-group .btn {
+      margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+  /* Further mobile optimizations */
+  .card-body {
+    padding: 1rem;
+  }
+
+  #lineItemsTable th,
+  #lineItemsTable td {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .line-total-display {
+    font-size: 1em;
+  }
+
+  #totalDisplay {
+    font-size: 1.1em;
+  }
+}
+
+/* Loading states */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+  .loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Animation for adding/removing items */
+.line-item-row {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Price change animation */
+.price-updated {
+  background-color: #d4edda !important;
+  transition: background-color 0.3s ease;
+}
+
+/* Discount highlight */
+.discount-highlight {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+/* Success states */
+.success-glow {
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+  border-color: #28a745;
+}
+
+/* Error states */
+.error-glow {
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+  border-color: #dc3545;
+}
+
+/* Utility classes */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
+.font-weight-semibold {
+  font-weight: 600;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .card {
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+
+  .btn {
+    display: none !important;
+  }
+
+  #lineItemsTable {
+    width: 100% !important;
+  }
+
+  .table td, .table th {
+    border: 1px solid #000 !important;
+  }
+}

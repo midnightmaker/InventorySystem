@@ -131,8 +131,17 @@ namespace InventorySystem.Models
         [Display(Name = "Pricing Tier")]
         public PricingTier PricingTier { get; set; } = PricingTier.Standard;
 
-        // Navigation properties
-        public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
+		    [Column(TypeName = "decimal(5,2)")]
+		    public decimal DiscountPercentage { get; set; } = 0;
+
+		    [StringLength(100)]
+		    public string? PreferredPaymentMethod { get; set; }
+
+		    public bool TaxExempt { get; set; } = false;
+
+
+		// Navigation properties
+		public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
         public virtual ICollection<CustomerDocument> Documents { get; set; } = new List<CustomerDocument>();
         public virtual ICollection<CustomerPayment> CustomerPayments { get; set; } = new List<CustomerPayment>();
 
