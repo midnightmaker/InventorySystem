@@ -267,7 +267,12 @@ namespace InventorySystem.Services
 				var journalNumber = await GenerateNextJournalNumberAsync("JE-SAL");
 				var entries = new List<GeneralLedgerEntry>();
 
-				// Debit: Accounts Receivable
+				// Calculate totals
+				var subtotal = sale.SaleItems?.Sum(si => si.TotalPrice) ?? 0;
+				var discountAmount = sale.DiscountCalculated;
+				var netSaleAmount = sale.TotalAmount; // This already includes discount calculation
+
+				// Debit: Accounts Receivable (net amount after discount)
 				var arAccount = await GetAccountByCodeAsync("1100");
 				if (arAccount == null)
 				{
@@ -281,13 +286,36 @@ namespace InventorySystem.Services
 					TransactionNumber = journalNumber,
 					AccountId = arAccount.Id,
 					Description = $"Sale: {sale.Customer?.CustomerName ?? "Unknown Customer"}",
-					DebitAmount = sale.TotalAmount,
+					DebitAmount = netSaleAmount,
 					CreditAmount = 0,
 					ReferenceType = "Sale",
 					ReferenceId = sale.Id
 				});
 
-				// Credit: Sales Revenue
+				// ✅ NEW: Debit: Sales Discounts (if discount applied)
+				if (sale.HasDiscount && discountAmount > 0)
+				{
+					var discountAccount = await GetAccountByCodeAsync("4910");
+					if (discountAccount == null)
+					{
+						_logger.LogError("Sales Discounts account (4910) not found");
+						return false;
+					}
+
+					entries.Add(new GeneralLedgerEntry
+					{
+						TransactionDate = sale.SaleDate,
+						TransactionNumber = journalNumber,
+						AccountId = discountAccount.Id,
+						Description = $"Sales Discount: {sale.DiscountReason ?? $"{sale.DiscountType} discount"}",
+						DebitAmount = discountAmount,
+						CreditAmount = 0,
+						ReferenceType = "Sale",
+						ReferenceId = sale.Id
+					});
+				}
+
+				// Credit: Sales Revenue (gross amount before discount)
 				var revenueAccount = await GetAccountByCodeAsync(sale.RevenueAccountCode ?? "4000");
 				if (revenueAccount == null)
 				{
@@ -302,10 +330,49 @@ namespace InventorySystem.Services
 					AccountId = revenueAccount.Id,
 					Description = $"Sale: {sale.SaleNumber}",
 					DebitAmount = 0,
-					CreditAmount = sale.TotalAmount,
+					CreditAmount = subtotal, // Gross revenue before discount
 					ReferenceType = "Sale",
 					ReferenceId = sale.Id
 				});
+
+				// Handle shipping and tax if present
+				if (sale.ShippingCost > 0)
+				{
+					var shippingAccount = await GetAccountByCodeAsync("4100"); // Service Revenue
+					if (shippingAccount != null)
+					{
+						entries.Add(new GeneralLedgerEntry
+						{
+							TransactionDate = sale.SaleDate,
+							TransactionNumber = journalNumber,
+							AccountId = shippingAccount.Id,
+							Description = $"Shipping Revenue: {sale.SaleNumber}",
+							DebitAmount = 0,
+							CreditAmount = sale.ShippingCost,
+							ReferenceType = "Sale",
+							ReferenceId = sale.Id
+						});
+					}
+				}
+
+				if (sale.TaxAmount > 0)
+				{
+					var taxPayableAccount = await GetAccountByCodeAsync("2300"); // Sales Tax Payable
+					if (taxPayableAccount != null)
+					{
+						entries.Add(new GeneralLedgerEntry
+						{
+							TransactionDate = sale.SaleDate,
+							TransactionNumber = journalNumber,
+							AccountId = taxPayableAccount.Id,
+							Description = $"Sales Tax: {sale.SaleNumber}",
+							DebitAmount = 0,
+							CreditAmount = sale.TaxAmount,
+							ReferenceType = "Sale",
+							ReferenceId = sale.Id
+						});
+					}
+				}
 
 				// Record COGS if there are sale items with cost
 				if (sale.SaleItems?.Any() == true)

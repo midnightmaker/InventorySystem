@@ -7,137 +7,213 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InventorySystem.Models
 {
-    public class Sale : IValidatableObject
-    {
-        public int Id { get; set; }
+	public class Sale : IValidatableObject
+	{
+		public int Id { get; set; }
 
-        [Required]
-        [StringLength(50)]
-        [Display(Name = "Sale Number")]
-        public string SaleNumber { get; set; } = string.Empty;
+		[Required]
+		[StringLength(50)]
+		[Display(Name = "Sale Number")]
+		public string SaleNumber { get; set; } = string.Empty;
 
-        [Required]
-        [Display(Name = "Customer")]
-        public int CustomerId { get; set; }
-        public virtual Customer Customer { get; set; } = null!;
+		[Required]
+		[Display(Name = "Customer")]
+		public int CustomerId { get; set; }
+		public virtual Customer Customer { get; set; } = null!;
 
-        [Required]
-        [Display(Name = "Sale Date")]
-        [DataType(DataType.Date)]
-        public DateTime SaleDate { get; set; } = DateTime.Today;
+		[Required]
+		[Display(Name = "Sale Date")]
+		[DataType(DataType.Date)]
+		public DateTime SaleDate { get; set; } = DateTime.Today;
 
-        [Display(Name = "Order Number")]
-        [StringLength(100)]
-        public string? OrderNumber { get; set; }
+		[Display(Name = "Order Number")]
+		[StringLength(100)]
+		public string? OrderNumber { get; set; }
 
-        [Display(Name = "Payment Status")]
-        public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
+		[Display(Name = "Payment Status")]
+		public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
 
-        [Display(Name = "Sale Status")]
-        public SaleStatus SaleStatus { get; set; } = SaleStatus.Processing;
+		[Display(Name = "Sale Status")]
+		public SaleStatus SaleStatus { get; set; } = SaleStatus.Processing;
 
-        [Display(Name = "Payment Terms")]
-        public PaymentTerms Terms { get; set; } = PaymentTerms.Net30;
+		[Display(Name = "Payment Terms")]
+		public PaymentTerms Terms { get; set; } = PaymentTerms.Net30;
 
-        [Display(Name = "Payment Due Date")]
-        [DataType(DataType.Date)]
-        public DateTime PaymentDueDate { get; set; }
+		[Display(Name = "Payment Due Date")]
+		[DataType(DataType.Date)]
+		public DateTime PaymentDueDate { get; set; }
 
-        [Display(Name = "Shipping Address")]
-        [StringLength(500)]
-        public string? ShippingAddress { get; set; }
+		[Display(Name = "Shipping Address")]
+		[StringLength(500)]
+		public string? ShippingAddress { get; set; }
 
-        [Display(Name = "Notes")]
-        [StringLength(1000)]
-        public string? Notes { get; set; }
+		[Display(Name = "Notes")]
+		[StringLength(1000)]
+		public string? Notes { get; set; }
 
-        [Display(Name = "Payment Method")]
-        [StringLength(100)]
-        public string? PaymentMethod { get; set; }
+		[Display(Name = "Payment Method")]
+		[StringLength(100)]
+		public string? PaymentMethod { get; set; }
 
-        [Display(Name = "Shipping Cost")]
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal ShippingCost { get; set; } = 0;
+		[Display(Name = "Shipping Cost")]
+		[Column(TypeName = "decimal(18,2)")]
+		public decimal ShippingCost { get; set; } = 0;
 
-        [Display(Name = "Tax Amount")]
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal TaxAmount { get; set; } = 0;
+		[Display(Name = "Tax Amount")]
+		[Column(TypeName = "decimal(18,2)")]
+		public decimal TaxAmount { get; set; } = 0;
 
-        [Display(Name = "Created Date")]
-        public DateTime CreatedDate { get; set; } = DateTime.Now;
+		[Display(Name = "Created Date")]
+		public DateTime CreatedDate { get; set; } = DateTime.Now;
 
-        // Navigation properties
-        public virtual ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
-        public virtual ICollection<CustomerPayment> CustomerPayments { get; set; } = new List<CustomerPayment>();
+		[Display(Name = "Courier Service")]
+		[StringLength(100)]
+		public string? CourierService { get; set; }
 
-        // Computed properties
-        [NotMapped]
-        [Display(Name = "Subtotal")]
-        public decimal SubtotalAmount => SaleItems?.Sum(si => si.TotalPrice) ?? 0;
+		[Display(Name = "Tracking Number")]
+		[StringLength(100)]
+		public string? TrackingNumber { get; set; }
 
-        [NotMapped]
-        [Display(Name = "Total Amount")]
-        public decimal TotalAmount => SubtotalAmount + ShippingCost + TaxAmount;
+		[Display(Name = "Shipped Date")]
+		[DataType(DataType.DateTime)]
+		public DateTime? ShippedDate { get; set; }
 
-        [NotMapped]
-        [Display(Name = "Total Profit")]
-        public decimal TotalProfit => SaleItems?.Sum(si => si.Profit) ?? 0;
+		[Display(Name = "Expected Delivery Date")]
+		[DataType(DataType.Date)]
+		public DateTime? ExpectedDeliveryDate { get; set; }
 
-        [NotMapped]
-        [Display(Name = "Profit Margin")]
-        public decimal ProfitMargin => TotalAmount > 0 ? (TotalProfit / TotalAmount) * 100 : 0;
+		[Display(Name = "Shipping Instructions")]
+		[StringLength(1000)]
+		public string? ShippingInstructions { get; set; }
 
-        [NotMapped]
-        [Display(Name = "Is Overdue")]
-        public bool IsOverdue => PaymentDueDate < DateTime.Today && PaymentStatus != PaymentStatus.Paid;
+		[Display(Name = "Package Weight (lbs)")]
+		[Column(TypeName = "decimal(8,2)")]
+		public decimal? PackageWeight { get; set; }
 
-        [NotMapped]
-        [Display(Name = "Days Overdue")]
-        public int DaysOverdue => IsOverdue ? (DateTime.Today - PaymentDueDate).Days : 0;
+		[Display(Name = "Package Dimensions")]
+		[StringLength(100)]
+		public string? PackageDimensions { get; set; } // e.g., "12x8x6 inches"
 
-        [NotMapped]
-        [Display(Name = "Has Backorders")]
-        public bool HasBackorders => SaleItems?.Any(si => si.QuantityBackordered > 0) ?? false;
+		[Display(Name = "Shipped By")]
+		[StringLength(100)]
+		public string? ShippedBy { get; set; }
 
-        [NotMapped]
-        [Display(Name = "Total Backorders")]
-        public int TotalBackorders => SaleItems?.Sum(si => si.QuantityBackordered) ?? 0;
+		// Navigation properties
+		public virtual ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
+		public virtual ICollection<CustomerPayment> CustomerPayments { get; set; } = new List<CustomerPayment>();
 
-        // Methods
-        public void CalculatePaymentDueDate()
-        {
-            PaymentDueDate = Terms switch
-            {
-                PaymentTerms.Immediate => SaleDate,
-                PaymentTerms.Net10 => SaleDate.AddDays(10),
-                PaymentTerms.Net15 => SaleDate.AddDays(15),
-                PaymentTerms.Net30 => SaleDate.AddDays(30),
-                PaymentTerms.Net45 => SaleDate.AddDays(45),
-                PaymentTerms.Net60 => SaleDate.AddDays(60),
-                _ => SaleDate.AddDays(30)
-            };
-        }
+		// Computed properties
+		[NotMapped]
+		[Display(Name = "Subtotal")]
+		public decimal SubtotalAmount => SaleItems?.Sum(si => si.TotalPrice) ?? 0;
 
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            var results = new List<ValidationResult>();
 
-            if (PaymentDueDate.Date < SaleDate.Date)
-            {
-                results.Add(new ValidationResult(
-                    "Payment due date cannot be before the sale date.",
-                    new[] { nameof(PaymentDueDate) }));
-            }
+		[NotMapped]
+		[Display(Name = "Total Amount")]
+		public decimal TotalAmount => SubtotalAmount + ShippingCost + TaxAmount - DiscountCalculated;
 
-            if (Terms == PaymentTerms.Immediate && PaymentDueDate.Date != SaleDate.Date)
-            {
-                results.Add(new ValidationResult(
-                    "Payment due date must be the same as sale date for Immediate terms.",
-                    new[] { nameof(PaymentDueDate) }));
-            }
+		[NotMapped]
+		[Display(Name = "Total Profit")]
+		public decimal TotalProfit => SaleItems?.Sum(si => si.Profit) ?? 0;
 
-            return results;
-        }
+		[NotMapped]
+		[Display(Name = "Profit Margin")]
+		public decimal ProfitMargin => TotalAmount > 0 ? (TotalProfit / TotalAmount) * 100 : 0;
+
+		[NotMapped]
+		[Display(Name = "Is Overdue")]
+		public bool IsOverdue => PaymentDueDate < DateTime.Today && PaymentStatus != PaymentStatus.Paid;
+
+		[NotMapped]
+		[Display(Name = "Days Overdue")]
+		public int DaysOverdue => IsOverdue ? (DateTime.Today - PaymentDueDate).Days : 0;
+
+		[NotMapped]
+		[Display(Name = "Has Backorders")]
+		public bool HasBackorders => SaleItems?.Any(si => si.QuantityBackordered > 0) ?? false;
+
+		[NotMapped]
+		[Display(Name = "Total Backorders")]
+		public int TotalBackorders => SaleItems?.Sum(si => si.QuantityBackordered) ?? 0;
+
+		[NotMapped]
+		[Display(Name = "Has Shipping Info")]
+		public bool HasShippingInfo => !string.IsNullOrEmpty(CourierService) && !string.IsNullOrEmpty(TrackingNumber);
+
+		[NotMapped]
+		[Display(Name = "Is Shipped")]
+		public bool IsShipped => SaleStatus == SaleStatus.Shipped && ShippedDate.HasValue;
+
+		[NotMapped]
+		[Display(Name = "Days Since Shipped")]
+		public int DaysSinceShipped => IsShipped ? (DateTime.Today - ShippedDate!.Value.Date).Days : 0;
+
+		[NotMapped]
+		[Display(Name = "Shipping Summary")]
+		public string ShippingSummary => HasShippingInfo
+				? $"{CourierService} - {TrackingNumber}"
+				: "No shipping information";
+
+
+		// Methods
+		public void CalculatePaymentDueDate()
+		{
+			PaymentDueDate = Terms switch
+			{
+				PaymentTerms.Immediate => SaleDate,
+				PaymentTerms.Net10 => SaleDate.AddDays(10),
+				PaymentTerms.Net15 => SaleDate.AddDays(15),
+				PaymentTerms.Net30 => SaleDate.AddDays(30),
+				PaymentTerms.Net45 => SaleDate.AddDays(45),
+				PaymentTerms.Net60 => SaleDate.AddDays(60),
+				_ => SaleDate.AddDays(30)
+			};
+		}
+
+		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+		{
+			var results = new List<ValidationResult>();
+
+			if (PaymentDueDate.Date < SaleDate.Date)
+			{
+				results.Add(new ValidationResult(
+						"Payment due date cannot be before the sale date.",
+						new[] { nameof(PaymentDueDate) }));
+			}
+
+			if (Terms == PaymentTerms.Immediate && PaymentDueDate.Date != SaleDate.Date)
+			{
+				results.Add(new ValidationResult(
+						"Payment due date must be the same as sale date for Immediate terms.",
+						new[] { nameof(PaymentDueDate) }));
+			}
+
+			if (SaleStatus == SaleStatus.Shipped)
+			{
+				if (string.IsNullOrEmpty(CourierService))
+				{
+					results.Add(new ValidationResult(
+							"Courier service is required when marking sale as shipped.",
+							new[] { nameof(CourierService) }));
+				}
+
+				if (string.IsNullOrEmpty(TrackingNumber))
+				{
+					results.Add(new ValidationResult(
+							"Tracking number is required when marking sale as shipped.",
+							new[] { nameof(TrackingNumber) }));
+				}
+
+				if (!ShippedDate.HasValue)
+				{
+					results.Add(new ValidationResult(
+							"Shipped date is required when marking sale as shipped.",
+							new[] { nameof(ShippedDate) }));
+				}
+			}
+
+			return results;
+		}
 		// ============= NEW ACCOUNTING PROPERTIES =============
 
 		/// <summary>
@@ -331,5 +407,35 @@ namespace InventorySystem.Models
 		public string AdjustmentSummary => HasAdjustments
 				? $"{RelatedAdjustments.Count} adjustment{(RelatedAdjustments.Count > 1 ? "s" : "")} totaling ${TotalAdjustments:N2}"
 				: "No adjustments applied";
+
+
+		[Display(Name = "Discount Amount")]
+		[Column(TypeName = "decimal(18,2)")]
+		public decimal DiscountAmount { get; set; } = 0;
+
+		[Display(Name = "Discount Percentage")]
+		[Column(TypeName = "decimal(5,2)")]
+		public decimal DiscountPercentage { get; set; } = 0;
+
+		[Display(Name = "Discount Type")]
+		[StringLength(20)]
+		public string DiscountType { get; set; } = "Percentage"; // "Amount" or "Percentage"
+
+		[Display(Name = "Discount Reason")]
+		[StringLength(500)]
+		public string? DiscountReason { get; set; }
+
+		// Update the computed properties:
+		[NotMapped]
+		[Display(Name = "Discount Calculated")]
+		public decimal DiscountCalculated => DiscountType == "Percentage"
+				? SubtotalAmount * (DiscountPercentage / 100)
+				: DiscountAmount;
+
+		[NotMapped]
+		[Display(Name = "Has Discount")]
+		public bool HasDiscount => DiscountCalculated > 0;
+
+
 	}
 }

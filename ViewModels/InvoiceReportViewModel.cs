@@ -1,5 +1,6 @@
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace InventorySystem.ViewModels
 {
@@ -24,23 +25,24 @@ namespace InventorySystem.ViewModels
 		public decimal TotalShipping { get; set; }
 		public decimal TotalTax { get; set; }
 
-		// ? NEW: Adjustment properties
 		public decimal TotalAdjustments { get; set; }
 		public decimal OriginalAmount { get; set; }
 
-		// ? UPDATED: Invoice total calculation considering adjustments
-		public decimal InvoiceTotal => OriginalAmount > 0 ?
-				OriginalAmount - TotalAdjustments :
-				SubtotalAmount + TotalShipping + TotalTax - TotalAdjustments;
+		// Update the computed properties:
+		[Display(Name = "Invoice Total")]
+		public decimal InvoiceTotal => SubtotalAmount + TotalShipping + TotalTax - TotalDiscount - TotalAdjustments;
+
+		[Display(Name = "Amount Due")]
+		public decimal AmountDue => InvoiceTotal - AmountPaid;
+
 
 		// Payment Information
 		public decimal AmountPaid { get; set; }
-		public decimal AmountDue => InvoiceTotal - AmountPaid;
 		public decimal GrandTotal => AmountDue; // For backward compatibility
 
 		// ? NEW: Helper properties for displaying adjustments
 		public bool HasAdjustments => TotalAdjustments > 0;
-		public decimal UnadjustedTotal => SubtotalAmount + TotalShipping + TotalTax;
+		public decimal UnadjustedTotal => SubtotalAmount + TotalShipping + TotalTax - TotalDiscount;
 
 		public int TotalQuantity => LineItems.Sum(li => li.Quantity);
 		public int LineItemCount => LineItems.Count;
@@ -62,6 +64,14 @@ namespace InventorySystem.ViewModels
 		// Shipping Information
 		public string ShippingAddress { get; set; } = string.Empty;
 		public string OrderNumber { get; set; } = string.Empty;
+		[Display(Name = "Total Discount")]
+		public decimal TotalDiscount { get; set; } = 0;
+
+		[Display(Name = "Discount Reason")]
+		public string? DiscountReason { get; set; }
+
+		[Display(Name = "Has Discount")]
+		public bool HasDiscount { get; set; } = false;
 	}
 
 	public class InvoiceLineItem
@@ -74,7 +84,7 @@ namespace InventorySystem.ViewModels
 		public decimal LineTotal => Quantity * UnitPrice;
 		public string Notes { get; set; } = string.Empty;
 		public string ProductType { get; set; } = string.Empty; // "Item" or "FinishedGood"
-
+		
 		// Backorder information
 		public int QuantityBackordered { get; set; }
 		public bool IsBackordered => QuantityBackordered > 0;

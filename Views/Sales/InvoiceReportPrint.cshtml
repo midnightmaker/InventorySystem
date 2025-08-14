@@ -1,439 +1,543 @@
-@model InventorySystem.ViewModels.InvoiceReportViewModel
+﻿@model InventorySystem.ViewModels.InvoiceReportViewModel
 @{
-    Layout = null; // No layout for print view
+  Layout = null; // No layout for print view
+  var afterDiscountAmount = Model.SubtotalAmount - Model.TotalDiscount;
 }
 
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Invoice @Model.InvoiceNumber - Print</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-        }
-        
-        .print-header {
-            text-align: center;
-            border-bottom: 3px solid #333;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .company-info, .customer-info {
-            margin-bottom: 20px;
-        }
-        
-        .invoice-details {
-            margin-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 15px;
-        }
-        
-        .line-items-table {
-            margin-bottom: 20px;
-        }
-        
-        /* Print-optimized table styling - uniform colors and borders */
-        .line-items-table table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 1px solid #333;
-        }
-        
-        .line-items-table th,
-        .line-items-table td {
-            border: 1px solid #333;
-            padding: 8px;
-            text-align: left;
-            background-color: white;
-        }
-        
-        .line-items-table thead th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-            text-align: center;
-        }
-        
-        .line-items-table tfoot th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-        }
-        
-        .line-items-table tbody tr {
-            background-color: white;
-        }
-        
-        .line-items-table .text-center {
-            text-align: center;
-        }
-        
-        .line-items-table .text-end {
-            text-align: right;
-        }
-        
-        .totals-section {
-            margin-bottom: 20px;
-        }
-        
-        .footer {
-            margin-top: 30px;
-            text-align: center;
-            border-top: 1px solid #ddd;
-            padding-top: 15px;
-            font-size: 11px;
-            color: #666;
-        }
-        
-        .overdue-notice {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 10px;
-            border: 1px solid #f5c6cb;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: bold;
-        }
-        
-        .payment-info {
-            background-color: #d1ecf1;
-            border: 1px solid #bee5eb;
-            border-radius: 4px;
-            padding: 10px;
-            margin-bottom: 15px;
-        }
-        
-        /* Print-specific overrides for clean, professional appearance */
-        @@media print {
-            .no-print {
-                display: none;
-            }
-            
-            body {
-                font-size: 11px;
-                background: white !important;
-                color: black !important;
-            }
-            
-            .page-break {
-                page-break-before: always;
-            }
-            
-            /* Ensure all table elements are consistently styled for print */
-            .line-items-table table {
-                border: 2px solid #000;
-            }
-            
-            .line-items-table th,
-            .line-items-table td {
-                border: 1px solid #000;
-                background: white !important;
-                color: black !important;
-            }
-            
-            .line-items-table thead th {
-                background: #f0f0f0 !important;
-                color: black !important;
-            }
-            
-            .line-items-table tfoot th {
-                background: #f0f0f0 !important;
-                color: black !important;
-            }
-            
-            /* Remove Bootstrap color classes for print */
-            .table-dark,
-            .table-secondary,
-            .table-info,
-            .table-success {
-                background: #f0f0f0 !important;
-                color: black !important;
-            }
-            
-            .text-primary,
-            .text-success,
-            .text-warning,
-            .text-danger {
-                color: black !important;
-            }
-            
-            /* Ensure badges are readable in print */
-            .badge {
-                background: white !important;
-                color: black !important;
-                border: 1px solid black !important;
-            }
-            
-            /* Clean alert styling for print */
-            .alert-info {
-                background: white !important;
-                border: 1px solid #ccc !important;
-                color: black !important;
-            }
-            
-            .overdue-notice {
-                background: white !important;
-                border: 2px solid black !important;
-                color: black !important;
-            }
-            
-            .payment-info {
-                background: white !important;
-                border: 1px solid #ccc !important;
-                color: black !important;
-            }
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invoice @Model.InvoiceNumber - Print</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+    }
+
+    .print-header {
+      text-align: center;
+      border-bottom: 3px solid #333;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+
+    .company-info, .customer-info {
+      margin-bottom: 20px;
+    }
+
+    .invoice-details {
+      margin-bottom: 20px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 15px;
+    }
+
+    .discount-notice {
+      background-color: #d4edda;
+      border: 1px solid #c3e6cb;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .line-items-table {
+      margin-bottom: 20px;
+    }
+
+      /* Print-optimized table styling - uniform colors and borders */
+      .line-items-table table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #333;
+      }
+
+      .line-items-table th,
+      .line-items-table td {
+        border: 1px solid #333;
+        padding: 8px;
+        text-align: left;
+        background-color: white;
+      }
+
+      .line-items-table thead th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      .line-items-table tfoot th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+      }
+
+      .line-items-table tbody tr {
+        background-color: white;
+      }
+
+      .line-items-table .text-center {
+        text-align: center;
+      }
+
+      .line-items-table .text-end {
+        text-align: right;
+      }
+
+    /* Special styling for discount rows */
+    .discount-row {
+      background-color: #d4edda !important;
+    }
+
+    /* Special styling for adjustment rows */
+    .adjustment-row {
+      background-color: #fff3cd !important;
+    }
+
+    .totals-section {
+      margin-bottom: 20px;
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      border-top: 1px solid #ddd;
+      padding-top: 15px;
+      font-size: 11px;
+      color: #666;
+    }
+
+    .overdue-notice {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 10px;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .adjustment-notice {
+      background-color: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 15px;
+      font-size: 11px;
+    }
+
+    .payment-info {
+      background-color: #d1ecf1;
+      border: 1px solid #bee5eb;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 15px;
+    }
+
+    /* Print-specific overrides for clean, professional appearance */
+    @@media print {
+      .no-print
+
+    {
+      display: none;
+    }
+
+    body {
+      font-size: 11px;
+      background: white !important;
+      color: black !important;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    /* Ensure all table elements are consistently styled for print */
+    .line-items-table table {
+      border: 2px solid #000;
+    }
+
+    .line-items-table th,
+    .line-items-table td {
+      border: 1px solid #000;
+      background: white !important;
+      color: black !important;
+    }
+
+    .line-items-table thead th {
+      background: #f0f0f0 !important;
+      color: black !important;
+    }
+
+    .line-items-table tfoot th {
+      background: #f0f0f0 !important;
+      color: black !important;
+    }
+
+    /* Special print styling for discount and adjustment rows */
+    .discount-row th,
+    .discount-row td {
+      background: #f0f0f0 !important;
+      font-style: italic !important;
+    }
+
+    .adjustment-row th,
+    .adjustment-row td {
+      background: #f5f5f5 !important;
+      font-style: italic !important;
+    }
+
+    /* Remove Bootstrap color classes for print */
+    .table-dark,
+    .table-secondary,
+    .table-info,
+    .table-success {
+      background: #f0f0f0 !important;
+      color: black !important;
+    }
+
+    .text-primary,
+    .text-success,
+    .text-warning,
+    .text-danger {
+      color: black !important;
+    }
+
+    /* Ensure badges are readable in print */
+    .badge {
+      background: white !important;
+      color: black !important;
+      border: 1px solid black !important;
+    }
+
+    /* Clean alert styling for print */
+    .alert-info,
+    .discount-notice,
+    .adjustment-notice {
+      background: white !important;
+      border: 1px solid #ccc !important;
+      color: black !important;
+    }
+
+    .overdue-notice {
+      background: white !important;
+      border: 2px solid black !important;
+      color: black !important;
+    }
+
+    .payment-info {
+      background: white !important;
+      border: 1px solid #ccc !important;
+      color: black !important;
+    }
+
+    }
+  </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <!-- Print Header -->
-        <div class="print-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    @if (Model.CompanyInfo.HasLogo)
-                    {
-                        <img src="@Url.Action("CompanyLogo", "Purchases")" 
-                             alt="@Model.CompanyInfo.CompanyName Logo" 
-                             style="max-width: 120px; max-height: 80px;" />
-                    }
-                </div>
-                <div class="text-center flex-grow-1">
-                    <h1>INVOICE</h1>
-                    <h2 class="text-primary">Invoice# @Model.InvoiceNumber</h2>
-                </div>
-                <div>
-                    <!-- Space for symmetry -->
-                </div>
-            </div>
-            
-            @if (Model.IsOverdue)
-            {
-                <div class="overdue-notice mt-3">
-                    <i class="fas fa-exclamation-triangle"></i> 
-                    <strong>OVERDUE - @Model.DaysOverdue days past due</strong>
-                </div>
-            }
+  <div class="container-fluid">
+    <!-- Print Header -->
+    <div class="print-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          @if (Model.CompanyInfo.HasLogo)
+          {
+            <img src="@Url.Action("CompanyLogo", "Purchases")"
+                 alt="@Model.CompanyInfo.CompanyName Logo"
+                 style="max-width: 120px; max-height: 80px;" />
+          }
         </div>
-
-        <!-- Company and Customer Information -->
-        <div class="row mb-4">
-            <div class="col-6">
-                <div class="company-info">
-                    <h5><strong>From:</strong></h5>
-                    <address>
-                        <strong>@Model.CompanyInfo.CompanyName</strong><br>
-                        @Model.CompanyInfo.Address<br>
-                        @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
-                        <i class="fas fa-phone"></i> @Model.CompanyInfo.Phone<br>
-                        <i class="fas fa-envelope"></i> @Model.CompanyInfo.Email<br>
-                        <i class="fas fa-globe"></i> @Model.CompanyInfo.Website
-                    </address>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="customer-info">
-                    <h5><strong>Bill To:</strong></h5>
-                    <address>
-                        <strong>@Model.Customer.CustomerName</strong><br>
-                        @if (!string.IsNullOrWhiteSpace(Model.Customer.BillingAddress))
-                        {
-                            @Model.Customer.BillingAddress<br>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerPhone))
-                        {
-                            <i class="fas fa-phone"></i> @Model.Customer.CustomerPhone<br>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerEmail))
-                        {
-                            <i class="fas fa-envelope"></i> @Model.Customer.CustomerEmail<br>
-                        }
-                    </address>
-                    
-                    @if (!string.IsNullOrWhiteSpace(Model.ShippingAddress) && Model.ShippingAddress != Model.Customer.BillingAddress)
-                    {
-                        <h6><strong>Ship To:</strong></h6>
-                        <address>
-                            @Model.ShippingAddress
-                        </address>
-                    }
-                </div>
-            </div>
+        <div class="text-center flex-grow-1">
+          <h1>INVOICE</h1>
+          <h2 class="text-primary">Invoice# @Model.InvoiceNumber</h2>
         </div>
-
-        <!-- Invoice Details -->
-        <div class="invoice-details">
-            <div class="row">
-                <div class="col-3">
-                    <strong>Invoice Date:</strong><br>
-                    @Model.InvoiceDate.ToString("MMMM dd, yyyy")
-                </div>
-                <div class="col-3">
-                    <strong>Due Date:</strong><br>
-                    @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
-                </div>
-                <div class="col-3">
-                    <strong>Payment Terms:</strong><br>
-                    @Model.PaymentTerms
-                </div>
-                <div class="col-3">
-                    <strong>Status:</strong><br>
-                    <span class="badge">@Model.PaymentStatus</span>
-                </div>
-            </div>
-            
-            @if (!string.IsNullOrWhiteSpace(Model.OrderNumber))
-            {
-                <div class="row mt-2">
-                    <div class="col-12">
-                        <strong>Order Number:</strong> @Model.OrderNumber
-                    </div>
-                </div>
-            }
+        <div>
+          <!-- Space for symmetry -->
         </div>
+      </div>
 
-        <!-- Line Items -->
-        <div class="line-items-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th width="8%">Line #</th>
-                        <th width="15%">Item Number</th>
-                        <th width="35%">Description</th>
-                        <th width="10%">Qty</th>
-                        <th width="15%">Unit Price</th>
-                        <th width="17%">Line Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @{
-                        int lineNumber = 1;
-                    }
-                    @foreach (var item in Model.LineItems)
-                    {
-                        <tr>
-                            <td class="text-center"><strong>@lineNumber</strong></td>
-                            <td><strong>@item.PartNumber</strong></td>
-                            <td>
-                                @item.Description
-                                @if (item.IsBackordered)
-                                {
-                                    <br><em>@item.BackorderStatus</em>
-                                }
-                            </td>
-                            <td class="text-center">@item.Quantity</td>
-                            <td class="text-end">$@item.UnitPrice.ToString("N2")</td>
-                            <td class="text-end">$@item.LineTotal.ToString("N2")</td>
-                        </tr>
-                        lineNumber++;
-                    }
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <th colspan="5" class="text-end">Subtotal (@Model.LineItemCount items):</th>
-                        <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
-                    </tr>
-                    @if (Model.TotalShipping > 0)
-                    {
-                        <tr>
-                            <th colspan="5" class="text-end">Shipping:</th>
-                            <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
-                        </tr>
-                    }
-                    @if (Model.TotalTax > 0)
-                    {
-                        <tr>
-                            <th colspan="5" class="text-end">Tax:</th>
-                            <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
-                        </tr>
-                    }
-                    <tr>
-                        <th colspan="5" class="text-end"><strong>INVOICE TOTAL:</strong></th>
-                        <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
-                    </tr>
-                    @if (Model.AmountPaid > 0)
-                    {
-                        <tr>
-                            <th colspan="5" class="text-end">Amount Paid:</th>
-                            <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
-                        </tr>
-                    }
-                    <tr>
-                        <th colspan="5" class="text-end">
-                            <strong>
-                                @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
-                                {
-                                    <span>PAID IN FULL:</span>
-                                }
-                                else
-                                {
-                                    <span>AMOUNT DUE:</span>
-                                }
-                            </strong>
-                        </th>
-                        <th class="text-end">
-                            <strong>
-                                @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
-                                {
-                                    <span>$0.00</span>
-                                }
-                                else
-                                {
-                                    <span>$@Model.AmountDue.ToString("N2")</span>
-                                }
-                            </strong>
-                        </th>
-                    </tr>
-                </tfoot>
-            </table>
+      @if (Model.IsOverdue)
+      {
+        <div class="overdue-notice mt-3">
+          <i class="fas fa-exclamation-triangle"></i>
+          <strong>OVERDUE - @Model.DaysOverdue days past due</strong>
         </div>
-
-        <!-- Payment Information -->
-        @if (!string.IsNullOrWhiteSpace(Model.PaymentMethod))
-        {
-            <div class="payment-info">
-                <h6><i class="fas fa-credit-card"></i> Payment Method:</h6>
-                <p class="mb-0"><strong>@Model.PaymentMethod</strong></p>
-            </div>
-        }
-
-        <!-- Notes -->
-        @if (!string.IsNullOrEmpty(Model.Notes))
-        {
-            <div class="alert alert-info">
-                <h6><i class="fas fa-sticky-note"></i> Notes:</h6>
-                <p class="mb-0">@Model.Notes</p>
-            </div>
-        }
-
-        <!-- Footer -->
-        <div class="footer">
-            <p class="mb-1"><strong>Thank you for your business!</strong></p>
-            <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
-            <p class="mb-0">
-                <small>Printed on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</small>
-            </p>
-        </div>
+      }
     </div>
 
-    <!-- Print button (hidden when printing) -->
-    <div class="no-print text-center mt-4">
-        <button type="button" class="btn btn-primary" onclick="window.print()">
-            <i class="fas fa-print"></i> Print This Invoice
-        </button>
-        <button type="button" class="btn btn-secondary" onclick="window.close()">
-            <i class="fas fa-times"></i> Close
-        </button>
+    <!-- Company and Customer Information -->
+    <div class="row mb-4">
+      <div class="col-6">
+        <div class="company-info">
+          <h5><strong>From:</strong></h5>
+          <address>
+            <strong>@Model.CompanyInfo.CompanyName</strong><br>
+            @Model.CompanyInfo.Address<br>
+            @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
+            <i class="fas fa-phone"></i> @Model.CompanyInfo.Phone<br>
+            <i class="fas fa-envelope"></i> @Model.CompanyInfo.Email<br>
+            <i class="fas fa-globe"></i> @Model.CompanyInfo.Website
+          </address>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="customer-info">
+          <h5><strong>Bill To:</strong></h5>
+          <address>
+            <strong>@Model.Customer.CustomerName</strong><br>
+            @if (!string.IsNullOrWhiteSpace(Model.Customer.BillingAddress))
+            {
+              @Model.Customer.BillingAddress
+            
+              <br>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerPhone))
+            {
+              <i class="fas fa-phone"></i> 
+              @Model.Customer.CustomerPhone
+            
+              <br>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerEmail))
+            {
+              <i class="fas fa-envelope"></i> 
+              @Model.Customer.CustomerEmail
+            
+              <br>
+            }
+          </address>
+
+          @if (!string.IsNullOrWhiteSpace(Model.ShippingAddress) && Model.ShippingAddress != Model.Customer.BillingAddress)
+          {
+            <h6><strong>Ship To:</strong></h6>
+            <address>
+              @Model.ShippingAddress
+            </address>
+          }
+        </div>
+      </div>
     </div>
 
-    <script>
-        // Auto-print when page loads (optional)
-        // window.onload = function() { window.print(); }
-    </script>
+    <!-- Invoice Details -->
+    <div class="invoice-details">
+      <div class="row">
+        <div class="col-3">
+          <strong>Invoice Date:</strong><br>
+          @Model.InvoiceDate.ToString("MMMM dd, yyyy")
+        </div>
+        <div class="col-3">
+          <strong>Due Date:</strong><br>
+          @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
+        </div>
+        <div class="col-3">
+          <strong>Payment Terms:</strong><br>
+          @Model.PaymentTerms
+        </div>
+        <div class="col-3">
+          <strong>Status:</strong><br>
+          <span class="badge">@Model.PaymentStatus</span>
+        </div>
+      </div>
+
+      @if (!string.IsNullOrWhiteSpace(Model.OrderNumber))
+      {
+        <div class="row mt-2">
+          <div class="col-12">
+            <strong>Order Number:</strong> @Model.OrderNumber
+          </div>
+        </div>
+      }
+    </div>
+
+   
+
+    <!-- Line Items -->
+    <div class="line-items-table">
+      <table>
+        <thead>
+          <tr>
+            <th width="8%">Line #</th>
+            <th width="15%">Item Number</th>
+            <th width="35%">Description</th>
+            <th width="10%">Qty</th>
+            <th width="15%">Unit Price</th>
+            <th width="17%">Line Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @{
+            int lineNumber = 1;
+          }
+          @foreach (var item in Model.LineItems)
+          {
+            <tr>
+              <td class="text-center"><strong>@lineNumber</strong></td>
+              <td><strong>@item.PartNumber</strong></td>
+              <td>
+                @item.Description
+                @if (item.IsBackordered)
+                {
+                  <br>
+              
+                  <em>@item.BackorderStatus</em>
+                }
+              </td>
+              <td class="text-center">@item.Quantity</td>
+              <td class="text-end">$@item.UnitPrice.ToString("N2")</td>
+              <td class="text-end">$@item.LineTotal.ToString("N2")</td>
+            </tr>
+            lineNumber++;
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="5" class="text-end">Subtotal (@Model.LineItemCount items):</th>
+            <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
+          </tr>
+
+          @* ✅ NEW: Show discount line if discount was applied *@
+          @if (Model.HasDiscount && Model.TotalDiscount > 0)
+          {
+            <tr class="discount-row">
+              <th colspan="5" class="text-end">
+                <i class="fas "></i>
+                Discount:
+              </th>
+              <th class="text-end">-$@Model.TotalDiscount.ToString("N2")</th>
+            </tr>
+            <tr>
+              <th colspan="5" class="text-end">After Discount:</th>
+              <th class="text-end">$@afterDiscountAmount.ToString("N2")</th>
+            </tr>
+          }
+
+          @* ✅ FIXED: Always show shipping and tax, even if zero *@
+          <tr>
+            <th colspan="5" class="text-end">Shipping:</th>
+            <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
+          </tr>
+          <tr>
+            <th colspan="5" class="text-end">Tax:</th>
+            <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
+          </tr>
+
+          @* ✅ NEW: Show post-sale adjustments if they exist *@
+          @if (Model.HasAdjustments)
+          {
+            <tr>
+              <th colspan="5" class="text-end">Invoice Total:</th>
+              <th class="text-end">$@Model.UnadjustedTotal.ToString("N2")</th>
+            </tr>
+            <tr class="adjustment-row">
+              <th colspan="5" class="text-end">Post-Sale Adjustments:</th>
+              <th class="text-end">-$@Model.TotalAdjustments.ToString("N2")</th>
+            </tr>
+            <tr>
+              <th colspan="5" class="text-end"><strong>ADJUSTED INVOICE TOTAL:</strong></th>
+              <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+            </tr>
+          }
+          else
+          {
+            <tr>
+              <th colspan="5" class="text-end"><strong>INVOICE TOTAL:</strong></th>
+              <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+            </tr>
+          }
+
+          @if (Model.AmountPaid > 0)
+          {
+            <tr>
+              <th colspan="5" class="text-end">Amount Paid:</th>
+              <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
+            </tr>
+          }
+          <tr>
+            <th colspan="5" class="text-end">
+              <strong>
+                @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                {
+                  <span>PAID IN FULL:</span>
+                }
+                else
+                {
+                  <span>AMOUNT DUE:</span>
+                }
+              </strong>
+            </th>
+            <th class="text-end">
+              <strong>
+                @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                {
+                  <span>$0.00</span>
+                }
+                else
+                {
+                  <span>$@Model.AmountDue.ToString("N2")</span>
+                }
+              </strong>
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    @* ✅ NEW: Show adjustment notice if adjustments exist *@
+    @if (Model.HasAdjustments)
+    {
+      <div class="adjustment-notice">
+        <strong><i class="fas fa-info-circle"></i> Invoice Adjustments Applied</strong><br>
+        This invoice has been adjusted from the original amount of
+        <strong>$@Model.UnadjustedTotal.ToString("N2")</strong> to
+        <strong>$@Model.InvoiceTotal.ToString("N2")</strong> due to post-sale adjustments totaling
+        <strong>$@Model.TotalAdjustments.ToString("N2")</strong>.
+      </div>
+    }
+
+    <!-- Payment Information -->
+    @if (!string.IsNullOrWhiteSpace(Model.PaymentMethod))
+    {
+      <div class="payment-info">
+        <h6><i class="fas fa-credit-card"></i> Payment Method:</h6>
+        <p class="mb-0"><strong>@Model.PaymentMethod</strong></p>
+      </div>
+    }
+
+    <!-- Notes -->
+    @if (!string.IsNullOrEmpty(Model.Notes))
+    {
+      <div class="alert alert-info">
+        <h6><i class="fas fa-sticky-note"></i> Notes:</h6>
+        <p class="mb-0">@Model.Notes</p>
+      </div>
+    }
+
+    <!-- Footer -->
+    <div class="footer">
+      <p class="mb-1"><strong>Thank you for your business!</strong></p>
+      <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
+      <p class="mb-0">
+        <small>Printed on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</small>
+      </p>
+    </div>
+  </div>
+
+  <!-- Print button (hidden when printing) -->
+  <div class="no-print text-center mt-4">
+    <button type="button" class="btn btn-primary" onclick="window.print()">
+      <i class="fas fa-print"></i> Print This Invoice
+    </button>
+    <button type="button" class="btn btn-secondary" onclick="window.close()">
+      <i class="fas fa-times"></i> Close
+    </button>
+  </div>
+
+  <script>
+    // Auto-print when page loads (optional)
+    // window.onload = function() { window.print(); }
+  </script>
 </body>
 </html>

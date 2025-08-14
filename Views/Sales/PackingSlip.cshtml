@@ -1,0 +1,337 @@
+@model InventorySystem.ViewModels.PackingSlipViewModel
+@{
+    Layout = null; // No layout for print view
+    ViewData["Title"] = $"Packing Slip {Model.PackingSlipNumber}";
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Packing Slip @Model.PackingSlipNumber</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        
+        .packing-slip-header {
+            text-align: center;
+            border-bottom: 3px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .company-info, .customer-info {
+            margin-bottom: 20px;
+        }
+        
+        .shipping-details {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 15px;
+        }
+        
+        .items-table {
+            margin-bottom: 20px;
+        }
+        
+        .items-table table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #333;
+        }
+        
+        .items-table th,
+        .items-table td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .items-table thead th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .backorder-row {
+            background-color: #fff3cd;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+            font-size: 11px;
+        }
+        
+        @@media print {
+            .no-print {
+                display: none;
+            }
+            
+            body {
+                font-size: 11px;
+            }
+            
+            .items-table table {
+                border: 2px solid #000;
+            }
+            
+            .items-table th,
+            .items-table td {
+                border: 1px solid #000;
+            }
+            
+            .backorder-row {
+                background-color: #f5f5f5 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Packing Slip Header -->
+        <div class="packing-slip-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    @if (Model.CompanyInfo.HasLogo)
+                    {
+                        <img src="@Url.Action("CompanyLogo", "Purchases")" 
+                             alt="@Model.CompanyInfo.CompanyName Logo" 
+                             style="max-width: 120px; max-height: 80px;" />
+                    }
+                </div>
+                <div class="text-center flex-grow-1">
+                    <h1>PACKING SLIP</h1>
+                    <h2 class="text-primary">@Model.PackingSlipNumber</h2>
+                    <p class="mb-0">Sale: @Model.Sale.SaleNumber</p>
+                </div>
+                <div>
+                    <!-- Space for symmetry -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Company and Customer Information -->
+        <div class="row mb-4">
+            <div class="col-6">
+                <div class="company-info">
+                    <h5><strong>From:</strong></h5>
+                    <address>
+                        <strong>@Model.CompanyInfo.CompanyName</strong><br>
+                        @Model.CompanyInfo.Address<br>
+                        @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
+                        Phone: @Model.CompanyInfo.Phone<br>
+                        Email: @Model.CompanyInfo.Email
+                    </address>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="customer-info">
+                    <h5><strong>Ship To:</strong></h5>
+                    <address>
+                        <strong>@Model.Sale.Customer.CustomerName</strong><br>
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer.CompanyName))
+                        {
+                            @Model.Sale.Customer.CompanyName<br>
+                        }
+                        @(Model.Sale.ShippingAddress ?? Model.Sale.Customer.FullShippingAddress)<br>
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer.Phone))
+                        {
+                            <span>Phone: @Model.Sale.Customer.Phone</span>
+                        }
+                    </address>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shipping Details -->
+        <div class="shipping-details">
+            <div class="row">
+                <div class="col-3">
+                    <strong>Packing Date:</strong><br>
+                    @Model.GeneratedDate.ToString("MMMM dd, yyyy")
+                </div>
+                <div class="col-3">
+                    <strong>Sale Date:</strong><br>
+                    @Model.Sale.SaleDate.ToString("MMMM dd, yyyy")
+                </div>
+                <div class="col-3">
+                    <strong>Order Number:</strong><br>
+                    @(Model.Sale.OrderNumber ?? "N/A")
+                </div>
+                <div class="col-3">
+                    <strong>Packed By:</strong><br>
+                    @Model.GeneratedBy
+                </div>
+            </div>
+            
+            @if (Model.Sale.HasShippingInfo)
+            {
+                <div class="row mt-2">
+                    <div class="col-4">
+                        <strong>Courier Service:</strong> @Model.Sale.CourierService
+                    </div>
+                    <div class="col-4">
+                        <strong>Tracking Number:</strong> @Model.Sale.TrackingNumber
+                    </div>
+                    <div class="col-4">
+                        <strong>Expected Delivery:</strong> @(Model.Sale.ExpectedDeliveryDate?.ToString("MM/dd/yyyy") ?? "TBD")
+                    </div>
+                </div>
+            }
+            
+            @if (!string.IsNullOrEmpty(Model.Sale.ShippingInstructions))
+            {
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <strong>Special Instructions:</strong> @Model.Sale.ShippingInstructions
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Items Table -->
+        <div class="items-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th width="5%">Line</th>
+                        <th width="15%">Part Number</th>
+                        <th width="40%">Description</th>
+                        <th width="10%">Qty Shipped</th>
+                        <th width="10%">Qty BO</th>
+                        <th width="10%">UOM</th>
+                        <th width="10%">Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int lineNumber = 1;
+                    }
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr class="@(item.IsBackordered ? "backorder-row" : "")">
+                            <td class="text-center"><strong>@lineNumber</strong></td>
+                            <td><strong>@item.PartNumber</strong></td>
+                            <td>
+                                @item.Description
+                                @if (item.IsBackordered)
+                                {
+                                    <br><small class="text-warning">? Partial shipment - @item.QuantityBackordered backordered</small>
+                                }
+                                @if (!string.IsNullOrEmpty(item.Notes))
+                                {
+                                    <br><small class="text-muted">@item.Notes</small>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <strong>@item.QuantityShipped</strong>
+                            </td>
+                            <td class="text-center">
+                                @if (item.IsBackordered)
+                                {
+                                    <span class="text-warning">@item.QuantityBackordered</span>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td class="text-center">@item.UnitOfMeasure</td>
+                            <td class="text-center">
+                                @if (item.IsBackordered)
+                                {
+                                    <small class="text-warning">Backorder</small>
+                                }
+                                else
+                                {
+                                    <small class="text-success">Complete</small>
+                                }
+                            </td>
+                        </tr>
+                        lineNumber++;
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="table-secondary">
+                        <th colspan="3" class="text-end">Totals:</th>
+                        <th class="text-center">@Model.Items.Sum(i => i.QuantityShipped)</th>
+                        <th class="text-center">@Model.Items.Sum(i => i.QuantityBackordered)</th>
+                        <th colspan="2" class="text-center">@Model.TotalLineItems items</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Package Information -->
+        @if (Model.Sale.PackageWeight.HasValue || !string.IsNullOrEmpty(Model.Sale.PackageDimensions))
+        {
+            <div class="row mb-3">
+                <div class="col-12">
+                    <h6><strong>Package Information:</strong></h6>
+                    @if (Model.Sale.PackageWeight.HasValue)
+                    {
+                        <span>Weight: @Model.Sale.PackageWeight lbs</span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Sale.PackageDimensions))
+                    {
+                        <span class="ms-3">Dimensions: @Model.Sale.PackageDimensions</span>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Backorder Notice -->
+        @if (Model.Items.Any(i => i.IsBackordered))
+        {
+            <div class="alert alert-warning">
+                <h6><strong>? Backorder Notice:</strong></h6>
+                <p class="mb-0">
+                    This shipment contains @Model.Items.Count(i => i.IsBackordered) item(s) with backorders. 
+                    Backordered items will be shipped separately when available.
+                    Customer will be notified of backorder status.
+                </p>
+            </div>
+        }
+
+        <!-- Footer -->
+        <div class="footer">
+            <p class="mb-1"><strong>Thank you for your business!</strong></p>
+            <p class="mb-1">Please verify contents immediately upon receipt.</p>
+            <p class="mb-1">Report any discrepancies within 24 hours.</p>
+            <p class="mb-0">
+                <small>Packing slip generated on @Model.GeneratedDate.ToString("MMMM dd, yyyy 'at' h:mm tt")</small>
+            </p>
+        </div>
+    </div>
+
+    <!-- Print buttons (hidden when printing) -->
+    <div class="no-print text-center mt-4">
+        <button type="button" class="btn btn-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Packing Slip
+        </button>
+        <a href="/Sales/Details/@Model.Sale.Id" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Sale
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="window.close()">
+            <i class="fas fa-times"></i> Close
+        </button>
+    </div>
+
+    <!-- Auto-print script (if requested) -->
+    @if (TempData["AutoPrintPackingSlip"] != null)
+    {
+        <script>
+            window.onload = function() { 
+                window.print(); 
+            }
+        </script>
+    }
+</body>
+</html>

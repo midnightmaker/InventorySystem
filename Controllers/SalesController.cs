@@ -1,4 +1,4 @@
-// Controllers/SalesController.cs - Clean version focused on CustomerPayment integration
+﻿// Controllers/SalesController.cs - Clean version focused on CustomerPayment integration
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using InventorySystem.Services;
@@ -311,6 +311,7 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		
 		// Invoice Report - View invoice for a sale
 		[HttpGet]
 		public async Task<IActionResult> InvoiceReport(int saleId)
@@ -333,7 +334,7 @@ namespace InventorySystem.Controllers
 					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
 				};
 
-				// ? NEW: Calculate adjustments
+				// ✅ Calculate adjustments (NOT including discounts - those are part of the sale)
 				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
 
 				var viewModel = new InvoiceReportViewModel
@@ -368,16 +369,18 @@ namespace InventorySystem.Controllers
 					OrderNumber = sale.OrderNumber ?? string.Empty,
 					TotalShipping = sale.ShippingCost,
 					TotalTax = sale.TaxAmount,
-					// ? NEW: Add adjustments to view model
+					// ✅ NEW: Add discount information to invoice
+					TotalDiscount = sale.DiscountCalculated,
+					DiscountReason = sale.DiscountReason,
+					HasDiscount = sale.HasDiscount,
+					// Keep adjustments separate (for post-sale issues)
 					TotalAdjustments = totalAdjustments,
-					OriginalAmount = sale.TotalAmount,
-					// Calculate amount paid using CustomerPaymentService
+					OriginalAmount = sale.TotalAmount, // This now includes the discount calculation
+				  // Calculate amount paid using CustomerPaymentService
 					AmountPaid = await GetTotalPaymentsBySaleAsync(sale.Id)
 				};
 
-				// ? Pass sale ID to view for other actions
 				ViewBag.SaleId = saleId;
-
 				return View(viewModel);
 			}
 			catch (Exception ex)
@@ -449,6 +452,9 @@ namespace InventorySystem.Controllers
 					OrderNumber = sale.OrderNumber ?? string.Empty,
 					TotalShipping = sale.ShippingCost,
 					TotalTax = sale.TaxAmount,
+					TotalDiscount = sale.DiscountCalculated,
+					DiscountReason = sale.DiscountReason,
+					HasDiscount = sale.HasDiscount,
 					// Calculate amount paid using CustomerPaymentService
 					AmountPaid = await GetTotalPaymentsBySaleAsync(sale.Id)
 				};
@@ -1487,313 +1493,262 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		// GET: Sales/Edit/5
-		[HttpGet]
-		public async Task<IActionResult> Edit(int id)
-		{
-			try
-			{
-				_logger.LogInformation("Loading edit form for sale {SaleId}", id);
-
-				var sale = await _salesService.GetSaleByIdAsync(id);
-				if (sale == null)
-				{
-					TempData["ErrorMessage"] = "Sale not found.";
-					return RedirectToAction("Index");
-				}
-
-				// Check if sale can be edited
-				if (sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered)
-				{
-					TempData["ErrorMessage"] = "Cannot edit sales that have been shipped or delivered.";
-					return RedirectToAction("Details", new { id });
-				}
-
-				if (sale.SaleStatus == SaleStatus.Cancelled)
-				{
-					TempData["ErrorMessage"] = "Cannot edit cancelled sales.";
-					return RedirectToAction("Details", new { id });
-				}
-
-				_logger.LogInformation("Edit form loaded for sale {SaleId}", id);
-
-				return View(sale);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error loading edit form for sale {SaleId}", id);
-				TempData["ErrorMessage"] = $"Error loading sale: {ex.Message}";
-				return RedirectToAction("Index");
-			}
-		}
-
-		// POST: Sales/Edit/5
+		// POST: Sales/ProcessSaleWithShipping - Enhanced process and ship with courier information
 		[HttpPost]
 		[ValidateAntiForgeryToken]
-		public async Task<IActionResult> Edit(int id, Sale sale)
+		public async Task<IActionResult> ProcessSaleWithShipping(ProcessSaleViewModel model)
 		{
-			if (id != sale.Id)
-			{
-				return NotFound();
-			}
-
 			try
 			{
-				_logger.LogInformation("Updating sale {SaleId}", id);
-
-				// Get the existing sale to preserve certain fields and check permissions
-				var existingSale = await _salesService.GetSaleByIdAsync(id);
-				if (existingSale == null)
+				_logger.LogInformation("Processing sale with shipping {SaleId}", model.SaleId);
+				ModelState.Remove("GeneratePackingSlip");
+				ModelState.Remove("EmailCustomer");
+				ModelState.Remove("PrintPackingSlip");
+				// Get the sale with items
+				var sale = await _salesService.GetSaleByIdAsync(model.SaleId);
+				if (sale == null)
 				{
 					TempData["ErrorMessage"] = "Sale not found.";
 					return RedirectToAction("Index");
 				}
 
-				// Check if sale can be edited
-				if (existingSale.SaleStatus == SaleStatus.Shipped || existingSale.SaleStatus == SaleStatus.Delivered)
+				// Validate sale can be processed
+				if (sale.SaleStatus != SaleStatus.Processing)
 				{
-					TempData["ErrorMessage"] = "Cannot edit sales that have been shipped or delivered.";
-					return RedirectToAction("Details", new { id });
+					TempData["ErrorMessage"] = "Only sales with Processing status can be shipped.";
+					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
-				if (existingSale.SaleStatus == SaleStatus.Cancelled)
+				if (!sale.SaleItems?.Any() == true)
 				{
-					TempData["ErrorMessage"] = "Cannot edit cancelled sales.";
-					return RedirectToAction("Details", new { id });
+					TempData["ErrorMessage"] = "Cannot process a sale with no items.";
+					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
-				// Remove Customer navigation property from validation
-				if (ModelState.ContainsKey("Customer"))
-				{
-					ModelState.Remove("Customer");
-				}
-
-				// Remove SaleItems navigation property from validation
-				if (ModelState.ContainsKey("SaleItems"))
-				{
-					ModelState.Remove("SaleItems");
-				}
-
-				// Validate payment due date logic
-				if (sale.PaymentDueDate.Date < sale.SaleDate.Date)
-				{
-					ModelState.AddModelError(nameof(sale.PaymentDueDate), "Payment due date cannot be before the sale date.");
-				}
-
+				// Validate model
 				if (!ModelState.IsValid)
 				{
-					_logger.LogWarning("Edit sale validation failed for sale {SaleId}", id);
-
-					// Reload the sale with navigation properties for display
-					sale = await _salesService.GetSaleByIdAsync(id);
-					return View(sale);
+					TempData["ErrorMessage"] = "Please fill in all required shipping information.";
+					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
-				// FIXED: Update only the specific fields that should be editable
-				// Instead of passing the entire entity, update only the allowed fields
-				existingSale.SaleDate = sale.SaleDate;
-				existingSale.Terms = sale.Terms;
-				existingSale.PaymentDueDate = sale.PaymentDueDate;
-				existingSale.PaymentStatus = sale.PaymentStatus;
-				existingSale.SaleStatus = sale.SaleStatus;
-				existingSale.PaymentMethod = sale.PaymentMethod;
-				existingSale.ShippingAddress = sale.ShippingAddress;
-				existingSale.TaxAmount = sale.TaxAmount;
-				existingSale.ShippingCost = sale.ShippingCost;
-				existingSale.Notes = sale.Notes;
-				existingSale.OrderNumber = sale.OrderNumber;
+				// Check if any items track inventory (will affect stock)
+				var inventoryItems = new List<SaleItem>();
+				var nonInventoryItems = new List<SaleItem>();
 
-				// Protected fields (DO NOT update these):
-				// - SaleNumber: Cannot be changed (reference integrity)
-				// - CreatedDate: Cannot be changed (audit trail)
-				// - CustomerId: Cannot be changed (use separate transfer function if needed)
-				// - Id: Primary key, never changes
+				foreach (var saleItem in sale.SaleItems)
+				{
+					if (saleItem.ItemId.HasValue)
+					{
+						// Check if this is an inventory-tracked item
+						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+						if (item != null && item.TrackInventory)
+						{
+							inventoryItems.Add(saleItem);
+						}
+						else
+						{
+							nonInventoryItems.Add(saleItem);
+						}
+					}
+					else if (saleItem.FinishedGoodId.HasValue)
+					{
+						// Finished goods always track inventory
+						inventoryItems.Add(saleItem);
+					}
+				}
 
-				// Update using the tracked entity
-				var updatedSale = await _salesService.UpdateSaleAsync(existingSale);
+				// Process inventory reductions for inventory-tracked items
+				if (inventoryItems.Any())
+				{
+					foreach (var saleItem in inventoryItems)
+					{
+						if (saleItem.ItemId.HasValue)
+						{
+							// Reduce item inventory
+							var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+							if (item != null)
+							{
+								var quantityToReduce = Math.Min(saleItem.QuantitySold, item.CurrentStock);
+								if (quantityToReduce > 0)
+								{
+									// Create inventory adjustment record
+									var adjustment = new InventoryAdjustment
+									{
+										ItemId = item.Id,
+										AdjustmentType = "Sale",
+										QuantityAdjusted = -quantityToReduce,
+										AdjustmentDate = DateTime.Now,
+										Reason = $"Sale {sale.SaleNumber} - Item shipped via {model.CourierService}",
+										AdjustedBy = User.Identity?.Name ?? "System",
+										ReferenceNumber = sale.SaleNumber
+									};
 
-				_logger.LogInformation("Sale {SaleId} updated successfully", id);
+									_context.InventoryAdjustments.Add(adjustment);
 
-				TempData["SuccessMessage"] = $"Sale {existingSale.SaleNumber} updated successfully!";
-				return RedirectToAction("Details", new { id });
+									// Also reduce the item's current stock
+									item.CurrentStock -= quantityToReduce;
+									await _context.SaveChangesAsync();
+									_logger.LogInformation("Reduced inventory for item {ItemId} by {Quantity} units",
+											item.Id, quantityToReduce);
+								}
+							}
+						}
+						else if (saleItem.FinishedGoodId.HasValue)
+						{
+							// Reduce finished good inventory
+							var finishedGood = await _context.FinishedGoods
+									.FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
+
+							if (finishedGood != null)
+							{
+								var quantityToReduce = Math.Min(saleItem.QuantitySold, finishedGood.CurrentStock);
+								if (quantityToReduce > 0)
+								{
+									finishedGood.CurrentStock -= quantityToReduce;
+									await _context.SaveChangesAsync();
+									_logger.LogInformation("Reduced finished good {FinishedGoodId} inventory by {Quantity} units",
+											finishedGood.Id, quantityToReduce);
+								}
+							}
+						}
+					}
+				}
+
+				// ✅ NEW: Update sale with shipping information
+				sale.SaleStatus = SaleStatus.Shipped;
+				sale.CourierService = model.CourierService;
+				sale.TrackingNumber = model.TrackingNumber;
+				sale.ShippedDate = DateTime.Now;
+				sale.ExpectedDeliveryDate = model.ExpectedDeliveryDate;
+				sale.PackageWeight = model.PackageWeight;
+				sale.PackageDimensions = model.PackageDimensions;
+				sale.ShippingInstructions = model.ShippingInstructions;
+				sale.ShippedBy = User.Identity?.Name ?? "System";
+
+				var updatedSale = await _salesService.UpdateSaleAsync(sale);
+
+				_logger.LogInformation("Sale {SaleId} processed and marked as shipped via {CourierService} with tracking {TrackingNumber}", 
+					model.SaleId, model.CourierService, model.TrackingNumber);
+
+				// ✅ NEW: Generate packing slip if requested
+				string packingSlipInfo = "";
+				if (model.GeneratePackingSlip)
+				{
+					var packingSlipUrl = Url.Action("PackingSlip", new { saleId = model.SaleId });
+					packingSlipInfo = $" Packing slip available at: {packingSlipUrl}";
+
+					if (model.PrintPackingSlip)
+					{
+						// Add JavaScript to auto-open packing slip for printing
+						TempData["AutoPrintPackingSlip"] = packingSlipUrl;
+					}
+				}
+
+				// ✅ NEW: Send email notification if requested
+				if (model.EmailCustomer && !string.IsNullOrEmpty(sale.Customer?.Email))
+				{
+					try
+					{
+						await SendShippingNotificationEmailAsync(sale, model);
+						packingSlipInfo += " Shipping notification sent to customer.";
+					}
+					catch (Exception ex)
+					{
+						_logger.LogWarning(ex, "Failed to send shipping notification for sale {SaleId}", model.SaleId);
+						packingSlipInfo += " (Email notification failed)";
+					}
+				}
+
+				// Create success message based on item types
+				string successMessage;
+				if (inventoryItems.Any() && nonInventoryItems.Any())
+				{
+					successMessage = $"Sale {sale.SaleNumber} shipped successfully via {model.CourierService}! " +
+								   $"Tracking: {model.TrackingNumber}. " +
+								   $"Inventory reduced for {inventoryItems.Count} physical items. " +
+								   $"{nonInventoryItems.Count} service/virtual items processed.{packingSlipInfo}";
+				}
+				else if (inventoryItems.Any())
+				{
+					successMessage = $"Sale {sale.SaleNumber} shipped successfully via {model.CourierService}! " +
+								   $"Tracking: {model.TrackingNumber}. " +
+								   $"Inventory has been reduced for all items.{packingSlipInfo}";
+				}
+				else
+				{
+					successMessage = $"Sale {sale.SaleNumber} shipped successfully via {model.CourierService}! " +
+								   $"Tracking: {model.TrackingNumber}. " +
+								   $"No inventory adjustments needed (all items are services/virtual).{packingSlipInfo}";
+				}
+
+				TempData["SuccessMessage"] = successMessage;
+
+				return RedirectToAction("Details", new { id = model.SaleId });
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error updating sale {SaleId}", id);
-				TempData["ErrorMessage"] = $"Error updating sale: {ex.Message}";
-
-				// Reload the sale with navigation properties for display
-				try
-				{
-					sale = await _salesService.GetSaleByIdAsync(id);
-				}
-				catch (Exception loadEx)
-				{
-					_logger.LogError(loadEx, "Error reloading sale for edit view");
-				}
-
-				return View(sale);
+				_logger.LogError(ex, "Error processing sale with shipping {SaleId}", model.SaleId);
+				TempData["ErrorMessage"] = $"Error processing sale: {ex.Message}";
+				return RedirectToAction("Details", new { id = model.SaleId });
 			}
 		}
 
-		// GET: Sales/GenerateCreditMemo?adjustmentId=123
-		public async Task<IActionResult> GenerateCreditMemo(int adjustmentId)
+		// ✅ NEW: Packing Slip generation
+		[HttpGet]
+		public async Task<IActionResult> PackingSlip(int saleId)
 		{
 			try
 			{
-				var adjustment = await _context.CustomerBalanceAdjustments
-						.Include(a => a.Customer)
-						.Include(a => a.Sale)
-						.FirstOrDefaultAsync(a => a.Id == adjustmentId);
-
-				if (adjustment == null)
-				{
-					TempData["ErrorMessage"] = "Adjustment not found.";
-					return RedirectToAction("Index", "Customers");
-				}
-
-				var creditMemoViewModel = new CreditMemoViewModel
-				{
-					Adjustment = adjustment,
-					Customer = adjustment.Customer,
-					RelatedSale = adjustment.Sale,
-					CreditMemoNumber = $"CM-{DateTime.Now:yyyyMMdd}-{adjustment.Id:D4}",
-					CreditAmount = adjustment.AdjustmentAmount,
-					GeneratedDate = DateTime.Now,
-					Reason = adjustment.Reason
-				};
-
-				return View("CreditMemo", creditMemoViewModel);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error generating credit memo for adjustment {AdjustmentId}", adjustmentId);
-				TempData["ErrorMessage"] = $"Error generating credit memo: {ex.Message}";
-				return RedirectToAction("Index", "Customers");
-			}
-		}
-
-		// GET: Sales/GenerateRevisedInvoice/5?adjustmentId=123
-		public async Task<IActionResult> GenerateRevisedInvoice(int id, int? adjustmentId = null)
-		{
-			try
-			{
-				var sale = await _salesService.GetSaleByIdAsync(id);
+				var sale = await _salesService.GetSaleByIdAsync(saleId);
 				if (sale == null)
 				{
 					TempData["ErrorMessage"] = "Sale not found.";
 					return RedirectToAction("Index");
 				}
 
-				// Get all adjustments for this sale
-				var adjustments = await _context.CustomerBalanceAdjustments
-						.Where(a => a.SaleId == id)
-						.OrderBy(a => a.AdjustmentDate)
-						.ToListAsync();
+				var packingSlipNumber = $"PS-{sale.SaleNumber}";
 
-				// If specific adjustment requested, filter to that one
-				if (adjustmentId.HasValue)
-				{
-					adjustments = adjustments.Where(a => a.Id == adjustmentId.Value).ToList();
-				}
-
-				var revisedInvoiceViewModel = new RevisedInvoiceViewModel
+				var viewModel = new PackingSlipViewModel
 				{
 					Sale = sale,
-					Adjustments = adjustments,
-					OriginalAmount = sale.TotalAmount,
-					AdjustmentAmount = adjustments.Sum(a => a.AdjustmentAmount),
-					RevisedAmount = sale.TotalAmount - adjustments.Sum(a => a.AdjustmentAmount),
+					PackingSlipNumber = packingSlipNumber,
 					GeneratedDate = DateTime.Now,
-					RevisionReason = adjustments.FirstOrDefault()?.Reason ?? "Customer adjustment applied"
+					GeneratedBy = User.Identity?.Name ?? "System",
+					CompanyInfo = await GetCompanyInfo(),
+					Items = sale.SaleItems.Select(si => new PackingSlipItem
+					{
+						PartNumber = si.ProductPartNumber,
+						Description = si.ProductName,
+						Quantity = si.QuantitySold,
+						QuantityBackordered = si.QuantityBackordered,
+						Notes = si.Notes,
+						IsBackordered = si.QuantityBackordered > 0,
+						UnitOfMeasure = "Each" // Could be enhanced to get from product
+					}).ToList()
 				};
 
-				return View("RevisedInvoice", revisedInvoiceViewModel);
+				return View(viewModel);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error generating revised invoice for sale {SaleId}", id);
-				TempData["ErrorMessage"] = $"Error generating revised invoice: {ex.Message}";
-				return RedirectToAction("Details", new { id });
+				_logger.LogError(ex, "Error generating packing slip for sale {SaleId}", saleId);
+				TempData["ErrorMessage"] = $"Error generating packing slip: {ex.Message}";
+				return RedirectToAction("Details", new { id = saleId });
 			}
 		}
-		[HttpGet]
-		public async Task<JsonResult> GetAdjustmentDetails(int id)
+
+		// ✅ NEW: Helper method to send shipping notification email
+		private async Task SendShippingNotificationEmailAsync(Sale sale, ProcessSaleViewModel shippingInfo)
 		{
-			try
-			{
-				var adjustment = await _context.CustomerBalanceAdjustments
-						.Include(a => a.Customer)
-						.Include(a => a.Sale)
-						.FirstOrDefaultAsync(a => a.Id == id);
-
-				if (adjustment == null)
-				{
-					return Json(new { success = false, error = "Adjustment not found" });
-				}
-
-				return Json(new
-				{
-					success = true,
-					id = adjustment.Id,
-					adjustmentType = adjustment.AdjustmentType,
-					amount = adjustment.AdjustmentAmount,
-					adjustmentDate = adjustment.AdjustmentDate,
-					reason = adjustment.Reason,
-					createdBy = adjustment.CreatedBy,
-					relatedSale = adjustment.Sale != null ? new
-					{
-						id = adjustment.Sale.Id,
-						saleNumber = adjustment.Sale.SaleNumber,
-						saleDate = adjustment.Sale.SaleDate,
-						totalAmount = adjustment.Sale.TotalAmount
-					} : null
-				});
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error getting adjustment details: {AdjustmentId}", id);
-				return Json(new { success = false, error = ex.Message });
-			}
+			// This would integrate with your email service
+			// For now, just log the action
+			_logger.LogInformation("Sending shipping notification for sale {SaleNumber} to {CustomerEmail} - Courier: {Courier}, Tracking: {Tracking}",
+				sale.SaleNumber, sale.Customer?.Email, shippingInfo.CourierService, shippingInfo.TrackingNumber);
+			
+			// TODO: Implement actual email sending
+			// await _emailService.SendShippingNotificationAsync(sale, shippingInfo);
 		}
-
-		/// <summary>
-		/// API endpoint to get sale details including effective amount after adjustments
-		/// Used by JavaScript for payment modals and other AJAX calls
-		/// </summary>
-		[HttpGet]
-		public async Task<JsonResult> GetSaleEffectiveAmount(int id)
-		{
-			try
-			{
-				var sale = await _salesService.GetSaleByIdAsync(id);
-				if (sale == null)
-				{
-					return Json(new { success = false, error = "Sale not found" });
-				}
-
-				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
-				var effectiveAmount = sale.TotalAmount - totalAdjustments;
-
-				return Json(new
-				{
-					success = true,
-					saleId = sale.Id,
-					saleNumber = sale.SaleNumber,
-					originalAmount = sale.TotalAmount,
-					totalAdjustments = totalAdjustments,
-					effectiveAmount = effectiveAmount,
-					hasAdjustments = totalAdjustments > 0,
-					paymentStatus = sale.PaymentStatus.ToString()
-				});
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error getting effective amount for sale {SaleId}", id);
-				return Json(new { success = false, error = ex.Message });
-			}
-		}
-
 		// Controllers/SalesController.cs - Enhanced Methods (add these to existing controller)
 
 		// GET: Sales/CreateEnhanced
@@ -1844,6 +1799,7 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		
 		// POST: Sales/CreateEnhanced
 		[HttpPost]
 		[ValidateAntiForgeryToken]
@@ -1854,14 +1810,20 @@ namespace InventorySystem.Controllers
 				// Remove navigation property validation errors
 				ModelState.Remove("Customer");
 
+				//// Generate sale number if needed
+				//if (string.IsNullOrEmpty(viewModel.SaleNumber))
+				//{
+				//	viewModel.SaleNumber = await _salesService.GenerateSaleNumberAsync();
+				//}
+
 				// FILTER OUT INCOMPLETE LINE ITEMS BEFORE VALIDATION
 				var originalLineItems = viewModel.LineItems.ToList();
 
 				// Filter out incomplete line items (no product selected, zero quantity, or zero price)
 				viewModel.LineItems = viewModel.LineItems.Where(li =>
-					li.IsSelected && // Has a product selected
-					li.Quantity > 0 && // Has a quantity greater than 0
-					li.UnitPrice > 0   // Has a unit price greater than 0
+						li.IsSelected && // Has a product selected
+						li.Quantity > 0 && // Has a quantity greater than 0
+						li.UnitPrice > 0   // Has a unit price greater than 0
 				).ToList();
 
 				// CLEAR MODELSTATE ERRORS FOR ALL LINE ITEMS
@@ -1873,7 +1835,7 @@ namespace InventorySystem.Controllers
 
 				// Log filtering results for debugging
 				_logger.LogInformation("Enhanced sale creation - Original line items: {OriginalCount}, Valid line items: {ValidCount}",
-					originalLineItems.Count, viewModel.LineItems.Count);
+						originalLineItems.Count, viewModel.LineItems.Count);
 
 				// Check if we have any valid line items after filtering
 				if (!viewModel.LineItems.Any())
@@ -1935,8 +1897,7 @@ namespace InventorySystem.Controllers
 					return View(viewModel);
 				}
 
-				// ? ADDED: FINAL SAFETY CHECK BEFORE PROCEEDING
-				// This catches any validation errors that might have been added elsewhere
+				// FINAL SAFETY CHECK BEFORE PROCEEDING
 				if (!ModelState.IsValid)
 				{
 					_logger.LogWarning("Final validation check failed for enhanced sale creation");
@@ -1945,8 +1906,7 @@ namespace InventorySystem.Controllers
 					return View(viewModel);
 				}
 
-				// NOW WE CAN SAFELY PROCEED TO CREATE THE SALE
-				// ... rest of the method remains the same
+				// CREATE THE SALE WITH DISCOUNT INFORMATION
 				var sale = new Sale
 				{
 					CustomerId = viewModel.CustomerId.Value,
@@ -1961,6 +1921,11 @@ namespace InventorySystem.Controllers
 					PaymentMethod = viewModel.PaymentMethod,
 					ShippingCost = viewModel.ShippingCost,
 					TaxAmount = viewModel.TaxAmount,
+					// ✅ FIXED: Add discount information directly to the sale
+					DiscountAmount = viewModel.DiscountAmount,
+					DiscountPercentage = viewModel.DiscountPercentage,
+					DiscountType = viewModel.DiscountType,
+					DiscountReason = viewModel.DiscountReason,
 					SaleNumber = await _salesService.GenerateSaleNumberAsync(),
 					CreatedDate = DateTime.Now
 				};
@@ -1992,20 +1957,19 @@ namespace InventorySystem.Controllers
 					addedItems.Add(addedItem);
 				}
 
-				// Apply discount if specified
-				if (viewModel.HasDiscount)
-				{
-					await ApplyDiscountAdjustment(createdSale.Id, viewModel);
-				}
+				// ✅ REMOVED: Don't apply discount as adjustment anymore
+				// The discount is now part of the sale itself
 
 				// Generate success message with summary
 				var successMessage = $"Sale {createdSale.SaleNumber} created successfully!";
-				successMessage += $" {viewModel.LineItemCount} item(s), Total: {viewModel.TotalAmount:C}";
+				successMessage += $" {viewModel.LineItemCount} item(s), Subtotal: {viewModel.SubtotalAmount:C}";
 
 				if (viewModel.HasDiscount)
 				{
-					successMessage += $" (Discount: {viewModel.DiscountCalculated:C})";
+					successMessage += $", Discount: {viewModel.DiscountCalculated:C}";
 				}
+
+				successMessage += $", Total: {viewModel.TotalAmount:C}";
 
 				TempData["SuccessMessage"] = successMessage;
 				return RedirectToAction("Details", new { id = createdSale.Id });
@@ -2016,43 +1980,6 @@ namespace InventorySystem.Controllers
 				TempData["ErrorMessage"] = $"Error creating sale: {ex.Message}";
 				await LoadDropdownsForEnhancedCreate(viewModel);
 				return View(viewModel);
-			}
-		}
-
-		// Helper method to apply discount adjustment
-		private async Task ApplyDiscountAdjustment(int saleId, EnhancedCreateSaleViewModel viewModel)
-		{
-			try
-			{
-				var discountReason = viewModel.DiscountReason ??
-						$"{viewModel.DiscountType} discount ({(viewModel.DiscountType == "Percentage" ?
-								viewModel.DiscountPercentage + "%" :
-								viewModel.DiscountAmount.ToString("C"))})";
-
-				// Create automatic discount adjustment
-				var adjustment = new CustomerBalanceAdjustment
-				{
-					CustomerId = viewModel.CustomerId.Value,
-					SaleId = saleId,
-					AdjustmentDate = DateTime.Now,
-						AdjustmentAmount = viewModel.DiscountCalculated,
-					AdjustmentType = "Sales Discount",
-					Reason = discountReason,
-					ReferenceNumber = $"DISC-{DateTime.Now:yyyyMMdd}-{saleId}",
-					CreatedBy = User.Identity?.Name ?? "System"
-				};
-
-				// Use existing accounting service to create the adjustment with proper journal entries
-				await _context.CustomerBalanceAdjustments.AddAsync(adjustment);
-				await _context.SaveChangesAsync();
-
-				_logger.LogInformation("Applied discount adjustment of {Amount:C} to sale {SaleId}",
-						viewModel.DiscountCalculated, saleId);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error applying discount adjustment to sale {SaleId}", saleId);
-				throw;
 			}
 		}
 
@@ -2199,13 +2126,16 @@ namespace InventorySystem.Controllers
 						success = true,
 						productInfo = new
 						{
-							partNumber = finishedGood.PartNumber,
-							description = finishedGood.Description,
+							partNumber = finishedGood.PartNumber ?? "",
+							description = finishedGood.Description ?? "",
 							currentStock = finishedGood.CurrentStock,
-							tracksInventory = true,
-							suggestedPrice = suggestedPrice,
-							hasSalePrice = false,
-							unitOfMeasure = "Each"
+							unitCost = finishedGood.UnitCost,
+							salePrice = finishedGood.SellingPrice,
+							suggestedPrice = Math.Max(0, suggestedPrice), // Ensure non-negative and not null
+							tracksInventory = true, // Finished goods always track inventory
+							itemType = "FinishedGood",
+							productType = "FinishedGood",
+							hasSalePrice = finishedGood.SellingPrice > 0
 						}
 					});
 				}

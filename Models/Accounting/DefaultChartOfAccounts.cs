@@ -132,6 +132,14 @@ namespace InventorySystem.Models.Accounting
 										AccountSubType = AccountSubType.CurrentLiability,
 										IsSystemAccount = true
 								},
+								new() {
+										AccountCode = "2300",
+										AccountName = "Sales Tax Payable",
+										Description = "Sales tax collected and owed to tax authorities",
+										AccountType = AccountType.Liability,
+										AccountSubType = AccountSubType.CurrentLiability,
+										IsSystemAccount = true
+								},
 
                 // ============= EQUITY (3000-3999) =============
                 new() {
@@ -190,7 +198,7 @@ namespace InventorySystem.Models.Accounting
 				{
 										AccountCode = "4910",
 										AccountName = "Sales Discounts",
-										Description = "Discounts for early payment for example. These are discounts granted after original invoice",
+										Description = "Discounts given to customers at time of sale",
 										AccountType = AccountType.Revenue,
 										AccountSubType = AccountSubType.SalesRevenue,
 										IsContraAccount = true,

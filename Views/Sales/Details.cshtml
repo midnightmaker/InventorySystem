@@ -9,6 +9,14 @@
   var saleAdjustments = Model.RelatedAdjustments?.ToList() ?? new List<CustomerBalanceAdjustment>();
   var totalAdjustments = saleAdjustments.Sum(a => a.AdjustmentAmount);
   var effectiveAmount = Model.TotalAmount - totalAdjustments;
+  var totalCost = Model.SaleItems.Sum(si => si.TotalCost);
+  var grossRevenue = Model.SubtotalAmount; // Before discount
+  var netRevenue = Model.TotalAmount; // After discount but before adjustments
+  var grossProfit = grossRevenue - totalCost; // Profit before discount
+  var netProfit = netRevenue - totalCost; // Profit after discount
+  var adjustedProfit = netProfit - totalAdjustments; // Final profit after all adjustments
+  var afterDiscountAmount = Model.SubtotalAmount - Model.DiscountCalculated; // Add this line
+  
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -27,48 +35,36 @@
         <i class="fas fa-plus"></i> Add Item
       </a>
     }
+    
+    @* ✅ ADD THE MISSING PROCESS & SHIP BUTTON *@
+    @if (Model.SaleStatus == SaleStatus.Processing && Model.SaleItems?.Any() == true)
+    {
+      <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal">
+        <i class="fas fa-shipping-fast"></i> Process & Ship
+      </button>
+    }
+    
     <a href="@Url.Action("InvoiceReport", new { saleId = Model.Id })"
        class="btn btn-primary">
       <i class="fas fa-file-invoice-dollar"></i> View Invoice
     </a>
+    
+    @* ✅ ADD PACKING SLIP BUTTON for shipped sales *@
+    @if (Model.SaleStatus == SaleStatus.Shipped || Model.SaleStatus == SaleStatus.Delivered)
+    {
+      <a href="@Url.Action("PackingSlip", new { saleId = Model.Id })" 
+         target="_blank" class="btn btn-info">
+        <i class="fas fa-clipboard-list"></i> Packing Slip
+      </a>
+    }
+    
     @if (Model.PaymentStatus != PaymentStatus.Paid)
     {
       <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">
         <i class="fas fa-dollar-sign"></i> Record Payment
       </button>
     }
-    
   </div>
-  @if (Model.SaleStatus == SaleStatus.Shipped && Model.SaleStatus != SaleStatus.Cancelled)
-  {
-    <div class="card mt-3">
-      <div class="card-header">
-        <h6><i class="fas fa-tools"></i> Invoice Adjustments</h6>
-      </div>
-      <div class="card-body">
-        <p class="text-muted small mb-3">
-          Create adjustments for this specific invoice (allowances, discounts, write-offs)
-        </p>
-
-        <div class="d-grid gap-2 d-md-flex">
-          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id&type=allowance"
-             class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-hand-holding-usd"></i> Sales Allowance
-          </a>
-
-          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id&type=discount"
-             class="btn btn-outline-success btn-sm">
-            <i class="fas fa-percentage"></i> Sales Discount
-          </a>
-
-          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id&type=writeoff"
-             class="btn btn-outline-danger btn-sm">
-            <i class="fas fa-exclamation-triangle"></i> Bad Debt Write-off
-          </a>
-        </div>
-      </div>
-    </div>
-  }
 </div>
 
 @if (TempData["SuccessMessage"] != null)
@@ -164,6 +160,59 @@
   </div>
 </div>
 
+@if (Model.HasDiscount)
+{
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-info">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">
+            <i class="fas"></i> Sales Discount Applied
+            <span class="badge bg-dark ms-2">@Model.DiscountCalculated.ToString("C") </span>
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-4">Discount Type:</dt>
+                <dd class="col-sm-8">
+                  <span class="badge bg-secondary">@Model.DiscountType</span>
+                </dd>
+                @if (Model.DiscountType == "Percentage")
+                {
+                  <dt class="col-sm-4">Percentage:</dt>
+                  <dd class="col-sm-8"><strong>@Model.DiscountPercentage%</strong></dd>
+                }
+                else
+                {
+                  <dt class="col-sm-4">Amount:</dt>
+                  <dd class="col-sm-8"><strong>@Model.DiscountAmount.ToString("C")</strong></dd>
+                }
+                <dt class="col-sm-4">Total Savings:</dt>
+                <dd class="col-sm-8"><strong class="text-success">@Model.DiscountCalculated.ToString("C")</strong></dd>
+              </dl>
+            </div>
+            <div class="col-md-6">
+              @if (!string.IsNullOrEmpty(Model.DiscountReason))
+              {
+                <dl class="row">
+                  <dt class="col-sm-3">Reason:</dt>
+                  <dd class="col-sm-9">@Model.DiscountReason</dd>
+                </dl>
+              }
+              <div class="alert alert-info mb-0">
+                <i class="fas fa-info-circle"></i>
+                <strong>Note:</strong> This discount was applied at the time of sale and is different from post-sale adjustments.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
 @if (saleAdjustments.Any())
 {
   <div class="row mb-4">
@@ -171,7 +220,7 @@
       <div class="card border-warning">
         <div class="card-header bg-warning text-dark">
           <h5 class="mb-0">
-            <i class="fas fa-adjust"></i> Invoice Adjustments
+            <i class="fas fa-adjust"></i> Post-Sale Adjustments
             <span class="badge bg-dark ms-2">@saleAdjustments.Count Applied</span>
           </h5>
         </div>
@@ -266,7 +315,7 @@
             </table>
           </div>
 
-          <!-- Impact Notice (FIXED STRING FORMATTING) -->
+          <!-- Impact Notice -->
           <div class="alert alert-info mt-3">
             <h6><i class="fas fa-info-circle"></i> Payment Status Impact</h6>
             <p class="mb-0">
@@ -295,7 +344,7 @@ else
         <div class="card-body text-center py-3">
           <div class="text-muted mb-2">
             <i class="fas fa-info-circle"></i>
-            No adjustments have been applied to this invoice.
+            No adjustments have been applied to this sale. Adjustments for shipping damage, missing items etc. can only be made after the sale has been processed and shipped. 
           </div>
           <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id"
              class="btn btn-outline-primary btn-sm">
@@ -418,7 +467,7 @@ else
   </div>
 
   <div class="col-md-4">
-    <!-- Sale Summary Card (UPDATED with adjustments) -->
+    <!-- ✅ UPDATED: Sale Summary Card with proper discount display and corrected gross profit -->
     <div class="card">
       <div class="card-header">
         <h5><i class="fas fa-calculator"></i> Sale Summary</h5>
@@ -429,6 +478,20 @@ else
             <td>Subtotal:</td>
             <td class="text-end">@Model.SubtotalAmount.ToString("C")</td>
           </tr>
+          
+          @* ✅ NEW: Show discount if applied *@
+          @if (Model.HasDiscount)
+          {
+            <tr class="table-warning">
+              <td><strong>Discount:</strong></td>
+              <td class="text-end text-success"><strong>-@Model.DiscountCalculated.ToString("C")</strong></td>
+            </tr>
+            <tr>
+              <td>After Discount:</td>
+              <td class="text-end">@afterDiscountAmount.ToString("C")</td>
+            </tr>
+          }
+          
           <tr>
             <td>Tax Amount:</td>
             <td class="text-end">@Model.TaxAmount.ToString("C")</td>
@@ -441,11 +504,11 @@ else
           @if (totalAdjustments > 0)
           {
             <tr class="table-light">
-              <td><strong>Original Total:</strong></td>
+              <td><strong>Sale Total:</strong></td>
               <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
             </tr>
             <tr class="table-warning">
-              <td><strong>Adjustments:</strong></td>
+              <td><strong>Post-Sale Adjustments:</strong></td>
               <td class="text-end text-success"><strong>-@totalAdjustments.ToString("C")</strong></td>
             </tr>
             <tr class="table-dark">
@@ -465,22 +528,52 @@ else
         @if (Model.SaleItems?.Any() == true)
         {
           <hr>
+          
           <table class="table table-sm">
             <tr>
               <td>Total Cost:</td>
-              <td class="text-end">@Model.SaleItems.Sum(si => si.TotalCost).ToString("C")</td>
+              <td class="text-end">@totalCost.ToString("C")</td>
             </tr>
-            <tr class="@(Model.SaleItems.Sum(si => si.Profit) >= 0 ? "table-success" : "table-danger")">
-              <td><strong>Gross Profit:</strong></td>
-              <td class="text-end"><strong>@Model.SaleItems.Sum(si => si.Profit).ToString("C")</strong></td>
-            </tr>
+            
+            @* ✅ FIXED: Show gross profit calculation that accounts for discount *@
+            @if (Model.HasDiscount)
+            {
+              <tr>
+                <td>Gross Profit (before discount):</td>
+                <td class="text-end">@grossProfit.ToString("C")</td>
+              </tr>
+              <tr class="@(netProfit >= 0 ? "table-success" : "table-danger")">
+                <td><strong>Net Profit (after discount):</strong></td>
+                <td class="text-end"><strong>@netProfit.ToString("C")</strong></td>
+              </tr>
+            }
+            else
+            {
+              <tr class="@(grossProfit >= 0 ? "table-success" : "table-danger")">
+                <td><strong>Gross Profit:</strong></td>
+                <td class="text-end"><strong>@grossProfit.ToString("C")</strong></td>
+              </tr>
+            }
             
             @if (totalAdjustments > 0)
             {
-              var adjustedProfit = Model.SaleItems.Sum(si => si.Profit) - totalAdjustments;
               <tr class="@(adjustedProfit >= 0 ? "table-info" : "table-danger")">
-                <td><strong>Adjusted Profit:</strong></td>
+                <td><strong>Final Profit (after all adjustments):</strong></td>
                 <td class="text-end"><strong>@adjustedProfit.ToString("C")</strong></td>
+              </tr>
+            }
+            
+            @* ✅ NEW: Show profit margins *@
+            @if (netRevenue > 0)
+            {
+              var profitMargin = (netProfit / netRevenue) * 100;
+              <tr>
+                <td>Profit Margin:</td>
+                <td class="text-end">
+                  <span class="badge bg-@(profitMargin >= 20 ? "success" : profitMargin >= 10 ? "warning" : "danger")">
+                    @profitMargin.ToString("F1")%
+                  </span>
+                </td>
               </tr>
             }
           </table>
@@ -631,46 +724,234 @@ else
   </div>
 }
 
-<!-- Process Sale Confirmation Modal -->
+<!-- Process Sale Confirmation Modal - ENHANCED VERSION -->
 <div class="modal fade" id="processSaleModal" tabindex="-1" aria-labelledby="processSaleModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="processSaleModalLabel">
-          <i class="fas fa-shipping-fast"></i> Process & Ship Sale
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="alert alert-warning" id="inventoryWarning" style="display: none;">
-          <i class="fas fa-exclamation-triangle"></i>
-          <strong>Inventory Impact:</strong>
-          <p class="mb-2">This sale contains <span id="inventoryItemCount"></span> that will reduce inventory levels:</p>
-          <ul id="inventoryItemsList" class="mb-0"></ul>
+      <form method="post" action="/Sales/ProcessSaleWithShipping">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="saleId" value="@Model.Id" />
+        
+        <div class="modal-header">
+          <h5 class="modal-title" id="processSaleModalLabel">
+            <i class="fas fa-shipping-fast"></i> Process & Ship Sale @Model.SaleNumber
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         
-        <div class="alert alert-info" id="noInventoryInfo" style="display: none;">
-          <i class="fas fa-info-circle"></i>
-          <strong>No Inventory Impact:</strong>
-          <p class="mb-0">This sale contains only services and virtual items. No inventory will be reduced.</p>
-        </div>
+        <div class="modal-body">
+          <!-- Inventory Impact Section -->
+          <div class="alert alert-warning" id="inventoryWarning" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Inventory Impact:</strong>
+            <p class="mb-2">This sale contains <span id="inventoryItemCount"></span> that will reduce inventory levels:</p>
+            <ul id="inventoryItemsList" class="mb-0"></ul>
+          </div>
+          
+          <div class="alert alert-info" id="noInventoryInfo" style="display: none;">
+            <i class="fas fa-info-circle"></i>
+            <strong>No Inventory Impact:</strong>
+            <p class="mb-0">This sale contains only services and virtual items. No inventory will be reduced.</p>
+          </div>
 
-        <p>Are you sure you want to process and ship this sale? This action will:</p>
-        <ul>
-          <li>Mark the sale as <strong>Shipped</strong></li>
-          <li>Reduce inventory levels for physical items</li>
-          <li>Cannot be undone</li>
-        </ul>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form method="post" action="/Sales/ProcessSale/@Model.Id" style="display: inline;">
-          @Html.AntiForgeryToken()
+          <!-- Shipping Information Section -->
+          <div class="row">
+            <div class="col-md-6">
+              <h6><i class="fas fa-truck"></i> Shipping Information</h6>
+              
+              <div class="mb-3">
+                <label for="courierService" class="form-label">Courier Service *</label>
+                <select class="form-select" id="courierService" name="courierService" required>
+                  <option value="">Select courier service...</option>
+                  <option value="FedEx">FedEx</option>
+                  <option value="UPS">UPS</option>
+                  <option value="USPS">USPS</option>
+                  <option value="DHL">DHL</option>
+                  <option value="OnTrac">OnTrac</option>
+                  <option value="Local Delivery">Local Delivery</option>
+                  <option value="Customer Pickup">Customer Pickup</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="trackingNumber" class="form-label">Tracking Number *</label>
+                <input type="text" class="form-control" id="trackingNumber" name="trackingNumber" 
+                       placeholder="Enter tracking number" required />
+                <div class="form-text">Leave blank if customer pickup or local delivery</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="expectedDeliveryDate" class="form-label">Expected Delivery Date</label>
+                <input type="date" class="form-control" id="expectedDeliveryDate" name="expectedDeliveryDate" 
+                       min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <h6><i class="fas fa-box"></i> Package Information</h6>
+              
+              <div class="mb-3">
+                <label for="packageWeight" class="form-label">Package Weight (lbs)</label>
+                <input type="number" class="form-control" id="packageWeight" name="packageWeight" 
+                       step="0.1" min="0" placeholder="0.0" />
+              </div>
+
+              <div class="mb-3">
+                <label for="packageDimensions" class="form-label">Package Dimensions</label>
+                <input type="text" class="form-control" id="packageDimensions" name="packageDimensions" 
+                       placeholder="e.g., 12x8x6 inches" />
+              </div>
+
+              <div class="mb-3">
+                <label for="shippingInstructions" class="form-label">Shipping Instructions</label>
+                <textarea class="form-control" id="shippingInstructions" name="shippingInstructions" 
+                          rows="3" placeholder="Special delivery instructions..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Options Section -->
+          <hr>
+          <h6><i class="fas fa-cogs"></i> Processing Options</h6>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="generatePackingSlip" name="generatePackingSlip" checked>
+                <label class="form-check-label" for="generatePackingSlip">
+                  <i class="fas fa-file-alt"></i> Generate Packing Slip
+                </label>
+              </div>
+              
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="printPackingSlip" name="printPackingSlip">
+                <label class="form-check-label" for="printPackingSlip">
+                  <i class="fas fa-print"></i> Auto-Print Packing Slip
+                </label>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="emailCustomer" name="emailCustomer" checked>
+                <label class="form-check-label" for="emailCustomer">
+                  <i class="fas fa-envelope"></i> Email Shipping Notice to Customer
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Summary -->
+          <div class="alert alert-info mt-3">
+            <h6><i class="fas fa-info-circle"></i> This action will:</h6>
+            <ul class="mb-0">
+              <li>Mark the sale as <strong>Shipped</strong></li>
+              <li>Record shipping information and tracking details</li>
+              <li>Reduce inventory levels for physical items</li>
+              <li>Set shipped date to current date/time</li>
+              <li>Generate packing slip (if selected)</li>
+              <li>Send email notification (if selected)</li>
+              <li><strong>Cannot be undone</strong></li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-shipping-fast"></i> Process & Ship Sale
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   </div>
+</div>
+
+@section Scripts {
+<script>
+       
+    // Auto-populate courier service based on common patterns
+    $('#courierService').on('change', function() {
+        const courier = $(this).val();
+        const trackingInput = $('#trackingNumber');
+        
+        // Clear tracking number when courier changes
+        trackingInput.val('');
+        
+        // Set placeholders and validation patterns based on courier
+        switch(courier) {
+            case 'FedEx':
+                trackingInput.attr('placeholder', 'e.g., 1234 5678 9012');
+                trackingInput.attr('pattern', '[0-9\\s]{12,}');
+                break;
+            case 'UPS':
+                trackingInput.attr('placeholder', 'e.g., 1Z999AA1234567890');
+                trackingInput.attr('pattern', '1Z[0-9A-Z]{16}');
+                break;
+            case 'USPS':
+                trackingInput.attr('placeholder', 'e.g., 9400 1234 5678 9012 3456 78');
+                trackingInput.attr('pattern', '[0-9\\s]{20,}');
+                break;
+            case 'Customer Pickup':
+            case 'Local Delivery':
+                trackingInput.val('N/A');
+                trackingInput.attr('readonly', true);
+                trackingInput.removeAttr('required');
+                break;
+            default:
+                trackingInput.attr('placeholder', 'Enter tracking number');
+                trackingInput.removeAttr('pattern');
+                trackingInput.removeAttr('readonly');
+                trackingInput.attr('required', true);
+                break;
+        }
+    });
+
+    // Load inventory info when modal opens
+    $('#processSaleModal').on('show.bs.modal', function () {
+        loadSaleInventoryInfo(@Model.Id);
+    });
+
+    function loadSaleInventoryInfo(saleId) {
+        $.get('/Sales/GetSaleInventoryInfo/' + saleId, function(data) {
+            if (data.success) {
+                if (data.inventoryItemsCount > 0) {
+                    $('#inventoryItemCount').text(data.inventoryItemsCount + ' item(s)');
+                    
+                    var itemsList = $('#inventoryItemsList');
+                    itemsList.empty();
+                    
+                    data.inventoryItems.forEach(function(item) {
+                        itemsList.append('<li>' + item.partNumber + ' - ' + item.description + ' (Qty: ' + item.quantity + ', Stock: ' + item.currentStock + ')</li>');
+                    });
+                    
+                    $('#inventoryWarning').show();
+                    $('#noInventoryInfo').hide();
+                } else {
+                    $('#noInventoryInfo').show();
+                    $('#inventoryWarning').hide();
+                }
+            }
+        });
+    }
+
+    // Auto-populate customer email if not already filled
+    $(document).ready(function() {
+        if (!$('#CustomerEmail').val() && '@Model.Customer.ContactEmail') {
+            $('#CustomerEmail').val('@Model.Customer.ContactEmail');
+        }
+        
+        // Payment amount validation
+        $('#paymentAmount').on('change', function() {
+            var paymentAmount = parseFloat($(this).val());
+            var remainingBalance = @Model.Customer.OutstandingBalance;
+            
+            if (paymentAmount > remainingBalance) {
+                alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
+                $(this).val(remainingBalance.toFixed(2));
+            }
+        });
+    });
+</script>
 }
