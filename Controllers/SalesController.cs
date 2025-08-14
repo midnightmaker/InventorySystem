@@ -183,6 +183,194 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		// Add these methods to your SalesController.cs
+
+		// GET: Sales/Edit/5
+		[HttpGet]
+		public async Task<IActionResult> Edit(int id)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(id);
+				if (sale == null)
+				{
+					TempData["ErrorMessage"] = "Sale not found.";
+					return RedirectToAction("Index");
+				}
+
+				// Check if sale can be edited
+				if (sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered)
+				{
+					TempData["ErrorMessage"] = "Cannot edit a sale that has been shipped or delivered.";
+					return RedirectToAction("Details", new { id });
+				}
+
+				if (sale.SaleStatus == SaleStatus.Cancelled)
+				{
+					TempData["ErrorMessage"] = "Cannot edit a cancelled sale.";
+					return RedirectToAction("Details", new { id });
+				}
+
+				// Load customers for dropdown
+				var customers = await _customerService.GetAllCustomersAsync();
+				ViewBag.Customers = customers
+						.Where(c => c.IsActive)
+						.Select(c => new SelectListItem
+						{
+							Value = c.Id.ToString(),
+							Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
+							Selected = c.Id == sale.CustomerId
+						})
+						.OrderBy(c => c.Text)
+						.ToList();
+
+				return View(sale);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading sale for edit: {SaleId}", id);
+				TempData["ErrorMessage"] = $"Error loading sale: {ex.Message}";
+				return RedirectToAction("Index");
+			}
+		}
+
+		// POST: Sales/Edit/5
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> Edit(int id, Sale sale)
+		{
+			if (id != sale.Id)
+			{
+				return NotFound();
+			}
+
+			try
+			{
+				// Remove navigation property validation
+				ModelState.Remove("Customer");
+				ModelState.Remove("SaleItems");
+				ModelState.Remove("RelatedAdjustments");
+
+				// Verify sale can still be edited
+				var existingSale = await _salesService.GetSaleByIdAsync(id);
+				if (existingSale == null)
+				{
+					TempData["ErrorMessage"] = "Sale not found.";
+					return RedirectToAction("Index");
+				}
+
+				if (existingSale.SaleStatus == SaleStatus.Shipped || existingSale.SaleStatus == SaleStatus.Delivered)
+				{
+					TempData["ErrorMessage"] = "Cannot edit a sale that has been shipped or delivered.";
+					return RedirectToAction("Details", new { id });
+				}
+
+				if (existingSale.SaleStatus == SaleStatus.Cancelled)
+				{
+					TempData["ErrorMessage"] = "Cannot edit a cancelled sale.";
+					return RedirectToAction("Details", new { id });
+				}
+
+				if (!ModelState.IsValid)
+				{
+					// Reload dropdown data
+					var customers = await _customerService.GetAllCustomersAsync();
+					ViewBag.Customers = customers
+							.Where(c => c.IsActive)
+							.Select(c => new SelectListItem
+							{
+								Value = c.Id.ToString(),
+								Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
+								Selected = c.Id == sale.CustomerId
+							})
+							.OrderBy(c => c.Text)
+							.ToList();
+
+					return View(sale);
+				}
+
+				// Preserve some fields that shouldn't be changed
+				sale.SaleNumber = existingSale.SaleNumber;
+				sale.CreatedDate = existingSale.CreatedDate;
+				sale.ShippedDate = existingSale.ShippedDate;
+				sale.ShippedBy = existingSale.ShippedBy;
+
+				// Update the sale
+				await _salesService.UpdateSaleAsync(sale);
+
+				TempData["SuccessMessage"] = $"Sale {sale.SaleNumber} updated successfully!";
+				return RedirectToAction("Details", new { id = sale.Id });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error updating sale: {SaleId}", id);
+				ModelState.AddModelError("", $"Error updating sale: {ex.Message}");
+
+				// Reload dropdown data on error
+				try
+				{
+					var customers = await _customerService.GetAllCustomersAsync();
+					ViewBag.Customers = customers
+							.Where(c => c.IsActive)
+							.Select(c => new SelectListItem
+							{
+								Value = c.Id.ToString(),
+								Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
+								Selected = c.Id == sale.CustomerId
+							})
+							.OrderBy(c => c.Text)
+							.ToList();
+				}
+				catch
+				{
+					ViewBag.Customers = new List<SelectListItem>();
+				}
+
+				return View(sale);
+			}
+		}
+
+		// POST: Sales/RemoveItem - For removing items from a sale
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> RemoveItem(int saleItemId, int saleId)
+		{
+			try
+			{
+				// Verify sale can be modified
+				var sale = await _salesService.GetSaleByIdAsync(saleId);
+				if (sale == null)
+				{
+					TempData["ErrorMessage"] = "Sale not found.";
+					return RedirectToAction("Index");
+				}
+
+				if (sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered)
+				{
+					TempData["ErrorMessage"] = "Cannot remove items from a sale that has been shipped or delivered.";
+					return RedirectToAction("Details", new { id = saleId });
+				}
+
+				if (sale.SaleStatus == SaleStatus.Cancelled)
+				{
+					TempData["ErrorMessage"] = "Cannot remove items from a cancelled sale.";
+					return RedirectToAction("Details", new { id = saleId });
+				}
+
+				// Remove the sale item
+				await _salesService.DeleteSaleItemAsync(saleItemId);
+
+				TempData["SuccessMessage"] = "Item removed from sale successfully!";
+				return RedirectToAction("Details", new { id = saleId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error removing sale item: {SaleItemId} from sale: {SaleId}", saleItemId, saleId);
+				TempData["ErrorMessage"] = $"Error removing item: {ex.Message}";
+				return RedirectToAction("Details", new { id = saleId });
+			}
+		}
+
 		// Sale Details
 		public async Task<IActionResult> Details(int id)
 		{

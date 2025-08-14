@@ -83,6 +83,94 @@
   </div>
 }
 
+<!-- ✅ MOVED TO TOP: Customer Information Card - Full Width -->
+@if (Model.Customer != null)
+{
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-info">
+        <div class="card-header bg-light">
+          <h5 class="mb-0"><i class="fas fa-user"></i> Customer Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <!-- Basic customer info -->
+            <div class="col-md-4">
+              <dl class="row">
+                <dt class="col-sm-4">Name:</dt>
+                <dd class="col-sm-8">
+                  <a href="/Customers/Details/@Model.Customer.Id" class="text-decoration-none">
+                    @Model.Customer.CustomerName
+                  </a>
+                </dd>
+                
+                @if (!string.IsNullOrEmpty(Model.Customer.CompanyName))
+                {
+                  <dt class="col-sm-4">Company:</dt>
+                  <dd class="col-sm-8">@Model.Customer.CompanyName</dd>
+                }
+                
+                @if (!string.IsNullOrEmpty(Model.Customer.Email))
+                {
+                  <dt class="col-sm-4">Email:</dt>
+                  <dd class="col-sm-8">
+                    <a href="mailto:@Model.Customer.Email">@Model.Customer.Email</a>
+                  </dd>
+                }
+                
+                @if (!string.IsNullOrEmpty(Model.Customer.Phone))
+                {
+                  <dt class="col-sm-4">Phone:</dt>
+                  <dd class="col-sm-8">@Model.Customer.Phone</dd>
+                }
+              </dl>
+            </div>
+            
+            <!-- Credit information -->
+            <div class="col-md-4">
+              <table class="table table-sm">
+                <tr class="@(Model.Customer.OutstandingBalance > 0 ? "table-warning" : "table-success")">
+                  <td><strong>Outstanding Balance:</strong></td>
+                  <td class="text-end"><strong>@Model.Customer.OutstandingBalance.ToString("C")</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Credit Limit:</strong></td>
+                  <td class="text-end">@Model.Customer.CreditLimit.ToString("C")</td>
+                </tr>
+                <tr class="@(Model.Customer.CreditAvailable > 0 ? "table-success" : "table-danger")">
+                  <td><strong>Available Credit:</strong></td>
+                  <td class="text-end"><strong>@Model.Customer.CreditAvailable.ToString("C")</strong></td>
+                </tr>
+              </table>
+            </div>
+            
+            <!-- Customer status & alerts -->
+            <div class="col-md-4">
+              @if (Model.Customer.OutstandingBalance > Model.Customer.CreditLimit)
+              {
+                <div class="alert alert-danger mb-2">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <strong>Credit Alert:</strong><br>
+                  Customer is over credit limit by @((Model.Customer.OutstandingBalance - Model.Customer.CreditLimit).ToString("C"))
+                </div>
+              }
+              
+              <div class="btn-group d-grid gap-2">
+                <a href="/Customers/Details/@Model.Customer.Id" class="btn btn-outline-info btn-sm">
+                  <i class="fas fa-user"></i> View Customer Details
+                </a>
+                <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.CustomerId&saleId=@Model.Id" class="btn btn-outline-success btn-sm">
+                  <i class="fas fa-adjust"></i> Create Adjustment
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
 <!-- Sale Information Header -->
 <div class="row mb-4">
   <div class="col-12">
@@ -356,9 +444,10 @@ else
   </div>
 }
 
+<!-- Sale Items in Full Width -->
 <div class="row">
-  <div class="col-md-8">
-    <!-- Sale Items -->
+  <div class="col-12">
+    <!-- Sale Items Card - Full Width -->
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
@@ -380,9 +469,23 @@ else
         @if (Model.SaleItems?.Any() == true)
         {
           <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="saleItemsTable" style="table-layout: fixed; width: 100%;">
+              <colgroup>
+                <col width="8%">
+                <col width="12%">
+                <col width="30%">
+                <col width="10%">
+                <col width="10%">
+                <col width="15%">
+                <col width="15%">
+                @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                {
+                  <col width="10%">
+                }
+              </colgroup>
               <thead>
                 <tr>
+                  <th>Image</th>
                   <th>Part Number</th>
                   <th>Description</th>
                   <th>Type</th>
@@ -399,11 +502,47 @@ else
                 @foreach (var item in Model.SaleItems)
                 {
                   <tr>
+                    <td class="text-center">
+                      @{
+                        var itemId = item.ItemId ?? item.FinishedGoodId ?? 0;
+                      }
+                      @if (item.ItemId.HasValue)
+                      {
+                        <!-- Item thumbnail -->
+                        <img src="/Items/GetImageThumbnail/@item.ItemId?size=40" 
+                             alt="@item.ProductPartNumber"
+                             class="item-thumbnail rounded"
+                             style="width: 40px; height: 40px; object-fit: cover; cursor: pointer;"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                             onclick="showItemImageModal('@item.ProductPartNumber', '/Items/GetImage/@item.ItemId')" />
+                        <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded" 
+                             style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6; display: none;">
+                          <i class="fas fa-image text-muted" style="font-size: 16px;"></i>
+                        </div>
+                      }
+                      else
+                      {
+                        <!-- Finished Good placeholder (no image support yet) -->
+                        <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded" 
+                             style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                          <i class="fas fa-cube text-muted" style="font-size: 16px;"></i>
+                        </div>
+                      }
+                    </td>
                     <td>
-                      <code>@item.ProductPartNumber</code>
+                      @if (item.ItemId.HasValue)
+                      {
+                        <a href="#" class="text-decoration-none" onclick="showItemDetails(@item.ItemId)" style="cursor: pointer;">
+                          <code>@item.ProductPartNumber</code>
+                        </a>
+                      }
+                      else
+                      {
+                        <code>@item.ProductPartNumber</code>
+                      }
                       @if (item.QuantityBackordered > 0)
                       {
-                        <span class="badge bg-warning text-dark ms-1">Backordered</span>
+                        <br><span class="badge bg-warning text-dark ms-1">Backordered</span>
                       }
                     </td>
                     <td>
@@ -465,185 +604,276 @@ else
       </div>
     </div>
   </div>
+</div>
 
-  <div class="col-md-4">
-    <!-- ✅ UPDATED: Sale Summary Card with proper discount display and corrected gross profit -->
-    <div class="card">
-      <div class="card-header">
-        <h5><i class="fas fa-calculator"></i> Sale Summary</h5>
-      </div>
-      <div class="card-body">
-        <table class="table table-sm">
-          <tr>
-            <td>Subtotal:</td>
-            <td class="text-end">@Model.SubtotalAmount.ToString("C")</td>
-          </tr>
-          
-          @* ✅ NEW: Show discount if applied *@
-          @if (Model.HasDiscount)
-          {
-            <tr class="table-warning">
-              <td><strong>Discount:</strong></td>
-              <td class="text-end text-success"><strong>-@Model.DiscountCalculated.ToString("C")</strong></td>
-            </tr>
-            <tr>
-              <td>After Discount:</td>
-              <td class="text-end">@afterDiscountAmount.ToString("C")</td>
-            </tr>
-          }
-          
-          <tr>
-            <td>Tax Amount:</td>
-            <td class="text-end">@Model.TaxAmount.ToString("C")</td>
-          </tr>
-          <tr>
-            <td>Shipping:</td>
-            <td class="text-end">@Model.ShippingCost.ToString("C")</td>
-          </tr>
-          
-          @if (totalAdjustments > 0)
-          {
-            <tr class="table-light">
-              <td><strong>Sale Total:</strong></td>
-              <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
-            </tr>
-            <tr class="table-warning">
-              <td><strong>Post-Sale Adjustments:</strong></td>
-              <td class="text-end text-success"><strong>-@totalAdjustments.ToString("C")</strong></td>
-            </tr>
-            <tr class="table-dark">
-              <td><strong>Effective Total:</strong></td>
-              <td class="text-end"><strong>@effectiveAmount.ToString("C")</strong></td>
-            </tr>
-          }
-          else
-          {
-            <tr class="table-dark">
-              <td><strong>Total:</strong></td>
-              <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
-            </tr>
-          }
-        </table>
-
-        @if (Model.SaleItems?.Any() == true)
-        {
-          <hr>
-          
-          <table class="table table-sm">
-            <tr>
-              <td>Total Cost:</td>
-              <td class="text-end">@totalCost.ToString("C")</td>
-            </tr>
-            
-            @* ✅ FIXED: Show gross profit calculation that accounts for discount *@
-            @if (Model.HasDiscount)
-            {
-              <tr>
-                <td>Gross Profit (before discount):</td>
-                <td class="text-end">@grossProfit.ToString("C")</td>
-              </tr>
-              <tr class="@(netProfit >= 0 ? "table-success" : "table-danger")">
-                <td><strong>Net Profit (after discount):</strong></td>
-                <td class="text-end"><strong>@netProfit.ToString("C")</strong></td>
-              </tr>
-            }
-            else
-            {
-              <tr class="@(grossProfit >= 0 ? "table-success" : "table-danger")">
-                <td><strong>Gross Profit:</strong></td>
-                <td class="text-end"><strong>@grossProfit.ToString("C")</strong></td>
-              </tr>
-            }
-            
-            @if (totalAdjustments > 0)
-            {
-              <tr class="@(adjustedProfit >= 0 ? "table-info" : "table-danger")">
-                <td><strong>Final Profit (after all adjustments):</strong></td>
-                <td class="text-end"><strong>@adjustedProfit.ToString("C")</strong></td>
-              </tr>
-            }
-            
-            @* ✅ NEW: Show profit margins *@
-            @if (netRevenue > 0)
-            {
-              var profitMargin = (netProfit / netRevenue) * 100;
-              <tr>
-                <td>Profit Margin:</td>
-                <td class="text-end">
-                  <span class="badge bg-@(profitMargin >= 20 ? "success" : profitMargin >= 10 ? "warning" : "danger")">
-                    @profitMargin.ToString("F1")%
-                  </span>
-                </td>
-              </tr>
-            }
-          </table>
-        }
+<!-- Sale Summary Card - Perfect Column Alignment for Spreadsheet Effect -->
+@if (Model.SaleItems?.Any() == true)
+{
+  <div class="row mt-0">
+    <div class="col-12">
+      <!-- Sale Summary Card with precise alignment -->
+      <div class="card border-success" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
+        <div class="card-header bg-light">
+          <h5 class="mb-0"><i class="fas fa-calculator"></i> Financial Summary</h5>
+        </div>
+        <div class="card-body pt-2">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0" style="table-layout: fixed; width: 100%;">
+              <colgroup>
+                <col width="8%">
+                <col width="12%">
+                <col width="30%">
+                <col width="10%">
+                <col width="10%">
+                <col width="15%">
+                <col width="15%">
+                @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                {
+                  <col width="10%">
+                }
+              </colgroup>
+              <tbody>
+                <!-- Financial Summary Rows -->
+                <tr class="table-light">
+                  <td colspan="6"><strong>Subtotal:</strong></td>
+                  <td class="text-end"><strong>@Model.SubtotalAmount.ToString("C")</strong></td>
+                  @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                  {
+                    <td></td>
+                  }
+                </tr>
+                
+                @* Show discount if applied *@
+                @if (Model.HasDiscount)
+                {
+                  <tr class="table-warning">
+                    <td colspan="6"><strong>Discount:</strong></td>
+                    <td class="text-end text-success"><strong>-@Model.DiscountCalculated.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                  <tr>
+                    <td colspan="6">After Discount:</td>
+                    <td class="text-end">@afterDiscountAmount.ToString("C")</td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                }
+                
+                <tr>
+                  <td colspan="6">Tax Amount:</td>
+                  <td class="text-end">@Model.TaxAmount.ToString("C")</td>
+                  @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                  {
+                    <td></td>
+                  }
+                </tr>
+                <tr>
+                  <td colspan="6">Shipping:</td>
+                  <td class="text-end">@Model.ShippingCost.ToString("C")</td>
+                  @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                  {
+                    <td></td>
+                  }
+                </tr>
+                
+                @if (totalAdjustments > 0)
+                {
+                  <tr class="table-info">
+                    <td colspan="6"><strong>Sale Total:</strong></td>
+                    <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                  <tr class="table-warning">
+                    <td colspan="6"><strong>Post-Sale Adjustments:</strong></td>
+                    <td class="text-end text-success"><strong>-@totalAdjustments.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                  <tr class="table-dark">
+                    <td colspan="6"><strong>Effective Total:</strong></td>
+                    <td class="text-end"><strong>@effectiveAmount.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                }
+                else
+                {
+                  <tr class="table-dark">
+                    <td colspan="6"><strong>Total:</strong></td>
+                    <td class="text-end"><strong>@Model.TotalAmount.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
+}
 
-    <!-- Customer Information -->
-    @if (Model.Customer != null)
-    {
-      <div class="card mt-4">
-        <div class="card-header">
-          <h5><i class="fas fa-user"></i> Customer Information</h5>
+<!-- ✅ NEW: Profit Analysis Card with Header -->
+@if (Model.SaleItems?.Any() == true)
+{
+  <div class="row mt-0">
+    <div class="col-12">
+      <!-- Profit Analysis Card -->
+      <div class="card border-info" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-line"></i> Profit Analysis</h5>
         </div>
-        <div class="card-body">
-          <dl class="row">
-            <dt class="col-sm-5">Name:</dt>
-            <dd class="col-sm-7">
-              <a href="/Customers/Details/@Model.Customer.Id" class="text-decoration-none">
-                @Model.Customer.CustomerName
-              </a>
-            </dd>
-            
-            @if (!string.IsNullOrEmpty(Model.Customer.CompanyName))
-            {
-              <dt class="col-sm-5">Company:</dt>
-              <dd class="col-sm-7">@Model.Customer.CompanyName</dd>
-            }
-            
-            @if (!string.IsNullOrEmpty(Model.Customer.Email))
-            {
-              <dt class="col-sm-5">Email:</dt>
-              <dd class="col-sm-7">
-                <a href="mailto:@Model.Customer.Email">@Model.Customer.Email</a>
-              </dd>
-            }
-            
-            @if (!string.IsNullOrEmpty(Model.Customer.Phone))
-            {
-              <dt class="col-sm-5">Phone:</dt>
-              <dd class="col-sm-7">@Model.Customer.Phone</dd>
-            }
-          </dl>
-          
-          <hr>
-          <table class="table table-sm">
-            <tr class="@(Model.Customer.OutstandingBalance > 0 ? "table-warning" : "table-success")">
-              <td><strong>Outstanding Balance:</strong></td>
-              <td class="text-end"><strong>@Model.Customer.OutstandingBalance.ToString("C")</strong></td>
-            </tr>
-            <tr>
-              <td><strong>Credit Limit:</strong></td>
-              <td class="text-end">@Model.Customer.CreditLimit.ToString("C")</td>
-            </tr>
-            <tr class="@(Model.Customer.CreditAvailable > 0 ? "table-success" : "table-danger")">
-              <td><strong>Available Credit:</strong></td>
-              <td class="text-end"><strong>@Model.Customer.CreditAvailable.ToString("C")</strong></td>
-            </tr>
-          </table>
-          
-          @if (Model.Customer.OutstandingBalance > Model.Customer.CreditLimit)
-          {
-            <div class="alert alert-danger alert-sm mt-2">
-              <i class="fas fa-exclamation-triangle"></i>
-              Customer is over credit limit by @((Model.Customer.OutstandingBalance - Model.Customer.CreditLimit).ToString("C"))
-            </div>
-          }
+        <div class="card-body pt-2">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0" style="table-layout: fixed; width: 100%;">
+              <colgroup>
+                <col width="8%">
+                <col width="12%">
+                <col width="30%">
+                <col width="10%">
+                <col width="10%">
+                <col width="15%">
+                <col width="15%">
+                @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                {
+                  <col width="10%">
+                }
+              </colgroup>
+              <tbody>
+                <!-- Profit Analysis Rows -->
+                <tr class="table-secondary">
+                  <td colspan="6"><strong>Total Cost:</strong></td>
+                  <td class="text-end"><strong>@totalCost.ToString("C")</strong></td>
+                  @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                  {
+                    <td></td>
+                  }
+                </tr>
+                
+                @* Show gross profit calculation that accounts for discount *@
+                @if (Model.HasDiscount)
+                {
+                  <tr class="table-secondary">
+                    <td colspan="6"><strong>Gross Profit (before discount):</strong></td>
+                    <td class="text-end"><strong>@grossProfit.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                  <tr class="@(netProfit >= 0 ? "table-success" : "table-danger")">
+                    <td colspan="6"><strong>Net Profit (after discount):</strong></td>
+                    <td class="text-end"><strong>@netProfit.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                }
+                else
+                {
+                  <tr class="@(grossProfit >= 0 ? "table-success" : "table-danger")">
+                    <td colspan="6"><strong>Gross Profit:</strong></td>
+                    <td class="text-end"><strong>@grossProfit.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                }
+                
+                @if (totalAdjustments > 0)
+                {
+                  <tr class="@(adjustedProfit >= 0 ? "table-info" : "table-danger")">
+                    <td colspan="6"><strong>Final Profit (after all adjustments):</strong></td>
+                    <td class="text-end"><strong>@adjustedProfit.ToString("C")</strong></td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                }
+                
+                @* Show profit margins *@
+                @if (netRevenue > 0)
+                {
+                  var profitMargin = (netProfit / netRevenue) * 100;
+                  <tr class="table-light">
+                    <td colspan="6"><strong>Profit Margin:</strong></td>
+                    <td class="text-end">
+                      <span class="badge bg-@(profitMargin >= 20 ? "success" : profitMargin >= 10 ? "warning" : "danger")">
+                        @profitMargin.ToString("F1")%
+                      </span>
+                    </td>
+                    @if (Model.SaleStatus == SaleStatus.Processing || Model.SaleStatus == SaleStatus.Backordered)
+                    {
+                      <td></td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    }
+    </div>
+  </div>
+}
+
+<!-- Item Details Modal -->
+<div class="modal fade" id="itemDetailsModal" tabindex="-1" aria-labelledby="itemDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="itemDetailsModalLabel">
+          <i class="fas fa-cube"></i> Item Details
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="itemDetailsContent">
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <a href="#" id="viewFullItemLink" class="btn btn-primary" target="_blank">
+          <i class="fas fa-external-link-alt"></i> View Full Details
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalLabel">Item Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="modalImage" src="" alt="" class="img-fluid rounded" />
+      </div>
+    </div>
   </div>
 </div>
 
@@ -730,7 +960,9 @@ else
     <div class="modal-content">
       <form method="post" action="/Sales/ProcessSaleWithShipping">
         @Html.AntiForgeryToken()
-        <input type="hidden" name="saleId" value="@Model.Id" />
+        <input type="hidden" name="SaleId" value="@Model.Id" />
+        <input type="hidden" name="SaleNumber" value="@Model.SaleNumber" />
+        <input type="hidden" name="CustomerName" value="@Model.Customer?.CustomerName" />
         
         <div class="modal-header">
           <h5 class="modal-title" id="processSaleModalLabel">
@@ -761,7 +993,7 @@ else
               
               <div class="mb-3">
                 <label for="courierService" class="form-label">Courier Service *</label>
-                <select class="form-select" id="courierService" name="courierService" required>
+                <select class="form-select" id="courierService" name="CourierService" required>
                   <option value="">Select courier service...</option>
                   <option value="FedEx">FedEx</option>
                   <option value="UPS">UPS</option>
@@ -776,14 +1008,14 @@ else
 
               <div class="mb-3">
                 <label for="trackingNumber" class="form-label">Tracking Number *</label>
-                <input type="text" class="form-control" id="trackingNumber" name="trackingNumber" 
+                <input type="text" class="form-control" id="trackingNumber" name="TrackingNumber" 
                        placeholder="Enter tracking number" required />
                 <div class="form-text">Leave blank if customer pickup or local delivery</div>
               </div>
 
               <div class="mb-3">
                 <label for="expectedDeliveryDate" class="form-label">Expected Delivery Date</label>
-                <input type="date" class="form-control" id="expectedDeliveryDate" name="expectedDeliveryDate" 
+                <input type="date" class="form-control" id="expectedDeliveryDate" name="ExpectedDeliveryDate" 
                        min="@DateTime.Today.ToString("yyyy-MM-dd")" />
               </div>
             </div>
@@ -793,39 +1025,41 @@ else
               
               <div class="mb-3">
                 <label for="packageWeight" class="form-label">Package Weight (lbs)</label>
-                <input type="number" class="form-control" id="packageWeight" name="packageWeight" 
+                <input type="number" class="form-control" id="packageWeight" name="PackageWeight" 
                        step="0.1" min="0" placeholder="0.0" />
               </div>
 
               <div class="mb-3">
                 <label for="packageDimensions" class="form-label">Package Dimensions</label>
-                <input type="text" class="form-control" id="packageDimensions" name="packageDimensions" 
+                <input type="text" class="form-control" id="packageDimensions" name="PackageDimensions" 
                        placeholder="e.g., 12x8x6 inches" />
               </div>
 
               <div class="mb-3">
                 <label for="shippingInstructions" class="form-label">Shipping Instructions</label>
-                <textarea class="form-control" id="shippingInstructions" name="shippingInstructions" 
+                <textarea class="form-control" id="shippingInstructions" name="ShippingInstructions" 
                           rows="3" placeholder="Special delivery instructions..."></textarea>
               </div>
             </div>
           </div>
 
-          <!-- Options Section -->
+          <!-- ✅ FIXED: Options Section with proper checkbox binding -->
           <hr>
           <h6><i class="fas fa-cogs"></i> Processing Options</h6>
           
           <div class="row">
             <div class="col-md-6">
               <div class="form-check mb-2">
-                <input class="form-check-input" type="checkbox" id="generatePackingSlip" name="generatePackingSlip" checked>
+                <input type="hidden" name="GeneratePackingSlip" value="false" />
+                <input class="form-check-input" type="checkbox" id="generatePackingSlip" name="GeneratePackingSlip" value="true" checked>
                 <label class="form-check-label" for="generatePackingSlip">
                   <i class="fas fa-file-alt"></i> Generate Packing Slip
                 </label>
               </div>
               
               <div class="form-check mb-2">
-                <input class="form-check-input" type="checkbox" id="printPackingSlip" name="printPackingSlip">
+                <input type="hidden" name="PrintPackingSlip" value="false" />
+                <input class="form-check-input" type="checkbox" id="printPackingSlip" name="PrintPackingSlip" value="true">
                 <label class="form-check-label" for="printPackingSlip">
                   <i class="fas fa-print"></i> Auto-Print Packing Slip
                 </label>
@@ -834,7 +1068,8 @@ else
             
             <div class="col-md-6">
               <div class="form-check mb-2">
-                <input class="form-check-input" type="checkbox" id="emailCustomer" name="emailCustomer" checked>
+                <input type="hidden" name="EmailCustomer" value="false" />
+                <input class="form-check-input" type="checkbox" id="emailCustomer" name="EmailCustomer" value="true" checked>
                 <label class="form-check-label" for="emailCustomer">
                   <i class="fas fa-envelope"></i> Email Shipping Notice to Customer
                 </label>
@@ -870,6 +1105,85 @@ else
 
 @section Scripts {
 <script>
+    // ✅ NEW: Function to show item details in modal
+    function showItemDetails(itemId) {
+        const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
+        const content = document.getElementById('itemDetailsContent');
+        const viewFullLink = document.getElementById('viewFullItemLink');
+        
+        // Set the full details link
+        viewFullLink.href = `/Items/Details/${itemId}`;
+        
+        // Show loading spinner
+        content.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading item details...</p>
+            </div>
+        `;
+        
+        // Show the modal
+        modal.show();
+        
+        // Fetch item details
+        fetch(`/Items/Details/${itemId}`)
+            .then(response => response.text())
+            .then(html => {
+                // Extract just the main content from the full page
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
+                
+                if (mainContent) {
+                    // Create a simplified read-only view
+                    content.innerHTML = `
+                        <div class="row">
+                            <div class="col-12">
+                                ${mainContent.innerHTML}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Disable all form elements to make it read-only
+                    content.querySelectorAll('input, select, textarea, button').forEach(element => {
+                        element.disabled = true;
+                        if (element.tagName === 'BUTTON') {
+                            element.style.display = 'none';
+                        }
+                    });
+                    
+                    // Remove edit links and form actions
+                    content.querySelectorAll('a[href*="Edit"], a[href*="Delete"], form').forEach(element => {
+                        if (element.tagName === 'A' && (element.href.includes('Edit') || element.href.includes('Delete'))) {
+                            element.style.display = 'none';
+                        } else if (element.tagName === 'FORM') {
+                            element.style.display = 'none';
+                        }
+                    });
+                } else {
+                    content.innerHTML = '<p class="text-danger">Error loading item details.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching item details:', error);
+                content.innerHTML = '<p class="text-danger">Error loading item details. Please try again.</p>';
+            });
+    }
+    
+    // ✅ NEW: Function to show item image in modal
+    function showItemImageModal(partNumber, imageUrl) {
+        const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+        const modalTitle = document.getElementById('imageModalLabel');
+        const modalImage = document.getElementById('modalImage');
+        
+        modalTitle.textContent = `${partNumber} - Item Image`;
+        modalImage.src = imageUrl;
+        modalImage.alt = partNumber;
+        
+        modal.show();
+    }
        
     // Auto-populate courier service based on common patterns
     $('#courierService').on('change', function() {
@@ -938,14 +1252,14 @@ else
 
     // Auto-populate customer email if not already filled
     $(document).ready(function() {
-        if (!$('#CustomerEmail').val() && '@Model.Customer.ContactEmail') {
-            $('#CustomerEmail').val('@Model.Customer.ContactEmail');
+        if (!$('#CustomerEmail').val() && '@Model.Customer.Email') {
+            $('#CustomerEmail').val('@Model.Customer.Email');
         }
         
         // Payment amount validation
         $('#paymentAmount').on('change', function() {
             var paymentAmount = parseFloat($(this).val());
-            var remainingBalance = @Model.Customer.OutstandingBalance;
+            var remainingBalance = @((Model.Customer?.OutstandingBalance ?? 0));
             
             if (paymentAmount > remainingBalance) {
                 alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
@@ -953,5 +1267,6 @@ else
             }
         });
     });
+
 </script>
 }
