@@ -180,7 +180,7 @@
             <tr>
               <th style="min-width: 300px;">Product</th>
               <th width="100" class="text-center">Qty</th>
-              <th width="140">Unit Price</th>
+              <th width="280">Unit Price</th>
               <th width="120" class="text-end">Line Total</th>
             </tr>
           </thead>
@@ -191,7 +191,7 @@
                 <td>
                   <div class="row g-2">
                     <div class="col-auto">
-                      <select name="LineItems[@i].ProductType" class="form-select form-select-sm product-type-select"
+                      <select name="LineItems[@i].ProductType" class="form-select product-type-select"
                               onchange="toggleProductSelect(@i)" style="width: 120px;">
                         <option value="Item">Item</option>
                         <option value="FinishedGood">Finished Good</option>
@@ -213,12 +213,12 @@
                 </td>
                 <td class="text-center">
                   <input name="LineItems[@i].Quantity" type="number" min="1" value=""
-                         class="form-control form-control-sm text-center quantity-input"
+                         class="form-control text-center quantity-input"
                          style="width: 80px;" onchange="calculateLineTotal(@i)" oninput="calculateLineTotal(@i)" 
                          placeholder="0" />
                 </td>
                 <td>
-                  <div class="input-group input-group-sm">
+                  <div class="input-group">
                     <span class="input-group-text">$</span>
                     <input name="LineItems[@i].UnitPrice" type="number" step="0.01" min="0" placeholder="0.00"
                            class="form-control text-end unit-price-input" onchange="calculateLineTotal(@i)" 

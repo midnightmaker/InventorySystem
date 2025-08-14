@@ -1854,13 +1854,70 @@ namespace InventorySystem.Controllers
 				// Remove navigation property validation errors
 				ModelState.Remove("Customer");
 
+				// FILTER OUT INCOMPLETE LINE ITEMS BEFORE VALIDATION
+				var originalLineItems = viewModel.LineItems.ToList();
+
+				// Filter out incomplete line items (no product selected, zero quantity, or zero price)
+				viewModel.LineItems = viewModel.LineItems.Where(li =>
+					li.IsSelected && // Has a product selected
+					li.Quantity > 0 && // Has a quantity greater than 0
+					li.UnitPrice > 0   // Has a unit price greater than 0
+				).ToList();
+
+				// CLEAR MODELSTATE ERRORS FOR ALL LINE ITEMS
+				var lineItemKeys = ModelState.Keys.Where(key => key.StartsWith("LineItems[")).ToList();
+				foreach (var key in lineItemKeys)
+				{
+					ModelState.Remove(key);
+				}
+
+				// Log filtering results for debugging
+				_logger.LogInformation("Enhanced sale creation - Original line items: {OriginalCount}, Valid line items: {ValidCount}",
+					originalLineItems.Count, viewModel.LineItems.Count);
+
+				// Check if we have any valid line items after filtering
+				if (!viewModel.LineItems.Any())
+				{
+					ModelState.AddModelError("LineItems", "At least one complete line item is required (with product, quantity > 0, and price > 0).");
+				}
+
+				// MANUALLY VALIDATE THE FILTERED LINE ITEMS
+				for (int i = 0; i < viewModel.LineItems.Count; i++)
+				{
+					var lineItem = viewModel.LineItems[i];
+
+					// Validate product selection
+					if (lineItem.ProductType == "Item" && !lineItem.ItemId.HasValue)
+					{
+						ModelState.AddModelError($"LineItems[{i}].ItemId", "Item must be selected");
+					}
+					else if (lineItem.ProductType == "FinishedGood" && !lineItem.FinishedGoodId.HasValue)
+					{
+						ModelState.AddModelError($"LineItems[{i}].FinishedGoodId", "Finished Good must be selected");
+					}
+
+					// Validate quantity
+					if (lineItem.Quantity <= 0)
+					{
+						ModelState.AddModelError($"LineItems[{i}].Quantity", "Quantity must be greater than 0");
+					}
+
+					// Validate unit price
+					if (lineItem.UnitPrice < 0)
+					{
+						ModelState.AddModelError($"LineItems[{i}].UnitPrice", "Unit price cannot be negative");
+					}
+				}
+
+				// FIRST VALIDATION CHECK: Basic line item validation
 				if (!ModelState.IsValid)
 				{
+					viewModel.LineItems = originalLineItems;
 					await LoadDropdownsForEnhancedCreate(viewModel);
 					return View(viewModel);
 				}
 
-				// Validate line items have sufficient stock
+				// Validate line items have sufficient stock (only for the valid line items)
 				foreach (var lineItem in viewModel.LineItems)
 				{
 					var stockCheck = await ValidateLineItemStock(lineItem);
@@ -1870,13 +1927,26 @@ namespace InventorySystem.Controllers
 					}
 				}
 
+				// SECOND VALIDATION CHECK: Stock validation
 				if (!ModelState.IsValid)
 				{
+					viewModel.LineItems = originalLineItems;
 					await LoadDropdownsForEnhancedCreate(viewModel);
 					return View(viewModel);
 				}
 
-				// Create the sale
+				// ? ADDED: FINAL SAFETY CHECK BEFORE PROCEEDING
+				// This catches any validation errors that might have been added elsewhere
+				if (!ModelState.IsValid)
+				{
+					_logger.LogWarning("Final validation check failed for enhanced sale creation");
+					viewModel.LineItems = originalLineItems;
+					await LoadDropdownsForEnhancedCreate(viewModel);
+					return View(viewModel);
+				}
+
+				// NOW WE CAN SAFELY PROCEED TO CREATE THE SALE
+				// ... rest of the method remains the same
 				var sale = new Sale
 				{
 					CustomerId = viewModel.CustomerId.Value,
@@ -1897,7 +1967,7 @@ namespace InventorySystem.Controllers
 
 				var createdSale = await _salesService.CreateSaleAsync(sale);
 
-				// Add line items
+				// Add line items (only the valid ones)
 				var addedItems = new List<SaleItem>();
 				foreach (var lineItem in viewModel.LineItems)
 				{
@@ -1965,7 +2035,7 @@ namespace InventorySystem.Controllers
 					CustomerId = viewModel.CustomerId.Value,
 					SaleId = saleId,
 					AdjustmentDate = DateTime.Now,
-					AdjustmentAmount = viewModel.DiscountCalculated,
+						AdjustmentAmount = viewModel.DiscountCalculated,
 					AdjustmentType = "Sales Discount",
 					Reason = discountReason,
 					ReferenceNumber = $"DISC-{DateTime.Now:yyyyMMdd}-{saleId}",
@@ -2216,7 +2286,6 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		
 		
 
 		// API endpoint for updating payment due date based on terms
