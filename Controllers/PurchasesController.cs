@@ -1767,7 +1767,19 @@ namespace InventorySystem.Controllers
 					ProjectId = viewModel.ProjectId
 				};
 
-				await _purchaseService.CreatePurchaseAsync(expensePayment);
+
+				try
+				{
+					var createdExpensePayment = await _purchaseService.CreatePurchaseAsync(expensePayment);
+					await _accountingService.GenerateJournalEntriesForPurchaseAsync(createdExpensePayment);
+				}
+				catch (Exception journalEx)
+				{
+					_logger.LogError(journalEx, "Error generating journal entries for expense payment {PurchaseId}", viewModel.ExpenseItemId);
+					// Don't fail the entire operation, just log the warning
+					TempData["WarningMessage"] = "Expense payment recorded successfully, but there was an issue creating the journal entries. Please generate them manually from the Accounting section.";
+				}
+
 
 				// Handle file upload if provided
 				if (viewModel.ReceiptFile != null)

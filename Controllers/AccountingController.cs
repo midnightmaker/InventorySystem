@@ -391,7 +391,7 @@ namespace InventorySystem.Controllers
 		{
 			try
 			{
-				_logger.LogInformation("Starting journal entry generation for existing transactions");
+				_logger.LogInformation("Synchronization: Starting journal entry generation for existing transactions");
 
 				var results = new
 				{
@@ -403,10 +403,13 @@ namespace InventorySystem.Controllers
 
 				// Generate journal entries for purchases that don't have them
 				var purchasesWithoutEntries = await _context.Purchases
-						.Include(p => p.Item)
-						.Include(p => p.Vendor)
-						.Where(p => !p.IsJournalEntryGenerated && p.Status == PurchaseStatus.Received)
-						.ToListAsync();
+								.Include(p => p.Item)
+								.Include(p => p.Vendor)
+								.Where(p => !p.IsJournalEntryGenerated &&
+								(p.Status == PurchaseStatus.Received ||
+								 p.Status == PurchaseStatus.Paid) && // Include paid status for expenses
+								p.Item != null)
+		.ToListAsync();
 
 				foreach (var purchase in purchasesWithoutEntries)
 				{
