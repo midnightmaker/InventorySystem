@@ -12,11 +12,11 @@ namespace InventorySystem.Models
         
         [Required]
         [Display(Name = "Adjustment Type")]
-        public string AdjustmentType { get; set; } = string.Empty; // "Damage", "Loss", "Found", "Correction", "Theft", "Obsolete"
+        public string AdjustmentType { get; set; } = string.Empty;
         
         [Required]
         [Display(Name = "Quantity Adjusted")]
-        public int QuantityAdjusted { get; set; } // Positive for increases, negative for decreases
+        public int QuantityAdjusted { get; set; }
         
         [Display(Name = "Stock Before")]
         public int StockBefore { get; set; }
@@ -35,7 +35,7 @@ namespace InventorySystem.Models
         
         [Display(Name = "Reference Number")]
         [StringLength(100)]
-        public string? ReferenceNumber { get; set; } // Work order, incident report, etc.
+        public string? ReferenceNumber { get; set; }
         
         [Display(Name = "Adjusted By")]
         [StringLength(100)]
@@ -43,9 +43,14 @@ namespace InventorySystem.Models
         
         [Display(Name = "Cost Impact")]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal CostImpact { get; set; } // Calculated based on FIFO or average cost
+        public decimal CostImpact { get; set; }
         
         public DateTime CreatedDate { get; set; } = DateTime.Now;
+        
+        // ? NEW: Journal entry tracking
+        [Display(Name = "Journal Entry Number")]
+        [StringLength(50)]
+        public string? JournalEntryNumber { get; set; }
         
         // Helper properties
         [NotMapped]
@@ -53,6 +58,9 @@ namespace InventorySystem.Models
         
         [NotMapped]
         public bool IsIncrease => QuantityAdjusted > 0;
+        
+        [NotMapped]
+        public bool HasJournalEntry => !string.IsNullOrEmpty(JournalEntryNumber);
         
         [NotMapped]
         public string AdjustmentTypeDisplay => AdjustmentType switch
@@ -77,13 +85,13 @@ namespace InventorySystem.Models
             "Correction" => "fas fa-edit text-info",
             "Theft" => "fas fa-user-minus text-danger",
             "Obsolete" => "fas fa-trash text-secondary",
-            "Return" => "fas fa-undo text-primary",
+            "Return" => "fas fa-undo text-info",
             "Scrap" => "fas fa-times-circle text-danger",
-            _ => "fas fa-balance-scale text-muted"
+            _ => "fas fa-question-circle text-muted"
         };
-        
-        // Predefined adjustment types
-        public static readonly List<string> AdjustmentTypes = new List<string>
+
+        // ? NEW: Available adjustment types as static property
+        public static List<string> AdjustmentTypes => new()
         {
             "Damage",
             "Loss", 

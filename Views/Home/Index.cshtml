@@ -11,106 +11,127 @@
 </div>
 
 <!-- Key Statistics Cards -->
+<!-- Key Statistics Cards -->
 <div class="row mb-4">
   <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
-    <div class="card stat-card card-gradient-primary h-100">
-      <div class="card-body text-center">
-        <i class="fas fa-cube stat-icon mb-3"></i>
-        <h2 class="stat-value">@Model.TotalItems.ToString("N0")</h2>
-        <p class="stat-label mb-2">Total Items</p>
-        <small>
-          <i class="fas fa-arrow-up trend-up"></i> +@Model.ItemsAddedThisMonth this month
-        </small>
+    <div class="card border-left-primary shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+              Total Items
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalItems.ToString("N0")</div>
+            <div class="text-xs text-gray-600">+@Model.ItemsAddedThisMonth this month</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-cube fa-2x text-gray-300"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
-    <div class="card stat-card card-gradient-success h-100">
-      <div class="card-body text-center">
-        <i class="fas fa-dollar-sign stat-icon mb-3"></i>
-        <h2 class="stat-value">$@Model.TotalInventoryValue.ToString("N0")</h2>
-        <p class="stat-label mb-2">Total Inventory Value</p>
-        <small>
-          @if (Model.MonthlyGrowth >= 0)
-
-          {
-            <i class="fas fa-arrow-up trend-up"></i>
-          }
-
-          else
-
-          {
-            <i class="fas fa-arrow-down trend-down"></i>
-          }
-          @Model.MonthlyGrowth.ToString("F1")% this month
-        </small>
+    <div class="card border-left-success shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+              Inventory Value
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">$@Model.TotalInventoryValue.ToString("N0")</div>
+            <div class="text-xs text-gray-600">
+              @if (Model.MonthlyGrowth >= 0)
+              {
+                <span class="text-success">@Model.MonthlyGrowth.ToString("F1")% growth</span>
+              }
+              else
+              {
+                <span class="text-danger">@Model.MonthlyGrowth.ToString("F1")% decline</span>
+              }
+            </div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
-    <div class="card stat-card card-gradient-warning h-100">
-      <div class="card-body text-center">
-        <i class="fas fa-exclamation-triangle stat-icon mb-3"></i>
-        <h2 class="stat-value">@Model.LowStockCount</h2>
-        <p class="stat-label mb-2">Low Stock Alerts</p>
-        <small>
-          @{
-            var criticalItems = Model.LowStockItems.Count(i => i.CurrentStock == 0);
-          }
-          @if (criticalItems > 0)
-
-          {
-            <i class="fas fa-exclamation-circle text-danger"></i>
-            <span class="text-danger">@criticalItems critical</span>
-          }
-
-          else
-
-          {
-            <span><i class="fas fa-check-circle trend-up"></i> @Model.CriticalStockPercentage.ToString("F1")% critical</span>
-          }
-        </small>
+    <div class="card border-left-warning shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+              Low Stock Alerts
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.LowStockCount</div>
+            <div class="text-xs text-gray-600">@Model.CriticalStockPercentage.ToString("F1")% critical</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
-    <div class="card stat-card card-gradient-info h-100">
-      <div class="card-body text-center">
-        <i class="fas fa-list stat-icon mb-3"></i>
-        <h2 class="stat-value">@Model.TotalBoms</h2>
-        <p class="stat-label mb-2">Total BOMs</p>
-        <small>
-          <i class="fas fa-arrow-up trend-up"></i> +@Model.BomsAddedThisMonth this month
-        </small>
+    <div class="card border-left-info shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+              Total BOMs
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalBoms</div>
+            <div class="text-xs text-gray-600">+@Model.BomsAddedThisMonth this month</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-list fa-2x text-gray-300"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
-    <div class="card stat-card card-gradient-secondary h-100">
-      <div class="card-body text-center">
-        <i class="fas fa-shopping-cart stat-icon mb-3"></i>
-        <h2 class="stat-value">@Model.TotalPurchases.ToString("N0")</h2>
-        <p class="stat-label mb-2">Total Purchases</p>
-        <small>
-          <i class="fas fa-arrow-up trend-up"></i> +@Model.PurchasesThisMonth this month
-        </small>
+    <div class="card border-left-secondary shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+              Total Purchases
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalPurchases.ToString("N0")</div>
+            <div class="text-xs text-gray-600">+@Model.PurchasesThisMonth this month</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
-    <div class="card stat-card card-gradient-dark h-100">
-      <div class="card-body text-center">
-        <i class="fas fa-users stat-icon mb-3"></i>
-        <h2 class="stat-value">@Model.ActiveVendorsCount</h2>
-        <p class="stat-label mb-2">Active Vendors</p>
-        <small>
-          <i class="fas fa-handshake trend-neutral"></i> Supplier network
-        </small>
+    <div class="card border-left-primary shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+              Active Vendors
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.ActiveVendorsCount</div>
+            <div class="text-xs text-gray-600">Supplier network</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-users fa-2x text-gray-300"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -531,4 +552,129 @@
   setInterval(() => {
     console.log('Dashboard refresh interval triggered');
   }, 60000);
+    <!-- Key Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100">
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                  Total Items
+                </div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalItems.ToString("N0")</div>
+                <div class="text-xs text-gray-600">+@Model.ItemsAddedThisMonth this month</div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-cube fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100">
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                  Inventory Value
+                </div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">$@Model.TotalInventoryValue.ToString("N0")</div>
+                <div class="text-xs text-gray-600">
+                  @if (Model.MonthlyGrowth >= 0)
+                  {
+                    <span class="text-success">@Model.MonthlyGrowth.ToString("F1")% growth</span>
+                  }
+                  else
+                  {
+                    <span class="text-danger">@Model.MonthlyGrowth.ToString("F1")% decline</span>
+                  }
+                </div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100">
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                  Low Stock Alerts
+                </div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.LowStockCount</div>
+                <div class="text-xs text-gray-600">@Model.CriticalStockPercentage.ToString("F1")% critical</div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100">
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                  Total BOMs
+                </div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalBoms</div>
+                <div class="text-xs text-gray-600">+@Model.BomsAddedThisMonth this month</div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-list fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="card border-left-secondary shadow h-100">
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                  Total Purchases
+                </div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalPurchases.ToString("N0")</div>
+                <div class="text-xs text-gray-600">+@Model.PurchasesThisMonth this month</div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100">
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                  Active Vendors
+                </div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.ActiveVendorsCount</div>
+                <div class="text-xs text-gray-600">Supplier network</div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-users fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 </script>

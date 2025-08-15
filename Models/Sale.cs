@@ -436,6 +436,10 @@ namespace InventorySystem.Models
 		[Display(Name = "Has Discount")]
 		public bool HasDiscount => DiscountCalculated > 0;
 
+		
 
+		// Helper property
+		[NotMapped]
+		public bool HasJournalEntry => !string.IsNullOrEmpty(JournalEntryNumber);
 	}
 }

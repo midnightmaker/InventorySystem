@@ -1,6 +1,6 @@
 @model InventorySystem.ViewModels.MultiLinePurchaseViewModel
 @{
-    ViewData["Title"] = "Multi-Line Purchase";
+    ViewData["Title"] = "Multi-Line Purchase Order";
 }
 
 <div class="container-fluid">
@@ -8,7 +8,7 @@
         <div class="col-lg-9">
             <div class="card">
                 <div class="card-header">
-                    <h5><i class="fas fa-shopping-cart"></i> Multi-Line Purchase</h5>
+                    <h5><i class="fas fa-shopping-cart"></i> Multi-Line Purchase Order</h5>
                 </div>
                 <div class="card-body">
                     <form asp-action="CreateMultiLine" method="post">
@@ -100,7 +100,7 @@
                                 <i class="fas fa-arrow-left"></i> Cancel
                             </a>
                             <button type="submit" class="btn btn-success" id="submitBtn">
-                                <i class="fas fa-save"></i> Create Multi-Line Purchase
+                                <i class="fas fa-save"></i> Create Purchase Order
                             </button>
                         </div>
                     </form>

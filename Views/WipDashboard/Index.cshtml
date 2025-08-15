@@ -14,52 +14,112 @@
   </div>
 
   <!-- Statistics Cards -->
+  <!-- Statistics Cards -->
   <div class="row mb-4">
-    <div class="col-md-2">
-      <div class="card bg-primary text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Statistics.TotalActiveProductions</h3>
-          <p class="mb-0">Active Productions</p>
+    <div class="col-xl-2 col-md-4 mb-3">
+      <div class="card border-left-primary shadow h-100">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                Active Productions
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Statistics.TotalActiveProductions</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-cogs fa-2x text-gray-300"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-2">
-      <div class="card bg-info text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Statistics.PlannedCount</h3>
-          <p class="mb-0">Planned</p>
+
+    <div class="col-xl-2 col-md-4 mb-3">
+      <div class="card border-left-info shadow h-100">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                Planned
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Statistics.PlannedCount</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-calendar fa-2x text-gray-300"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-2">
-      <div class="card bg-warning text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Statistics.InProgressCount</h3>
-          <p class="mb-0">In Progress</p>
+
+    <div class="col-xl-2 col-md-4 mb-3">
+      <div class="card border-left-warning shadow h-100">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                In Progress
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Statistics.InProgressCount</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-play fa-2x text-gray-300"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-2">
-      <div class="card bg-secondary text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Statistics.QualityCheckCount</h3>
-          <p class="mb-0">Quality Check</p>
+
+    <div class="col-xl-2 col-md-4 mb-3">
+      <div class="card border-left-secondary shadow h-100">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                Quality Check
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Statistics.QualityCheckCount</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-2">
-      <div class="card bg-danger text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Statistics.OnHoldCount</h3>
-          <p class="mb-0">On Hold</p>
+
+    <div class="col-xl-2 col-md-4 mb-3">
+      <div class="card border-left-danger shadow h-100">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                On Hold
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Statistics.OnHoldCount</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-pause fa-2x text-gray-300"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-2">
-      <div class="card bg-success text-white">
-        <div class="card-body text-center">
-          <h3>@Model.Statistics.CompletedTodayCount</h3>
-          <p class="mb-0">Completed Today</p>
+
+    <div class="col-xl-2 col-md-4 mb-3">
+      <div class="card border-left-success shadow h-100">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                Completed Today
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Statistics.CompletedTodayCount</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-check fa-2x text-gray-300"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>

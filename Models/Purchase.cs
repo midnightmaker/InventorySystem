@@ -44,7 +44,11 @@ namespace InventorySystem.Models
     [StringLength(100, ErrorMessage = "PO number cannot exceed 100 characters")]
     public string? PurchaseOrderNumber { get; set; }
 
-    [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
+		[Display(Name = "Vendor Invoice Number")]
+		[StringLength(100, ErrorMessage = "Invoice number cannot exceed 100 characters")]
+		public string? InvoiceNumber { get; set; }
+
+		[StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
     public string? Notes { get; set; }
 
     [Display(Name = "Shipping Cost")]
@@ -74,7 +78,7 @@ namespace InventorySystem.Models
 
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
-    [Display(Name = "Purchase Status")]
+    [Display(Name = "Purchase Order Status")]
     public PurchaseStatus Status { get; set; } = PurchaseStatus.Pending;
 
     [Display(Name = "Expected Delivery Date")]

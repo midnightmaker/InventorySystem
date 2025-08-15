@@ -54,6 +54,34 @@
 }
 
 /* ===================================
+   DROPDOWN STYLING FIXES
+   =================================== */
+
+/* Fix dropdown header size to match dropdown items */
+.dropdown-header {
+  font-size: 0.875rem !important; /* Same as dropdown-item */
+  font-weight: 600 !important; /* Make headers slightly bolder */
+  line-height: 1.5 !important; /* Match dropdown-item line height */
+  padding: 0.5rem 1rem !important; /* Same padding as dropdown-item */
+  margin: 0 !important; /* Remove default h6 margin */
+  color: #6c757d !important; /* Bootstrap's muted color */
+  letter-spacing: 0.05em !important; /* Slight letter spacing for readability */
+}
+
+/* Ensure dropdown items have consistent sizing */
+.dropdown-item {
+  font-size: 0.875rem !important; /* Explicit font size */
+  line-height: 1.5 !important; /* Consistent line height */
+  padding: 0.5rem 1rem 0.5rem 2rem !important; /* Increased left padding for indentation */
+}
+
+/* Remove default h6 margins that might affect dropdown headers */
+.dropdown-menu h6.dropdown-header {
+  margin-bottom: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* ===================================
    NAVBAR STYLING IMPROVEMENTS
    =================================== */
 
@@ -243,4 +271,47 @@
 .card-body .list-group-item.active {
   padding-left: 1.5rem !important; /* Extra padding for active items */
   margin: 2px 0 !important; /* Small margin for separation */
+}
+
+/* ===================================
+   DASHBOARD KEY METRICS STYLING
+   =================================== */
+
+/* Border-left accent colors for different metric types */
+.border-left-primary { border-left: 0.25rem solid #4e73df !important; }
+.border-left-success { border-left: 0.25rem solid #1cc88a !important; }
+.border-left-info { border-left: 0.25rem solid #36b9cc !important; }
+.border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
+.border-left-danger { border-left: 0.25rem solid #e74a3b !important; }
+.border-left-secondary { border-left: 0.25rem solid #858796 !important; }
+
+/* Dashboard metric card text styles */
+.text-xs { 
+  font-size: 0.7rem; 
+  font-weight: 600;
+}
+
+.text-gray-800 { 
+  color: #5a5c69 !important; 
+}
+
+.text-gray-300 { 
+  color: #dddfeb !important; 
+}
+
+/* No gutters utility class for proper spacing */
+.no-gutters {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+.no-gutters > .col,
+.no-gutters > [class*="col-"] {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+/* Enhanced shadow for metric cards */
+.shadow {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
 }

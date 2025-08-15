@@ -71,15 +71,19 @@ namespace InventorySystem.Models
         [Display(Name = "Is Recent")]
         public bool IsRecent => DaysSincePayment <= 30;
 
-		    [StringLength(50)]
-		    [Display(Name = "Journal Entry Number")]
-		    public string? JournalEntryNumber { get; set; }
+        [Display(Name = "Journal Entry Number")]
+        [StringLength(50)]
+        public string? JournalEntryNumber { get; set; }
 
-		    [Display(Name = "Journal Entry Generated")]
-		    public bool IsJournalEntryGenerated { get; set; } = false;
+        [Display(Name = "Is Journal Entry Generated")]
+        public bool IsJournalEntryGenerated { get; set; } = false;
 
-		// Validation
-		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        // Helper property
+        [NotMapped]
+        public bool HasJournalEntry => !string.IsNullOrEmpty(JournalEntryNumber);
+
+        // Validation
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             var results = new List<ValidationResult>();
 

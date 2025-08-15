@@ -38,71 +38,83 @@
 }
 
 <!-- Key Metrics Cards -->
+<!-- Key Metrics Cards -->
 <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4>@Model.TotalAccountsReceivable.ToString("C")</h4>
-                        <p class="mb-0">Total A/R</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-dollar-sign fa-2x"></i>
-                    </div>
-                </div>
-                <small>@Model.UnpaidInvoiceCount unpaid invoices</small>
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card border-left-primary shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+              Total A/R
             </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalAccountsReceivable.ToString("C")</div>
+            <div class="text-xs text-gray-600">@Model.UnpaidInvoiceCount unpaid invoices</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+          </div>
         </div>
+      </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-danger text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4>@Model.TotalOverdue.ToString("C")</h4>
-                        <p class="mb-0">Overdue</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
-                    </div>
-                </div>
-                <small>@Model.OverduePercentage.ToString("F1")% of total A/R</small>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card border-left-danger shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+              Overdue Amount
             </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalOverdue.ToString("C")</div>
+            <div class="text-xs text-gray-600">@Model.OverdueInvoiceCount overdue invoices</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+          </div>
         </div>
+      </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-dark">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4>@Model.OverdueInvoiceCount</h4>
-                        <p class="mb-0">Overdue Invoices</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-clock fa-2x"></i>
-                    </div>
-                </div>
-                <small>Require immediate attention</small>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card border-left-success shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+              Total Collected
             </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.CurrentAmount.ToString("C")</div>
+            <div class="text-xs text-gray-600">This period</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-money-bill-wave fa-2x text-gray-300"></i>
+          </div>
         </div>
+      </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4>@Model.CustomersWithBalance</h4>
-                        <p class="mb-0">Customers</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-users fa-2x"></i>
-                    </div>
-                </div>
-                <small>with outstanding balances</small>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card border-left-info shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+              Unpaid Invoice Count
             </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.UnpaidInvoiceCount</div>
+            <div class="text-xs text-gray-600">30-day average</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </div>
 
 <!-- Aging Analysis -->

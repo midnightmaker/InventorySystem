@@ -15,7 +15,7 @@ namespace InventorySystem.ViewModels
         [Display(Name = "Expected Delivery Date")]
         public DateTime? ExpectedDeliveryDate { get; set; }
 
-        [Display(Name = "Purchase Status")]
+        [Display(Name = "Purchase Order Status")]
         public PurchaseStatus Status { get; set; } = PurchaseStatus.Pending;
 
         [Display(Name = "Notes")]

@@ -45,7 +45,7 @@ namespace InventorySystem.ViewModels
     [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
     public string? Notes { get; set; }
 
-    [Display(Name = "Purchase Status")]
+    [Display(Name = "Purchase Order Status")]
     public PurchaseStatus Status { get; set; } = PurchaseStatus.Pending;
 
     [Display(Name = "Expected Delivery Date")]

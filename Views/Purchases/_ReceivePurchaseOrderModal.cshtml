@@ -1,0 +1,151 @@
+@model InventorySystem.ViewModels.ReceivePurchaseViewModel
+
+<form id="receivePOForm">
+    @Html.AntiForgeryToken()
+    @Html.HiddenFor(m => m.PurchaseId)
+    
+    <!-- Purchase Order Information -->
+    <div class="card mb-3">
+        <div class="card-header bg-light">
+            <h6><i class="fas fa-info-circle"></i> Purchase Order Information</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">PO Number:</dt>
+                        <dd class="col-sm-7"><strong>@Model.PurchaseOrderNumber</strong></dd>
+                        <dt class="col-sm-5">Vendor:</dt>
+                        <dd class="col-sm-7">@Model.VendorName</dd>
+                    </dl>
+                </div>
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Item:</dt>
+                        <dd class="col-sm-7">
+                            <strong>@Model.ItemPartNumber</strong>
+                            <br><small class="text-muted">@Model.ItemDescription</small>
+                        </dd>
+                        <dt class="col-sm-5">Ordered Qty:</dt>
+                        <dd class="col-sm-7"><strong>@Model.QuantityOrdered</strong></dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Receipt Information -->
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h6><i class="fas fa-truck"></i> Receipt Information</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="ReceivedDate" class="form-label"></label>
+                        <input asp-for="ReceivedDate" class="form-control" type="date" />
+                        <span asp-validation-for="ReceivedDate" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="QuantityReceived" class="form-label"></label>
+                        <input asp-for="QuantityReceived" class="form-control" type="number" min="1" 
+                               max="@Model.QuantityOrdered" id="quantityReceived" />
+                        <span asp-validation-for="QuantityReceived" class="text-danger"></span>
+                        <div class="form-text">
+                            Maximum: @Model.QuantityOrdered (ordered quantity)
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="InvoiceNumber" class="form-label"></label>
+                        <input asp-for="InvoiceNumber" class="form-control" placeholder="Vendor's invoice number" />
+                        <span asp-validation-for="InvoiceNumber" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="ReceivedBy" class="form-label"></label>
+                        <input asp-for="ReceivedBy" class="form-control" placeholder="Person receiving the goods" />
+                        <span asp-validation-for="ReceivedBy" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label asp-for="Notes" class="form-label"></label>
+                <textarea asp-for="Notes" class="form-control" rows="3" 
+                          placeholder="Any notes about the receipt (condition, partial delivery, etc.)"></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+            </div>
+            
+            <!-- Partial Receipt Warning -->
+            <div id="partialReceiptWarning" class="alert alert-warning" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Partial Receipt Detected:</strong>
+                <span id="partialReceiptText"></span>
+                <br><small>The remaining quantity will need to be received separately or the PO should be adjusted.</small>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="button" class="btn btn-success" onclick="submitReceivePO()">
+        <i class="fas fa-truck"></i> Receive Purchase Order
+    </button>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Monitor quantity changes for partial receipt warnings
+    $('#quantityReceived').on('input', function() {
+        var quantityReceived = parseInt($(this).val()) || 0;
+        var quantityOrdered = @Model.QuantityOrdered;
+        
+        if (quantityReceived > 0 && quantityReceived < quantityOrdered) {
+            var shortage = quantityOrdered - quantityReceived;
+            $('#partialReceiptText').text(`You are receiving ${quantityReceived} of ${quantityOrdered} ordered. ${shortage} items will remain outstanding.`);
+            $('#partialReceiptWarning').show();
+        } else {
+            $('#partialReceiptWarning').hide();
+        }
+    });
+});
+
+function submitReceivePO() {
+    var formData = $('#receivePOForm').serialize();
+    
+    $.post('@Url.Action("ReceivePurchaseOrder")', formData)
+        .done(function(response) {
+            if (response.success) {
+                $('#receivePOModal').modal('hide');
+                
+                // Show success message
+                var successHtml = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle"></i> ${response.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                $('body').prepend(successHtml);
+                
+                // Reload the page to update the list
+                setTimeout(function() {
+                    location.reload();
+                }, 2000);
+            } else {
+                alert('Error: ' + response.message);
+            }
+        })
+        .fail(function(xhr) {
+            var errorMessage = 'Error receiving purchase order. Please try again.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            alert('Error: ' + errorMessage);
+        });
+}
+</script>

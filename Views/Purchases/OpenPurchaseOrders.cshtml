@@ -1,0 +1,399 @@
+@model IEnumerable<InventorySystem.Models.Purchase>
+@{
+    ViewData["Title"] = "Open Purchase Orders";
+    var overduePOs = ViewBag.OverduePOs as IEnumerable<InventorySystem.Models.Purchase> ?? new List<InventorySystem.Models.Purchase>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-truck"></i> Open Purchase Orders</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("Create")" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create New PO
+        </a>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-list"></i> All Purchases
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Open POs</h6>
+                        <h3>@Model.Count()</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-invoice fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Overdue</h6>
+                        <h3>@overduePOs.Count()</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Value</h6>
+                        <h3>@ViewBag.TotalOpenValue.ToString("C")</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Today's Expected</h6>
+                        <h3>@Model.Count(p => p.ExpectedDeliveryDate?.Date == DateTime.Today)</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-check fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Overdue POs Alert -->
+@if (overduePOs.Any())
+{
+    <div class="alert alert-warning">
+        <h5><i class="fas fa-exclamation-triangle"></i> Overdue Purchase Orders</h5>
+        <p>You have <strong>@overduePOs.Count()</strong> overdue purchase orders requiring attention.</p>
+        <button class="btn btn-sm btn-warning" onclick="$('#overdueSection').toggle()">
+            <i class="fas fa-eye"></i> Show/Hide Overdue POs
+        </button>
+    </div>
+    
+    <div id="overdueSection" style="display: none;" class="mb-4">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6><i class="fas fa-exclamation-triangle"></i> Overdue Purchase Orders</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>PO #</th>
+                                <th>Vendor</th>
+                                <th>Item</th>
+                                <th>Days Overdue</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var overduePO in overduePOs.Take(5))
+                            {
+                                <tr>
+                                    <td><strong>@overduePO.PurchaseOrderNumber</strong></td>
+                                    <td>@overduePO.Vendor?.CompanyName</td>
+                                    <td>@overduePO.Item?.PartNumber</td>
+                                    <td>
+                                        @{
+                                            var daysOverdue = (DateTime.Today - (overduePO.ExpectedDeliveryDate ?? overduePO.PurchaseDate.AddDays(7))).Days;
+                                        }
+                                        <span class="badge bg-danger">@daysOverdue days</span>
+                                    </td>
+                                    <td>@overduePO.ExtendedTotal.ToString("C")</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-success" onclick="openReceiveModal(@overduePO.Id)">
+                                            <i class="fas fa-truck"></i> Receive
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Main PO Table -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-list"></i> Open Purchase Orders</h5>
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>PO #</th>
+                            <th>Date</th>
+                            <th>Vendor</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Amount</th>
+                            <th>Expected</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var purchase in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@purchase.PurchaseOrderNumber</strong>
+                                    @if (purchase.ExpectedDeliveryDate.HasValue && purchase.ExpectedDeliveryDate.Value < DateTime.Today)
+                                    {
+                                        <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> Overdue</small>
+                                    }
+                                </td>
+                                <td>@purchase.PurchaseDate.ToString("MM/dd/yyyy")</td>
+                                <td>@purchase.Vendor?.CompanyName</td>
+                                <td>
+                                    <strong>@purchase.Item?.PartNumber</strong>
+                                    <br><small class="text-muted">@purchase.Item?.Description</small>
+                                </td>
+                                <td>@purchase.QuantityPurchased</td>
+                                <td>@purchase.ExtendedTotal.ToString("C")</td>
+                                <td>
+                                    @if (purchase.ExpectedDeliveryDate.HasValue)
+                                    {
+                                        @purchase.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
+                                        @if (purchase.ExpectedDeliveryDate.Value < DateTime.Today)
+                                        {
+                                            <br><span class="badge bg-danger">Overdue</span>
+                                        }
+                                        else if (purchase.ExpectedDeliveryDate.Value == DateTime.Today)
+                                        {
+                                            <br><span class="badge bg-warning">Due Today</span>
+                                        }
+                                        else if (purchase.ExpectedDeliveryDate.Value <= DateTime.Today.AddDays(3))
+                                        {
+                                            <br><span class="badge bg-info">Due Soon</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not set</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">@purchase.Status</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-success" onclick="openReceiveModal(@purchase.Id)" 
+                                                title="Receive Purchase Order">
+                                            <i class="fas fa-truck"></i> Receive
+                                        </button>
+                                        <button class="btn btn-outline-info" onclick="viewPODetails(@purchase.Id)" 
+                                                title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <a href="@Url.Action("Edit", new { id = purchase.Id })" 
+                                           class="btn btn-outline-warning" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-outline-danger" onclick="cancelPO(@purchase.Id, '@purchase.PurchaseOrderNumber')" 
+                                                title="Cancel Purchase Order">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No Open Purchase Orders</h4>
+                <p class="text-muted">All purchase orders have been received or there are no orders to display.</p>
+                <a href="@Url.Action("Create")" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Your First Purchase Order
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Receive Purchase Order Modal -->
+<div class="modal fade" id="receivePOModal" tabindex="-1" aria-labelledby="receivePOModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="receivePOModalLabel">
+                    <i class="fas fa-truck"></i> Receive Purchase Order
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="receivePOModalBody">
+                <!-- Content will be loaded dynamically -->
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View PO Details Modal -->
+<div class="modal fade" id="viewPOModal" tabindex="-1" aria-labelledby="viewPOModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="viewPOModalLabel">
+                    <i class="fas fa-file-invoice"></i> Purchase Order Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="viewPOModalBody">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+function openReceiveModal(purchaseId) {
+    $('#receivePOModalBody').html('<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+    $('#receivePOModal').modal('show');
+    
+    $.get('@Url.Action("ReceivePurchaseOrder")', { id: purchaseId })
+        .done(function(data) {
+            $('#receivePOModalBody').html(data);
+        })
+        .fail(function(xhr) {
+            var response = JSON.parse(xhr.responseText);
+            $('#receivePOModalBody').html('<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> ' + response.message + '</div>');
+        });
+}
+
+function viewPODetails(purchaseId) {
+    $('#viewPOModalBody').html('<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+    $('#viewPOModal').modal('show');
+    
+    $.get('@Url.Action("GetPurchaseOrderDetails")', { id: purchaseId })
+        .done(function(response) {
+            if (response.success) {
+                var po = response.po;
+                var html = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">PO Number:</dt>
+                                <dd class="col-sm-8"><strong>${po.poNumber}</strong></dd>
+                                <dt class="col-sm-4">Vendor:</dt>
+                                <dd class="col-sm-8">${po.vendorName}</dd>
+                                <dt class="col-sm-4">Order Date:</dt>
+                                <dd class="col-sm-8">${po.orderDate}</dd>
+                                <dt class="col-sm-4">Expected:</dt>
+                                <dd class="col-sm-8">${po.expectedDelivery || 'Not set'}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Item:</dt>
+                                <dd class="col-sm-8"><strong>${po.itemPartNumber}</strong><br><small class="text-muted">${po.itemDescription}</small></dd>
+                                <dt class="col-sm-4">Quantity:</dt>
+                                <dd class="col-sm-8">${po.quantityOrdered}</dd>
+                                <dt class="col-sm-4">Unit Cost:</dt>
+                                <dd class="col-sm-8">$${po.unitCost.toFixed(2)}</dd>
+                                <dt class="col-sm-4">Total:</dt>
+                                <dd class="col-sm-8"><strong>$${po.totalCost.toFixed(2)}</strong></dd>
+                            </dl>
+                        </div>
+                    </div>
+                    ${po.notes ? `<div class="mt-3"><strong>Notes:</strong><br>${po.notes}</div>` : ''}
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-success" onclick="$('#viewPOModal').modal('hide'); openReceiveModal(${po.id});">
+                            <i class="fas fa-truck"></i> Receive This PO
+                        </button>
+                        <a href="@Url.Action("Edit")/${po.id}" class="btn btn-outline-warning">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                `;
+                $('#viewPOModalBody').html(html);
+            } else {
+                $('#viewPOModalBody').html('<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> ' + response.message + '</div>');
+            }
+        })
+        .fail(function() {
+            $('#viewPOModalBody').html('<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error loading purchase order details.</div>');
+        });
+}
+
+function cancelPO(purchaseId, poNumber) {
+    var reason = prompt(`Please enter the reason for cancelling PO ${poNumber}:`);
+    if (reason && reason.trim()) {
+        if (confirm(`Are you sure you want to cancel Purchase Order ${poNumber}?`)) {
+            $.post('@Url.Action("CancelPurchaseOrder")', { 
+                id: purchaseId, 
+                reason: reason.trim(),
+                __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+            })
+            .done(function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            })
+            .fail(function() {
+                alert('Error cancelling purchase order. Please try again.');
+            });
+        }
+    }
+}
+</script>
+
+<!-- Add CSRF token for AJAX requests -->
+@Html.AntiForgeryToken()

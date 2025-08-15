@@ -55,5 +55,14 @@ namespace InventorySystem.Services
     /// <param name="purchaseOrderNumber">The purchase order number</param>
     /// <returns>Purchase order summary with totals</returns>
     Task<PurchaseOrderSummary> GetPurchaseOrderSummaryAsync(string purchaseOrderNumber);
+
+    // ? NEW: Receiving workflow methods
+    Task<Purchase> ReceivePurchaseAsync(int purchaseId, DateTime? receivedDate = null, 
+        string? receivedBy = null, string? notes = null);
+    Task<Purchase> CancelPurchaseAsync(int purchaseId, string reason, string? cancelledBy = null);
+
+    // ? NEW: Purchase order management
+    Task<IEnumerable<Purchase>> GetPendingPurchaseOrdersAsync();
+    Task<IEnumerable<Purchase>> GetOverduePurchaseOrdersAsync();
   }
 }
