@@ -1,0 +1,516 @@
+﻿@model InventorySystem.ViewModels.ServiceDashboardViewModel
+@{
+  ViewData["Title"] = "Services Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-tools"></i> Services Dashboard</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("Create", "Services")" class="btn btn-success">
+      <i class="fas fa-plus"></i> New Service Order
+    </a>
+    <a href="@Url.Action("Schedule", "Services")" class="btn btn-primary">
+      <i class="fas fa-calendar-alt"></i> Schedule
+    </a>
+    <a href="@Url.Action("ServiceTypes", "Services")" class="btn btn-outline-secondary">
+      <i class="fas fa-cogs"></i> Service Types
+    </a>
+    <a href="@Url.Action("Reports", "Services")" class="btn btn-outline-info">
+      <i class="fas fa-chart-bar"></i> Reports
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Key Metrics Cards -->
+<div class="row mb-4">
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card border-left-primary shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+              Active Services
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalActiveServices</div>
+            <div class="text-xs text-gray-600">In progress services</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-cogs fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card border-left-success shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+              Today's Schedule
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.ServicesScheduledToday</div>
+            <div class="text-xs text-gray-600">Services scheduled for today</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-calendar-check fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card border-left-warning shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+              Overdue Services
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.OverdueServices</div>
+            <div class="text-xs text-gray-600">Past promised dates</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card border-left-danger shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+              Emergency Services
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.EmergencyServices</div>
+            <div class="text-xs text-gray-600">High priority services</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Revenue and Performance Metrics -->
+<div class="row mb-4">
+  <div class="col-xl-6 col-md-6 mb-3">
+    <div class="card border-left-info shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+              Monthly Revenue
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.MonthlyRevenue.ToString("C")</div>
+            <div class="text-xs text-gray-600">Current month earnings</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-6 col-md-6 mb-3">
+    <div class="card border-left-secondary shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+              Avg Service Time
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.AvgServiceTime.ToString("F1")h</div>
+            <div class="text-xs text-gray-600">Average completion time</div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-clock fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Dashboard Content -->
+<div class="row">
+  <!-- Today's Schedule -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-calendar-day"></i> Today's Schedule</h5>
+        <small class="text-muted">@DateTime.Today.ToString("MMMM dd, yyyy")</small>
+      </div>
+      <div class="card-body">
+        @if (Model.TodaysSchedule.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Service Order</th>
+                  <th>Customer</th>
+                  <th>Service Type</th>
+                  <th>Technician</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var service in Model.TodaysSchedule.Take(10))
+                {
+                  <tr>
+                    <td>
+                      <a href="@Url.Action("Details", "Services", new { id = service.Id })" class="text-decoration-none">
+                        @service.ServiceOrderNumber
+                      </a>
+                      @if (service.Priority == InventorySystem.Models.ServicePriority.Emergency)
+                      {
+                        <span class="badge bg-danger ms-1">Emergency</span>
+                      }
+                    </td>
+                    <td>@service.Customer?.CustomerName</td>
+                    <td>@service.ServiceType?.ServiceName</td>
+                    <td>
+                      @if (!string.IsNullOrEmpty(service.AssignedTechnician))
+                      {
+                        <span class="badge bg-info">@service.AssignedTechnician</span>
+                      }
+                      else
+                      {
+                        <span class="text-muted">Unassigned</span>
+                      }
+                    </td>
+                    <td>
+                      <span class="badge bg-@(GetStatusBadgeColor(service.Status))">
+                        @service.StatusDisplay
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (Model.TodaysSchedule.Count() > 10)
+          {
+            <div class="text-center">
+              <a href="@Url.Action("Schedule", "Services")" class="btn btn-sm btn-outline-primary">
+                View All (@Model.TodaysSchedule.Count()) Services
+              </a>
+            </div>
+          }
+        }
+        else
+        {
+          <div class="text-center py-3">
+            <i class="fas fa-calendar-check fa-2x text-muted mb-2"></i>
+            <p class="text-muted">No services scheduled for today</p>
+            <a href="@Url.Action("Schedule", "Services")" class="btn btn-sm btn-primary">
+              Schedule Services
+            </a>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Overdue Services -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-header bg-warning">
+        <h5 class="text-dark"><i class="fas fa-exclamation-triangle"></i> Overdue Services</h5>
+      </div>
+      <div class="card-body">
+        @if (Model.OverdueList.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Service Order</th>
+                  <th>Customer</th>
+                  <th>Due Date</th>
+                  <th>Days Late</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var service in Model.OverdueList.Take(10))
+                {
+                  <tr>
+                    <td>
+                      <a href="@Url.Action("Details", "Services", new { id = service.Id })" class="text-decoration-none">
+                        @service.ServiceOrderNumber
+                      </a>
+                    </td>
+                    <td>@service.Customer?.CustomerName</td>
+                    <td>@service.PromisedDate?.ToString("MM/dd/yyyy")</td>
+                    <td>
+                      <span class="badge bg-danger">@service.DaysSinceRequest days</span>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        <a href="@Url.Action("Details", "Services", new { id = service.Id })" class="btn btn-outline-primary" title="View Details">
+                          <i class="fas fa-eye"></i>
+                        </a>
+                        @if (service.Customer != null && !string.IsNullOrEmpty(service.Customer.Email))
+                        {
+                          <a href="mailto:@service.Customer.Email?subject=Service Order @service.ServiceOrderNumber Update"
+                             class="btn btn-outline-warning" title="Email Customer">
+                            <i class="fas fa-envelope"></i>
+                          </a>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (Model.OverdueList.Count() > 10)
+          {
+            <div class="text-center">
+              <a href="@Url.Action("ServiceOrders", "Services", new { status = "Overdue" })" class="btn btn-sm btn-outline-warning">
+                View All (@Model.OverdueList.Count()) Overdue Services
+              </a>
+            </div>
+          }
+        }
+        else
+        {
+          <div class="text-center py-3">
+            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+            <p class="text-muted">No overdue services!</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Activity and Service Status Overview -->
+<div class="row">
+  <!-- Recent Service Orders -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-clock"></i> Recent Service Orders</h5>
+      </div>
+      <div class="card-body">
+        @if (Model.RecentServiceOrders.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Service Order</th>
+                  <th>Customer</th>
+                  <th>Service Type</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var service in Model.RecentServiceOrders.Take(10))
+                {
+                  <tr>
+                    <td>
+                      <a href="@Url.Action("Details", "Services", new { id = service.Id })" class="text-decoration-none">
+                        @service.ServiceOrderNumber
+                      </a>
+                    </td>
+                    <td>@service.Customer?.CustomerName</td>
+                    <td>@service.ServiceType?.ServiceName</td>
+                    <td>
+                      <span class="badge bg-@(GetStatusBadgeColor(service.Status))">
+                        @service.StatusDisplay
+                      </span>
+                    </td>
+                    <td>@service.RequestDate.ToString("MM/dd")</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="text-center">
+            <a href="@Url.Action("ServiceOrders", "Services")" class="btn btn-sm btn-outline-primary">
+              View All Service Orders
+            </a>
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-3">
+            <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
+            <p class="text-muted">No recent service orders</p>
+            <a href="@Url.Action("Create", "Services")" class="btn btn-sm btn-success">
+              Create Service Order
+            </a>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Service Status Breakdown -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-chart-pie"></i> Service Status Overview</h5>
+      </div>
+      <div class="card-body">
+        @if (Model.ServicesByStatus.Any())
+        {
+          <div class="row">
+            @foreach (var status in Model.ServicesByStatus)
+            {
+              <div class="col-6 mb-3">
+                <div class="text-center">
+                  <h6 class="text-@(GetStatusTextColor(status.Key))">@status.Key</h6>
+                  <h4 class="text-@(GetStatusTextColor(status.Key))">@status.Value</h4>
+                  <a href="@Url.Action("ServiceOrders", "Services", new { status = status.Key })"
+                     class="btn btn-sm btn-outline-@(GetStatusTextColor(status.Key))">
+                    View
+                  </a>
+                </div>
+              </div>
+            }
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-3">
+            <i class="fas fa-chart-pie fa-2x text-muted mb-2"></i>
+            <p class="text-muted">No service data available</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3">
+            <a href="@Url.Action("Create", "Services")" class="btn btn-outline-success w-100 mb-2">
+              <i class="fas fa-plus"></i><br>
+              New Service Order
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="@Url.Action("Schedule", "Services")" class="btn btn-outline-primary w-100 mb-2">
+              <i class="fas fa-calendar-alt"></i><br>
+              Schedule Services
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="@Url.Action("ServiceTypes", "Services")" class="btn btn-outline-info w-100 mb-2">
+              <i class="fas fa-cogs"></i><br>
+              Manage Service Types
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="@Url.Action("Reports", "Services")" class="btn btn-outline-secondary w-100 mb-2">
+              <i class="fas fa-chart-bar"></i><br>
+              View Reports
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@functions {
+  private string GetStatusBadgeColor(InventorySystem.Models.ServiceOrderStatus status)
+  {
+    return status switch
+    {
+      InventorySystem.Models.ServiceOrderStatus.Requested => "secondary",
+      InventorySystem.Models.ServiceOrderStatus.Quoted => "info",
+      InventorySystem.Models.ServiceOrderStatus.Approved => "primary",
+      InventorySystem.Models.ServiceOrderStatus.Scheduled => "warning",
+      InventorySystem.Models.ServiceOrderStatus.InProgress => "primary",
+      InventorySystem.Models.ServiceOrderStatus.AwaitingParts => "warning",
+      InventorySystem.Models.ServiceOrderStatus.QualityCheck => "info",
+      InventorySystem.Models.ServiceOrderStatus.Completed => "success",
+      InventorySystem.Models.ServiceOrderStatus.Delivered => "success",
+      InventorySystem.Models.ServiceOrderStatus.Cancelled => "danger",
+      InventorySystem.Models.ServiceOrderStatus.OnHold => "secondary",
+      _ => "secondary"
+    };
+  }
+
+  private string GetStatusTextColor(string status)
+  {
+    return status.ToLower() switch
+    {
+      "requested" => "secondary",
+      "quoted" => "info",
+      "approved" => "primary",
+      "scheduled" => "warning",
+      "in progress" or "inprogress" => "primary",
+      "awaiting parts" or "awaitingparts" => "warning",
+      "quality check" or "qualitycheck" => "info",
+      "completed" => "success",
+      "delivered" => "success",
+      "cancelled" => "danger",
+      "on hold" or "onhold" => "secondary",
+      _ => "secondary"
+    };
+  }
+}
+
+@section Scripts {
+  <script>
+    // Auto-refresh dashboard every 5 minutes
+    setInterval(function() {
+        // Only refresh if we're still on the dashboard page
+        if (window.location.pathname.includes('/Services')) {
+            location.reload();
+        }
+    }, 5 * 60 * 1000);
+
+    // Add loading indicators to action buttons
+    document.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            if (this.href && !this.href.includes('#') && !this.href.includes('mailto:')) {
+                if (window.LoadingIndicator) {
+                    window.LoadingIndicator.showForOperation('loading-services', true);
+                }
+            }
+        });
+    });
+  </script>
+}

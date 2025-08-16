@@ -1,0 +1,718 @@
+﻿@model InventorySystem.ViewModels.ServiceOrderDetailsViewModel
+@{
+  ViewData["Title"] = $"Service Order {Model.ServiceOrder.ServiceOrderNumber}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-clipboard-list"></i> Service Order Details</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("ServiceOrders")" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Service Orders
+    </a>
+    @if (Model.CanEdit)
+    {
+      <a href="@Url.Action("Edit", new { id = Model.ServiceOrder.Id })" class="btn btn-warning">
+        <i class="fas fa-edit"></i> Edit
+      </a>
+    }
+    @if (Model.CanStart)
+    {
+      <button class="btn btn-success" onclick="startService(@Model.ServiceOrder.Id)">
+        <i class="fas fa-play"></i> Start Service
+      </button>
+    }
+    @if (Model.CanComplete)
+    {
+      <button class="btn btn-primary" onclick="completeService(@Model.ServiceOrder.Id)">
+        <i class="fas fa-check"></i> Complete Service
+      </button>
+    }
+    <div class="btn-group" role="group">
+      <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fas fa-cogs"></i> Actions
+      </button>
+      <ul class="dropdown-menu">
+        <li>
+          <a class="dropdown-item" href="#" onclick="addTimeLog(@Model.ServiceOrder.Id)">
+            <i class="fas fa-clock"></i> Log Time
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="#" onclick="addMaterial(@Model.ServiceOrder.Id)">
+            <i class="fas fa-plus"></i> Add Material
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item" href="#" onclick="updateStatus(@Model.ServiceOrder.Id)">
+            <i class="fas fa-flag"></i> Update Status
+          </a>
+        </li>
+        @if (Model.ServiceOrder.Customer?.Email != null)
+        {
+          <li>
+            <a class="dropdown-item" href="mailto:@Model.ServiceOrder.Customer.Email?subject=Service Order @Model.ServiceOrder.ServiceOrderNumber Update">
+              <i class="fas fa-envelope"></i> Email Customer
+            </a>
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Main Service Order Information -->
+@Html.AntiForgeryToken()
+
+<div class="row">
+  <div class="col-lg-8">
+    <!-- Basic Information Card -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5>
+          <i class="fas fa-info-circle"></i> Service Order Information
+          <span class="badge bg-@(GetStatusBadgeColor(Model.ServiceOrder.Status)) ms-2">@Model.ServiceOrder.StatusDisplay</span>
+          @if (Model.ServiceOrder.Priority == InventorySystem.Models.ServicePriority.Emergency)
+          {
+            <span class="badge bg-danger ms-1">EMERGENCY</span>
+          }
+          else if (Model.ServiceOrder.Priority == InventorySystem.Models.ServicePriority.Urgent)
+          {
+            <span class="badge bg-warning ms-1">URGENT</span>
+          }
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <span class="fw-bold text-muted">Service Order Number:</span> 
+              <span class="fw-bold">@Model.ServiceOrder.ServiceOrderNumber</span>
+            </div>
+            <div class="mb-3">
+              <span class="fw-bold text-muted">Customer:</span>
+              <div class="ms-3">
+                <a href="/Customers/Details/@Model.Customer.Id" class="text-decoration-none fw-bold">
+                  @Model.Customer.CustomerName
+                </a>
+                @if (!string.IsNullOrEmpty(Model.Customer.CompanyName))
+                {
+                  <br>
+                  <small class="text-muted ms-3">@Model.Customer.CompanyName</small>
+                }
+                @if (!string.IsNullOrEmpty(Model.Customer.Email))
+                {
+                  <br>
+                  <small class="ms-3"><a href="mailto:@Model.Customer.Email" class="text-decoration-none">@Model.Customer.Email</a></small>
+                }
+                @if (!string.IsNullOrEmpty(Model.Customer.Phone))
+                {
+                  <br>
+                  <small class="ms-3"><a href="tel:@Model.Customer.Phone" class="text-decoration-none">@Model.Customer.Phone</a></small>
+                }
+              </div>
+            </div>
+            <div class="mb-3">
+              <span class="fw-bold text-muted">Service Type:</span>
+              <div class="ms-3">
+                <span class="fw-bold">@Model.ServiceType.ServiceName</span>
+                @if (!string.IsNullOrEmpty(Model.ServiceType.Description))
+                {
+                  <br>
+                  <small class="text-muted ms-3">@Model.ServiceType.Description</small>
+                }
+              </div>
+            </div>
+            @if (Model.RelatedSale != null)
+            {
+              <div class="mb-3">
+                <span class="fw-bold text-muted">Related Sale:</span>
+                <div class="ms-3">
+                  <a href="/Sales/Details/@Model.RelatedSale.Id" class="text-decoration-none">
+                    @Model.RelatedSale.SaleNumber
+                  </a>
+                  <small class="text-muted"> - @Model.RelatedSale.TotalAmount.ToString("C")</small>
+                </div>
+              </div>
+            }
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <span class="fw-bold text-muted">Request Date:</span> 
+              <span>@Model.ServiceOrder.RequestDate.ToString("MMMM dd, yyyy")</span>
+            </div>
+            @if (Model.ServiceOrder.PromisedDate.HasValue)
+            {
+              <div class="mb-3">
+                <span class="fw-bold text-muted">Promised Date:</span>
+                <span class="@(Model.ServiceOrder.IsOverdue ? "text-danger fw-bold" : "")">
+                  @Model.ServiceOrder.PromisedDate.Value.ToString("MMMM dd, yyyy")
+                </span>
+                @if (Model.ServiceOrder.IsOverdue)
+                {
+                  <br>
+                  <small class="text-danger ms-3">@Model.ServiceOrder.DaysSinceRequest days overdue</small>
+                }
+              </div>
+            }
+            @if (Model.ServiceOrder.ScheduledDate.HasValue)
+            {
+              <div class="mb-3">
+                <span class="fw-bold text-muted">Scheduled Date:</span> 
+                <span>@Model.ServiceOrder.ScheduledDate.Value.ToString("MMMM dd, yyyy HH:mm")</span>
+              </div>
+            }
+            @if (!string.IsNullOrEmpty(Model.ServiceOrder.AssignedTechnician))
+            {
+              <div class="mb-3">
+                <span class="fw-bold text-muted">Assigned Technician:</span>
+                <span class="badge bg-info ms-2">@Model.ServiceOrder.AssignedTechnician</span>
+              </div>
+            }
+            <div class="mb-3">
+              <span class="fw-bold text-muted">Priority:</span>
+              <span class="badge bg-@(GetPriorityBadgeColor(Model.ServiceOrder.Priority)) ms-2">
+                @Model.ServiceOrder.PriorityDisplay
+              </span>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.ServiceOrder.WorkLocation))
+            {
+              <div class="mb-3">
+                <span class="fw-bold text-muted">Work Location:</span> 
+                <span>@Model.ServiceOrder.WorkLocation</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Equipment Details -->
+        @if (!string.IsNullOrEmpty(Model.ServiceOrder.EquipmentDetails) ||
+                !string.IsNullOrEmpty(Model.ServiceOrder.SerialNumber) ||
+                !string.IsNullOrEmpty(Model.ServiceOrder.ModelNumber))
+        {
+          <hr>
+          <h6><i class="fas fa-wrench"></i> Equipment Information</h6>
+          <div class="row">
+            @if (!string.IsNullOrEmpty(Model.ServiceOrder.EquipmentDetails))
+            {
+              <div class="col-md-12 mb-3">
+                <span class="fw-bold text-muted">Equipment Details:</span>
+                <div class="ms-3">@Model.ServiceOrder.EquipmentDetails</div>
+              </div>
+            }
+            <div class="col-md-6">
+              @if (!string.IsNullOrEmpty(Model.ServiceOrder.SerialNumber))
+              {
+                <div class="mb-3">
+                  <span class="fw-bold text-muted">Serial Number:</span> 
+                  <code>@Model.ServiceOrder.SerialNumber</code>
+                </div>
+              }
+            </div>
+            <div class="col-md-6">
+              @if (!string.IsNullOrEmpty(Model.ServiceOrder.ModelNumber))
+              {
+                <div class="mb-3">
+                  <span class="fw-bold text-muted">Model Number:</span> 
+                  <code>@Model.ServiceOrder.ModelNumber</code>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Customer Request -->
+        @if (!string.IsNullOrEmpty(Model.ServiceOrder.CustomerRequest))
+        {
+          <hr>
+          <h6><i class="fas fa-comment"></i> Customer Request</h6>
+          <div class="border p-3 bg-light rounded">
+            @Model.ServiceOrder.CustomerRequest
+          </div>
+        }
+
+        <!-- Service Notes -->
+        @if (!string.IsNullOrEmpty(Model.ServiceOrder.ServiceNotes))
+        {
+          <hr>
+          <h6><i class="fas fa-sticky-note"></i> Service Notes</h6>
+          <div class="border p-3 bg-light rounded">
+            @Model.ServiceOrder.ServiceNotes
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Time Logs -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-clock"></i> Time Logs</h5>
+        <button class="btn btn-sm btn-outline-primary" onclick="addTimeLog(@Model.ServiceOrder.Id)">
+          <i class="fas fa-plus"></i> Add Time
+        </button>
+      </div>
+      <div class="card-body">
+        @if (Model.TimeLogs.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Technician</th>
+                  <th>Hours</th>
+                  <th>Rate</th>
+                  <th>Cost</th>
+                  <th>Billable</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var timeLog in Model.TimeLogs.OrderByDescending(t => t.Date))
+                {
+                  <tr>
+                    <td>@timeLog.Date.ToString("MM/dd/yyyy")</td>
+                    <td>@timeLog.Technician</td>
+                    <td>@timeLog.Hours</td>
+                    <td>@timeLog.HourlyRate.ToString("C")</td>
+                    <td class="fw-bold">@timeLog.TotalCost.ToString("C")</td>
+                    <td>
+                      @if (timeLog.IsBillable)
+                      {
+                        <span class="badge bg-success">Billable</span>
+                      }
+                      else
+                      {
+                        <span class="badge bg-secondary">Non-billable</span>
+                      }
+                    </td>
+                    <td>@timeLog.WorkDescription</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="table-info">
+                  <th colspan="2">Totals:</th>
+                  <th>@Model.ServiceOrder.TotalHoursLogged</th>
+                  <th></th>
+                  <th>@Model.TotalLaborCost.ToString("C")</th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="fas fa-clock fa-2x text-muted mb-2"></i>
+            <p class="text-muted">No time logged yet</p>
+            <button class="btn btn-outline-primary" onclick="addTimeLog(@Model.ServiceOrder.Id)">
+              <i class="fas fa-plus"></i> Log First Time Entry
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Materials Used -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-boxes"></i> Materials Used</h5>
+        <button class="btn btn-sm btn-outline-primary" onclick="addMaterial(@Model.ServiceOrder.Id)">
+          <i class="fas fa-plus"></i> Add Material
+        </button>
+      </div>
+      <div class="card-body">
+        @if (Model.Materials.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Quantity</th>
+                  <th>Unit Cost</th>
+                  <th>Total Cost</th>
+                  <th>Billable</th>
+                  <th>Date Used</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var material in Model.Materials.OrderByDescending(m => m.UsedDate))
+                {
+                  <tr>
+                    <td>
+                      <a href="/Items/Details/@material.ItemId" class="text-decoration-none">
+                        @material.Item.PartNumber
+                      </a>
+                      <br><small class="text-muted">@material.Item.Description</small>
+                    </td>
+                    <td>@material.QuantityUsed</td>
+                    <td>@material.UnitCost.ToString("C")</td>
+                    <td class="fw-bold">@material.TotalCost.ToString("C")</td>
+                    <td>
+                      @if (material.IsBillable)
+                      {
+                        <span class="badge bg-success">Billable</span>
+                      }
+                      else
+                      {
+                        <span class="badge bg-secondary">Non-billable</span>
+                      }
+                    </td>
+                    <td>@material.UsedDate.ToString("MM/dd/yyyy")</td>
+                    <td>@material.Notes</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="table-info">
+                  <th colspan="3">Material Totals:</th>
+                  <th>@Model.TotalMaterialCost.ToString("C")</th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="fas fa-boxes fa-2x text-muted mb-2"></i>
+            <p class="text-muted">No materials used yet</p>
+            <button class="btn btn-outline-primary" onclick="addMaterial(@Model.ServiceOrder.Id)">
+              <i class="fas fa-plus"></i> Add First Material
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Documents -->
+    @await Html.PartialAsync("_DocumentManager", Model.ServiceOrder.Id)
+  </div>
+
+  <!-- Sidebar -->
+  <div class="col-lg-4">
+    <!-- Cost Summary Card -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6><i class="fas fa-calculator"></i> Cost Summary</h6>
+      </div>
+      <div class="card-body">
+        <div class="row mb-2">
+          <div class="col-6 text-muted">Labor Cost:</div>
+          <div class="col-6 text-end fw-bold">@Model.TotalLaborCost.ToString("C")</div>
+        </div>
+        <div class="row mb-2">
+          <div class="col-6 text-muted">Material Cost:</div>
+          <div class="col-6 text-end fw-bold">@Model.TotalMaterialCost.ToString("C")</div>
+        </div>
+        <hr>
+        <div class="row mb-2">
+          <div class="col-6 fw-bold">Total Cost:</div>
+          <div class="col-6 text-end fw-bold text-primary fs-5">@Model.TotalServiceCost.ToString("C")</div>
+        </div>
+        @if (Model.ServiceOrder.EstimatedCost > 0)
+        {
+          <div class="row mb-2">
+            <div class="col-6 text-muted small">Estimated:</div>
+            <div class="col-6 text-end text-muted small">@Model.ServiceOrder.EstimatedCost.ToString("C")</div>
+          </div>
+
+          var variance = Model.TotalServiceCost - Model.ServiceOrder.EstimatedCost;
+          var variancePercent = Model.ServiceOrder.EstimatedCost > 0 ? (variance / Model.ServiceOrder.EstimatedCost) * 100 : 0;
+
+          <div class="row">
+            <div class="col-6 text-muted small">Variance:</div>
+            <div class="col-6 text-end small @(variance > 0 ? "text-danger" : "text-success")">
+              @variance.ToString("C") (@variancePercent.ToString("F1")%)
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Status History Card -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6><i class="fas fa-history"></i> Status History</h6>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-marker bg-primary"></div>
+            <div class="timeline-content">
+              <h6 class="timeline-title">@Model.ServiceOrder.StatusDisplay</h6>
+              <p class="timeline-text">Current Status</p>
+              <small class="text-muted">
+                @if (Model.ServiceOrder.LastModifiedDate.HasValue)
+                {
+                  @Model.ServiceOrder.LastModifiedDate.Value.ToString("MM/dd/yyyy HH:mm")
+                }
+                else
+                {
+                  @Model.ServiceOrder.CreatedDate.ToString("MM/dd/yyyy HH:mm")
+                }
+              </small>
+            </div>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-marker bg-success"></div>
+            <div class="timeline-content">
+              <h6 class="timeline-title">Service Requested</h6>
+              <p class="timeline-text">Service order created</p>
+              <small class="text-muted">
+                @Model.ServiceOrder.CreatedDate.ToString("MM/dd/yyyy HH:mm")
+                @if (!string.IsNullOrEmpty(Model.ServiceOrder.CreatedBy))
+                {
+                  <span>by @Model.ServiceOrder.CreatedBy</span>
+                }
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions Card -->
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-bolt"></i> Quick Actions</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          @if (Model.CanStart)
+          {
+            <button class="btn btn-success" onclick="startService(@Model.ServiceOrder.Id)">
+              <i class="fas fa-play"></i> Start Service
+            </button>
+          }
+          @if (Model.CanComplete)
+          {
+            <button class="btn btn-primary" onclick="completeService(@Model.ServiceOrder.Id)">
+              <i class="fas fa-check"></i> Complete Service
+            </button>
+          }
+          <button class="btn btn-outline-info" onclick="addTimeLog(@Model.ServiceOrder.Id)">
+            <i class="fas fa-clock"></i> Log Time
+          </button>
+          <button class="btn btn-outline-warning" onclick="addMaterial(@Model.ServiceOrder.Id)">
+            <i class="fas fa-plus"></i> Add Material
+          </button>
+          <button class="btn btn-outline-secondary" onclick="updateStatus(@Model.ServiceOrder.Id)">
+            <i class="fas fa-flag"></i> Update Status
+          </button>
+          @if (Model.ServiceOrder.Customer?.Email != null)
+          {
+            <a href="mailto:@Model.ServiceOrder.Customer.Email?subject=Service Order @Model.ServiceOrder.ServiceOrderNumber Update"
+               class="btn btn-outline-primary">
+              <i class="fas fa-envelope"></i> Email Customer
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@functions {
+  private string GetStatusBadgeColor(InventorySystem.Models.ServiceOrderStatus status)
+  {
+    return status switch
+    {
+      InventorySystem.Models.ServiceOrderStatus.Requested => "secondary",
+      InventorySystem.Models.ServiceOrderStatus.Quoted => "info",
+      InventorySystem.Models.ServiceOrderStatus.Approved => "primary",
+      InventorySystem.Models.ServiceOrderStatus.Scheduled => "warning",
+      InventorySystem.Models.ServiceOrderStatus.InProgress => "primary",
+      InventorySystem.Models.ServiceOrderStatus.AwaitingParts => "warning",
+      InventorySystem.Models.ServiceOrderStatus.QualityCheck => "info",
+      InventorySystem.Models.ServiceOrderStatus.Completed => "success",
+      InventorySystem.Models.ServiceOrderStatus.Delivered => "success",
+      InventorySystem.Models.ServiceOrderStatus.Cancelled => "danger",
+      InventorySystem.Models.ServiceOrderStatus.OnHold => "secondary",
+      _ => "secondary"
+    };
+  }
+
+  private string GetPriorityBadgeColor(InventorySystem.Models.ServicePriority priority)
+  {
+    return priority switch
+    {
+      InventorySystem.Models.ServicePriority.Low => "success",
+      InventorySystem.Models.ServicePriority.Normal => "secondary",
+      InventorySystem.Models.ServicePriority.High => "warning",
+      InventorySystem.Models.ServicePriority.Urgent => "danger",
+      InventorySystem.Models.ServicePriority.Emergency => "danger",
+      _ => "secondary"
+    };
+  }
+}
+
+<style>
+  .timeline {
+    position: relative;
+    padding-left: 30px;
+  }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #dee2e6;
+    }
+
+  .timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+  }
+
+  .timeline-marker {
+    position: absolute;
+    left: -22px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    top: 2px;
+  }
+
+  .timeline-content {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    border-left: 3px solid #007bff;
+  }
+
+  .timeline-title {
+    margin: 0 0 5px 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .timeline-text {
+    margin: 0 0 5px 0;
+    font-size: 0.8rem;
+    color: #6c757d;
+  }
+</style>
+
+@section Scripts {
+    <!-- Load CSS and JS for Document Manager -->
+    <link href="~/css/document-manager.css" rel="stylesheet" />
+    <script src="~/js/document-manager.js"></script>
+    
+    <script>
+        
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing document manager...');
+            console.log('Service Order ID:', @Model.ServiceOrder.Id);
+
+            // Initialize the documentManager (don't declare it again)
+            documentManager = new DocumentManager(@Model.ServiceOrder.Id);
+
+            // Force a test call after a short delay
+            setTimeout(() => {
+                console.log('Testing document load...');
+                documentManager.loadDocumentsList();
+            }, 1000);
+        });
+
+        // Service Order specific functions
+        function startService(serviceOrderId) {
+            if (confirm('Are you sure you want to start this service?')) {
+                updateServiceStatus(serviceOrderId, 'InProgress');
+            }
+        }
+
+        function completeService(serviceOrderId) {
+            const reason = prompt('Enter completion notes (optional):');
+            updateServiceStatus(serviceOrderId, 'Completed', reason);
+        }
+
+        function updateServiceStatus(serviceOrderId, newStatus, reason = null) {
+            const formData = new FormData();
+            formData.append('serviceOrderId', serviceOrderId);
+            formData.append('newStatus', newStatus);
+            if (reason) formData.append('reason', reason);
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (token) {
+                formData.append('__RequestVerificationToken', token.value);
+            }
+
+            fetch('@Url.Action("UpdateStatus")', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating status: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating status. Please try again.');
+            });
+        }
+
+        function addTimeLog(serviceOrderId) {
+            fetch('@Url.Action("AddTimeLog", "Services")?serviceOrderId=' + serviceOrderId)
+                .then(response => response.text())
+                .then(html => {
+                    document.body.insertAdjacentHTML('beforeend', html);
+                    new bootstrap.Modal(document.getElementById('addTimeLogModal')).show();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading time log form.');
+                });
+        }
+
+        function addMaterial(serviceOrderId) {
+            fetch('@Url.Action("AddMaterial", "Services")?serviceOrderId=' + serviceOrderId)
+                .then(response => response.text())
+                .then(html => {
+                    document.body.insertAdjacentHTML('beforeend', html);
+                    new bootstrap.Modal(document.getElementById('addMaterialModal')).show();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading material form.');
+                });
+        }
+
+        function updateStatus(serviceOrderId) {
+            alert('Status update modal would open here');
+        }
+    </script>
+}

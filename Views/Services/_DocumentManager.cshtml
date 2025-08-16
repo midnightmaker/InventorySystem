@@ -1,0 +1,126 @@
+@model int 
+<!-- Document Management Section -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-file-alt"></i> Documents</h5>
+        <button class="btn btn-sm btn-outline-primary" onclick="toggleDocumentUpload()">
+            <i class="fas fa-upload"></i> Upload Document
+        </button>
+    </div>
+    <div class="card-body">
+        <!-- Document Upload Section (initially hidden) -->
+        <div id="documentUploadSection" class="border rounded p-3 mb-4" style="display: none; background-color: #f8f9fa;">
+            <form id="documentUploadForm" enctype="multipart/form-data">
+                <input type="hidden" name="serviceOrderId" value="@Model" />
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="documentFile" class="form-label">
+                            <i class="fas fa-file"></i> Select File
+                        </label>
+                        <input type="file" class="form-control" id="documentFile" name="documentFile"
+                               accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.dxf,.txt,.zip" />
+                        <div class="form-text">
+                            <small>
+                                <strong>Allowed:</strong> PDF, Images, Office docs, CAD files, Text, Archives<br>
+                                <strong>Max size:</strong> 50MB
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="documentType" class="form-label">
+                            <i class="fas fa-tags"></i> Document Type
+                        </label>
+                        <select class="form-select" id="documentType" name="documentType">
+                            <option value="General">General</option>
+                            <option value="Photo">Photo/Image</option>
+                            <option value="Specification">Specification</option>
+                            <option value="Drawing">Drawing/Diagram</option>
+                            <option value="Test Report">Test Report</option>
+                            <option value="Manual">Manual/Guide</option>
+                            <option value="Certificate">Certificate</option>
+                            <option value="Quote">Quote/Estimate</option>
+                            <option value="Invoice">Invoice/Receipt</option>
+                            <option value="Before Photo">Before Photo</option>
+                            <option value="After Photo">After Photo</option>
+                            <option value="Work Progress">Work Progress</option>
+                            <option value="Customer Signature">Customer Signature</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="documentName" class="form-label">
+                            <i class="fas fa-signature"></i> Document Name
+                        </label>
+                        <input type="text" class="form-control" id="documentName" name="documentName"
+                               placeholder="Leave blank to use filename" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="documentDescription" class="form-label">
+                            <i class="fas fa-comment"></i> Description
+                        </label>
+                        <input type="text" class="form-control" id="documentDescription" name="documentDescription"
+                               placeholder="Brief description (optional)" />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <div id="uploadProgress" class="text-primary" style="display: none;">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        <span>Uploading...</span>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-outline-secondary me-2" onclick="toggleDocumentUpload()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="uploadDocument()">
+                            <i class="fas fa-upload"></i> Upload Document
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Existing Documents List -->
+        <div id="documentsContainer">
+            <!-- Documents will be loaded here via JavaScript -->
+            <div class="text-center py-3">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading documents...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Viewer Modal -->
+<div class="modal fade" id="documentViewerModal" tabindex="-1" aria-labelledby="documentViewerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="documentViewerModalLabel">
+                    <i class="fas fa-eye"></i> Document Viewer
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="documentViewerContent" style="min-height: 500px;">
+                    <!-- Document content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" id="downloadFromViewer">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

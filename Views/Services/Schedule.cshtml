@@ -1,0 +1,491 @@
+﻿@model InventorySystem.ViewModels.ServiceSchedulingViewModel
+@{
+  ViewData["Title"] = "Service Scheduling";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-calendar-alt"></i> Service Scheduling</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("ServiceOrders")" class="btn btn-outline-secondary">
+      <i class="fas fa-list"></i> All Service Orders
+    </a>
+    <a href="@Url.Action("Create")" class="btn btn-success">
+      <i class="fas fa-plus"></i> New Service Order
+    </a>
+    <button class="btn btn-info" onclick="refreshSchedule()">
+      <i class="fas fa-sync"></i> Refresh
+    </button>
+  </div>
+</div>
+
+<!-- Date and Technician Filters -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label for="scheduleDate" class="form-label">Schedule Date</label>
+        <input type="date" class="form-control" id="scheduleDate" name="scheduleDate"
+               value="@Model.ScheduleDate.ToString("yyyy-MM-dd")" onchange="this.form.submit()">
+      </div>
+      <div class="col-md-4">
+        <label for="selectedTechnician" class="form-label">Filter by Technician</label>
+        <select class="form-select" id="selectedTechnician" name="selectedTechnician" onchange="this.form.submit()">
+          <option value="">All Technicians</option>
+          @foreach (var tech in Model.AvailableTechnicians)
+          {
+            <option value="@tech" selected="@(Model.SelectedTechnician == tech)">@tech</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-4">
+        <div class="btn-group w-100">
+          <button type="button" class="btn btn-outline-primary" onclick="goToDate('today')">
+            <i class="fas fa-calendar-day"></i> Today
+          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="goToDate('tomorrow')">
+            <i class="fas fa-arrow-right"></i> Tomorrow
+          </button>
+          <button type="button" class="btn btn-outline-info" onclick="goToDate('next-week')">
+            <i class="fas fa-calendar-week"></i> Next Week
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Statistics Row -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body text-center">
+        <h4>@Model.TotalScheduledToday</h4>
+        <small>Scheduled Today</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-warning text-white">
+      <div class="card-body text-center">
+        <h4>@Model.TotalUnscheduled</h4>
+        <small>Unscheduled</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-info text-white">
+      <div class="card-body text-center">
+        <h4>@Model.AverageHoursPerDay.ToString("F1")</h4>
+        <small>Avg Hours/Day</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body text-center">
+        <h4>@Model.AvailableTechnicians.Count()</h4>
+        <small>Available Technicians</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Scheduled Services -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5>
+          <i class="fas fa-calendar-check"></i>
+          Scheduled for @Model.ScheduleDate.ToString("MMMM dd, yyyy")
+        </h5>
+      </div>
+      <div class="card-body">
+        @if (Model.ScheduledServices.Any())
+        {
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Service Order</th>
+                  <th>Customer</th>
+                  <th>Service Type</th>
+                  <th>Technician</th>
+                  <th>Est. Hours</th>
+                  <th>Priority</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="scheduledServicesTable">
+                @foreach (var service in Model.ScheduledServices.OrderBy(s => s.ScheduledDate))
+                {
+                  <tr data-service-id="@service.Id">
+                    <td>
+                      <a href="@Url.Action("Details", new { id = service.Id })" class="text-decoration-none">
+                        @service.ServiceOrderNumber
+                      </a>
+                      @if (service.IsOverdue)
+                      {
+                        <br>
+                  
+                        <span class="badge bg-danger">Overdue</span>
+                      }
+                    </td>
+                    <td>@service.Customer?.CustomerName</td>
+                    <td>@service.ServiceType?.ServiceName</td>
+                    <td>
+                      @if (!string.IsNullOrEmpty(service.AssignedTechnician))
+                      {
+                        <span class="badge bg-info">@service.AssignedTechnician</span>
+                      }
+                      else
+                      {
+                        <span class="text-muted">Unassigned</span>
+                      }
+                    </td>
+                    <td>@service.EstimatedHours</td>
+                    <td>
+                      <span class="badge bg-@(GetPriorityBadgeColor(service.Priority))">
+                        @service.PriorityDisplay
+                      </span>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-warning" title="Reschedule"
+                                onclick="rescheduleService(@service.Id)">
+                          <i class="fas fa-calendar-alt"></i>
+                        </button>
+                        <button class="btn btn-outline-info" title="Assign Technician"
+                                onclick="assignTechnician(@service.Id)">
+                          <i class="fas fa-user-cog"></i>
+                        </button>
+                        @if (service.CanStart())
+                        {
+                          <button class="btn btn-outline-success" title="Start Service"
+                                  onclick="startService(@service.Id)">
+                            <i class="fas fa-play"></i>
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="fas fa-calendar-day fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No services scheduled for this date</h5>
+            <p class="text-muted">Drag services from the unscheduled list to schedule them</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Unscheduled Services -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h6>
+          <i class="fas fa-clock"></i> Unscheduled Services
+          <span class="badge bg-warning ms-2">@Model.UnscheduledServices.Count()</span>
+        </h6>
+      </div>
+      <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+        @if (Model.UnscheduledServices.Any())
+        {
+          @foreach (var service in Model.UnscheduledServices.OrderBy(s => s.Priority).ThenBy(s => s.RequestDate))
+          {
+            <div class="card mb-2 draggable-service" data-service-id="@service.Id" draggable="true">
+              <div class="card-body p-2">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h6 class="card-title mb-1">
+                      <a href="@Url.Action("Details", new { id = service.Id })" class="text-decoration-none">
+                        @service.ServiceOrderNumber
+                      </a>
+                    </h6>
+                    <p class="card-text mb-1">
+                      <small>@service.Customer?.CustomerName</small><br>
+                      <small class="text-muted">@service.ServiceType?.ServiceName</small>
+                    </p>
+                    <div class="d-flex justify-content-between align-items-center">
+                      <span class="badge bg-@(GetPriorityBadgeColor(service.Priority))">
+                        @service.PriorityDisplay
+                      </span>
+                      <small class="text-muted">@service.EstimatedHours h</small>
+                    </div>
+                  </div>
+                  <button class="btn btn-sm btn-outline-primary" title="Quick Schedule"
+                          onclick="quickSchedule(@service.Id)">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+            <p class="text-muted">All services are scheduled!</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Technician Workload Summary -->
+@if (Model.TechnicianUtilization.Any())
+{
+  <div class="card mt-4">
+    <div class="card-header">
+      <h6><i class="fas fa-users"></i> Technician Workload</h6>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        @foreach (var tech in Model.TechnicianUtilization)
+        {
+          <div class="col-md-3 mb-3">
+            <div class="card">
+              <div class="card-body text-center">
+                <h6>@tech.Key</h6>
+                <div class="progress mb-2">
+                  @{
+                    var utilizationPercent = (int)Math.Min(tech.Value * 10, 100); // Assuming 10 hours = 100%
+                    var progressColor = utilizationPercent > 80 ? "danger" : (utilizationPercent > 60 ? "warning" : "success");
+                  }
+                  <div class="progress-bar bg-@progressColor" role="progressbar"
+                       style="width: @utilizationPercent%"
+                       aria-valuenow="@utilizationPercent" aria-valuemin="0" aria-valuemax="100">
+                  </div>
+                </div>
+                <small>@tech.Value.ToString("F1") hours</small>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Quick Schedule Modal -->
+<div class="modal fade" id="quickScheduleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Quick Schedule Service</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="quickScheduleForm">
+          <input type="hidden" id="scheduleServiceId" />
+          <div class="mb-3">
+            <label for="scheduleDateTime" class="form-label">Schedule Date & Time</label>
+            <input type="datetime-local" class="form-control" id="scheduleDateTime" required />
+          </div>
+          <div class="mb-3">
+            <label for="scheduleTechnician" class="form-label">Assign Technician</label>
+            <select class="form-select" id="scheduleTechnician">
+              <option value="">Select Technician...</option>
+              @foreach (var tech in Model.AvailableTechnicians)
+              {
+                <option value="@tech">@tech</option>
+              }
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="confirmSchedule()">Schedule</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@functions {
+  private string GetPriorityBadgeColor(InventorySystem.Models.ServicePriority priority)
+  {
+    return priority switch
+    {
+      InventorySystem.Models.ServicePriority.Low => "success",
+      InventorySystem.Models.ServicePriority.Normal => "secondary",
+      InventorySystem.Models.ServicePriority.High => "warning",
+      InventorySystem.Models.ServicePriority.Urgent => "danger",
+      InventorySystem.Models.ServicePriority.Emergency => "danger",
+      _ => "secondary"
+    };
+  }
+}
+
+@section Scripts {
+  <script>
+    // Initialize drag and drop
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeDragAndDrop();
+    });
+
+    function initializeDragAndDrop() {
+        const draggables = document.querySelectorAll('.draggable-service');
+        const scheduledTable = document.getElementById('scheduledServicesTable');
+
+        draggables.forEach(draggable => {
+            draggable.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', e.target.dataset.serviceId);
+            });
+        });
+
+        if (scheduledTable) {
+            scheduledTable.addEventListener('dragover', e => {
+                e.preventDefault();
+            });
+
+            scheduledTable.addEventListener('drop', e => {
+                e.preventDefault();
+                const serviceId = e.dataTransfer.getData('text/plain');
+                scheduleService(serviceId, '@Model.ScheduleDate.ToString("yyyy-MM-dd")');
+            });
+        }
+    }
+
+    function goToDate(type) {
+        const today = new Date();
+        let targetDate;
+
+        switch(type) {
+            case 'today':
+                targetDate = today;
+                break;
+            case 'tomorrow':
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 1);
+                break;
+            case 'next-week':
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 7);
+                break;
+            default:
+                return;
+        }
+
+        document.getElementById('scheduleDate').value = targetDate.toISOString().split('T')[0];
+        document.querySelector('form').submit();
+    }
+
+    function quickSchedule(serviceId) {
+        document.getElementById('scheduleServiceId').value = serviceId;
+
+        // Set default date/time to current schedule date at 9 AM
+        const scheduleDate = new Date('@Model.ScheduleDate.ToString("yyyy-MM-dd")T09:00');
+        document.getElementById('scheduleDateTime').value =
+            scheduleDate.toISOString().slice(0, 16);
+
+        new bootstrap.Modal(document.getElementById('quickScheduleModal')).show();
+    }
+
+    function confirmSchedule() {
+        const serviceId = document.getElementById('scheduleServiceId').value;
+        const dateTime = document.getElementById('scheduleDateTime').value;
+        const technician = document.getElementById('scheduleTechnician').value;
+
+        scheduleService(serviceId, dateTime, technician);
+        bootstrap.Modal.getInstance(document.getElementById('quickScheduleModal')).hide();
+    }
+
+    function scheduleService(serviceId, dateTime, technician = null) {
+        const formData = new FormData();
+        formData.append('serviceOrderId', serviceId);
+        formData.append('scheduledDate', dateTime);
+        if (technician) formData.append('technician', technician);
+
+        if (window.LoadingIndicator) {
+            window.LoadingIndicator.show('Scheduling Service...', 'Please wait');
+        }
+
+        fetch('@Url.Action("ScheduleService")', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.hide();
+            }
+
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error scheduling service: ' + data.message);
+            }
+        })
+        .catch(error => {
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.hide();
+            }
+            console.error('Error:', error);
+            alert('Error scheduling service. Please try again.');
+        });
+    }
+
+    function rescheduleService(serviceId) {
+        const newDate = prompt('Enter new schedule date (YYYY-MM-DD):');
+        if (newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+            scheduleService(serviceId, newDate + 'T09:00');
+        }
+    }
+
+    function assignTechnician(serviceId) {
+        const technician = prompt('Enter technician name:');
+        if (technician) {
+            // Implementation for technician assignment
+            alert('Technician assignment would be implemented here');
+        }
+    }
+
+    function startService(serviceId) {
+        if (confirm('Start this service now?')) {
+            // Implementation for starting service
+            alert('Service start would be implemented here');
+        }
+    }
+
+    function refreshSchedule() {
+        location.reload();
+    }
+  </script>
+
+  <style>
+    .draggable-service {
+      cursor: move;
+      transition: transform 0.2s;
+    }
+
+      .draggable-service:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      }
+
+      .draggable-service:active {
+        opacity: 0.7;
+      }
+
+    #scheduledServicesTable {
+      min-height: 100px;
+    }
+
+    .progress {
+      height: 8px;
+    }
+  </style>
+}

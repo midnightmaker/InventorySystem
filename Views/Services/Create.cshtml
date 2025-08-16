@@ -1,0 +1,367 @@
+﻿@model InventorySystem.ViewModels.CreateServiceOrderViewModel
+@{
+  ViewData["Title"] = "Create Service Order";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-plus-circle"></i> Create Service Order</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("ServiceOrders", "Services")" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Service Orders
+    </a>
+    <a href="@Url.Action("ServiceTypes", "Services")" class="btn btn-outline-info">
+      <i class="fas fa-cogs"></i> Manage Service Types
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="row">
+  <div class="col-lg-8">
+    <form asp-action="Create" method="post" class="needs-validation" novalidate>
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-clipboard-list"></i> Service Order Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <!-- Customer Selection -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="CustomerId" class="form-label">
+                <i class="fas fa-user"></i> Customer <span class="text-danger">*</span>
+              </label>
+              <select asp-for="CustomerId" class="form-select" asp-items="Model.CustomerOptions" required
+                      onchange="customerChanged(this.value)">
+                <option value="">Select Customer...</option>
+              </select>
+              <span asp-validation-for="CustomerId" class="text-danger"></span>
+            </div>
+
+            <!-- Service Type Selection -->
+            <div class="col-md-6 mb-3">
+              <label asp-for="ServiceTypeId" class="form-label">
+                <i class="fas fa-tools"></i> Service Type <span class="text-danger">*</span>
+              </label>
+              <select asp-for="ServiceTypeId" class="form-select" asp-items="Model.ServiceTypeOptions" required
+                      onchange="serviceTypeChanged(this.value)">
+                <option value="">Select Service Type...</option>
+              </select>
+              <span asp-validation-for="ServiceTypeId" class="text-danger"></span>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- Request Date -->
+            <div class="col-md-4 mb-3">
+              <label asp-for="RequestDate" class="form-label">
+                <i class="fas fa-calendar"></i> Request Date <span class="text-danger">*</span>
+              </label>
+              <input asp-for="RequestDate" class="form-control" type="date" required />
+              <span asp-validation-for="RequestDate" class="text-danger"></span>
+            </div>
+
+            <!-- Promised Date -->
+            <div class="col-md-4 mb-3">
+              <label asp-for="PromisedDate" class="form-label">
+                <i class="fas fa-calendar-check"></i> Promised Date
+              </label>
+              <input asp-for="PromisedDate" class="form-control" type="date" />
+              <span asp-validation-for="PromisedDate" class="text-danger"></span>
+            </div>
+
+            <!-- Priority -->
+            <div class="col-md-4 mb-3">
+              <label asp-for="Priority" class="form-label">
+                <i class="fas fa-exclamation-triangle"></i> Priority
+              </label>
+              <select asp-for="Priority" class="form-select">
+                @foreach (var priority in Enum.GetValues<InventorySystem.Models.ServicePriority>())
+                {
+                  <option value="@priority">@priority</option>
+                }
+              </select>
+              <span asp-validation-for="Priority" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Customer Request -->
+          <div class="mb-3">
+            <label asp-for="CustomerRequest" class="form-label">
+              <i class="fas fa-comment"></i> Customer Request
+            </label>
+            <textarea asp-for="CustomerRequest" class="form-control" rows="3"
+                      placeholder="Describe the service request from the customer..."></textarea>
+            <span asp-validation-for="CustomerRequest" class="text-danger"></span>
+          </div>
+
+          <!-- Equipment Details -->
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label asp-for="EquipmentDetails" class="form-label">
+                <i class="fas fa-wrench"></i> Equipment/Asset Details
+              </label>
+              <input asp-for="EquipmentDetails" class="form-control"
+                     placeholder="Equipment type, brand, model..." />
+              <span asp-validation-for="EquipmentDetails" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-3 mb-3">
+              <label asp-for="SerialNumber" class="form-label">
+                <i class="fas fa-barcode"></i> Serial Number
+              </label>
+              <input asp-for="SerialNumber" class="form-control" />
+              <span asp-validation-for="SerialNumber" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-3 mb-3">
+              <label asp-for="ModelNumber" class="form-label">
+                <i class="fas fa-tag"></i> Model Number
+              </label>
+              <input asp-for="ModelNumber" class="form-control" />
+              <span asp-validation-for="ModelNumber" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Payment Information -->
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <div class="form-check">
+                <input asp-for="IsPrepaid" class="form-check-input" type="checkbox" id="isPrepaid" />
+                <label asp-for="IsPrepaid" class="form-check-label" for="isPrepaid">
+                  <i class="fas fa-credit-card"></i> Service is prepaid
+                </label>
+              </div>
+            </div>
+
+            <div class="col-md-6 mb-3" id="paymentMethodSection" style="display: none;">
+              <label asp-for="PaymentMethod" class="form-label">
+                <i class="fas fa-money-bill"></i> Payment Method
+              </label>
+              <select asp-for="PaymentMethod" class="form-select">
+                <option value="">Select payment method...</option>
+                <option value="Cash">Cash</option>
+                <option value="Check">Check</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="PayPal">PayPal</option>
+              </select>
+              <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Related Sale -->
+          <div class="mb-3" id="relatedSaleSection">
+            <label asp-for="SaleId" class="form-label">
+              <i class="fas fa-shopping-cart"></i> Related Sale (Optional)
+            </label>
+            <select asp-for="SaleId" class="form-select" asp-items="Model.SaleOptions">
+              <option value="">No related sale</option>
+            </select>
+            <div class="form-text">Link this service to an existing sale if applicable</div>
+            <span asp-validation-for="SaleId" class="text-danger"></span>
+          </div>
+
+          <!-- Initial Notes -->
+          <div class="mb-3">
+            <label asp-for="ServiceNotes" class="form-label">
+              <i class="fas fa-sticky-note"></i> Initial Service Notes
+            </label>
+            <textarea asp-for="ServiceNotes" class="form-control" rows="3"
+                      placeholder="Any initial notes about the service requirements..."></textarea>
+            <span asp-validation-for="ServiceNotes" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex justify-content-between mt-4">
+        <div>
+          <a href="@Url.Action("ServiceOrders")" class="btn btn-outline-secondary">
+            <i class="fas fa-times"></i> Cancel
+          </a>
+        </div>
+        <div>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-check"></i> Create Service Order
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Help Panel -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-lightbulb"></i> Service Order Tips</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <h6 class="text-primary"><i class="fas fa-user-check"></i> Customer Information</h6>
+          <p class="small text-muted">Select the customer requesting the service. You can create a new customer if needed.</p>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-success"><i class="fas fa-tools"></i> Service Types</h6>
+          <p class="small text-muted">Choose the appropriate service type. This will determine default pricing and requirements.</p>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-warning"><i class="fas fa-calendar"></i> Scheduling</h6>
+          <p class="small text-muted">Set realistic promised dates. You can schedule the service after creation.</p>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-info"><i class="fas fa-wrench"></i> Equipment Details</h6>
+          <p class="small text-muted">Include as much detail as possible about the equipment to be serviced.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service Type Details Card -->
+    <div class="card mt-3" id="serviceTypeDetails" style="display: none;">
+      <div class="card-header">
+        <h6><i class="fas fa-info-circle"></i> Service Type Details</h6>
+      </div>
+      <div class="card-body" id="serviceTypeDetailsContent">
+        <!-- Content will be populated by JavaScript -->
+      </div>
+    </div>
+
+    <!-- Estimated Cost Card -->
+    <div class="card mt-3" id="estimatedCostCard" style="display: none;">
+      <div class="card-header">
+        <h6><i class="fas fa-calculator"></i> Estimated Cost</h6>
+      </div>
+      <div class="card-body">
+        <div class="text-center">
+          <h4 class="text-primary" id="estimatedCostAmount">$0.00</h4>
+          <small class="text-muted">Based on service type and estimated hours</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  @{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+  }
+  <script>
+    // Toggle payment method section based on prepaid checkbox
+    document.getElementById('isPrepaid').addEventListener('change', function() {
+        const paymentSection = document.getElementById('paymentMethodSection');
+        paymentSection.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Load customer sales when customer changes
+    async function customerChanged(customerId) {
+        if (!customerId) {
+            document.getElementById('relatedSaleSection').querySelector('select').innerHTML =
+                '<option value="">No related sale</option>';
+            return;
+        }
+
+        try {
+            const response = await fetch(`@Url.Action("GetCustomerSales")?customerId=${customerId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                const saleSelect = document.getElementById('relatedSaleSection').querySelector('select');
+                saleSelect.innerHTML = '<option value="">No related sale</option>';
+
+                data.sales.forEach(sale => {
+                    const option = new Option(sale.displayText, sale.id);
+                    saleSelect.add(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading customer sales:', error);
+        }
+    }
+
+    // Load service type details when service type changes
+    async function serviceTypeChanged(serviceTypeId) {
+        const detailsCard = document.getElementById('serviceTypeDetails');
+        const costCard = document.getElementById('estimatedCostCard');
+
+        if (!serviceTypeId) {
+            detailsCard.style.display = 'none';
+            costCard.style.display = 'none';
+            return;
+        }
+
+        try {
+            const response = await fetch(`@Url.Action("GetServiceTypeDetails")?serviceTypeId=${serviceTypeId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                // Show service type details
+                const detailsContent = document.getElementById('serviceTypeDetailsContent');
+                detailsContent.innerHTML = `
+                    <div class="mb-2">
+                        <strong>Standard Hours:</strong> ${data.serviceType.standardHours} hours
+                    </div>
+                    <div class="mb-2">
+                        <strong>Hourly Rate:</strong> $${data.serviceType.standardRate}
+                    </div>
+                    ${data.serviceType.qcRequired ? '<div class="mb-2"><span class="badge bg-warning">Quality Check Required</span></div>' : ''}
+                    ${data.serviceType.certificateRequired ? '<div class="mb-2"><span class="badge bg-info">Certificate Required</span></div>' : ''}
+                    ${data.serviceType.requiredEquipment ? `<div class="mb-2"><strong>Equipment:</strong> ${data.serviceType.requiredEquipment}</div>` : ''}
+                `;
+                detailsCard.style.display = 'block';
+
+                // Show estimated cost
+                document.getElementById('estimatedCostAmount').textContent =
+                    '$' + data.serviceType.estimatedCost.toFixed(2);
+                costCard.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error loading service type details:', error);
+            detailsCard.style.display = 'none';
+            costCard.style.display = 'none';
+        }
+    }
+
+    // Form validation
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('.needs-validation');
+
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        });
+
+        // Set minimum date for promised date
+        const promisedDateInput = document.querySelector('input[name="PromisedDate"]');
+        const requestDateInput = document.querySelector('input[name="RequestDate"]');
+
+        requestDateInput.addEventListener('change', function() {
+            promisedDateInput.min = this.value;
+        });
+
+        // Initialize promised date minimum
+        if (requestDateInput.value) {
+            promisedDateInput.min = requestDateInput.value;
+        }
+    });
+  </script>
+}

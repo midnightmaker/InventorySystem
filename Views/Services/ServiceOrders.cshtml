@@ -1,0 +1,489 @@
+﻿@model InventorySystem.ViewModels.ServiceOrderListViewModel
+@{
+  ViewData["Title"] = "Service Orders";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-clipboard-list"></i> Service Orders</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("Create", "Services")" class="btn btn-success">
+      <i class="fas fa-plus"></i> New Service Order
+    </a>
+    <a href="@Url.Action("Schedule", "Services")" class="btn btn-primary">
+      <i class="fas fa-calendar-alt"></i> Schedule
+    </a>
+    <div class="btn-group" role="group">
+      <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fas fa-filter"></i> Quick Filters
+      </button>
+      <ul class="dropdown-menu">
+        <li>
+          <a class="dropdown-item" href="@Url.Action("ServiceOrders", new { status = "InProgress" })">
+            <i class="fas fa-play text-primary"></i> In Progress
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="@Url.Action("ServiceOrders", new { status = "Scheduled" })">
+            <i class="fas fa-calendar text-warning"></i> Scheduled
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="@Url.Action("ServiceOrders", new { status = "AwaitingParts" })">
+            <i class="fas fa-hourglass-half text-info"></i> Awaiting Parts
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item" href="@Url.Action("ServiceOrders")">
+            <i class="fas fa-list"></i> All Service Orders
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Search and Filter Form -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h6 class="mb-0">
+      <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#searchCollapse"
+              aria-expanded="@(!string.IsNullOrEmpty(Model.SearchTerm) || Model.StatusFilter.HasValue ? "true" : "false")"
+              aria-controls="searchCollapse">
+        <i class="fas fa-search"></i> Search & Filter Service Orders
+        <i class="fas fa-chevron-@(!string.IsNullOrEmpty(Model.SearchTerm) || Model.StatusFilter.HasValue ? "up" : "down") float-end"></i>
+      </button>
+    </h6>
+  </div>
+  <div class="collapse @(!string.IsNullOrEmpty(Model.SearchTerm) || Model.StatusFilter.HasValue ? "show" : "")" id="searchCollapse">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-4">
+          <label for="search" class="form-label">
+            <i class="fas fa-search"></i> Search Term
+          </label>
+          <input type="text" class="form-control" id="search" name="search" value="@Model.SearchTerm"
+                 placeholder="Service order number, customer name, equipment...">
+        </div>
+
+        <div class="col-md-3">
+          <label for="statusFilter" class="form-label">
+            <i class="fas fa-flag"></i> Status
+          </label>
+          <select class="form-select" id="statusFilter" name="statusFilter">
+            <option value="">All Statuses</option>
+            @foreach (var status in Enum.GetValues<InventorySystem.Models.ServiceOrderStatus>())
+            {
+              <option value="@status" selected="@(Model.StatusFilter == status)">@status.ToString().Replace("_", " ")</option>
+            }
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="priorityFilter" class="form-label">
+            <i class="fas fa-exclamation-triangle"></i> Priority
+          </label>
+          <select class="form-select" id="priorityFilter" name="priorityFilter">
+            <option value="">All Priorities</option>
+            @foreach (var priority in Enum.GetValues<InventorySystem.Models.ServicePriority>())
+            {
+              <option value="@priority" selected="@(Model.PriorityFilter == priority)">@priority</option>
+            }
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label for="customerFilter" class="form-label">
+            <i class="fas fa-user"></i> Customer
+          </label>
+          <select class="form-select" id="customerFilter" name="customerFilter">
+            <option value="">All Customers</option>
+            @foreach (var customer in Model.Customers)
+            {
+              <option value="@customer.Id" selected="@(Model.CustomerFilter == customer.Id)">@customer.CustomerName</option>
+            }
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="startDate" class="form-label">
+            <i class="fas fa-calendar"></i> From Date
+          </label>
+          <input type="date" class="form-control" id="startDate" name="startDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")">
+        </div>
+
+        <div class="col-md-3">
+          <label for="endDate" class="form-label">To Date</label>
+          <input type="date" class="form-control" id="endDate" name="endDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")">
+        </div>
+
+        <div class="col-md-3">
+          <label for="assignedTechnicianFilter" class="form-label">
+            <i class="fas fa-user-cog"></i> Technician
+          </label>
+          <input type="text" class="form-control" id="assignedTechnicianFilter" name="assignedTechnicianFilter"
+                 value="@Model.AssignedTechnicianFilter" placeholder="Technician name">
+        </div>
+
+        <div class="col-md-3">
+          <div class="form-check mt-4">
+            <input class="form-check-input" type="checkbox" id="showOverdueOnly" name="showOverdueOnly" value="true"
+                   checked="@Model.ShowOverdueOnly">
+            <label class="form-check-label" for="showOverdueOnly">
+              <i class="fas fa-clock text-warning"></i> Show overdue only
+            </label>
+          </div>
+        </div>
+
+        <div class="col-md-12">
+          <div class="btn-group">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-search"></i> Search
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+              <i class="fas fa-times"></i> Clear
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Statistics Row -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body text-center">
+        <h4>@Model.TotalServiceOrders</h4>
+        <small>Total Service Orders</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body text-center">
+        <h4>@Model.CompletedThisMonth</h4>
+        <small>Completed This Month</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-warning text-white">
+      <div class="card-body text-center">
+        <h4>@Model.InProgressCount</h4>
+        <small>In Progress</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-danger text-white">
+      <div class="card-body text-center">
+        <h4>@Model.OverdueCount</h4>
+        <small>Overdue</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Service Orders Table -->
+<div class="card">
+  <div class="card-header">
+    <h5>
+      <i class="fas fa-list"></i> Service Orders
+      <span class="badge bg-primary ms-2">@Model.ServiceOrders.Count() records</span>
+    </h5>
+  </div>
+  <div class="card-body">
+    @if (Model.ServiceOrders.Any())
+    {
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead class="table-dark">
+            <tr>
+              <th>Service Order #</th>
+              <th>Customer</th>
+              <th>Service Type</th>
+              <th>Request Date</th>
+              <th>Promised Date</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Technician</th>
+              <th>Est. Cost</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var service in Model.ServiceOrders)
+            {
+              <tr class="clickable-row" data-href="@Url.Action("Details", new { id = service.Id })" style="cursor: pointer;">
+                <td>
+                  <strong>@service.ServiceOrderNumber</strong>
+                  @if (service.IsOverdue)
+                  {
+                    <br>
+              
+                    <span class="badge bg-danger">Overdue</span>
+                  }
+                </td>
+                <td>
+                  <a href="/Customers/Details/@service.Customer.Id" class="text-decoration-none" onclick="event.stopPropagation();">
+                    @service.Customer.CustomerName
+                  </a>
+                  @if (!string.IsNullOrEmpty(service.EquipmentDetails))
+                  {
+                    <br>
+              
+                    <small class="text-muted">@service.EquipmentDetails</small>
+                  }
+                </td>
+                <td>@service.ServiceType.ServiceName</td>
+                <td>@service.RequestDate.ToString("MM/dd/yyyy")</td>
+                <td>
+                  @if (service.PromisedDate.HasValue)
+                  {
+                    @service.PromisedDate.Value.ToString("MM/dd/yyyy")
+                    @if (service.IsOverdue)
+                    {
+                      <br>
+              
+                      <small class="text-danger">@service.DaysSinceRequest days late</small>
+                    }
+                  }
+                  else
+                  {
+                    <span class="text-muted">Not set</span>
+                  }
+                </td>
+                <td>
+                  <span class="badge bg-@(GetPriorityBadgeColor(service.Priority))">
+                    @service.PriorityDisplay
+                  </span>
+                </td>
+                <td>
+                  <span class="badge bg-@(GetStatusBadgeColor(service.Status))">
+                    @service.StatusDisplay
+                  </span>
+                </td>
+                <td>
+                  @if (!string.IsNullOrEmpty(service.AssignedTechnician))
+                  {
+                    <span class="badge bg-info">@service.AssignedTechnician</span>
+                  }
+                  else
+                  {
+                    <span class="text-muted">Unassigned</span>
+                  }
+                </td>
+                <td class="text-end">@service.EstimatedCost.ToString("C")</td>
+                <td onclick="event.stopPropagation();">
+                  <div class="btn-group btn-group-sm">
+                    <a href="@Url.Action("Details", new { id = service.Id })" class="btn btn-outline-primary" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    @if (service.Status != InventorySystem.Models.ServiceOrderStatus.Completed)
+                    {
+                      <a href="@Url.Action("Edit", new { id = service.Id })" class="btn btn-outline-warning" title="Edit">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                    }
+                    <button class="btn btn-outline-success" title="Update Status"
+                            onclick="openStatusModal(@service.Id, '@service.ServiceOrderNumber', '@service.Status')">
+                      <i class="fas fa-flag"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    else
+    {
+      <div class="text-center py-5">
+        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No service orders found</h5>
+        <p class="text-muted">Create your first service order to get started</p>
+        <a href="@Url.Action("Create")" class="btn btn-success">
+          <i class="fas fa-plus"></i> Create Service Order
+        </a>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal fade" id="statusUpdateModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Update Service Status</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="statusUpdateForm">
+          <input type="hidden" id="serviceOrderId" name="serviceOrderId" />
+          <div class="mb-3">
+            <label for="newStatus" class="form-label">New Status</label>
+            <select class="form-select" id="newStatus" name="newStatus" required>
+              <!-- Options will be populated by JavaScript -->
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="statusReason" class="form-label">Reason (Optional)</label>
+            <textarea class="form-control" id="statusReason" name="reason" rows="2"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="updateServiceStatus()">Update Status</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@functions {
+  private string GetStatusBadgeColor(InventorySystem.Models.ServiceOrderStatus status)
+  {
+    return status switch
+    {
+      InventorySystem.Models.ServiceOrderStatus.Requested => "secondary",
+      InventorySystem.Models.ServiceOrderStatus.Quoted => "info",
+      InventorySystem.Models.ServiceOrderStatus.Approved => "primary",
+      InventorySystem.Models.ServiceOrderStatus.Scheduled => "warning",
+      InventorySystem.Models.ServiceOrderStatus.InProgress => "primary",
+      InventorySystem.Models.ServiceOrderStatus.AwaitingParts => "warning",
+      InventorySystem.Models.ServiceOrderStatus.QualityCheck => "info",
+      InventorySystem.Models.ServiceOrderStatus.Completed => "success",
+      InventorySystem.Models.ServiceOrderStatus.Delivered => "success",
+      InventorySystem.Models.ServiceOrderStatus.Cancelled => "danger",
+      InventorySystem.Models.ServiceOrderStatus.OnHold => "secondary",
+      _ => "secondary"
+    };
+  }
+
+  private string GetPriorityBadgeColor(InventorySystem.Models.ServicePriority priority)
+  {
+    return priority switch
+    {
+      InventorySystem.Models.ServicePriority.Low => "success",
+      InventorySystem.Models.ServicePriority.Normal => "secondary",
+      InventorySystem.Models.ServicePriority.High => "warning",
+      InventorySystem.Models.ServicePriority.Urgent => "danger",
+      InventorySystem.Models.ServicePriority.Emergency => "danger",
+      _ => "secondary"
+    };
+  }
+}
+
+@section Scripts {
+  <script>
+    // Enable clickable rows
+    document.querySelectorAll('.clickable-row').forEach(row => {
+        row.addEventListener('click', function() {
+            const href = this.getAttribute('data-href');
+            if (href && window.LoadingIndicator) {
+                window.LoadingIndicator.showForOperation('loading-service-details', true);
+                window.location.href = href;
+            }
+        });
+    });
+
+    function clearAllFilters() {
+        document.getElementById('search').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('priorityFilter').value = '';
+        document.getElementById('customerFilter').value = '';
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        document.getElementById('assignedTechnicianFilter').value = '';
+        document.getElementById('showOverdueOnly').checked = false;
+        document.querySelector('form').submit();
+    }
+
+    function openStatusModal(serviceId, serviceNumber, currentStatus) {
+        document.getElementById('serviceOrderId').value = serviceId;
+        document.getElementById('statusUpdateModal').querySelector('.modal-title').textContent =
+            'Update Status - Service Order ' + serviceNumber;
+
+        // Populate status options based on current status
+        const statusSelect = document.getElementById('newStatus');
+        statusSelect.innerHTML = '';
+
+        // Add status options (in a real app, this would come from the server)
+        const statusOptions = [
+            'Requested', 'Quoted', 'Approved', 'Scheduled', 'InProgress',
+            'AwaitingParts', 'QualityCheck', 'Completed', 'Delivered', 'Cancelled', 'OnHold'
+        ];
+
+        statusOptions.forEach(status => {
+            const option = new Option(status.replace(/([A-Z])/g, ' $1').trim(), status);
+            if (status === currentStatus) {
+                option.selected = true;
+            }
+            statusSelect.add(option);
+        });
+
+        new bootstrap.Modal(document.getElementById('statusUpdateModal')).show();
+    }
+
+    function updateServiceStatus() {
+        const form = document.getElementById('statusUpdateForm');
+        const formData = new FormData(form);
+
+        if (window.LoadingIndicator) {
+            window.LoadingIndicator.show('Updating Status...', 'Please wait');
+        }
+
+        fetch('@Url.Action("UpdateStatus")', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.hide();
+            }
+
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error updating status: ' + data.message);
+            }
+        })
+        .catch(error => {
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.hide();
+            }
+            console.error('Error:', error);
+            alert('Error updating status. Please try again.');
+        });
+
+        bootstrap.Modal.getInstance(document.getElementById('statusUpdateModal')).hide();
+    }
+  </script>
+}

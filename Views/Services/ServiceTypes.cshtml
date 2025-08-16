@@ -1,0 +1,289 @@
+﻿@model IEnumerable<InventorySystem.Models.ServiceType>
+@{
+  ViewData["Title"] = "Service Types";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-cogs"></i> Service Types</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    <a href="@Url.Action("CreateServiceType")" class="btn btn-success">
+      <i class="fas fa-plus"></i> Add Service Type
+    </a>
+  </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<div class="card">
+  <div class="card-header">
+    <h5>
+      <i class="fas fa-list"></i> Service Types
+      <span class="badge bg-primary ms-2">@Model.Count() types</span>
+    </h5>
+  </div>
+  <div class="card-body">
+    @if (Model.Any())
+    {
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead class="table-dark">
+            <tr>
+              <th>Service Code</th>
+              <th>Service Name</th>
+              <th>Category</th>
+              <th>Standard Hours</th>
+              <th>Standard Rate</th>
+              <th>Est. Cost</th>
+              <th>Requirements</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var serviceType in Model.OrderBy(st => st.ServiceCode ?? st.ServiceName))
+            {
+              <tr>
+                <td>
+                  @if (!string.IsNullOrEmpty(serviceType.ServiceCode))
+                  {
+                    <code>@serviceType.ServiceCode</code>
+                  }
+                  else
+                  {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td>
+                  <strong>@serviceType.ServiceName</strong>
+                  @if (!string.IsNullOrEmpty(serviceType.Description))
+                  {
+                    <br>
+              
+                    <small class="text-muted">@serviceType.Description</small>
+                  }
+                </td>
+                <td>
+                  @if (!string.IsNullOrEmpty(serviceType.ServiceCategory))
+                  {
+                    <span class="badge bg-secondary">@serviceType.ServiceCategory</span>
+                  }
+                  else
+                  {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-end">@serviceType.StandardHours</td>
+                <td class="text-end">@serviceType.StandardRate.ToString("C")</td>
+                <td class="text-end fw-bold">@((serviceType.StandardHours * serviceType.StandardRate).ToString("C"))</td>
+                <td>
+                  @if (serviceType.QcRequired)
+                  {
+                    <span class="badge bg-warning text-dark me-1">QC Required</span>
+                  }
+                  @if (serviceType.CertificateRequired)
+                  {
+                    <span class="badge bg-info me-1">Certificate</span>
+                  }
+                  @if (serviceType.RequiresEquipment)
+                  {
+                    <span class="badge bg-secondary me-1">Equipment</span>
+                  }
+                  @if (!serviceType.QcRequired && !serviceType.CertificateRequired && !serviceType.RequiresEquipment)
+                  {
+                    <span class="text-muted">None</span>
+                  }
+                </td>
+                <td>
+                  @if (serviceType.IsActive)
+                  {
+                    <span class="badge bg-success">Active</span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-secondary">Inactive</span>
+                  }
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-info" title="View Details"
+                            onclick="viewServiceTypeDetails(@serviceType.Id)">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <a href="@Url.Action("EditServiceType", new { id = serviceType.Id })"
+                       class="btn btn-outline-warning" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    @if (serviceType.IsActive)
+                    {
+                      <button class="btn btn-outline-secondary" title="Deactivate"
+                              onclick="toggleServiceType(@serviceType.Id, false)">
+                        <i class="fas fa-pause"></i>
+                      </button>
+                    }
+                    else
+                    {
+                      <button class="btn btn-outline-success" title="Activate"
+                              onclick="toggleServiceType(@serviceType.Id, true)">
+                        <i class="fas fa-play"></i>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    else
+    {
+      <div class="text-center py-5">
+        <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No service types defined</h5>
+        <p class="text-muted">Create your first service type to get started with service management</p>
+        <a href="@Url.Action("CreateServiceType")" class="btn btn-success">
+          <i class="fas fa-plus"></i> Create First Service Type
+        </a>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Service Type Details Modal -->
+<div class="modal fade" id="serviceTypeDetailsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Service Type Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="serviceTypeDetailsContent">
+        <!-- Content will be loaded via AJAX -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" onclick="editCurrentServiceType()">
+          <i class="fas fa-edit"></i> Edit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    let currentServiceTypeId = null;
+
+    function viewServiceTypeDetails(serviceTypeId) {
+        currentServiceTypeId = serviceTypeId;
+
+        if (window.LoadingIndicator) {
+            window.LoadingIndicator.show('Loading Details...', 'Please wait');
+        }
+
+        fetch('@Url.Action("GetServiceTypeDetails")?serviceTypeId=' + serviceTypeId)
+            .then(response => response.json())
+            .then(data => {
+                if (window.LoadingIndicator) {
+                    window.LoadingIndicator.hide();
+                }
+
+                if (data.success) {
+                    const serviceType = data.serviceType;
+                    const content = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Service Code</label>
+                                    <div>${serviceType.serviceCode || 'Not specified'}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Service Name</label>
+                                    <div class="fw-bold">${serviceType.name}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Category</label>
+                                    <div>${serviceType.category || 'Not specified'}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Description</label>
+                                    <div>${serviceType.description || 'No description provided'}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Standard Hours</label>
+                                    <div class="fw-bold">${serviceType.standardHours} hours</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Standard Rate</label>
+                                    <div class="fw-bold">$${serviceType.standardRate}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Estimated Cost</label>
+                                    <div class="fw-bold text-primary fs-5">$${serviceType.estimatedCost.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6>Requirements & Features</h6>
+                                <div class="d-flex flex-wrap gap-2">
+                                    ${serviceType.qcRequired ? '<span class="badge bg-warning text-dark">Quality Check Required</span>' : ''}
+                                    ${serviceType.certificateRequired ? '<span class="badge bg-info">Certificate Required</span>' : ''}
+                                    ${serviceType.requiredEquipment ? '<span class="badge bg-secondary">Equipment Required</span>' : ''}
+                                    ${!serviceType.qcRequired && !serviceType.certificateRequired && !serviceType.requiredEquipment ? '<span class="text-muted">No special requirements</span>' : ''}
+                                </div>
+                                ${serviceType.requiredEquipment ? `<div class="mt-2"><small class="text-muted">Equipment: ${serviceType.requiredEquipment}</small></div>` : ''}
+                            </div>
+                        </div>
+                    `;
+
+                    document.getElementById('serviceTypeDetailsContent').innerHTML = content;
+                    new bootstrap.Modal(document.getElementById('serviceTypeDetailsModal')).show();
+                } else {
+                    alert('Error loading service type details: ' + data.message);
+                }
+            })
+            .catch(error => {
+                if (window.LoadingIndicator) {
+                    window.LoadingIndicator.hide();
+                }
+                console.error('Error:', error);
+                alert('Error loading service type details.');
+            });
+    }
+
+    function editCurrentServiceType() {
+        if (currentServiceTypeId) {
+            window.location.href = '@Url.Action("EditServiceType")?id=' + currentServiceTypeId;
+        }
+    }
+
+    function toggleServiceType(serviceTypeId, isActive) {
+        const action = isActive ? 'activate' : 'deactivate';
+        if (confirm(`Are you sure you want to ${action} this service type?`)) {
+            // Implementation for activating/deactivating service type
+            alert(`Service type ${action} functionality would be implemented here`);
+        }
+    }
+  </script>
+}

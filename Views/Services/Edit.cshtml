@@ -1,0 +1,488 @@
+@model InventorySystem.Models.ServiceOrder
+@{
+  ViewData["Title"] = $"Edit Service Order - {Model.ServiceOrderNumber}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-edit"></i> Edit Service Order</h1>
+  <div class="btn-group">
+    <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Details
+    </a>
+    <a href="@Url.Action("ServiceOrders")" class="btn btn-outline-info">
+      <i class="fas fa-list"></i> All Service Orders
+    </a>
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+  <div class="alert alert-warning alert-dismissible fade show">
+    <h6><i class="fas fa-exclamation-triangle"></i> Please correct the following errors:</h6>
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Status Warning -->
+@if (Model.Status == InventorySystem.Models.ServiceOrderStatus.Completed || Model.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
+{
+  <div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>Warning:</strong> This service order has been marked as @Model.Status.ToString(). Changes should be made carefully.
+  </div>
+}
+
+<!-- Anti-forgery token for AJAX operations -->
+@Html.AntiForgeryToken()
+
+<div class="row">
+  <div class="col-lg-8">
+    <form asp-action="Edit" method="post" class="needs-validation" novalidate>
+      <input type="hidden" asp-for="Id" />
+      <input type="hidden" asp-for="ServiceOrderNumber" />
+      <input type="hidden" asp-for="CreatedDate" />
+      <input type="hidden" asp-for="CreatedBy" />
+
+      <!-- Basic Information Card -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5>
+            <i class="fas fa-info-circle"></i> Service Order Information
+            <span class="badge bg-@(GetStatusBadgeColor(Model.Status)) ms-2">@Model.Status.ToString()</span>
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label text-muted">Service Order Number</label>
+              <input type="text" class="form-control" value="@Model.ServiceOrderNumber" disabled />
+              <div class="form-text">Service order number cannot be changed</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label asp-for="CustomerId" class="form-label">
+                <i class="fas fa-user"></i> Customer <span class="text-danger">*</span>
+              </label>
+              <select asp-for="CustomerId" class="form-select" asp-items="ViewBag.CustomerOptions" required>
+                <option value="">Select customer...</option>
+              </select>
+              <span asp-validation-for="CustomerId" class="text-danger"></span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label asp-for="ServiceTypeId" class="form-label">
+                <i class="fas fa-cogs"></i> Service Type <span class="text-danger">*</span>
+              </label>
+              <select asp-for="ServiceTypeId" class="form-select" asp-items="ViewBag.ServiceTypeOptions" required>
+                <option value="">Select service type...</option>
+              </select>
+              <span asp-validation-for="ServiceTypeId" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label asp-for="Priority" class="form-label">
+                <i class="fas fa-flag"></i> Priority
+              </label>
+              <select asp-for="Priority" class="form-select">
+                <option value="0">Low</option>
+                <option value="1">Normal</option>
+                <option value="2">High</option>
+                <option value="3">Urgent</option>
+                <option value="4">Emergency</option>
+              </select>
+              <span asp-validation-for="Priority" class="text-danger"></span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label asp-for="RequestDate" class="form-label">
+                <i class="fas fa-calendar"></i> Request Date
+              </label>
+              <input asp-for="RequestDate" class="form-control" type="date" />
+              <span asp-validation-for="RequestDate" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label asp-for="PromisedDate" class="form-label">
+                <i class="fas fa-calendar-check"></i> Promised Date
+              </label>
+              <input asp-for="PromisedDate" class="form-control" type="date" />
+              <span asp-validation-for="PromisedDate" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label asp-for="ScheduledDate" class="form-label">
+                <i class="fas fa-calendar-alt"></i> Scheduled Date
+              </label>
+              <input asp-for="ScheduledDate" class="form-control" type="datetime-local" />
+              <span asp-validation-for="ScheduledDate" class="text-danger"></span>
+            </div>
+          </div>
+          
+          <div class="col-md-12 mb-3">
+            <div class="card border-warning">
+              <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0"><i class="fas fa-calendar-alt"></i> Quick Scheduling</h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <label class="form-label">Schedule for Today</label>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="scheduleForToday()">
+                      <i class="fas fa-calendar-day"></i> Schedule Today
+                    </button>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Schedule for Tomorrow</label>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="scheduleForTomorrow()">
+                      <i class="fas fa-calendar-plus"></i> Schedule Tomorrow
+                    </button>
+                  </div>
+                </div>
+                @if (Model.ScheduledDate.HasValue)
+                {
+                  <div class="alert alert-success mt-2">
+                    <i class="fas fa-check-circle"></i> Currently scheduled for: <strong>@Model.ScheduledDate.Value.ToString("MMM dd, yyyy HH:mm")</strong>
+                  </div>
+                }
+                else
+                {
+                  <div class="alert alert-warning mt-2">
+                    <i class="fas fa-exclamation-triangle"></i> This service order is not yet scheduled
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Equipment Information -->
+          <hr>
+          <h6><i class="fas fa-wrench"></i> Equipment Information</h6>
+
+          <div class="mb-3">
+            <label asp-for="EquipmentDetails" class="form-label">Equipment Details</label>
+            <textarea asp-for="EquipmentDetails" class="form-control" rows="2"
+                      placeholder="Description of equipment to be serviced..."></textarea>
+            <span asp-validation-for="EquipmentDetails" class="text-danger"></span>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label asp-for="SerialNumber" class="form-label">Serial Number</label>
+              <input asp-for="SerialNumber" class="form-control" placeholder="Equipment serial number" />
+              <span asp-validation-for="SerialNumber" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label asp-for="ModelNumber" class="form-label">Model Number</label>
+              <input asp-for="ModelNumber" class="form-control" placeholder="Equipment model number" />
+              <span asp-validation-for="ModelNumber" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Customer Request -->
+          <hr>
+          <h6><i class="fas fa-comment"></i> Customer Request</h6>
+
+          <div class="mb-3">
+            <label asp-for="CustomerRequest" class="form-label">Customer Description</label>
+            <textarea asp-for="CustomerRequest" class="form-control" rows="3"
+                      placeholder="What does the customer want us to do?"></textarea>
+            <span asp-validation-for="CustomerRequest" class="text-danger"></span>
+          </div>
+
+          <!-- Service Notes -->
+          <div class="mb-3">
+            <label asp-for="ServiceNotes" class="form-label">Service Notes</label>
+            <textarea asp-for="ServiceNotes" class="form-control" rows="3"
+                      placeholder="Internal notes about this service..."></textarea>
+            <span asp-validation-for="ServiceNotes" class="text-danger"></span>
+          </div>
+
+          <!-- Assignment and Technician -->
+          <hr>
+          <h6><i class="fas fa-user-cog"></i> Assignment</h6>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label asp-for="AssignedTechnician" class="form-label">Assigned Technician</label>
+              <input asp-for="AssignedTechnician" class="form-control"
+                     placeholder="Enter technician name..." />
+              <span asp-validation-for="AssignedTechnician" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label asp-for="WorkLocation" class="form-label">Work Location</label>
+              <select asp-for="WorkLocation" class="form-select">
+                <option value="">Select location...</option>
+                <option value="On-Site">On-Site (Customer Location)</option>
+                <option value="In-Shop">In-Shop (Our Facility)</option>
+                <option value="Remote">Remote (Software/Virtual)</option>
+              </select>
+              <span asp-validation-for="WorkLocation" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Pricing and Payment -->
+          <hr>
+          <h6><i class="fas fa-dollar-sign"></i> Pricing & Payment</h6>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label asp-for="EstimatedCost" class="form-label">Estimated Cost</label>
+              <input asp-for="EstimatedCost" class="form-control" type="number" step="0.01" min="0" />
+              <span asp-validation-for="EstimatedCost" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label asp-for="HourlyRate" class="form-label">Hourly Rate</label>
+              <input asp-for="HourlyRate" class="form-control" type="number" step="0.01" min="0" />
+              <span asp-validation-for="HourlyRate" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label asp-for="EstimatedHours" class="form-label">Estimated Hours</label>
+              <input asp-for="EstimatedHours" class="form-control" type="number" step="0.1" min="0" />
+              <span asp-validation-for="EstimatedHours" class="text-danger"></span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input asp-for="IsPrepaid" class="form-check-input" type="checkbox" />
+                <label asp-for="IsPrepaid" class="form-check-label">
+                  <i class="fas fa-credit-card"></i> Service is Prepaid
+                </label>
+                <div class="form-text">Check if customer has already paid for this service</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+              <select asp-for="PaymentMethod" class="form-select">
+                <option value="">Select method...</option>
+                <option value="Cash">Cash</option>
+                <option value="Check">Check</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Net Terms">Net Terms</option>
+              </select>
+              <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex justify-content-between mt-4">
+        <div>
+          <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-secondary">
+            <i class="fas fa-times"></i> Cancel
+          </a>
+        </div>
+        <div>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Documents Section - Using the modular DocumentManager -->
+    @await Html.PartialAsync("_DocumentManager", Model.Id)
+
+  </div>
+
+  <!-- Help Panel -->
+  <div class="col-lg-4">
+    <!-- Current Status Card -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6><i class="fas fa-info-circle"></i> Current Status</h6>
+      </div>
+      <div class="card-body">
+        <div class="text-center">
+          <span class="badge bg-@(GetStatusBadgeColor(Model.Status)) fs-6">@Model.Status.ToString()</span>
+          <div class="mt-2">
+            <small class="text-muted">
+              Created: @Model.CreatedDate.ToString("MM/dd/yyyy")<br>
+              @if (Model.LastModifiedDate.HasValue)
+              {
+                <span>Modified: @Model.LastModifiedDate.Value.ToString("MM/dd/yyyy")</span>
+              }
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Guidelines -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6><i class="fas fa-lightbulb"></i> Edit Guidelines</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <h6 class="text-primary"><i class="fas fa-exclamation-circle"></i> Important</h6>
+          <p class="small text-muted">Changes to service orders may affect scheduling and resource allocation. Notify relevant team members of significant changes.</p>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-warning"><i class="fas fa-clock"></i> Timing</h6>
+          <p class="small text-muted">Update promised dates carefully as customers may have been notified of the original schedule.</p>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-info"><i class="fas fa-user-cog"></i> Assignment</h6>
+          <p class="small text-muted">Changing the assigned technician may require coordination with the scheduling team.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="card-header">
+        <h6><i class="fas fa-bolt"></i> Quick Actions</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-info">
+            <i class="fas fa-eye"></i> View Details
+          </a>
+          <a href="@Url.Action("Schedule")" class="btn btn-outline-success">
+            <i class="fas fa-calendar-alt"></i> View Schedule
+          </a>
+          <a href="@Url.Action("ServiceOrders", new { customerId = Model.CustomerId })" class="btn btn-outline-secondary">
+            <i class="fas fa-list"></i> Customer's Orders
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@functions {
+  private string GetStatusBadgeColor(InventorySystem.Models.ServiceOrderStatus status)
+  {
+    return status switch
+    {
+      InventorySystem.Models.ServiceOrderStatus.Requested => "secondary",
+      InventorySystem.Models.ServiceOrderStatus.Quoted => "info",
+      InventorySystem.Models.ServiceOrderStatus.Approved => "primary",
+      InventorySystem.Models.ServiceOrderStatus.Scheduled => "warning",
+      InventorySystem.Models.ServiceOrderStatus.InProgress => "primary",
+      InventorySystem.Models.ServiceOrderStatus.AwaitingParts => "warning",
+      InventorySystem.Models.ServiceOrderStatus.QualityCheck => "info",
+      InventorySystem.Models.ServiceOrderStatus.Completed => "success",
+      InventorySystem.Models.ServiceOrderStatus.Delivered => "success",
+      InventorySystem.Models.ServiceOrderStatus.Cancelled => "danger",
+      InventorySystem.Models.ServiceOrderStatus.OnHold => "secondary",
+      _ => "secondary"
+    };
+  }
+}
+
+@section Scripts {
+  @{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+  }
+  
+  <!-- Load CSS and JS for Document Manager -->
+  <link href="~/css/document-manager.css" rel="stylesheet" />
+  <script src="~/js/document-manager.js"></script>
+  
+  <script>
+    // Initialize document manager on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing document manager for Edit view...');
+        console.log('Service Order ID:', @Model.Id);
+
+        try {
+            // Check if DocumentManager class exists
+            if (typeof DocumentManager === 'undefined') {
+                console.error('DocumentManager class not found! Check if document-manager.js is loaded.');
+                return;
+            }
+            
+            // Initialize the documentManager (using the global variable from document-manager.js)
+            documentManager = new DocumentManager(@Model.Id);
+            console.log('DocumentManager initialized successfully for Edit view');
+            
+        } catch (error) {
+            console.error('Error initializing DocumentManager:', error);
+        }
+
+        // Form validation
+        const form = document.querySelector('.needs-validation');
+
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        });
+
+        // Auto-calculate estimated cost when hours or rate changes
+        const hoursInput = document.querySelector('[name="EstimatedHours"]');
+        const rateInput = document.querySelector('[name="HourlyRate"]');
+        const costInput = document.querySelector('[name="EstimatedCost"]');
+
+        function calculateEstimatedCost() {
+            const hours = parseFloat(hoursInput.value) || 0;
+            const rate = parseFloat(rateInput.value) || 0;
+            const cost = hours * rate;
+
+            if (cost > 0) {
+                costInput.value = cost.toFixed(2);
+            }
+        }
+
+        if (hoursInput && rateInput && costInput) {
+            hoursInput.addEventListener('change', calculateEstimatedCost);
+            rateInput.addEventListener('change', calculateEstimatedCost);
+        }
+    });
+
+    function scheduleForToday() {
+        const today = new Date();
+        const scheduledInput = document.querySelector('[name="ScheduledDate"]');
+
+        // Set to 9 AM today
+        today.setHours(9, 0, 0, 0);
+        scheduledInput.value = formatDateTimeLocal(today);
+    }
+
+    function scheduleForTomorrow() {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+
+        const scheduledInput = document.querySelector('[name="ScheduledDate"]');
+        scheduledInput.value = formatDateTimeLocal(tomorrow);
+    }
+
+    function formatDateTimeLocal(date) {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+  </script>
+}

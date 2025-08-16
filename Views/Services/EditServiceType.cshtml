@@ -1,0 +1,685 @@
+@model InventorySystem.ViewModels.ServiceTypeViewModel
+@{
+    ViewData["Title"] = $"Edit Service Type - {Model.ServiceName}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-edit"></i> Edit Service Type</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("ServiceTypes")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Service Types
+        </a>
+        @if (!Model.IsActive)
+        {
+            <button type="button" class="btn btn-outline-success" onclick="toggleServiceTypeStatus(@Model.Id, true)">
+                <i class="fas fa-toggle-on"></i> Activate
+            </button>
+        }
+        else
+        {
+            <button type="button" class="btn btn-outline-warning" onclick="toggleServiceTypeStatus(@Model.Id, false)">
+                <i class="fas fa-toggle-off"></i> Deactivate
+            </button>
+        }
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <form asp-action="EditServiceType" method="post" class="needs-validation" novalidate>
+            <input type="hidden" asp-for="Id" />
+            
+            <!-- Status Warning for Inactive Service Types -->
+            @if (!Model.IsActive)
+            {
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <strong>Inactive Service Type</strong> - This service type is currently inactive and not available for new service orders.
+                </div>
+            }
+
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Service Type Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ServiceName" class="form-label">
+                                <i class="fas fa-tag"></i> Service Name <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="ServiceName" class="form-control" required />
+                            <span asp-validation-for="ServiceName" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ServiceCode" class="form-label">
+                                <i class="fas fa-barcode"></i> Service Code
+                            </label>
+                            <input asp-for="ServiceCode" class="form-control" placeholder="e.g., CAL001, REP002" />
+                            <div class="form-text">
+                                @if (!string.IsNullOrEmpty(Model.ServiceCode))
+                                {
+                                    <span>Current: <code>@Model.ServiceCode</code></span>
+                                }
+                                else
+                                {
+                                    <span>Optional short code for quick reference</span>
+                                }
+                            </div>
+                            <span asp-validation-for="ServiceCode" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ServiceCategory" class="form-label">
+                            <i class="fas fa-folder"></i> Service Category
+                        </label>
+                        <select asp-for="ServiceCategory" class="form-select">
+                            <option value="">Select category...</option>
+                            <option value="Calibration">Calibration</option>
+                            <option value="Repair">Repair</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Installation">Installation</option>
+                            <option value="Training">Training</option>
+                            <option value="Consultation">Consultation</option>
+                            <option value="Testing">Testing</option>
+                            <option value="Inspection">Inspection</option>
+                            <option value="Custom">Custom</option>
+                        </select>
+                        <span asp-validation-for="ServiceCategory" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">
+                            <i class="fas fa-align-left"></i> Description
+                        </label>
+                        <textarea asp-for="Description" class="form-control" rows="3" 
+                                  placeholder="Detailed description of the service..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="StandardHours" class="form-label">
+                                <i class="fas fa-clock"></i> Standard Hours <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="StandardHours" class="form-control" type="number" step="0.1" min="0" required
+                                   onchange="calculateEstimatedCost()" />
+                            <div class="form-text">Typical time to complete this service</div>
+                            <span asp-validation-for="StandardHours" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="StandardRate" class="form-label">
+                                <i class="fas fa-dollar-sign"></i> Standard Rate <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="StandardRate" class="form-control" type="number" step="0.01" min="0" required
+                                   onchange="calculateEstimatedCost()" />
+                            <div class="form-text">Hourly rate for this service</div>
+                            <span asp-validation-for="StandardRate" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-calculator"></i> Estimated Cost
+                            </label>
+                            <input id="estimatedCost" class="form-control" readonly />
+                            <div class="form-text">Calculated from hours × rate</div>
+                        </div>
+                    </div>
+
+                    <!-- Requirements Section -->
+                    <hr>
+                    <h6><i class="fas fa-clipboard-check"></i> Service Requirements</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input asp-for="QcRequired" class="form-check-input" type="checkbox" />
+                                <label asp-for="QcRequired" class="form-check-label">
+                                    <i class="fas fa-search"></i> Quality Check Required
+                                </label>
+                                <div class="form-text">Service requires quality control verification</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input asp-for="CertificateRequired" class="form-check-input" type="checkbox" />
+                                <label asp-for="CertificateRequired" class="form-check-label">
+                                    <i class="fas fa-certificate"></i> Certificate Required
+                                </label>
+                                <div class="form-text">Service requires certification document</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                                <label asp-for="IsActive" class="form-check-label">
+                                    <i class="fas fa-toggle-on"></i> Active
+                                </label>
+                                <div class="form-text">Service type is available for new orders</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Change Tracking Information -->
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> Changes will affect future service orders only.
+                                Existing service orders will retain their original settings.
+                            </small>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <small class="text-muted">
+                                Last updated: @DateTime.Now.ToString("MM/dd/yyyy HH:mm")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <div>
+                    <a href="@Url.Action("ServiceTypes")" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    @if (ViewBag.HasActiveServiceOrders == true)
+                    {
+                        <button type="button" class="btn btn-outline-info ms-2" onclick="showActiveOrdersWarning()">
+                            <i class="fas fa-info-circle"></i> View Active Orders
+                        </button>
+                    }
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-warning me-2" onclick="resetToDefaults()">
+                        <i class="fas fa-undo"></i> Reset Changes
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Help and Information Panel -->
+    <div class="col-lg-4">
+        <!-- Current Usage Information -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-bar"></i> Usage Statistics</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h5 class="text-primary">@(ViewBag.TotalServiceOrders ?? 0)</h5>
+                        <small class="text-muted">Total Orders</small>
+                    </div>
+                    <div class="col-6">
+                        <h5 class="text-warning">@(ViewBag.ActiveServiceOrders ?? 0)</h5>
+                        <small class="text-muted">Active Orders</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h6 class="text-success">@((ViewBag.AverageRevenue ?? 0).ToString("C"))</h6>
+                        <small class="text-muted">Avg Revenue</small>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-info">@((ViewBag.AverageHours ?? 0).ToString("F1"))h</h6>
+                        <small class="text-muted">Avg Hours</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Service Type Preview -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6><i class="fas fa-eye"></i> Preview</h6>
+            </div>
+            <div class="card-body">
+                <div id="servicePreview">
+                    <!-- Preview will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Guidelines -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Edit Guidelines</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-primary"><i class="fas fa-exclamation-triangle"></i> Impact</h6>
+                    <p class="small text-muted">Changes to service types only affect new service orders. Existing orders keep their original settings.</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-warning"><i class="fas fa-dollar-sign"></i> Pricing Changes</h6>
+                    <p class="small text-muted">Rate changes should be carefully considered. Consider market conditions and cost increases.</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-info"><i class="fas fa-toggle-off"></i> Deactivation</h6>
+                    <p class="small text-muted">Deactivating prevents new orders but doesn't affect existing ones. Use when discontinuing services.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Changes (if applicable) -->
+        @if (ViewBag.RecentChanges != null && ((List<object>)ViewBag.RecentChanges).Any())
+        {
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-history"></i> Recent Changes</h6>
+                </div>
+                <div class="card-body">
+                    <div class="timeline-sm">
+                        @foreach (var change in (List<dynamic>)ViewBag.RecentChanges)
+                        {
+                            <div class="timeline-item-sm">
+                                <small class="text-muted">@change.Date</small>
+                                <div class="small">@change.Description</div>
+                                <div class="small text-muted">by @change.User</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Active Orders Warning Modal -->
+<div class="modal fade" id="activeOrdersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning"></i> Active Service Orders
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <p><strong>This service type has active orders that will not be affected by your changes.</strong></p>
+                    <p>Changes to rates, hours, and requirements will only apply to new service orders created after saving.</p>
+                </div>
+                
+                <div id="activeOrdersList">
+                    <!-- Active orders list will be loaded here -->
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading active orders...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="@Url.Action("ServiceOrders", new { serviceTypeFilter = Model.Id })" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt"></i> View All Orders
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal for Status Toggle -->
+<div class="modal fade" id="statusToggleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Status Change</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="statusChangeMessage">
+                    <!-- Message will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmStatusToggle()">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        let originalFormData = new FormData();
+        let pendingStatusChange = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Store original form data for reset functionality
+            storeOriginalFormData();
+            
+            // Initialize preview and calculation
+            calculateEstimatedCost();
+            updatePreview();
+            
+            // Add event listeners for real-time preview updates
+            setupPreviewListeners();
+            
+            // Form validation setup
+            setupFormValidation();
+        });
+
+        function storeOriginalFormData() {
+            const form = document.querySelector('.needs-validation');
+            originalFormData = new FormData(form);
+        }
+
+        function calculateEstimatedCost() {
+            const hours = parseFloat(document.querySelector('[name="StandardHours"]').value) || 0;
+            const rate = parseFloat(document.querySelector('[name="StandardRate"]').value) || 0;
+            const estimatedCost = hours * rate;
+            
+            document.getElementById('estimatedCost').value = '$' + estimatedCost.toFixed(2);
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const serviceName = document.querySelector('[name="ServiceName"]').value;
+            const serviceCode = document.querySelector('[name="ServiceCode"]').value;
+            const category = document.querySelector('[name="ServiceCategory"]').value;
+            const description = document.querySelector('[name="Description"]').value;
+            const hours = document.querySelector('[name="StandardHours"]').value;
+            const rate = document.querySelector('[name="StandardRate"]').value;
+            const qcRequired = document.querySelector('[name="QcRequired"]').checked;
+            const certRequired = document.querySelector('[name="CertificateRequired"]').checked;
+            const isActive = document.querySelector('[name="IsActive"]').checked;
+
+            const estimatedCost = (parseFloat(hours) || 0) * (parseFloat(rate) || 0);
+
+            const previewHtml = `
+                <div class="text-center">
+                    <h6 class="text-primary">${serviceName || 'Service Name'}</h6>
+                    ${serviceCode ? `<div class="small text-muted mb-2">Code: <code>${serviceCode}</code></div>` : ''}
+                    ${category ? `<span class="badge bg-secondary mb-2">${category}</span>` : ''}
+                    ${description ? `<p class="small text-muted">${description.substring(0, 100)}${description.length > 100 ? '...' : ''}</p>` : ''}
+                    
+                    <hr class="my-2">
+                    
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="small text-muted">Standard Hours</div>
+                            <div class="fw-bold">${hours || '0'}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted">Hourly Rate</div>
+                            <div class="fw-bold">$${rate || '0'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-2">
+                        <div class="small text-muted">Estimated Cost</div>
+                        <div class="fw-bold text-success fs-6">$${estimatedCost.toFixed(2)}</div>
+                    </div>
+                    
+                    <div class="mt-2">
+                        ${qcRequired ? '<span class="badge bg-warning text-dark me-1">QC</span>' : ''}
+                        ${certRequired ? '<span class="badge bg-info me-1">Cert</span>' : ''}
+                        ${isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('servicePreview').innerHTML = previewHtml;
+        }
+
+        function setupPreviewListeners() {
+            const formFields = ['ServiceName', 'ServiceCode', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'IsActive'];
+            
+            formFields.forEach(fieldName => {
+                const field = document.querySelector(`[name="${fieldName}"]`);
+                if (field) {
+                    field.addEventListener('input', updatePreview);
+                    field.addEventListener('change', updatePreview);
+                }
+            });
+        }
+
+        function setupFormValidation() {
+            const form = document.querySelector('.needs-validation');
+            
+            form.addEventListener('submit', function(event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            });
+        }
+
+        function resetToDefaults() {
+            if (confirm('Are you sure you want to reset all changes? This will restore the original values.')) {
+                const form = document.querySelector('.needs-validation');
+                
+                // Reset all form fields to original values
+                for (let [key, value] of originalFormData.entries()) {
+                    const field = form.querySelector(`[name="${key}"]`);
+                    if (field) {
+                        if (field.type === 'checkbox') {
+                            field.checked = value === 'true';
+                        } else {
+                            field.value = value;
+                        }
+                    }
+                }
+                
+                // Remove validation classes
+                form.classList.remove('was-validated');
+                
+                // Update preview
+                calculateEstimatedCost();
+                updatePreview();
+                
+                // Show success message
+                showNotification('Form reset to original values', 'success');
+            }
+        }
+
+        function toggleServiceTypeStatus(serviceTypeId, activate) {
+            pendingStatusChange = { id: serviceTypeId, activate: activate };
+            
+            const action = activate ? 'activate' : 'deactivate';
+            const message = activate 
+                ? '<p><strong>Activate this service type?</strong></p><p>It will become available for new service orders.</p>'
+                : '<p><strong>Deactivate this service type?</strong></p><p>It will no longer be available for new service orders. Existing orders will not be affected.</p>';
+            
+            document.getElementById('statusChangeMessage').innerHTML = message;
+            new bootstrap.Modal(document.getElementById('statusToggleModal')).show();
+        }
+
+        function confirmStatusToggle() {
+            if (!pendingStatusChange) return;
+            
+            const { id, activate } = pendingStatusChange;
+            const action = activate ? 'activate' : 'deactivate';
+            
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.show(`${activate ? 'Activating' : 'Deactivating'} Service Type...`, 'Please wait');
+            }
+
+            fetch(`@Url.Action("ToggleServiceTypeStatus")?id=${id}&activate=${activate}`, {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (window.LoadingIndicator) {
+                    window.LoadingIndicator.hide();
+                }
+                
+                bootstrap.Modal.getInstance(document.getElementById('statusToggleModal')).hide();
+                
+                if (data.success) {
+                    showNotification(`Service type ${action}d successfully`, 'success');
+                    // Update the UI to reflect the change
+                    document.querySelector('[name="IsActive"]').checked = activate;
+                    updatePreview();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    alert(`Error ${action}ing service type: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                if (window.LoadingIndicator) {
+                    window.LoadingIndicator.hide();
+                }
+                console.error('Error:', error);
+                alert(`Error ${action}ing service type. Please try again.`);
+                bootstrap.Modal.getInstance(document.getElementById('statusToggleModal')).hide();
+            });
+            
+            pendingStatusChange = null;
+        }
+
+        function showActiveOrdersWarning() {
+            const modal = new bootstrap.Modal(document.getElementById('activeOrdersModal'));
+            modal.show();
+            
+            // Load active orders
+            fetch(`@Url.Action("GetActiveServiceOrders")?serviceTypeId=@Model.Id`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.orders) {
+                        let ordersHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Order #</th><th>Customer</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+                        
+                        data.orders.forEach(order => {
+                            ordersHtml += `
+                                <tr>
+                                    <td><a href="/Services/Details/${order.id}" class="text-decoration-none">${order.serviceOrderNumber}</a></td>
+                                    <td>${order.customerName}</td>
+                                    <td><span class="badge bg-primary">${order.status}</span></td>
+                                    <td>${new Date(order.requestDate).toLocaleDateString()}</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        ordersHtml += '</tbody></table></div>';
+                        document.getElementById('activeOrdersList').innerHTML = ordersHtml;
+                    } else {
+                        document.getElementById('activeOrdersList').innerHTML = '<div class="text-center text-muted">No active orders found.</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading active orders:', error);
+                    document.getElementById('activeOrdersList').innerHTML = '<div class="alert alert-danger">Error loading active orders.</div>';
+                });
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create and show a toast notification
+            const toastHtml = `
+                <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'}"></i> ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            let toastContainer = document.querySelector('.toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                document.body.appendChild(toastContainer);
+            }
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toast = new bootstrap.Toast(toastContainer.lastElementChild);
+            toast.show();
+        }
+    </script>
+
+    <style>
+        .timeline-sm {
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .timeline-sm::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #dee2e6;
+        }
+        
+        .timeline-item-sm {
+            position: relative;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border-left: 2px solid #007bff;
+        }
+        
+        .timeline-item-sm::before {
+            content: '';
+            position: absolute;
+            left: -21px;
+            top: 10px;
+            width: 6px;
+            height: 6px;
+            background: #007bff;
+            border-radius: 50%;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .btn-outline-success:hover, .btn-outline-warning:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+}

@@ -44,37 +44,32 @@ namespace InventorySystem.Data
     // Add CompanyInfo
     public DbSet<CompanyInfo> CompanyInfo { get; set; } = null!;
 
-		// Add these new DbSets
+		// Customers
 		public DbSet<Customer> Customers { get; set; }
 		public DbSet<CustomerDocument> CustomerDocuments { get; set; }
     public DbSet<CustomerPayment> CustomerPayments { get; set; }
 
-    // NEW: Add Projects DbSet for R&D project tracking
+    // Add Projects DbSet for R&D project tracking
     public DbSet<Project> Projects { get; set; }
 
-		// ============= NEW ACCOUNTING DBSETS =============
-
-		/// <summary>
-		/// Chart of Accounts
-		/// </summary>
+		// Chart of Accounts
 		public DbSet<Account> Accounts { get; set; } = null!;
 
-		/// <summary>
-		/// General Ledger Entries for double-entry bookkeeping
-		/// </summary>
+		// General Ledger Entries for double-entry bookkeeping
 		public DbSet<GeneralLedgerEntry> GeneralLedgerEntries { get; set; } = null!;
-
-		/// <summary>
-		/// Accounts Payable records
-		/// </summary>
+		// Accounts Payable records
 		public DbSet<AccountsPayable> AccountsPayable { get; set; } = null!;
 
-		/// <summary>
-		/// Vendor Payment records
-		/// </summary>
+		// Vendor Payment records
 		public DbSet<VendorPayment> VendorPayments { get; set; } = null!;
-
 		public DbSet<CustomerBalanceAdjustment> CustomerBalanceAdjustments { get; set; }
+
+		// Service entities
+		public DbSet<ServiceOrder> ServiceOrders { get; set; }
+		public DbSet<ServiceType> ServiceTypes { get; set; }
+		public DbSet<ServiceTimeLog> ServiceTimeLogs { get; set; }
+		public DbSet<ServiceMaterial> ServiceMaterials { get; set; }
+		public DbSet<ServiceDocument> ServiceDocuments { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -208,7 +203,7 @@ namespace InventorySystem.Data
 						.HasForeignKey(e => e.CustomerId)
 						.OnDelete(DeleteBehavior.Cascade);
 
-				// ? ADD THIS RELATIONSHIP - This was missing!
+				
 				entity.HasOne(e => e.Sale)
 						.WithMany(s => s.RelatedAdjustments)  // Link to Sale.RelatedAdjustments
 						.HasForeignKey(e => e.SaleId)
@@ -225,15 +220,90 @@ namespace InventorySystem.Data
 						.HasDatabaseName("IX_CustomerBalanceAdjustments_AdjustmentDate");
 			});
 
+			// Service Order configurations
+			modelBuilder.Entity<ServiceOrder>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.ServiceOrderNumber).IsRequired().HasMaxLength(50);
+				entity.HasIndex(e => e.ServiceOrderNumber).IsUnique();
+
+				entity.HasOne(e => e.Customer)
+							.WithMany()
+							.HasForeignKey(e => e.CustomerId)
+							.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasOne(e => e.ServiceType)
+							.WithMany(st => st.ServiceOrders)
+							.HasForeignKey(e => e.ServiceTypeId)
+							.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasOne(e => e.Sale)
+							.WithMany()
+							.HasForeignKey(e => e.SaleId)
+							.OnDelete(DeleteBehavior.SetNull);
+			});
+
 			// Ensure Customer includes BalanceAdjustments in queries
 			modelBuilder.Entity<Customer>()
 					.Navigation(c => c.BalanceAdjustments)
 					.EnableLazyLoading();
 
-			// ? ADD THIS - Ensure Sale includes RelatedAdjustments in queries
+			// Ensure Sale includes RelatedAdjustments in queries
 			modelBuilder.Entity<Sale>()
 					.Navigation(s => s.RelatedAdjustments)
 					.EnableLazyLoading();
+			modelBuilder.Entity<ServiceType>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.ServiceName).IsRequired().HasMaxLength(100);
+				entity.HasIndex(e => e.ServiceCode).IsUnique();
+			});
+
+			modelBuilder.Entity<ServiceTimeLog>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.HasOne(e => e.ServiceOrder)
+							.WithMany(so => so.TimeLogs)
+							.HasForeignKey(e => e.ServiceOrderId)
+							.OnDelete(DeleteBehavior.Cascade);
+			});
+
+			modelBuilder.Entity<ServiceMaterial>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.HasOne(e => e.ServiceOrder)
+							.WithMany(so => so.Materials)
+							.HasForeignKey(e => e.ServiceOrderId)
+							.OnDelete(DeleteBehavior.Cascade);
+
+				entity.HasOne(e => e.Item)
+							.WithMany()
+							.HasForeignKey(e => e.ItemId)
+							.OnDelete(DeleteBehavior.Restrict);
+			});
+
+			modelBuilder.Entity<ServiceDocument>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.HasOne(e => e.ServiceOrder)
+							.WithMany(so => so.Documents)
+							.HasForeignKey(e => e.ServiceOrderId)
+							.OnDelete(DeleteBehavior.Cascade);
+			});
+
+			// Add ServiceType to Item relationship
+			modelBuilder.Entity<ServiceType>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.ServiceName).IsRequired().HasMaxLength(100);
+				entity.HasIndex(e => e.ServiceCode).IsUnique();
+
+				// Add relationship to service item
+				entity.HasOne(e => e.ServiceItem)
+							.WithMany()
+							.HasForeignKey(e => e.ServiceItemId)
+							.OnDelete(DeleteBehavior.SetNull);
+			});
 		}
 
     private void ConfigureExistingEntities(ModelBuilder modelBuilder)

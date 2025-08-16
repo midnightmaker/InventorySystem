@@ -1,0 +1,65 @@
+/* Document name link styling */
+.document-name-link {
+    transition: all 0.2s ease;
+    font-weight: 600;
+}
+
+.document-name-link:hover {
+    color: #0056b3 !important;
+    text-decoration: underline !important;
+    cursor: pointer;
+}
+
+.document-name-link:active {
+    color: #004085 !important;
+}
+
+/* Add a subtle icon to indicate clickable */
+.document-name-link::after {
+    content: "\f06e"; /* Font Awesome eye icon */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    margin-left: 5px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    font-size: 0.8em;
+}
+
+.document-name-link:hover::after {
+    opacity: 0.6;
+}
+
+/* Upload section styling */
+#documentUploadSection {
+    border: 2px dashed #dee2e6;
+    transition: border-color 0.3s ease;
+}
+
+#documentUploadSection:hover {
+    border-color: #007bff;
+}
+
+/* Document list styling */
+.document-item {
+    transition: background-color 0.2s ease;
+}
+
+.document-item:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* Modal enhancements */
+.modal-xl .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+#documentViewerContent iframe {
+    min-height: 600px;
+}
+
+/* Context menu styling */
+.dropdown-menu.show {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+}
