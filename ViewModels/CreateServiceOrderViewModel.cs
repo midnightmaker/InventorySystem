@@ -296,33 +296,5 @@ namespace InventorySystem.ViewModels
     }
 
    
-    public class UpdateServiceStatusViewModel
-    {
-        [Required]
-        public int ServiceOrderId { get; set; }
-
-        [Required]
-        [Display(Name = "New Status")]
-        public ServiceOrderStatus NewStatus { get; set; }
-
-        [Display(Name = "Reason for Change")]
-        [StringLength(500)]
-        public string? Reason { get; set; }
-
-        [Display(Name = "Completion Notes")]
-        [StringLength(1000)]
-        public string? CompletionNotes { get; set; }
-
-        [Display(Name = "Schedule Date/Time")]
-        public DateTime? ScheduledDateTime { get; set; }
-
-        [Display(Name = "Assigned Technician")]
-        [StringLength(100)]
-        public string? AssignedTechnician { get; set; }
-
-        // For display
-        public ServiceOrder? ServiceOrder { get; set; }
-        public IEnumerable<SelectListItem> TechnicianOptions { get; set; } = new List<SelectListItem>();
-        public IEnumerable<ServiceOrderStatus> ValidStatuses { get; set; } = new List<ServiceOrderStatus>();
-    }
+    
 }

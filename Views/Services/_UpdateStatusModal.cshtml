@@ -1,0 +1,355 @@
+@model InventorySystem.ViewModels.UpdateServiceStatusViewModel
+
+<div class="modal fade" id="updateStatusModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-flag"></i> Update Service Status
+          @if (Model.ServiceOrder != null)
+          {
+            <span class="text-muted">- @Model.ServiceOrder.ServiceOrderNumber</span>
+          }
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="updateStatusForm" method="post" action="@Url.Action("UpdateStatus")">
+        <div class="modal-body">
+          <input type="hidden" asp-for="ServiceOrderId" />
+
+          <!-- Current Status Display -->
+          @if (Model.ServiceOrder != null)
+          {
+            <div class="alert alert-info mb-3">
+              <strong>Current Status:</strong> 
+              <span class="badge bg-@(GetCurrentStatusBadgeColor(Model.ServiceOrder.Status)) ms-2">
+                @Model.ServiceOrder.StatusDisplay
+              </span>
+            </div>
+          }
+
+          <!-- New Status Selection -->
+          <div class="mb-3">
+            <label asp-for="NewStatus" class="form-label">New Status <span class="text-danger">*</span></label>
+            <select asp-for="NewStatus" class="form-select" required onchange="handleStatusChange()">
+              <option value="">Select new status...</option>
+              @foreach (var status in Enum.GetValues<InventorySystem.Models.ServiceOrderStatus>())
+              {
+                <option value="@status">@GetStatusDisplayName(status)</option>
+              }
+            </select>
+            <span asp-validation-for="NewStatus" class="text-danger"></span>
+          </div>
+
+          <!-- Conditional Fields -->
+          
+          <!-- Scheduling Fields (shown when status is Scheduled) -->
+          <div id="schedulingFields" style="display: none;">
+            <div class="row">
+              <div class="col-md-8 mb-3">
+                <label asp-for="ScheduledDateTime" class="form-label">Scheduled Date & Time</label>
+                <input asp-for="ScheduledDateTime" class="form-control" type="datetime-local" />
+                <span asp-validation-for="ScheduledDateTime" class="text-danger"></span>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label asp-for="AssignedTechnician" class="form-label">Technician</label>
+                <select asp-for="AssignedTechnician" class="form-select" asp-items="Model.TechnicianOptions">
+                  <option value="">Select technician...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quality Control Fields (shown when status is QualityCheck) -->
+          <div id="qualityCheckFields" style="display: none;">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="qcTechnician" class="form-label">QC Technician</label>
+                <select id="qcTechnician" class="form-select" asp-items="Model.TechnicianOptions">
+                  <option value="">Select QC technician...</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="qcDate" class="form-label">QC Date</label>
+                <input id="qcDate" class="form-control" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="qcNotes" class="form-label">QC Notes</label>
+              <textarea id="qcNotes" class="form-control" rows="2" placeholder="Quality control notes..."></textarea>
+            </div>
+          </div>
+
+          <!-- Completion Fields (shown when status is Completed) -->
+          <div id="completionFields" style="display: none;">
+            <div class="mb-3">
+              <div class="form-check">
+                <input id="certificateRequired" class="form-check-input" type="checkbox" />
+                <label for="certificateRequired" class="form-check-label">
+                  <i class="fas fa-certificate"></i> Generate Service Certificate
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hold/Cancel Fields -->
+          <div id="holdCancelFields" style="display: none;">
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Note:</strong> <span id="holdCancelMessage">This action may affect scheduling and customer expectations.</span>
+            </div>
+          </div>
+
+          <!-- Reason/Notes (shown for most status changes) -->
+          <div class="mb-3">
+            <label asp-for="Reason" class="form-label">
+              Reason/Notes
+              <span id="reasonRequired" class="text-danger" style="display: none;">*</span>
+            </label>
+            <textarea asp-for="Reason" class="form-control" rows="3" 
+                      placeholder="Enter reason for status change (optional)..."></textarea>
+            <span asp-validation-for="Reason" class="text-danger"></span>
+            <div class="form-text">
+              <small id="reasonHelpText">This will be logged in the service history.</small>
+            </div>
+          </div>
+
+          <!-- Status Change Preview -->
+          <div id="statusPreview" class="alert alert-secondary" style="display: none;">
+            <strong>Status Change:</strong> 
+            <span id="currentStatusText">@Model.ServiceOrder?.StatusDisplay</span>
+            <i class="fas fa-arrow-right mx-2"></i>
+            <span id="newStatusText"></span>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="submit" class="btn btn-primary" id="updateStatusBtn">
+            <i class="fas fa-check"></i> Update Status
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@functions {
+  private string GetCurrentStatusBadgeColor(InventorySystem.Models.ServiceOrderStatus status)
+  {
+    return status switch
+    {
+      InventorySystem.Models.ServiceOrderStatus.Requested => "secondary",
+      InventorySystem.Models.ServiceOrderStatus.Quoted => "info",
+      InventorySystem.Models.ServiceOrderStatus.Approved => "primary",
+      InventorySystem.Models.ServiceOrderStatus.Scheduled => "warning",
+      InventorySystem.Models.ServiceOrderStatus.InProgress => "primary",
+      InventorySystem.Models.ServiceOrderStatus.AwaitingParts => "warning",
+      InventorySystem.Models.ServiceOrderStatus.QualityCheck => "info",
+      InventorySystem.Models.ServiceOrderStatus.Completed => "success",
+      InventorySystem.Models.ServiceOrderStatus.Delivered => "success",
+      InventorySystem.Models.ServiceOrderStatus.Cancelled => "danger",
+      InventorySystem.Models.ServiceOrderStatus.OnHold => "secondary",
+      _ => "secondary"
+    };
+  }
+
+  private string GetStatusDisplayName(InventorySystem.Models.ServiceOrderStatus status)
+  {
+    return status switch
+    {
+      InventorySystem.Models.ServiceOrderStatus.Requested => "Requested",
+      InventorySystem.Models.ServiceOrderStatus.Quoted => "Quoted",
+      InventorySystem.Models.ServiceOrderStatus.Approved => "Approved",
+      InventorySystem.Models.ServiceOrderStatus.Scheduled => "Scheduled",
+      InventorySystem.Models.ServiceOrderStatus.InProgress => "In Progress",
+      InventorySystem.Models.ServiceOrderStatus.AwaitingParts => "Awaiting Parts",
+      InventorySystem.Models.ServiceOrderStatus.QualityCheck => "Quality Check",
+      InventorySystem.Models.ServiceOrderStatus.Completed => "Completed",
+      InventorySystem.Models.ServiceOrderStatus.Delivered => "Delivered",
+      InventorySystem.Models.ServiceOrderStatus.Cancelled => "Cancelled",
+      InventorySystem.Models.ServiceOrderStatus.OnHold => "On Hold",
+      _ => status.ToString()
+    };
+  }
+}
+
+<script>
+  function handleStatusChange() {
+    const statusSelect = document.querySelector('#updateStatusModal [name="NewStatus"]');
+    const selectedStatus = statusSelect.value;
+    
+    // Hide all conditional fields first
+    document.getElementById('schedulingFields').style.display = 'none';
+    document.getElementById('qualityCheckFields').style.display = 'none';
+    document.getElementById('completionFields').style.display = 'none';
+    document.getElementById('holdCancelFields').style.display = 'none';
+    
+    // Reset reason requirements
+    const reasonField = document.querySelector('#updateStatusModal [name="Reason"]');
+    const reasonRequired = document.getElementById('reasonRequired');
+    const reasonHelpText = document.getElementById('reasonHelpText');
+    const holdCancelMessage = document.getElementById('holdCancelMessage');
+    
+    reasonField.required = false;
+    reasonRequired.style.display = 'none';
+    
+    // Show appropriate fields based on selected status
+    switch (selectedStatus) {
+      case 'Scheduled':
+        document.getElementById('schedulingFields').style.display = 'block';
+        reasonHelpText.textContent = 'Optional scheduling notes.';
+        break;
+        
+      case 'QualityCheck':
+        document.getElementById('qualityCheckFields').style.display = 'block';
+        reasonHelpText.textContent = 'QC initiation notes.';
+        break;
+        
+      case 'Completed':
+        document.getElementById('completionFields').style.display = 'block';
+        reasonHelpText.textContent = 'Completion summary and final notes.';
+        break;
+        
+      case 'OnHold':
+        document.getElementById('holdCancelFields').style.display = 'block';
+        holdCancelMessage.textContent = 'Placing on hold may delay promised delivery dates.';
+        reasonField.required = true;
+        reasonRequired.style.display = 'inline';
+        reasonHelpText.textContent = 'Required: Explain why the service is being placed on hold.';
+        break;
+        
+      case 'Cancelled':
+        document.getElementById('holdCancelFields').style.display = 'block';
+        holdCancelMessage.textContent = 'Cancelling will stop all work and may incur cancellation fees.';
+        reasonField.required = true;
+        reasonRequired.style.display = 'inline';
+        reasonHelpText.textContent = 'Required: Explain the reason for cancellation.';
+        break;
+        
+      case 'AwaitingParts':
+        reasonHelpText.textContent = 'Specify which parts are needed.';
+        break;
+        
+      default:
+        reasonHelpText.textContent = 'This will be logged in the service history.';
+        break;
+    }
+    
+    // Update status preview
+    updateStatusPreview(selectedStatus);
+  }
+  
+  function updateStatusPreview(newStatus) {
+    const preview = document.getElementById('statusPreview');
+    const newStatusText = document.getElementById('newStatusText');
+    
+    if (newStatus) {
+      newStatusText.textContent = getStatusDisplayName(newStatus);
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+  
+  function getStatusDisplayName(status) {
+    const statusNames = {
+      'Requested': 'Requested',
+      'Quoted': 'Quoted',
+      'Approved': 'Approved',
+      'Scheduled': 'Scheduled',
+      'InProgress': 'In Progress',
+      'AwaitingParts': 'Awaiting Parts',
+      'QualityCheck': 'Quality Check',
+      'Completed': 'Completed',
+      'Delivered': 'Delivered',
+      'Cancelled': 'Cancelled',
+      'OnHold': 'On Hold'
+    };
+    return statusNames[status] || status;
+  }
+
+  // Handle form submission via AJAX
+  document.getElementById('updateStatusForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    
+    // Add QC fields if they're visible
+    const qcFields = document.getElementById('qualityCheckFields');
+    if (qcFields.style.display !== 'none') {
+      const qcTechnician = document.getElementById('qcTechnician').value;
+      const qcDate = document.getElementById('qcDate').value;
+      const qcNotes = document.getElementById('qcNotes').value;
+      
+      if (qcTechnician) formData.append('QcTechnician', qcTechnician);
+      if (qcDate) formData.append('QcDate', qcDate);
+      if (qcNotes) formData.append('QcNotes', qcNotes);
+    }
+    
+    // Add certificate flag if visible
+    const certificateCheckbox = document.getElementById('certificateRequired');
+    if (certificateCheckbox && certificateCheckbox.checked) {
+      formData.append('GenerateCertificate', 'true');
+    }
+
+    const updateBtn = document.getElementById('updateStatusBtn');
+    const originalText = updateBtn.innerHTML;
+    updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    updateBtn.disabled = true;
+
+    fetch(this.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      updateBtn.innerHTML = originalText;
+      updateBtn.disabled = false;
+
+      if (data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('updateStatusModal')).hide();
+        
+        // Show success message
+        if (typeof showNotification === 'function') {
+          showNotification(data.message || 'Status updated successfully', 'success');
+        }
+        
+        // Reload page to show updated status
+        setTimeout(() => {
+          location.reload();
+        }, 1000);
+      } else {
+        alert('Error updating status: ' + data.message);
+      }
+    })
+    .catch(error => {
+      updateBtn.innerHTML = originalText;
+      updateBtn.disabled = false;
+      console.error('Error:', error);
+      alert('Error updating status. Please try again.');
+    });
+  });
+
+  // Initialize on modal show
+  document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('updateStatusModal');
+    if (modal) {
+      modal.addEventListener('shown.bs.modal', function() {
+        // Set default scheduled date to tomorrow at 9 AM if scheduling
+        const scheduledInput = document.querySelector('#updateStatusModal [name="ScheduledDateTime"]');
+        if (scheduledInput && !scheduledInput.value) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(9, 0, 0, 0);
+          scheduledInput.value = tomorrow.toISOString().slice(0, 16);
+        }
+      });
+    }
+  });
+</script>

@@ -1,13 +1,14 @@
 ﻿// Controllers/SalesController.cs - Clean version focused on CustomerPayment integration
+using InventorySystem.Data;
+using InventorySystem.Models;
+using InventorySystem.Models.Enums;
+using InventorySystem.Services;
+using InventorySystem.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using InventorySystem.Services;
-using InventorySystem.Models;
-using InventorySystem.ViewModels;
-using InventorySystem.Models.Enums;
-using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
-using InventorySystem.Data;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 
 namespace InventorySystem.Controllers
@@ -371,12 +372,27 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		// Sale Details
+		// Sale Details and associated service orders if they exist
 		public async Task<IActionResult> Details(int id)
 		{
 			var sale = await _salesService.GetSaleByIdAsync(id);
 			if (sale == null) return NotFound();
-			return View(sale);
+
+			// Load related service orders for this sale
+			var serviceOrders = await _context.ServiceOrders
+					.Where(so => so.SaleId == id)
+					.Include(so => so.ServiceType)
+					.Include(so => so.Customer)
+					.ToListAsync();
+
+			// Create a ViewModel that includes both sale and service orders
+			var viewModel = new SaleDetailsViewModel
+			{
+				Sale = sale,
+				ServiceOrders = serviceOrders
+			};
+
+			return View(viewModel);
 		}
 
 		// GET: Sales/Create
@@ -745,6 +761,58 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		// POST: Sales/ProcessServiceOrdersFromSale
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> ProcessServiceOrdersFromSale(CreateServiceOrdersFromSaleViewModel model)
+		{
+			try
+			{
+				var createdServiceOrders = new List<ServiceOrder>();
+				var serviceOrderService = HttpContext.RequestServices.GetRequiredService<IServiceOrderService>();
+
+				foreach (var serviceItem in model.ServiceOrdersToCreate.Where(s => s.CreateServiceOrder))
+				{
+					var serviceOrder = new ServiceOrder
+					{
+						CustomerId = model.CustomerId,
+						ServiceTypeId = serviceItem.ServiceTypeId,
+						SaleId = model.SaleId,
+						RequestDate = model.RequestDate,
+						PromisedDate = serviceItem.PromisedDate,
+						Priority = serviceItem.Priority,
+						CustomerRequest = serviceItem.CustomerRequest,
+						ServiceNotes = serviceItem.ServiceNotes,
+						AssignedTechnician = serviceItem.AssignedTechnician,
+						EquipmentDetails = serviceItem.EquipmentDetails,
+						SerialNumber = serviceItem.SerialNumber,
+						ModelNumber = serviceItem.ModelNumber,
+						CreatedBy = User.Identity?.Name ?? "System"
+					};
+
+					var created = await serviceOrderService.CreateServiceOrderAsync(serviceOrder);
+					createdServiceOrders.Add(created);
+				}
+
+				var message = createdServiceOrders.Count switch
+				{
+					0 => "No service orders were created.",
+					1 => $"Service order {createdServiceOrders[0].ServiceOrderNumber} created successfully!",
+					_ => $"{createdServiceOrders.Count} service orders created successfully!"
+				};
+
+				TempData["SuccessMessage"] = message;
+				TempData["CreatedServiceOrders"] = string.Join(", ", createdServiceOrders.Select(so => so.ServiceOrderNumber));
+
+				return RedirectToAction("Details", new { id = model.SaleId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating service orders from sale {SaleId}", model.SaleId);
+				TempData["ErrorMessage"] = $"Error creating service orders: {ex.Message}";
+				return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+			}
+		}
 		// Helper method to get total payments for a sale using the CustomerPaymentService
 		private async Task<decimal> GetTotalPaymentsBySaleAsync(int saleId)
 		{
@@ -1671,7 +1739,8 @@ namespace InventorySystem.Controllers
 
 				TempData["SuccessMessage"] = successMessage;
 
-				return RedirectToAction("Details", new { id });
+				// Return to sale details page
+				return RedirectToAction("Details", new { id = sale.Id });
 			}
 			catch (Exception ex)
 			{
@@ -1998,6 +2067,15 @@ namespace InventorySystem.Controllers
 				// Remove navigation property validation errors
 				ModelState.Remove("Customer");
 
+				// Remove DiscountPercentage validation since may be null in MOdelState dictionary
+				ModelState.Remove(nameof(viewModel.DiscountPercentage));
+
+				// Ensure DiscountPercentage has a valid value
+				if (viewModel.DiscountPercentage < 0 || viewModel.DiscountPercentage > 100)
+				{
+					viewModel.DiscountPercentage = 0;
+				}
+
 				//// Generate sale number if needed
 				//if (string.IsNullOrEmpty(viewModel.SaleNumber))
 				//{
@@ -2145,8 +2223,17 @@ namespace InventorySystem.Controllers
 					addedItems.Add(addedItem);
 				}
 
-				// ✅ REMOVED: Don't apply discount as adjustment anymore
-				// The discount is now part of the sale itself
+				var serviceItems = await DetectServiceItemsInSale(createdSale.Id);
+				if (serviceItems.Any())
+				{
+					// Store service creation context in TempData for next page
+					TempData["ServiceCreationRequired"] = true;
+					TempData["ServiceItems"] = JsonSerializer.Serialize(serviceItems);
+					TempData["SaleId"] = createdSale.Id;
+
+					// Redirect to service order creation workflow instead of Details
+					return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = createdSale.Id });
+				}
 
 				// Generate success message with summary
 				var successMessage = $"Sale {createdSale.SaleNumber} created successfully!";
@@ -2170,7 +2257,91 @@ namespace InventorySystem.Controllers
 				return View(viewModel);
 			}
 		}
+		// Helper method to detect service items in a sale
+		private async Task<List<ServiceItemForCreation>> DetectServiceItemsInSale(int saleId)
+		{
+			var sale = await _salesService.GetSaleByIdAsync(saleId);
+			var serviceItems = new List<ServiceItemForCreation>();
 
+			foreach (var saleItem in sale.SaleItems)
+			{
+				if (saleItem.ItemId.HasValue)
+				{
+					var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+					if (item?.ItemType == ItemType.Service)
+					{
+						// Find linked service type via ServiceItem relationship
+						var serviceType = await _context.ServiceTypes
+								.FirstOrDefaultAsync(st => st.ServiceItemId == item.Id);
+
+						if (serviceType != null)
+						{
+							serviceItems.Add(new ServiceItemForCreation
+							{
+								SaleItemId = saleItem.Id,
+								ServiceTypeId = serviceType.Id,
+								ServiceTypeName = serviceType.ServiceName,
+								ItemName = item.Description,
+								Quantity = saleItem.QuantitySold,
+								UnitPrice = saleItem.UnitPrice,
+								Notes = saleItem.Notes
+							});
+						}
+					}
+				}
+			}
+
+			return serviceItems;
+		}
+		// GET: Sales/CreateServiceOrdersFromSale
+		[HttpGet]
+		public async Task<IActionResult> CreateServiceOrdersFromSale(int saleId)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(saleId);
+				if (sale == null)
+				{
+					TempData["ErrorMessage"] = "Sale not found.";
+					return RedirectToAction("Index");
+				}
+
+				var serviceItems = await DetectServiceItemsInSale(saleId);
+				if (!serviceItems.Any())
+				{
+					// No service items, go directly to sale details
+					return RedirectToAction("Details", new { id = saleId });
+				}
+
+				// Check for existing service orders
+				var existingServiceOrders = await _context.ServiceOrders
+						.Where(so => so.SaleId == saleId)
+						.Include(so => so.ServiceType)
+						.ToListAsync();
+
+				var viewModel = new CreateServiceOrdersFromSaleViewModel
+				{
+					SaleId = saleId,
+					Sale = sale,
+					ServiceItems = serviceItems,
+					ExistingServiceOrders = existingServiceOrders,
+					// Pre-populate common fields
+					CustomerId = sale.CustomerId,
+					CustomerName = sale.Customer?.CustomerName ?? "Unknown",
+					RequestDate = sale.SaleDate,
+					DefaultPromisedDate = sale.SaleDate.AddDays(7), // Default 1 week
+					SaleReference = $"From Sale {sale.SaleNumber}"
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading service creation workflow for sale {SaleId}", saleId);
+				TempData["ErrorMessage"] = "Error loading service creation workflow";
+				return RedirectToAction("Details", new { id = saleId });
+			}
+		}
 		// Helper method to load dropdowns for enhanced create
 		private async Task LoadDropdownsForEnhancedCreate(EnhancedCreateSaleViewModel viewModel)
 		{

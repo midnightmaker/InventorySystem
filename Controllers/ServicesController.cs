@@ -1505,5 +1505,39 @@ namespace InventorySystem.Controllers
 		{
 			public int DocumentId { get; set; }
 		}
+
+		// GET: Services/UpdateStatus/5
+		public async Task<IActionResult> UpdateStatus(int serviceOrderId)
+		{
+			try
+			{
+				var serviceOrder = await _serviceOrderService.GetServiceOrderByIdAsync(serviceOrderId);
+				if (serviceOrder == null)
+				{
+					return Json(new { success = false, message = "Service order not found" });
+				}
+
+				var technicians = new[] { "John Smith", "Jane Doe", "Mike Johnson", "Sarah Wilson" };
+
+				var viewModel = new UpdateServiceStatusViewModel
+				{
+					ServiceOrderId = serviceOrderId,
+					ServiceOrder = serviceOrder,
+					TechnicianOptions = technicians.Select(t => new SelectListItem
+					{
+						Value = t,
+						Text = t
+					}),
+					AvailableStatuses = await _serviceOrderService.GetValidStatusChangesAsync(serviceOrderId)
+				};
+
+				return PartialView("_UpdateStatusModal", viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading update status form");
+				return Json(new { success = false, message = ex.Message });
+			}
+		}
 	}
 }

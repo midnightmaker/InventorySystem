@@ -259,6 +259,199 @@
       </div>
     </div>
 
+    <!-- Shipment Readiness Card -->
+    @if (Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Completed || 
+         Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.QualityCheck ||
+         Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
+    {
+      <div class="card mb-4 @(GetShipmentReadinessCardClass(Model.ServiceOrder))">
+        <div class="card-header">
+          <h5>
+            <i class="fas fa-shipping-fast"></i> Shipment Status
+            @if (IsReadyForShipment(Model.ServiceOrder))
+            {
+              <span class="badge bg-success ms-2">
+                <i class="fas fa-check-circle"></i> Ready for Shipment
+              </span>
+            }
+            else
+            {
+              <span class="badge bg-warning ms-2">
+                <i class="fas fa-clock"></i> Pending Actions
+              </span>
+            }
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-8">
+              <!-- Shipment Checklist -->
+              <h6><i class="fas fa-clipboard-check"></i> Shipment Checklist</h6>
+              <div class="list-group list-group-flush">
+                <!-- Service Completion -->
+                <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                  <div>
+                    <i class="fas fa-wrench me-2"></i>
+                    <span class="fw-bold">Service Work Completed</span>
+                  </div>
+                  @if (Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Completed || 
+                       Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
+                  {
+                    <span class="badge bg-success">
+                      <i class="fas fa-check"></i> Complete
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-secondary">
+                      <i class="fas fa-clock"></i> In Progress
+                    </span>
+                  }
+                </div>
+
+                <!-- Quality Control -->
+                <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                  <div>
+                    <i class="fas fa-clipboard-check me-2"></i>
+                    <span class="fw-bold">Quality Control</span>
+                    @if (!Model.ServiceOrder.QcRequired)
+                    {
+                      <small class="text-muted">(Not Required)</small>
+                    }
+                  </div>
+                  @if (!Model.ServiceOrder.QcRequired)
+                  {
+                    <span class="badge bg-success">
+                      <i class="fas fa-check"></i> N/A
+                    </span>
+                  }
+                  else if (Model.ServiceOrder.QcCompleted)
+                  {
+                    <span class="badge bg-success">
+                      <i class="fas fa-check"></i> Passed
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-warning">
+                      <i class="fas fa-exclamation-triangle"></i> Required
+                    </span>
+                  }
+                </div>
+
+                <!-- Certificate -->
+                <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                  <div>
+                    <i class="fas fa-certificate me-2"></i>
+                    <span class="fw-bold">Service Certificate</span>
+                    @if (!Model.ServiceOrder.CertificateRequired)
+                    {
+                      <small class="text-muted">(Not Required)</small>
+                    }
+                  </div>
+                  @if (!Model.ServiceOrder.CertificateRequired)
+                  {
+                    <span class="badge bg-success">
+                      <i class="fas fa-check"></i> N/A
+                    </span>
+                  }
+                  else if (Model.ServiceOrder.CertificateGenerated)
+                  {
+                    <span class="badge bg-success">
+                      <i class="fas fa-check"></i> Generated
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-warning">
+                      <i class="fas fa-exclamation-triangle"></i> Required
+                    </span>
+                  }
+                </div>
+
+                <!-- Documentation -->
+                <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                  <div>
+                    <i class="fas fa-file-alt me-2"></i>
+                    <span class="fw-bold">Service Documentation</span>
+                  </div>
+                  @if (Model.Documents.Any())
+                  {
+                    <span class="badge bg-success">
+                      <i class="fas fa-check"></i> @Model.Documents.Count() Documents
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-info">
+                      <i class="fas fa-info-circle"></i> No Documents
+                    </span>
+                  }
+                </div>
+              </div>
+
+              <!-- Additional Details -->
+              @if (Model.ServiceOrder.QcRequired && Model.ServiceOrder.QcCompleted)
+              {
+                <div class="mt-3">
+                  <small class="text-muted">
+                    <strong>QC Details:</strong> 
+                    Completed @Model.ServiceOrder.QcDate?.ToString("MM/dd/yyyy") 
+                    @if (!string.IsNullOrEmpty(Model.ServiceOrder.QcTechnician))
+                    {
+                      <span>by @Model.ServiceOrder.QcTechnician</span>
+                    }
+                  </small>
+                </div>
+              }
+
+              @if (Model.ServiceOrder.CertificateRequired && Model.ServiceOrder.CertificateGenerated && !string.IsNullOrEmpty(Model.ServiceOrder.CertificateNumber))
+              {
+                <div class="mt-2">
+                  <small class="text-muted">
+                    <strong>Certificate Number:</strong> @Model.ServiceOrder.CertificateNumber
+                  </small>
+                </div>
+              }
+            </div>
+
+            <div class="col-md-4">
+              <!-- Action Buttons -->
+              @if (Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Completed && IsReadyForShipment(Model.ServiceOrder))
+              {
+                <div class="d-grid gap-2">
+                  <button class="btn btn-success btn-lg" onclick="markAsDelivered(@Model.ServiceOrder.Id)">
+                    <i class="fas fa-shipping-fast"></i> Mark as Shipped
+                  </button>
+                  <button class="btn btn-outline-primary" onclick="generateShippingLabel(@Model.ServiceOrder.Id)">
+                    <i class="fas fa-tag"></i> Generate Shipping Label
+                  </button>
+                  <button class="btn btn-outline-info" onclick="emailCustomerShipment(@Model.ServiceOrder.Id)">
+                    <i class="fas fa-envelope"></i> Notify Customer
+                  </button>
+                </div>
+              }
+              else if (Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
+              {
+                <div class="alert alert-success mb-0">
+                  <i class="fas fa-check-circle"></i>
+                  <strong>Shipped!</strong><br>
+                  <small>Unit has been delivered to customer</small>
+                </div>
+              }
+              else
+              {
+                <div class="alert alert-info mb-0">
+                  <i class="fas fa-info-circle"></i>
+                  <strong>Complete pending items above before shipping</strong>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
     <!-- Time Logs -->
     <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
@@ -570,6 +763,35 @@
       _ => "secondary"
     };
   }
+
+  // NEW: Shipment readiness helper functions
+  private bool IsReadyForShipment(InventorySystem.Models.ServiceOrder serviceOrder)
+  {
+    // Service must be completed
+    if (serviceOrder.Status != InventorySystem.Models.ServiceOrderStatus.Completed)
+      return false;
+
+    // Quality control check (if required)
+    if (serviceOrder.QcRequired && !serviceOrder.QcCompleted)
+      return false;
+
+    // Certificate check (if required)
+    if (serviceOrder.CertificateRequired && !serviceOrder.CertificateGenerated)
+      return false;
+
+    return true;
+  }
+
+  private string GetShipmentReadinessCardClass(InventorySystem.Models.ServiceOrder serviceOrder)
+  {
+    if (serviceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
+      return "border-success";
+    
+    if (IsReadyForShipment(serviceOrder))
+      return "border-success";
+    
+    return "border-warning";
+  }
 }
 
 <style>
@@ -620,6 +842,19 @@
     font-size: 0.8rem;
     color: #6c757d;
   }
+
+  /* Shipment Readiness Card */
+  .border-success {
+    border-color: #28a745 !important;
+  }
+
+  .border-warning {
+    border-color: #ffc107 !important;
+  }
+
+  .border-info {
+    border-color: #17a2b8 !important;
+  }
 </style>
 
 @section Scripts {
@@ -628,8 +863,6 @@
     <script src="~/js/document-manager.js"></script>
     
     <script>
-        
-
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing document manager...');
             console.log('Service Order ID:', @Model.ServiceOrder.Id);
@@ -712,7 +945,42 @@
         }
 
         function updateStatus(serviceOrderId) {
-            alert('Status update modal would open here');
+            fetch('@Url.Action("UpdateStatus", "Services")?serviceOrderId=' + serviceOrderId)
+                .then(response => response.text())
+                .then(html => {
+                    document.body.insertAdjacentHTML('beforeend', html);
+                    new bootstrap.Modal(document.getElementById('updateStatusModal')).show();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading status update form.');
+                });
+        }
+
+        function markAsDelivered(serviceOrderId) {
+            if (confirm('Mark this service order as delivered/shipped to customer?')) {
+                updateServiceStatus(serviceOrderId, 'Delivered', 'Shipped to customer');
+            }
+        }
+
+        function generateShippingLabel(serviceOrderId) {
+            // Placeholder for shipping label generation
+            alert('Shipping label generation would be implemented here.\n\nIntegration with shipping carriers like UPS, FedEx, etc. would go here.');
+        }
+
+        function emailCustomerShipment(serviceOrderId) {
+            // You can enhance this to use a modal or direct email integration
+            const subject = encodeURIComponent('Your service is complete and ready for pickup/delivery');
+            const body = encodeURIComponent('Dear Customer,\n\nYour service order has been completed and is ready for shipment.\n\nThank you for your business!');
+            
+            // Get customer email from the page or make an AJAX call
+            const customerEmail = '@Model.ServiceOrder.Customer?.Email';
+            
+            if (customerEmail) {
+                window.open(`mailto:${customerEmail}?subject=${subject}&body=${body}`);
+            } else {
+                alert('Customer email not available. Please contact customer directly.');
+            }
         }
     </script>
 }
