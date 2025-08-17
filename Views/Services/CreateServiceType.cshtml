@@ -106,6 +106,10 @@
           <!-- Requirements Section -->
           <hr>
           <h6><i class="fas fa-clipboard-check"></i> Service Requirements</h6>
+          <p class="text-muted small mb-3">
+            <i class="fas fa-info-circle"></i> 
+            These requirements will be enforced - service orders cannot be marked as complete until all required documents are uploaded.
+          </p>
 
           <div class="row">
             <div class="col-md-6">
@@ -122,7 +126,17 @@
                 <label asp-for="CertificateRequired" class="form-check-label">
                   <i class="fas fa-certificate"></i> Certificate Required
                 </label>
-                <div class="form-text">Service requires certification document</div>
+                <div class="form-text">Service requires certification document upload</div>
+              </div>
+
+              <!-- ✅ NEW: Worksheet requirement checkbox -->
+              <div class="form-check mb-3">
+                <input asp-for="WorksheetRequired" class="form-check-input" type="checkbox" />
+                <label asp-for="WorksheetRequired" class="form-check-label">
+                  <i class="fas fa-file-alt"></i> Worksheet Required
+                </label>
+                <div class="form-text">Service requires completed worksheet document upload</div>
+                <span asp-validation-for="WorksheetRequired" class="text-danger"></span>
               </div>
             </div>
 
@@ -133,6 +147,14 @@
                   <i class="fas fa-toggle-on"></i> Active
                 </label>
                 <div class="form-text">Service type is available for new orders</div>
+              </div>
+
+              <!-- ✅ NEW: Requirements warning box -->
+              <div class="alert alert-info" id="requirementsWarning" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Document Requirements:</strong>
+                <ul id="requirementsList" class="mb-0 mt-2">
+                </ul>
               </div>
             </div>
           </div>
@@ -202,7 +224,17 @@
 
         <div class="mb-3">
           <h6 class="text-info"><i class="fas fa-clipboard-check"></i> Requirements</h6>
-          <p class="small text-muted">Enable quality checks for critical services. Certificates may be required for compliance or customer documentation.</p>
+          <p class="small text-muted">Enable quality checks for critical services. Certificates and worksheets may be required for compliance or customer documentation.</p>
+        </div>
+
+        <!-- ✅ NEW: Document requirements help -->
+        <div class="mb-3">
+          <h6 class="text-danger"><i class="fas fa-file-alt"></i> Document Requirements</h6>
+          <p class="small text-muted">
+            <strong>Certificate:</strong> Official certification documents (PDFs, images)<br>
+            <strong>Worksheet:</strong> Completed service worksheets or checklists<br>
+            Service orders cannot be completed until all required documents are uploaded.
+          </p>
         </div>
       </div>
     </div>
@@ -235,6 +267,7 @@
         const estimatedCost = hours * rate;
 
         document.getElementById('estimatedCost').value = '$' + estimatedCost.toFixed(2);
+        document.getElementById('generatedPrice').value = '$' + estimatedCost.toFixed(2);
         updatePreview();
     }
 
@@ -247,8 +280,15 @@
         const rate = document.querySelector('[name="StandardRate"]').value;
         const qcRequired = document.querySelector('[name="QcRequired"]').checked;
         const certRequired = document.querySelector('[name="CertificateRequired"]').checked;
+        const worksheetRequired = document.querySelector('[name="WorksheetRequired"]').checked;
         const isActive = document.querySelector('[name="IsActive"]').checked;
         const createServiceItem = document.querySelector('[name="CreateServiceItem"]').checked;
+
+        // ✅ UPDATE: Update requirements warning
+        updateRequirementsWarning(qcRequired, certRequired, worksheetRequired);
+
+        // ✅ UPDATE: Update generated part number
+        updateGeneratedPartNumber(serviceName, serviceCode);
 
         if (!serviceName && !hours && !rate) {
             document.getElementById('servicePreview').innerHTML = `
@@ -290,6 +330,7 @@
                 <div class="mt-2">
                     ${qcRequired ? '<span class="badge bg-warning text-dark me-1">QC</span>' : ''}
                     ${certRequired ? '<span class="badge bg-info me-1">Cert</span>' : ''}
+                    ${worksheetRequired ? '<span class="badge bg-primary me-1">Worksheet</span>' : ''}
                     ${isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}
                 </div>
 
@@ -302,10 +343,46 @@
         document.getElementById('servicePreview').innerHTML = previewHtml;
     }
 
+    // ✅ NEW: Update requirements warning
+    function updateRequirementsWarning(qc, cert, worksheet) {
+        const warningBox = document.getElementById('requirementsWarning');
+        const requirementsList = document.getElementById('requirementsList');
+        
+        const requirements = [];
+        if (qc) requirements.push('<li>Quality Check verification required</li>');
+        if (cert) requirements.push('<li>Service Certificate must be uploaded</li>');
+        if (worksheet) requirements.push('<li>Service Worksheet must be uploaded</li>');
+        
+        if (requirements.length > 0) {
+            requirementsList.innerHTML = requirements.join('');
+            warningBox.style.display = 'block';
+        } else {
+            warningBox.style.display = 'none';
+        }
+    }
+
+    // ✅ NEW: Update generated part number
+    function updateGeneratedPartNumber(serviceName, serviceCode) {
+        let partNumber = '';
+        
+        if (serviceCode && serviceCode.trim()) {
+            partNumber = `SVC-${serviceCode.trim().toUpperCase()}`;
+        } else if (serviceName && serviceName.trim()) {
+            const nameCode = serviceName.toUpperCase()
+                .replace(/[^A-Z0-9]/g, '')
+                .substring(0, 8);
+            partNumber = `SVC-${nameCode}`;
+        } else {
+            partNumber = 'SVC-XXXXXXXX';
+        }
+        
+        document.getElementById('generatedPartNumber').value = partNumber;
+    }
+
     // Initialize preview and calculation
     document.addEventListener('DOMContentLoaded', function() {
         // Add event listeners to form fields for real-time preview
-        const formFields = ['ServiceName', 'ServiceCode', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'IsActive', 'CreateServiceItem'];
+        const formFields = ['ServiceName', 'ServiceCode', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'WorksheetRequired', 'IsActive', 'CreateServiceItem'];
 
         formFields.forEach(fieldName => {
             const field = document.querySelector(`[name="${fieldName}"]`);

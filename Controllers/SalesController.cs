@@ -768,30 +768,87 @@ namespace InventorySystem.Controllers
 		{
 			try
 			{
+				// ✅ ADD: Debug logging
+				_logger.LogInformation("Processing service orders from sale - SaleId: {SaleId}, CustomerId: {CustomerId}, ServiceOrdersCount: {Count}", 
+					model.SaleId, model.CustomerId, model.ServiceOrdersToCreate?.Count ?? 0);
+
+				// ✅ IMPROVED: Better validation with detailed error messages
+				if (model.ServiceOrdersToCreate?.Any() != true)
+				{
+					_logger.LogWarning("No service orders to create - ServiceOrdersToCreate is null or empty");
+					TempData["ErrorMessage"] = "No service orders selected for creation.";
+					return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+				}
+
+				if (model.CustomerId <= 0)
+				{
+					_logger.LogWarning("Invalid CustomerId: {CustomerId}", model.CustomerId);
+					TempData["ErrorMessage"] = "Invalid customer ID provided.";
+					return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+				}
+
+				// Validate service orders
 				var createdServiceOrders = new List<ServiceOrder>();
 				var serviceOrderService = HttpContext.RequestServices.GetRequiredService<IServiceOrderService>();
 
 				foreach (var serviceItem in model.ServiceOrdersToCreate.Where(s => s.CreateServiceOrder))
 				{
-					var serviceOrder = new ServiceOrder
+					try
 					{
-						CustomerId = model.CustomerId,
-						ServiceTypeId = serviceItem.ServiceTypeId,
-						SaleId = model.SaleId,
-						RequestDate = model.RequestDate,
-						PromisedDate = serviceItem.PromisedDate,
-						Priority = serviceItem.Priority,
-						CustomerRequest = serviceItem.CustomerRequest,
-						ServiceNotes = serviceItem.ServiceNotes,
-						AssignedTechnician = serviceItem.AssignedTechnician,
-						EquipmentDetails = serviceItem.EquipmentDetails,
-						SerialNumber = serviceItem.SerialNumber,
-						ModelNumber = serviceItem.ModelNumber,
-						CreatedBy = User.Identity?.Name ?? "System"
-					};
+						// ✅ ADD: Validate ServiceType exists before creating service order
+						var serviceType = await _context.ServiceTypes.FindAsync(serviceItem.ServiceTypeId);
+						if (serviceType == null)
+						{
+							_logger.LogWarning("ServiceType with ID {ServiceTypeId} not found", serviceItem.ServiceTypeId);
+							TempData["ErrorMessage"] = $"Service type with ID {serviceItem.ServiceTypeId} not found.";
+							return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+						}
 
-					var created = await serviceOrderService.CreateServiceOrderAsync(serviceOrder);
-					createdServiceOrders.Add(created);
+						// ✅ ADD: Validate PromisedDate is provided
+						if (!serviceItem.PromisedDate.HasValue)
+						{
+							TempData["ErrorMessage"] = $"Promised date is required for service type '{serviceType.ServiceName}'.";
+							return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+						}
+
+						var serviceOrder = new ServiceOrder
+						{
+							CustomerId = model.CustomerId,
+							ServiceTypeId = serviceItem.ServiceTypeId,
+							SaleId = model.SaleId,
+							RequestDate = model.RequestDate,
+							PromisedDate = serviceItem.PromisedDate.Value, // ✅ Use .Value since we validated it exists
+							Priority = serviceItem.Priority,
+							CustomerRequest = serviceItem.CustomerRequest,
+							ServiceNotes = serviceItem.ServiceNotes,
+							AssignedTechnician = serviceItem.AssignedTechnician,
+							EquipmentDetails = serviceItem.EquipmentDetails,
+							SerialNumber = serviceItem.SerialNumber,
+							ModelNumber = serviceItem.ModelNumber,
+							CreatedBy = User.Identity?.Name ?? "System",
+							// ✅ ADD: Set required fields that might be missing
+							Status = ServiceOrderStatus.Requested,
+							CreatedDate = DateTime.Now,
+							IsBillable = true,
+							HourlyRate = serviceType.StandardRate,
+							EstimatedHours = serviceType.StandardHours,
+							EstimatedCost = serviceType.StandardHours * serviceType.StandardRate
+						};
+
+						_logger.LogInformation("Creating service order for customer {CustomerId}, service type {ServiceTypeId}, sale {SaleId}", 
+							model.CustomerId, serviceItem.ServiceTypeId, model.SaleId);
+
+						var created = await serviceOrderService.CreateServiceOrderAsync(serviceOrder);
+						createdServiceOrders.Add(created);
+
+						_logger.LogInformation("Successfully created service order {ServiceOrderNumber}", created.ServiceOrderNumber);
+					}
+					catch (Exception ex)
+					{
+						_logger.LogError(ex, "Error creating individual service order for ServiceTypeId {ServiceTypeId}", serviceItem.ServiceTypeId);
+						TempData["ErrorMessage"] = $"Error creating service order for service type ID {serviceItem.ServiceTypeId}: {ex.Message}";
+						return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+					}
 				}
 
 				var message = createdServiceOrders.Count switch
@@ -2319,18 +2376,33 @@ namespace InventorySystem.Controllers
 						.Include(so => so.ServiceType)
 						.ToListAsync();
 
+
 				var viewModel = new CreateServiceOrdersFromSaleViewModel
 				{
 					SaleId = saleId,
 					Sale = sale,
 					ServiceItems = serviceItems,
 					ExistingServiceOrders = existingServiceOrders,
-					// Pre-populate common fields
+					// ✅ FIX: Pre-populate common fields properly
 					CustomerId = sale.CustomerId,
 					CustomerName = sale.Customer?.CustomerName ?? "Unknown",
 					RequestDate = sale.SaleDate,
 					DefaultPromisedDate = sale.SaleDate.AddDays(7), // Default 1 week
-					SaleReference = $"From Sale {sale.SaleNumber}"
+					SaleReference = $"From Sale {sale.SaleNumber}",
+					// ✅ FIX: Initialize ServiceOrdersToCreate collection
+					ServiceOrdersToCreate = serviceItems.Select(si => new ServiceOrderCreationItem
+					{
+						ServiceTypeId = si.ServiceTypeId,
+						CreateServiceOrder = !existingServiceOrders.Any(so => so.ServiceTypeId == si.ServiceTypeId),
+						PromisedDate = sale.SaleDate.AddDays(7),
+						Priority = ServicePriority.Normal,
+						CustomerRequest = $"From Sale {sale.SaleNumber} - {si.Notes}",
+						ServiceNotes = "",
+						AssignedTechnician = "",
+						EquipmentDetails = "",
+						SerialNumber = "",
+						ModelNumber = ""
+					}).ToList()
 				};
 
 				return View(viewModel);

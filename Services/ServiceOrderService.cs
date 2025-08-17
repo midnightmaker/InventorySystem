@@ -87,38 +87,71 @@ namespace InventorySystem.Services
 
         public async Task<ServiceOrder> CreateServiceOrderAsync(ServiceOrder serviceOrder)
         {
-            // Generate service order number if not provided
-            if (string.IsNullOrEmpty(serviceOrder.ServiceOrderNumber))
+            try
             {
-                serviceOrder.ServiceOrderNumber = await GenerateServiceOrderNumberAsync();
-            }
+                // ? ADD: Validate required foreign keys exist
+                var customer = await _context.Customers.FindAsync(serviceOrder.CustomerId);
+                if (customer == null)
+                {
+                    throw new ArgumentException($"Customer with ID {serviceOrder.CustomerId} not found", nameof(serviceOrder.CustomerId));
+                }
 
-            // Set default values
-            serviceOrder.CreatedDate = DateTime.Now;
-            serviceOrder.Status = ServiceOrderStatus.Requested;
+                var serviceType = await _context.ServiceTypes.FindAsync(serviceOrder.ServiceTypeId);
+                if (serviceType == null)
+                {
+                    throw new ArgumentException($"ServiceType with ID {serviceOrder.ServiceTypeId} not found", nameof(serviceOrder.ServiceTypeId));
+                }
 
-            // Get service type defaults
-            var serviceType = await _context.ServiceTypes.FindAsync(serviceOrder.ServiceTypeId);
-            if (serviceType != null)
-            {
+                // ? ADD: Validate optional Sale foreign key if provided
+                if (serviceOrder.SaleId.HasValue)
+                {
+                    var sale = await _context.Sales.FindAsync(serviceOrder.SaleId.Value);
+                    if (sale == null)
+                    {
+                        throw new ArgumentException($"Sale with ID {serviceOrder.SaleId.Value} not found", nameof(serviceOrder.SaleId));
+                    }
+                }
+
+                // Generate service order number if not provided
+                if (string.IsNullOrEmpty(serviceOrder.ServiceOrderNumber))
+                {
+                    serviceOrder.ServiceOrderNumber = await GenerateServiceOrderNumberAsync();
+                }
+
+                // Set default values
+                serviceOrder.CreatedDate = DateTime.Now;
+                if (serviceOrder.Status == 0) // Default enum value
+                {
+                    serviceOrder.Status = ServiceOrderStatus.Requested;
+                }
+
+                // Get service type defaults if not already set
                 if (serviceOrder.EstimatedHours == 0)
                     serviceOrder.EstimatedHours = serviceType.StandardHours;
                 
                 if (serviceOrder.HourlyRate == 0)
                     serviceOrder.HourlyRate = serviceType.StandardRate;
                 
-                serviceOrder.EstimatedCost = serviceOrder.EstimatedHours * serviceOrder.HourlyRate;
+                if (serviceOrder.EstimatedCost == 0)
+                    serviceOrder.EstimatedCost = serviceOrder.EstimatedHours * serviceOrder.HourlyRate;
+                
                 serviceOrder.QcRequired = serviceType.QcRequired;
                 serviceOrder.CertificateRequired = serviceType.CertificateRequired;
+
+                _context.ServiceOrders.Add(serviceOrder);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Created service order {ServiceOrderNumber} for customer {CustomerId}", 
+                    serviceOrder.ServiceOrderNumber, serviceOrder.CustomerId);
+
+                return serviceOrder;
             }
-
-            _context.ServiceOrders.Add(serviceOrder);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Created service order {ServiceOrderNumber} for customer {CustomerId}", 
-                serviceOrder.ServiceOrderNumber, serviceOrder.CustomerId);
-
-            return serviceOrder;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating service order for customer {CustomerId}, service type {ServiceTypeId}", 
+                    serviceOrder.CustomerId, serviceOrder.ServiceTypeId);
+                throw;
+            }
         }
 
         public async Task<ServiceOrder> UpdateServiceOrderAsync(ServiceOrder serviceOrder)

@@ -3,7 +3,7 @@ using InventorySystem.Models.Enums;
 using InventorySystem.Services;
 using System.ComponentModel.DataAnnotations;
 
-namespace InventorySystem.ViewModels // Add this namespace
+namespace InventorySystem.ViewModels
 {
     public class ServiceTypeViewModel
     {
@@ -41,6 +41,9 @@ namespace InventorySystem.ViewModels // Add this namespace
 
         [Display(Name = "Certificate Required")]
         public bool CertificateRequired { get; set; }
+
+        [Display(Name = "Worksheet Required")]
+        public bool WorksheetRequired { get; set; }
 
         [Display(Name = "Is Active")]
         public bool IsActive { get; set; } = true;

@@ -17,6 +17,20 @@
         <div class="modal-body">
           <input type="hidden" asp-for="ServiceOrderId" />
 
+          <!-- ? NEW: Error Alert Container -->
+          <div id="modalErrorAlert" class="alert alert-danger alert-dismissible fade" role="alert" style="display: none;">
+            <i class="fas fa-exclamation-circle"></i>
+            <strong>Error:</strong> <span id="modalErrorMessage"></span>
+            <button type="button" class="btn-close" onclick="hideModalError()"></button>
+          </div>
+
+          <!-- ? NEW: Success Alert Container -->
+          <div id="modalSuccessAlert" class="alert alert-success alert-dismissible fade" role="alert" style="display: none;">
+            <i class="fas fa-check-circle"></i>
+            <strong>Success:</strong> <span id="modalSuccessMessage"></span>
+            <button type="button" class="btn-close" onclick="hideModalSuccess()"></button>
+          </div>
+
           <!-- Current Status Display -->
           @if (Model.ServiceOrder != null)
           {
@@ -87,6 +101,13 @@
                 <input id="certificateRequired" class="form-check-input" type="checkbox" />
                 <label for="certificateRequired" class="form-check-label">
                   <i class="fas fa-certificate"></i> Generate Service Certificate
+                </label>
+              </div>
+              <!-- ? NEW: Worksheet checkbox -->
+              <div class="form-check mt-2">
+                <input id="worksheetRequired" class="form-check-input" type="checkbox" />
+                <label for="worksheetRequired" class="form-check-label">
+                  <i class="fas fa-file-alt"></i> Generate Service Worksheet
                 </label>
               </div>
             </div>
@@ -177,179 +198,70 @@
 }
 
 <script>
-  function handleStatusChange() {
-    const statusSelect = document.querySelector('#updateStatusModal [name="NewStatus"]');
-    const selectedStatus = statusSelect.value;
+// ? NEW: Modal-specific error handling functions
+function showModalError(message) {
+    hideModalSuccess(); // Hide any success messages first
     
-    // Hide all conditional fields first
-    document.getElementById('schedulingFields').style.display = 'none';
-    document.getElementById('qualityCheckFields').style.display = 'none';
-    document.getElementById('completionFields').style.display = 'none';
-    document.getElementById('holdCancelFields').style.display = 'none';
+    const errorAlert = document.getElementById('modalErrorAlert');
+    const errorMessage = document.getElementById('modalErrorMessage');
     
-    // Reset reason requirements
-    const reasonField = document.querySelector('#updateStatusModal [name="Reason"]');
-    const reasonRequired = document.getElementById('reasonRequired');
-    const reasonHelpText = document.getElementById('reasonHelpText');
-    const holdCancelMessage = document.getElementById('holdCancelMessage');
-    
-    reasonField.required = false;
-    reasonRequired.style.display = 'none';
-    
-    // Show appropriate fields based on selected status
-    switch (selectedStatus) {
-      case 'Scheduled':
-        document.getElementById('schedulingFields').style.display = 'block';
-        reasonHelpText.textContent = 'Optional scheduling notes.';
-        break;
+    if (errorAlert && errorMessage) {
+        errorMessage.textContent = message;
+        errorAlert.style.display = 'block';
+        errorAlert.classList.add('show');
         
-      case 'QualityCheck':
-        document.getElementById('qualityCheckFields').style.display = 'block';
-        reasonHelpText.textContent = 'QC initiation notes.';
-        break;
-        
-      case 'Completed':
-        document.getElementById('completionFields').style.display = 'block';
-        reasonHelpText.textContent = 'Completion summary and final notes.';
-        break;
-        
-      case 'OnHold':
-        document.getElementById('holdCancelFields').style.display = 'block';
-        holdCancelMessage.textContent = 'Placing on hold may delay promised delivery dates.';
-        reasonField.required = true;
-        reasonRequired.style.display = 'inline';
-        reasonHelpText.textContent = 'Required: Explain why the service is being placed on hold.';
-        break;
-        
-      case 'Cancelled':
-        document.getElementById('holdCancelFields').style.display = 'block';
-        holdCancelMessage.textContent = 'Cancelling will stop all work and may incur cancellation fees.';
-        reasonField.required = true;
-        reasonRequired.style.display = 'inline';
-        reasonHelpText.textContent = 'Required: Explain the reason for cancellation.';
-        break;
-        
-      case 'AwaitingParts':
-        reasonHelpText.textContent = 'Specify which parts are needed.';
-        break;
-        
-      default:
-        reasonHelpText.textContent = 'This will be logged in the service history.';
-        break;
-    }
-    
-    // Update status preview
-    updateStatusPreview(selectedStatus);
-  }
-  
-  function updateStatusPreview(newStatus) {
-    const preview = document.getElementById('statusPreview');
-    const newStatusText = document.getElementById('newStatusText');
-    
-    if (newStatus) {
-      newStatusText.textContent = getStatusDisplayName(newStatus);
-      preview.style.display = 'block';
-    } else {
-      preview.style.display = 'none';
-    }
-  }
-  
-  function getStatusDisplayName(status) {
-    const statusNames = {
-      'Requested': 'Requested',
-      'Quoted': 'Quoted',
-      'Approved': 'Approved',
-      'Scheduled': 'Scheduled',
-      'InProgress': 'In Progress',
-      'AwaitingParts': 'Awaiting Parts',
-      'QualityCheck': 'Quality Check',
-      'Completed': 'Completed',
-      'Delivered': 'Delivered',
-      'Cancelled': 'Cancelled',
-      'OnHold': 'On Hold'
-    };
-    return statusNames[status] || status;
-  }
-
-  // Handle form submission via AJAX
-  document.getElementById('updateStatusForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const formData = new FormData(this);
-    
-    // Add QC fields if they're visible
-    const qcFields = document.getElementById('qualityCheckFields');
-    if (qcFields.style.display !== 'none') {
-      const qcTechnician = document.getElementById('qcTechnician').value;
-      const qcDate = document.getElementById('qcDate').value;
-      const qcNotes = document.getElementById('qcNotes').value;
-      
-      if (qcTechnician) formData.append('QcTechnician', qcTechnician);
-      if (qcDate) formData.append('QcDate', qcDate);
-      if (qcNotes) formData.append('QcNotes', qcNotes);
-    }
-    
-    // Add certificate flag if visible
-    const certificateCheckbox = document.getElementById('certificateRequired');
-    if (certificateCheckbox && certificateCheckbox.checked) {
-      formData.append('GenerateCertificate', 'true');
-    }
-
-    const updateBtn = document.getElementById('updateStatusBtn');
-    const originalText = updateBtn.innerHTML;
-    updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
-    updateBtn.disabled = true;
-
-    fetch(this.action, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      updateBtn.innerHTML = originalText;
-      updateBtn.disabled = false;
-
-      if (data.success) {
-        bootstrap.Modal.getInstance(document.getElementById('updateStatusModal')).hide();
-        
-        // Show success message
-        if (typeof showNotification === 'function') {
-          showNotification(data.message || 'Status updated successfully', 'success');
+        // Scroll to top of modal to ensure error is visible
+        const modalBody = document.querySelector('#updateStatusModal .modal-body');
+        if (modalBody) {
+            modalBody.scrollTop = 0;
         }
-        
-        // Reload page to show updated status
-        setTimeout(() => {
-          location.reload();
-        }, 1000);
-      } else {
-        alert('Error updating status: ' + data.message);
-      }
-    })
-    .catch(error => {
-      updateBtn.innerHTML = originalText;
-      updateBtn.disabled = false;
-      console.error('Error:', error);
-      alert('Error updating status. Please try again.');
-    });
-  });
+    }
+}
 
-  // Initialize on modal show
-  document.addEventListener('DOMContentLoaded', function() {
+function hideModalError() {
+    const errorAlert = document.getElementById('modalErrorAlert');
+    if (errorAlert) {
+        errorAlert.style.display = 'none';
+        errorAlert.classList.remove('show');
+    }
+}
+
+function showModalSuccess(message) {
+    hideModalError(); // Hide any error messages first
+    
+    const successAlert = document.getElementById('modalSuccessAlert');
+    const successMessage = document.getElementById('modalSuccessMessage');
+    
+    if (successAlert && successMessage) {
+        successMessage.textContent = message;
+        successAlert.style.display = 'block';
+        successAlert.classList.add('show');
+        
+        // Scroll to top of modal to ensure message is visible
+        const modalBody = document.querySelector('#updateStatusModal .modal-body');
+        if (modalBody) {
+            modalBody.scrollTop = 0;
+        }
+    }
+}
+
+function hideModalSuccess() {
+    const successAlert = document.getElementById('modalSuccessAlert');
+    if (successAlert) {
+        successAlert.style.display = 'none';
+        successAlert.classList.remove('show');
+    }
+}
+
+// ? NEW: Reset modal state when it's shown
+document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('updateStatusModal');
     if (modal) {
-      modal.addEventListener('shown.bs.modal', function() {
-        // Set default scheduled date to tomorrow at 9 AM if scheduling
-        const scheduledInput = document.querySelector('#updateStatusModal [name="ScheduledDateTime"]');
-        if (scheduledInput && !scheduledInput.value) {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          tomorrow.setHours(9, 0, 0, 0);
-          scheduledInput.value = tomorrow.toISOString().slice(0, 16);
-        }
-      });
+        modal.addEventListener('shown.bs.modal', function() {
+            // Clear any previous error/success messages
+            hideModalError();
+            hideModalSuccess();
+        });
     }
-  });
+});
 </script>

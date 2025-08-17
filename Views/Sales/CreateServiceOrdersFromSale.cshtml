@@ -15,7 +15,29 @@
       </a>
     </div>
   </div>
+  @if (TempData["ErrorMessage"] != null)
+  {
+    <div class="alert alert-danger alert-dismissible fade show">
+      <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
 
+  @if (TempData["SuccessMessage"] != null)
+  {
+    <div class="alert alert-success alert-dismissible fade show">
+      <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
+
+  @if (TempData["WarningMessage"] != null)
+  {
+    <div class="alert alert-warning alert-dismissible fade show">
+      <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  }
   <!-- Sale Context -->
   <div class="card mb-4 bg-light">
     <div class="card-body">
@@ -35,6 +57,8 @@
 
   <form asp-action="ProcessServiceOrdersFromSale" method="post">
     <input type="hidden" asp-for="SaleId" />
+    <input type="hidden" asp-for="CustomerId" />
+    <input type="hidden" asp-for="RequestDate" />
 
     @for (int i = 0; i < Model.ServiceItems.Count; i++)
     {

@@ -1,4 +1,4 @@
-// Controllers/ServicesController.cs
+﻿// Controllers/ServicesController.cs
 using InventorySystem.Data;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
@@ -234,7 +234,7 @@ namespace InventorySystem.Controllers
 					ServiceType = serviceOrder.ServiceType,
 					RelatedSale = serviceOrder.Sale,
 					AvailableStatusChanges = await _serviceOrderService.GetValidStatusChangesAsync(id),
-					CanEdit = true, // Add business logic here
+					CanEdit = true,
 					CanDelete = serviceOrder.Status == ServiceOrderStatus.Requested,
 					CanStart = serviceOrder.CanStart(),
 					CanComplete = serviceOrder.CanComplete(),
@@ -242,6 +242,9 @@ namespace InventorySystem.Controllers
 					TotalMaterialCost = serviceOrder.TotalMaterialCost,
 					TotalServiceCost = serviceOrder.TotalServiceCost
 				};
+
+				// ✅ ADD: Create safe DTO for JavaScript serialization
+				ViewBag.ServiceOrderDto = CreateServiceOrderDto(serviceOrder);
 
 				return View(viewModel);
 			}
@@ -347,7 +350,27 @@ namespace InventorySystem.Controllers
 
 			try
 			{
-				var serviceOrder = await _serviceOrderService.UpdateServiceStatusAsync(
+				// ✅ FIXED: Check document requirements before allowing completion
+				if (model.NewStatus == ServiceOrderStatus.Completed)
+				{
+					var serviceOrder = await _serviceOrderService.GetServiceOrderByIdAsync(model.ServiceOrderId);
+					if (serviceOrder != null)
+					{
+						// Check if all required documents are uploaded
+						if (!serviceOrder.RequiredDocumentsComplete)
+						{
+							var missingDocs = serviceOrder.MissingRequiredDocuments;
+							var errorMessage = $"Cannot complete service order. Missing required documents: {string.Join(", ", missingDocs)}";
+							
+							_logger.LogWarning("Attempted to complete service order {ServiceOrderId} without required documents: {MissingDocs}", 
+								model.ServiceOrderId, string.Join(", ", missingDocs));
+							
+							return Json(new { success = false, message = errorMessage });
+						}
+					}
+				}
+
+				var updatedServiceOrder = await _serviceOrderService.UpdateServiceStatusAsync(
 						model.ServiceOrderId,
 						model.NewStatus,
 						model.Reason,
@@ -362,8 +385,8 @@ namespace InventorySystem.Controllers
 							model.AssignedTechnician);
 				}
 
-				var message = $"Service order status updated to {model.NewStatus}";
-				return Json(new { success = true, message, newStatus = model.NewStatus.ToString() });
+				var successMessage = $"Service order status updated to {model.NewStatus}";
+				return Json(new { success = true, message = successMessage, newStatus = model.NewStatus.ToString() });
 			}
 			catch (Exception ex)
 			{
@@ -634,6 +657,7 @@ namespace InventorySystem.Controllers
 					ServiceCode = model.ServiceCode,
 					QcRequired = model.QcRequired,
 					CertificateRequired = model.CertificateRequired,
+					WorksheetRequired = model.WorksheetRequired, // ✅ NEW: Include worksheet requirement
 					IsActive = model.IsActive
 				};
 
@@ -1538,6 +1562,33 @@ namespace InventorySystem.Controllers
 				_logger.LogError(ex, "Error loading update status form");
 				return Json(new { success = false, message = ex.Message });
 			}
+		}
+
+		// Add this helper method to ServicesController
+		private object CreateServiceOrderDto(ServiceOrder serviceOrder)
+		{
+			return new
+			{
+				id = serviceOrder.Id,
+				serviceOrderNumber = serviceOrder.ServiceOrderNumber,
+				status = serviceOrder.Status.ToString(),
+				statusDisplay = serviceOrder.StatusDisplay,
+				customerId = serviceOrder.CustomerId,
+				qcRequired = serviceOrder.QcRequired,
+				qcCompleted = serviceOrder.QcCompleted,
+				certificateRequired = serviceOrder.CertificateRequired,
+				certificateGenerated = serviceOrder.CertificateGenerated,
+				worksheetRequired = serviceOrder.WorksheetRequired,
+				worksheetUploaded = serviceOrder.WorksheetUploaded,
+				requiredDocumentsComplete = serviceOrder.RequiredDocumentsComplete,
+				missingRequiredDocuments = serviceOrder.MissingRequiredDocuments,
+				customer = new
+				{
+					id = serviceOrder.Customer?.Id,
+					customerName = serviceOrder.Customer?.CustomerName,
+					email = serviceOrder.Customer?.Email
+				}
+			};
 		}
 	}
 }

@@ -450,7 +450,18 @@
 
     function updateServiceStatus() {
         const form = document.getElementById('statusUpdateForm');
-        const formData = new FormData(form);
+        const formData = new FormData();
+        
+        // ✅ FIX: Use the correct field names that match UpdateServiceStatusViewModel
+        formData.append('ServiceOrderId', document.getElementById('serviceOrderId').value);
+        formData.append('NewStatus', document.getElementById('newStatus').value);
+        formData.append('Reason', document.getElementById('statusReason').value);
+
+        // Add the antiforgery token
+        const token = document.querySelector('input[name="__RequestVerificationToken"]');
+        if (token) {
+            formData.append('__RequestVerificationToken', token.value);
+        }
 
         if (window.LoadingIndicator) {
             window.LoadingIndicator.show('Updating Status...', 'Please wait');
@@ -458,10 +469,7 @@
 
         fetch('@Url.Action("UpdateStatus")', {
             method: 'POST',
-            body: formData,
-            headers: {
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
-            }
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
