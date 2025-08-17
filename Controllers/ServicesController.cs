@@ -1564,6 +1564,37 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		// Single reusable endpoint for getting the modal
+		[HttpGet]
+		public async Task<IActionResult> GetStatusUpdateModal(int serviceOrderId)
+		{
+			try
+			{
+				var serviceOrder = await _serviceOrderService.GetServiceOrderByIdAsync(serviceOrderId);
+				if (serviceOrder == null)
+				{
+					return Json(new { success = false, message = "Service order not found" });
+				}
+
+				var technicians = new[] { "John Smith", "Jane Doe", "Mike Johnson", "Sarah Wilson" };
+
+				var viewModel = new UpdateServiceStatusViewModel
+				{
+					ServiceOrderId = serviceOrderId,
+					ServiceOrder = serviceOrder,
+					TechnicianOptions = technicians.Select(t => new SelectListItem { Value = t, Text = t }),
+					AvailableStatuses = await _serviceOrderService.GetValidStatusChangesAsync(serviceOrderId)
+				};
+
+				return PartialView("_UpdateStatusModal", viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading update status modal");
+				return Json(new { success = false, message = "Error loading modal" });
+			}
+		}
+
 		// Add this helper method to ServicesController
 		private object CreateServiceOrderDto(ServiceOrder serviceOrder)
 		{
