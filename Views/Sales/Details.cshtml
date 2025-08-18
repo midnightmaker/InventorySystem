@@ -2,6 +2,7 @@
 @using InventorySystem.Models
 @using InventorySystem.Services
 @using InventorySystem.Models.Enums
+@using InventorySystem.Helpers
 @{
     ViewData["Title"] = "Sale Details";
     var sale = Model.Sale;  // For easier reference
@@ -20,6 +21,16 @@
   var adjustedProfit = netProfit - totalAdjustments; // Final profit after all adjustments
   var afterDiscountAmount = Model.Sale.SubtotalAmount - Model.Sale.DiscountCalculated; // Add this line
   
+  // ✅ NEW: Check if sale has service items that might need service orders
+  var hasServiceItems = Model.Sale.SaleItems?.Any(si => si.Item?.ItemType == ItemType.Service) == true;
+  var hasIncompleteServiceOrders = Model.ServiceOrders.Any(so => so.Status != ServiceOrderStatus.Completed);
+  var canProcessSale = !hasServiceItems || !hasIncompleteServiceOrders;
+  
+  // ✅ NEW: Determine if adjustments can be created
+  var canCreateAdjustments = Model.Sale.SaleStatus == SaleStatus.Shipped || Model.Sale.SaleStatus == SaleStatus.Delivered;
+  
+  // ✅ NEW: Determine invoice type
+  var isProformaInvoice = Model.Sale.SaleStatus != SaleStatus.Shipped && Model.Sale.SaleStatus != SaleStatus.Delivered;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -39,17 +50,36 @@
       </a>
     }
     
-    @* ✅ ADD THE MISSING PROCESS & SHIP BUTTON *@
+    @* ✅ UPDATED: Process & Ship button with service validation *@
     @if (Model.Sale.SaleStatus == SaleStatus.Processing && Model.Sale.SaleItems?.Any() == true)
     {
-      <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal">
-        <i class="fas fa-shipping-fast"></i> Process & Ship
-      </button>
+      @if (canProcessSale)
+      {
+        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal">
+          <i class="fas fa-shipping-fast"></i> Process & Ship
+        </button>
+      }
+      else
+      {
+        <button type="button" class="btn btn-warning" disabled title="Complete all service orders before shipping">
+          <i class="fas fa-shipping-fast"></i> Process & Ship
+          <small class="d-block">Services Pending</small>
+        </button>
+      }
     }
     
+    @* ✅ UPDATED: View Invoice button shows proforma status *@
     <a href="@Url.Action("InvoiceReport", new { saleId = Model.Sale.Id })"
        class="btn btn-primary">
-      <i class="fas fa-file-invoice-dollar"></i> View Invoice
+      <i class="fas fa-file-invoice-dollar"></i> 
+      @if (isProformaInvoice)
+      {
+        <text>View Proforma</text>
+      }
+      else
+      {
+        <text>View Invoice</text>
+      }
     </a>
     
     @* ✅ ADD PACKING SLIP BUTTON for shipped sales *@
@@ -162,9 +192,20 @@
                 <a href="/Customers/Details/@Model.Sale.Customer.Id" class="btn btn-outline-info btn-sm">
                   <i class="fas fa-user"></i> View Customer Details
                 </a>
-                <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id" class="btn btn-outline-success btn-sm">
-                  <i class="fas fa-adjust"></i> Create Adjustment
-                </a>
+                @* ✅ UPDATED: Create Adjustment button with status check *@
+                @if (canCreateAdjustments)
+                {
+                  <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id" class="btn btn-outline-success btn-sm">
+                    <i class="fas fa-adjust"></i> Create Adjustment
+                  </a>
+                }
+                else
+                {
+                  <button class="btn btn-outline-secondary btn-sm" disabled title="Adjustments can only be created after sale is shipped">
+                    <i class="fas fa-adjust"></i> Create Adjustment
+                    <small class="d-block">Requires Shipped Status</small>
+                  </button>
+                }
               </div>
             </div>
           </div>
@@ -194,24 +235,11 @@
             <dl class="row">
               <dt class="col-sm-6">Sale Status:</dt>
               <dd class="col-sm-6">
-                <span class="badge bg-@(Model.Sale.SaleStatus switch {
-                  SaleStatus.Processing => "primary",
-                  SaleStatus.Shipped => "success",
-                  SaleStatus.Delivered => "info",
-                  SaleStatus.Cancelled => "danger",
-                  SaleStatus.Backordered => "warning",
-                  _ => "secondary"
-                })">@Model.Sale.SaleStatus</span>
+                <span class="badge bg-@BadgeHelper.GetSaleStatusBadgeColor(Model.Sale.SaleStatus)">@Model.Sale.SaleStatus</span>
               </dd>
               <dt class="col-sm-6">Payment:</dt>
               <dd class="col-sm-6">
-                <span class="badge bg-@(Model.Sale.PaymentStatus switch {
-                  PaymentStatus.Paid => "success",
-                  PaymentStatus.Pending => "warning",
-                  PaymentStatus.Overdue => "danger",
-                  PaymentStatus.PartiallyPaid => "info",
-                  _ => "secondary"
-                })">@Model.Sale.PaymentStatus</span>
+                <span class="badge bg-@BadgeHelper.GetPaymentStatusBadgeColor(Model.Sale.PaymentStatus)">@Model.Sale.PaymentStatus</span>
               </dd>
               @if (Model.Sale.IsOverdue)
               {
@@ -341,9 +369,12 @@
                 <a href="/Sales/GenerateRevisedInvoice/@Model.Sale.Id" class="btn btn-outline-primary btn-sm">
                   <i class="fas fa-file-invoice"></i> Generate Revised Invoice
                 </a>
-                <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id" class="btn btn-outline-success btn-sm">
-                  <i class="fas fa-plus"></i> Add New Adjustment
-                </a>
+                @if (canCreateAdjustments)
+                {
+                  <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id" class="btn btn-outline-success btn-sm">
+                    <i class="fas fa-plus"></i> Add New Adjustment
+                  </a>
+                }
               </div>
             </div>
           </div>
@@ -435,12 +466,22 @@ else
         <div class="card-body text-center py-3">
           <div class="text-muted mb-2">
             <i class="fas fa-info-circle"></i>
-            No adjustments have been applied to this sale. Adjustments for shipping damage, missing items etc. can only be made after the sale has been processed and shipped. 
+            @if (canCreateAdjustments)
+            {
+              <text>No adjustments have been applied to this sale.</text>
+            }
+            else
+            {
+              <text>No adjustments have been applied to this sale. Adjustments for shipping damage, missing items etc. can only be made after the sale has been processed and shipped.</text>
+            }
           </div>
-          <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id"
-             class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-plus"></i> Apply Customer Adjustment
-          </a>
+          @if (canCreateAdjustments)
+          {
+            <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id"
+               class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-plus"></i> Apply Customer Adjustment
+            </a>
+          }
         </div>
       </div>
     </div>
@@ -640,20 +681,24 @@ else
                         <tbody>
                             @foreach (var serviceOrder in Model.ServiceOrders)
                             {
-                                <tr>
+                                <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-warning" : "")">
                                     <td>
                                         <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })">
                                             @serviceOrder.ServiceOrderNumber
                                         </a>
+                                        @if (serviceOrder.Status != ServiceOrderStatus.Completed)
+                                        {
+                                            <br><small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Pending</small>
+                                        }
                                     </td>
                                     <td>@serviceOrder.ServiceType?.ServiceName</td>
                                     <td>
-                                        <span class="badge bg-@(GetStatusBadgeColor(serviceOrder.Status))">
+                                        <span class="badge bg-@BadgeHelper.GetServiceOrderStatusBadgeColor(serviceOrder.Status)">
                                             @serviceOrder.StatusDisplay
                                         </span>
                                     </td>
                                     <td>
-                                        <span class="badge bg-@(GetPriorityBadgeColor(serviceOrder.Priority))">
+                                        <span class="badge bg-@BadgeHelper.GetServicePriorityBadgeColor(serviceOrder.Priority)">
                                             @serviceOrder.PriorityDisplay
                                         </span>
                                     </td>
@@ -676,12 +721,29 @@ else
                         </tbody>
                     </table>
                 </div>
+                
+                @* ✅ NEW: Service Orders Status Summary *@
+                @if (hasServiceItems)
+                {
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Service Orders Status:</strong>
+                        @if (hasIncompleteServiceOrders)
+                        {
+                            <span class="text-warning">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
+                        }
+                        else
+                        {
+                            <span class="text-success">All service orders are completed and ready for shipment.</span>
+                        }
+                    </div>
+                }
             }
             else if (Model.Sale.SaleItems.Any(si => si.Item?.ItemType == ItemType.Service))
             {
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    This sale contains service items but no service orders have been created yet.
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Service Orders Required:</strong> This sale contains service items but no service orders have been created yet. Service orders must be created and completed before this sale can be shipped.
                     <a href="@Url.Action("CreateServiceOrdersFromSale", new { saleId = Model.Sale.Id })" 
                        class="btn btn-sm btn-primary ms-2">
                         Create Service Orders Now
@@ -691,6 +753,7 @@ else
         </div>
     </div>
 }
+
 <!-- Sale Summary Card - Perfect Column Alignment for Spreadsheet Effect -->
 @if (Model.Sale.SaleItems?.Any() == true)
 {
@@ -1188,43 +1251,23 @@ else
   </div>
 </div>
 
-@functions {
-    // Add these missing functions for the Service Orders section
-    private string GetStatusBadgeColor(InventorySystem.Models.ServiceOrderStatus status)
-    {
-        return status switch
-        {
-            InventorySystem.Models.ServiceOrderStatus.Requested => "secondary",
-            InventorySystem.Models.ServiceOrderStatus.Quoted => "info",
-            InventorySystem.Models.ServiceOrderStatus.Approved => "primary",
-            InventorySystem.Models.ServiceOrderStatus.Scheduled => "warning",
-            InventorySystem.Models.ServiceOrderStatus.InProgress => "primary",
-            InventorySystem.Models.ServiceOrderStatus.AwaitingParts => "warning",
-            InventorySystem.Models.ServiceOrderStatus.QualityCheck => "info",
-            InventorySystem.Models.ServiceOrderStatus.Completed => "success",
-            InventorySystem.Models.ServiceOrderStatus.Delivered => "success",
-            InventorySystem.Models.ServiceOrderStatus.Cancelled => "danger",
-            InventorySystem.Models.ServiceOrderStatus.OnHold => "secondary",
-            _ => "secondary"
-        };
-    }
-
-    private string GetPriorityBadgeColor(InventorySystem.Models.ServicePriority priority)
-    {
-        return priority switch
-        {
-            InventorySystem.Models.ServicePriority.Low => "success",
-            InventorySystem.Models.ServicePriority.Normal => "secondary",
-            InventorySystem.Models.ServicePriority.High => "warning",
-            InventorySystem.Models.ServicePriority.Urgent => "danger",
-            InventorySystem.Models.ServicePriority.Emergency => "danger",
-            _ => "secondary"
-        };
-    }
-}
-
 @section Scripts {
+<script src="~/js/sales-enhanced-validation.js"></script>
 <script>
+    // Set data attributes for JavaScript
+    @if (TempData["ToastMessage"] != null)
+    {
+        <text>document.body.dataset.toastMessage = @Html.Raw(Json.Serialize(TempData["ToastMessage"].ToString()));</text>
+        <text>document.body.dataset.toastType = @Html.Raw(Json.Serialize(TempData["ToastType"]?.ToString() ?? "info"));</text>
+    }
+    
+    @if (TempData["ServiceOrderPrompt"] != null)
+    {
+        <text>document.body.dataset.serviceOrderPrompt = 'true';</text>
+        <text>document.body.dataset.missingServiceOrders = @Html.Raw(TempData["MissingServiceOrders"]?.ToString() ?? "[]");</text>
+        <text>document.body.dataset.serviceOrderCreationUrl = @Html.Raw(Json.Serialize(TempData["ServiceOrderCreationUrl"]?.ToString() ?? ""));</text>
+    }
+
     // ✅ NEW: Function to show item details in modal
     function showItemDetails(itemId) {
         const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
@@ -1374,8 +1417,8 @@ else
 
     // Auto-populate customer email if not already filled
     $(document).ready(function() {
-        if (!$('#CustomerEmail').val() && '@Model.Sale.Customer.Email') {
-            $('#CustomerEmail').val('@Model.Sale.Customer.Email');
+        if (!$('#CustomerEmail').val() && '@Model.Sale.Customer?.Email') {
+            $('#CustomerEmail').val('@Model.Sale.Customer?.Email');
         }
         
         // Payment amount validation

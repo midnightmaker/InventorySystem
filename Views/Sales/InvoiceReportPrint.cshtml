@@ -2,6 +2,8 @@
 @{
   Layout = null; // No layout for print view
   var afterDiscountAmount = Model.SubtotalAmount - Model.TotalDiscount;
+  var isProforma = Model.IsProforma ?? (Model.SaleStatus != InventorySystem.Models.Enums.SaleStatus.Shipped);
+  var invoiceTitle = isProforma ? "PROFORMA INVOICE" : "INVOICE";
 }
 
 <!DOCTYPE html>
@@ -9,7 +11,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Invoice @Model.InvoiceNumber - Print</title>
+  <title>@(isProforma ? "Proforma Invoice" : "Invoice") @Model.InvoiceNumber - Print</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -23,6 +25,17 @@
       border-bottom: 3px solid #333;
       padding-bottom: 20px;
       margin-bottom: 30px;
+    }
+
+    .proforma-notice {
+      background-color: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: bold;
+      color: #856404;
     }
 
     .company-info, .customer-info {
@@ -109,6 +122,16 @@
       color: #666;
     }
 
+    .proforma-footer {
+      background-color: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 15px;
+      margin-top: 20px;
+      font-size: 11px;
+      color: #856404;
+    }
+
     .overdue-notice {
       background-color: #f8d7da;
       color: #721c24;
@@ -139,101 +162,105 @@
 
     /* Print-specific overrides for clean, professional appearance */
     @@media print {
-      .no-print
+      .no-print {
+        display: none;
+      }
 
-    {
-      display: none;
-    }
+      body {
+        font-size: 11px;
+        background: white !important;
+        color: black !important;
+      }
 
-    body {
-      font-size: 11px;
-      background: white !important;
-      color: black !important;
-    }
+      .page-break {
+        page-break-before: always;
+      }
 
-    .page-break {
-      page-break-before: always;
-    }
+      /* Ensure all table elements are consistently styled for print */
+      .line-items-table table {
+        border: 2px solid #000;
+      }
 
-    /* Ensure all table elements are consistently styled for print */
-    .line-items-table table {
-      border: 2px solid #000;
-    }
+      .line-items-table th,
+      .line-items-table td {
+        border: 1px solid #000;
+        background: white !important;
+        color: black !important;
+      }
 
-    .line-items-table th,
-    .line-items-table td {
-      border: 1px solid #000;
-      background: white !important;
-      color: black !important;
-    }
+      .line-items-table thead th {
+        background: #f0f0f0 !important;
+        color: black !important;
+      }
 
-    .line-items-table thead th {
-      background: #f0f0f0 !important;
-      color: black !important;
-    }
+      .line-items-table tfoot th {
+        background: #f0f0f0 !important;
+        color: black !important;
+      }
 
-    .line-items-table tfoot th {
-      background: #f0f0f0 !important;
-      color: black !important;
-    }
+      /* Special print styling for discount and adjustment rows */
+      .discount-row th,
+      .discount-row td {
+        background: #f0f0f0 !important;
+        font-style: italic !important;
+      }
 
-    /* Special print styling for discount and adjustment rows */
-    .discount-row th,
-    .discount-row td {
-      background: #f0f0f0 !important;
-      font-style: italic !important;
-    }
+      .adjustment-row th,
+      .adjustment-row td {
+        background: #f5f5f5 !important;
+        font-style: italic !important;
+      }
 
-    .adjustment-row th,
-    .adjustment-row td {
-      background: #f5f5f5 !important;
-      font-style: italic !important;
-    }
+      /* Remove Bootstrap color classes for print */
+      .table-dark,
+      .table-secondary,
+      .table-info,
+      .table-success {
+        background: #f0f0f0 !important;
+        color: black !important;
+      }
 
-    /* Remove Bootstrap color classes for print */
-    .table-dark,
-    .table-secondary,
-    .table-info,
-    .table-success {
-      background: #f0f0f0 !important;
-      color: black !important;
-    }
+      .text-primary,
+      .text-success,
+      .text-warning,
+      .text-danger {
+        color: black !important;
+      }
 
-    .text-primary,
-    .text-success,
-    .text-warning,
-    .text-danger {
-      color: black !important;
-    }
+      /* Ensure badges are readable in print */
+      .badge {
+        background: white !important;
+        color: black !important;
+        border: 1px solid black !important;
+      }
 
-    /* Ensure badges are readable in print */
-    .badge {
-      background: white !important;
-      color: black !important;
-      border: 1px solid black !important;
-    }
+      /* Clean alert styling for print */
+      .alert-info,
+      .discount-notice,
+      .adjustment-notice {
+        background: white !important;
+        border: 1px solid #ccc !important;
+        color: black !important;
+      }
 
-    /* Clean alert styling for print */
-    .alert-info,
-    .discount-notice,
-    .adjustment-notice {
-      background: white !important;
-      border: 1px solid #ccc !important;
-      color: black !important;
-    }
+      .proforma-notice,
+      .proforma-footer {
+        background: white !important;
+        border: 2px solid black !important;
+        color: black !important;
+      }
 
-    .overdue-notice {
-      background: white !important;
-      border: 2px solid black !important;
-      color: black !important;
-    }
+      .overdue-notice {
+        background: white !important;
+        border: 2px solid black !important;
+        color: black !important;
+      }
 
-    .payment-info {
-      background: white !important;
-      border: 1px solid #ccc !important;
-      color: black !important;
-    }
-
+      .payment-info {
+        background: white !important;
+        border: 1px solid #ccc !important;
+        color: black !important;
+      }
     }
   </style>
 </head>
@@ -251,13 +278,22 @@
           }
         </div>
         <div class="text-center flex-grow-1">
-          <h1>INVOICE</h1>
-          <h2 class="text-primary">Invoice# @Model.InvoiceNumber</h2>
+          <h1>@invoiceTitle</h1>
+          <h2 class="@(isProforma ? "text-warning" : "text-primary")">@(isProforma ? "Proforma" : "Invoice")# @Model.InvoiceNumber</h2>
         </div>
         <div>
           <!-- Space for symmetry -->
         </div>
       </div>
+
+      @if (isProforma)
+      {
+        <div class="proforma-notice mt-3">
+          <i class="fas fa-exclamation-triangle"></i>
+          <strong>PROFORMA INVOICE - NOT A TAX INVOICE</strong><br>
+          <small>This document is for quotation and customs clearance purposes only</small>
+        </div>
+      }
 
       @if (Model.IsOverdue)
       {
@@ -290,23 +326,15 @@
             <strong>@Model.Customer.CustomerName</strong><br>
             @if (!string.IsNullOrWhiteSpace(Model.Customer.BillingAddress))
             {
-              @Model.Customer.BillingAddress
-            
-              <br>
+              @Model.Customer.BillingAddress<br>
             }
             @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerPhone))
             {
-              <i class="fas fa-phone"></i> 
-              @Model.Customer.CustomerPhone
-            
-              <br>
+              <i class="fas fa-phone"></i> @Model.Customer.CustomerPhone<br>
             }
             @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerEmail))
             {
-              <i class="fas fa-envelope"></i> 
-              @Model.Customer.CustomerEmail
-            
-              <br>
+              <i class="fas fa-envelope"></i> @Model.Customer.CustomerEmail<br>
             }
           </address>
 
@@ -325,11 +353,11 @@
     <div class="invoice-details">
       <div class="row">
         <div class="col-3">
-          <strong>Invoice Date:</strong><br>
+          <strong>@(isProforma ? "Proforma" : "Invoice") Date:</strong><br>
           @Model.InvoiceDate.ToString("MMMM dd, yyyy")
         </div>
         <div class="col-3">
-          <strong>Due Date:</strong><br>
+          <strong>@(isProforma ? "Valid Until:" : "Due Date:"):</strong><br>
           @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
         </div>
         <div class="col-3">
@@ -338,7 +366,7 @@
         </div>
         <div class="col-3">
           <strong>Status:</strong><br>
-          <span class="badge">@Model.PaymentStatus</span>
+          <span class="badge">@(isProforma ? "Draft/Estimate" : Model.PaymentStatus.ToString())</span>
         </div>
       </div>
 
@@ -351,8 +379,6 @@
         </div>
       }
     </div>
-
-   
 
     <!-- Line Items -->
     <div class="line-items-table">
@@ -380,9 +406,7 @@
                 @item.Description
                 @if (item.IsBackordered)
                 {
-                  <br>
-              
-                  <em>@item.BackorderStatus</em>
+                  <br><em>@item.BackorderStatus</em>
                 }
               </td>
               <td class="text-center">@item.Quantity</td>
@@ -398,12 +422,12 @@
             <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
           </tr>
 
-          @* ✅ NEW: Show discount line if discount was applied *@
+          @* Show discount line if discount was applied *@
           @if (Model.HasDiscount && Model.TotalDiscount > 0)
           {
             <tr class="discount-row">
               <th colspan="5" class="text-end">
-                <i class="fas "></i>
+                <i class="fas fa-percent"></i>
                 Discount:
               </th>
               <th class="text-end">-$@Model.TotalDiscount.ToString("N2")</th>
@@ -414,18 +438,18 @@
             </tr>
           }
 
-          @* ✅ FIXED: Always show shipping and tax, even if zero *@
+          @* Always show shipping and tax, even if zero *@
           <tr>
-            <th colspan="5" class="text-end">Shipping:</th>
+            <th colspan="5" class="text-end">@(isProforma ? "Estimated Shipping:" : "Shipping:"):</th>
             <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
           </tr>
           <tr>
-            <th colspan="5" class="text-end">Tax:</th>
+            <th colspan="5" class="text-end">@(isProforma ? "Estimated Tax:" : "Tax:"):</th>
             <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
           </tr>
 
-          @* ✅ NEW: Show post-sale adjustments if they exist *@
-          @if (Model.HasAdjustments)
+          @* Show post-sale adjustments if they exist and not proforma *@
+          @if (Model.HasAdjustments && !isProforma)
           {
             <tr>
               <th colspan="5" class="text-end">Invoice Total:</th>
@@ -443,50 +467,54 @@
           else
           {
             <tr>
-              <th colspan="5" class="text-end"><strong>INVOICE TOTAL:</strong></th>
+              <th colspan="5" class="text-end"><strong>@(isProforma ? "PROFORMA TOTAL:" : "INVOICE TOTAL:"):</strong></th>
               <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
             </tr>
           }
 
-          @if (Model.AmountPaid > 0)
+          @if (Model.AmountPaid > 0 && !isProforma)
           {
             <tr>
               <th colspan="5" class="text-end">Amount Paid:</th>
               <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
             </tr>
           }
-          <tr>
-            <th colspan="5" class="text-end">
-              <strong>
-                @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
-                {
-                  <span>PAID IN FULL:</span>
-                }
-                else
-                {
-                  <span>AMOUNT DUE:</span>
-                }
-              </strong>
-            </th>
-            <th class="text-end">
-              <strong>
-                @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
-                {
-                  <span>$0.00</span>
-                }
-                else
-                {
-                  <span>$@Model.AmountDue.ToString("N2")</span>
-                }
-              </strong>
-            </th>
-          </tr>
+          
+          @if (!isProforma)
+          {
+            <tr>
+              <th colspan="5" class="text-end">
+                <strong>
+                  @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                  {
+                    <span>PAID IN FULL:</span>
+                  }
+                  else
+                  {
+                    <span>AMOUNT DUE:</span>
+                  }
+                </strong>
+              </th>
+              <th class="text-end">
+                <strong>
+                  @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+                  {
+                    <span>$0.00</span>
+                  }
+                  else
+                  {
+                    <span>$@Model.AmountDue.ToString("N2")</span>
+                  }
+                </strong>
+              </th>
+            </tr>
+          }
         </tfoot>
       </table>
     </div>
 
-    @* ✅ NEW: Show adjustment notice if adjustments exist *@
-    @if (Model.HasAdjustments)
+    @* Show adjustment notice if adjustments exist and not proforma *@
+    @if (Model.HasAdjustments && !isProforma)
     {
       <div class="adjustment-notice">
         <strong><i class="fas fa-info-circle"></i> Invoice Adjustments Applied</strong><br>
@@ -498,7 +526,7 @@
     }
 
     <!-- Payment Information -->
-    @if (!string.IsNullOrWhiteSpace(Model.PaymentMethod))
+    @if (!string.IsNullOrWhiteSpace(Model.PaymentMethod) && !isProforma)
     {
       <div class="payment-info">
         <h6><i class="fas fa-credit-card"></i> Payment Method:</h6>
@@ -516,9 +544,29 @@
     }
 
     <!-- Footer -->
+    @if (isProforma)
+    {
+      <!-- Proforma-specific footer -->
+      <div class="proforma-footer">
+        <h6><i class="fas fa-info-circle"></i> <strong>PROFORMA INVOICE NOTES</strong></h6>
+        <ol class="mb-0">
+          <li>This is not a tax invoice.</li>
+          <li>Issued for customs clearance and quotation purposes only.</li>
+          <li>Final amounts may vary based on shipping and insurance costs at the time of dispatch.</li>
+        </ol>
+      </div>
+    }
+
     <div class="footer">
       <p class="mb-1"><strong>Thank you for your business!</strong></p>
-      <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
+      @if (!isProforma)
+      {
+        <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
+      }
+      else
+      {
+        <p class="mb-1">This proforma invoice <strong>@Model.InvoiceNumber</strong> is valid for quotation purposes.</p>
+      }
       <p class="mb-0">
         <small>Printed on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</small>
       </p>
@@ -528,7 +576,7 @@
   <!-- Print button (hidden when printing) -->
   <div class="no-print text-center mt-4">
     <button type="button" class="btn btn-primary" onclick="window.print()">
-      <i class="fas fa-print"></i> Print This Invoice
+      <i class="fas fa-print"></i> Print This @(isProforma ? "Proforma Invoice" : "Invoice")
     </button>
     <button type="button" class="btn btn-secondary" onclick="window.close()">
       <i class="fas fa-times"></i> Close

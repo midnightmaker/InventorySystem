@@ -153,39 +153,61 @@
                         </div>
                     </div>
 
-                    <!-- Requirements Section -->
-                    <hr>
-                    <h6><i class="fas fa-clipboard-check"></i> Service Requirements</h6>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-check mb-3">
-                                <input asp-for="QcRequired" class="form-check-input" type="checkbox" />
-                                <label asp-for="QcRequired" class="form-check-label">
-                                    <i class="fas fa-search"></i> Quality Check Required
-                                </label>
-                                <div class="form-text">Service requires quality control verification</div>
-                            </div>
+          <!-- Requirements Section -->
+          <hr>
+          <h6><i class="fas fa-clipboard-check"></i> Service Requirements</h6>
+          <p class="text-muted small mb-3">
+            <i class="fas fa-info-circle"></i>
+            These requirements will be enforced - service orders cannot be marked as complete until all required documents are uploaded.
+          </p>
 
-                            <div class="form-check mb-3">
-                                <input asp-for="CertificateRequired" class="form-check-input" type="checkbox" />
-                                <label asp-for="CertificateRequired" class="form-check-label">
-                                    <i class="fas fa-certificate"></i> Certificate Required
-                                </label>
-                                <div class="form-text">Service requires certification document</div>
-                            </div>
-                        </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input asp-for="QcRequired" class="form-check-input" type="checkbox" />
+                <label asp-for="QcRequired" class="form-check-label">
+                  <i class="fas fa-search"></i> Quality Check Required
+                </label>
+                <div class="form-text">Service requires quality control verification</div>
+              </div>
 
-                        <div class="col-md-6">
-                            <div class="form-check mb-3">
-                                <input asp-for="IsActive" class="form-check-input" type="checkbox" />
-                                <label asp-for="IsActive" class="form-check-label">
-                                    <i class="fas fa-toggle-on"></i> Active
-                                </label>
-                                <div class="form-text">Service type is available for new orders</div>
-                            </div>
-                        </div>
-                    </div>
+              <div class="form-check mb-3">
+                <input asp-for="CertificateRequired" class="form-check-input" type="checkbox" />
+                <label asp-for="CertificateRequired" class="form-check-label">
+                  <i class="fas fa-certificate"></i> Certificate Required
+                </label>
+                <div class="form-text">Service requires certification document</div>
+              </div>
+
+              <!-- ? ADD THIS: Missing Worksheet requirement checkbox -->
+              <div class="form-check mb-3">
+                <input asp-for="WorksheetRequired" class="form-check-input" type="checkbox" />
+                <label asp-for="WorksheetRequired" class="form-check-label">
+                  <i class="fas fa-file-alt"></i> Worksheet Required
+                </label>
+                <div class="form-text">Service requires completed worksheet document upload</div>
+                <span asp-validation-for="WorksheetRequired" class="text-danger"></span>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                <label asp-for="IsActive" class="form-check-label">
+                  <i class="fas fa-toggle-on"></i> Active
+                </label>
+                <div class="form-text">Service type is available for new orders</div>
+              </div>
+
+              <!-- ? ADD THIS: Requirements warning box (optional but helpful) -->
+              <div class="alert alert-info" id="requirementsWarning" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Document Requirements:</strong>
+                <ul id="requirementsList" class="mb-0 mt-2">
+                </ul>
+              </div>
+            </div>
+          </div>
 
                     <!-- Change Tracking Information -->
                     <hr>
@@ -413,66 +435,86 @@
             updatePreview();
         }
 
-        function updatePreview() {
-            const serviceName = document.querySelector('[name="ServiceName"]').value;
-            const serviceCode = document.querySelector('[name="ServiceCode"]').value;
-            const category = document.querySelector('[name="ServiceCategory"]').value;
-            const description = document.querySelector('[name="Description"]').value;
-            const hours = document.querySelector('[name="StandardHours"]').value;
-            const rate = document.querySelector('[name="StandardRate"]').value;
-            const qcRequired = document.querySelector('[name="QcRequired"]').checked;
-            const certRequired = document.querySelector('[name="CertificateRequired"]').checked;
-            const isActive = document.querySelector('[name="IsActive"]').checked;
+            function updatePreview() {
+        const serviceName = document.querySelector('[name="ServiceName"]').value;
+        const serviceCode = document.querySelector('[name="ServiceCode"]').value;
+        const category = document.querySelector('[name="ServiceCategory"]').value;
+        const description = document.querySelector('[name="Description"]').value;
+        const hours = document.querySelector('[name="StandardHours"]').value;
+        const rate = document.querySelector('[name="StandardRate"]').value;
+        const qcRequired = document.querySelector('[name="QcRequired"]').checked;
+        const certRequired = document.querySelector('[name="CertificateRequired"]').checked;
+        const worksheetRequired = document.querySelector('[name="WorksheetRequired"]').checked; // ? ADD THIS
+        const isActive = document.querySelector('[name="IsActive"]').checked;
 
-            const estimatedCost = (parseFloat(hours) || 0) * (parseFloat(rate) || 0);
+        // ? ADD THIS: Update requirements warning
+        updateRequirementsWarning(qcRequired, certRequired, worksheetRequired);
 
-            const previewHtml = `
-                <div class="text-center">
-                    <h6 class="text-primary">${serviceName || 'Service Name'}</h6>
-                    ${serviceCode ? `<div class="small text-muted mb-2">Code: <code>${serviceCode}</code></div>` : ''}
-                    ${category ? `<span class="badge bg-secondary mb-2">${category}</span>` : ''}
-                    ${description ? `<p class="small text-muted">${description.substring(0, 100)}${description.length > 100 ? '...' : ''}</p>` : ''}
-                    
-                    <hr class="my-2">
-                    
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <div class="small text-muted">Standard Hours</div>
-                            <div class="fw-bold">${hours || '0'}</div>
-                        </div>
-                        <div class="col-6">
-                            <div class="small text-muted">Hourly Rate</div>
-                            <div class="fw-bold">$${rate || '0'}</div>
-                        </div>
+        const estimatedCost = (parseFloat(hours) || 0) * (parseFloat(rate) || 0);
+
+        const previewHtml = `
+            <div class="text-center">
+                <h6 class="text-primary">${serviceName || 'Service Name'}</h6>
+                ${serviceCode ? `<div class="small text-muted mb-2">Code: <code>${serviceCode}</code></div>` : ''}
+                ${category ? `<span class="badge bg-secondary mb-2">${category}</span>` : ''}
+                ${description ? `<p class="small text-muted">${description.substring(0, 100)}${description.length > 100 ? '...' : ''}</p>` : ''}
+
+                <hr class="my-2">
+
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="small text-muted">Standard Hours</div>
+                        <div class="fw-bold">${hours || '0'}</div>
                     </div>
-                    
-                    <div class="mt-2">
-                        <div class="small text-muted">Estimated Cost</div>
-                        <div class="fw-bold text-success fs-6">$${estimatedCost.toFixed(2)}</div>
-                    </div>
-                    
-                    <div class="mt-2">
-                        ${qcRequired ? '<span class="badge bg-warning text-dark me-1">QC</span>' : ''}
-                        ${certRequired ? '<span class="badge bg-info me-1">Cert</span>' : ''}
-                        ${isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}
+                    <div class="col-6">
+                        <div class="small text-muted">Hourly Rate</div>
+                        <div class="fw-bold">$${rate || '0'}</div>
                     </div>
                 </div>
-            `;
 
-            document.getElementById('servicePreview').innerHTML = previewHtml;
-        }
+                <div class="mt-2">
+                    <div class="small text-muted">Estimated Cost</div>
+                    <div class="fw-bold text-success fs-6">$${estimatedCost.toFixed(2)}</div>
+                </div>
 
-        function setupPreviewListeners() {
-            const formFields = ['ServiceName', 'ServiceCode', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'IsActive'];
-            
-            formFields.forEach(fieldName => {
-                const field = document.querySelector(`[name="${fieldName}"]`);
-                if (field) {
-                    field.addEventListener('input', updatePreview);
-                    field.addEventListener('change', updatePreview);
-                }
-            });
+                <div class="mt-2">
+                    ${qcRequired ? '<span class="badge bg-warning text-dark me-1">QC</span>' : ''}
+                    ${certRequired ? '<span class="badge bg-info me-1">Cert</span>' : ''}
+                    ${worksheetRequired ? '<span class="badge bg-primary me-1">Worksheet</span>' : ''} <!-- ? ADD THIS -->
+                    ${isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}
+                </div>
+            </div>
+        `;
+
+        document.getElementById('servicePreview').innerHTML = previewHtml;
+    }
+        function updateRequirementsWarning(qc, cert, worksheet) {
+        const warningBox = document.getElementById('requirementsWarning');
+        const requirementsList = document.getElementById('requirementsList');
+
+        const requirements = [];
+        if (qc) requirements.push('<li>Quality Check verification required</li>');
+        if (cert) requirements.push('<li>Service Certificate must be uploaded</li>');
+        if (worksheet) requirements.push('<li>Service Worksheet must be uploaded</li>');
+
+        if (requirements.length > 0) {
+            requirementsList.innerHTML = requirements.join('');
+            warningBox.style.display = 'block';
+        } else {
+            warningBox.style.display = 'none';
         }
+    }
+            function setupPreviewListeners() {
+        const formFields = ['ServiceName', 'ServiceCode', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'WorksheetRequired', 'IsActive']; // ? ADD WorksheetRequired
+
+        formFields.forEach(fieldName => {
+            const field = document.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                field.addEventListener('input', updatePreview);
+                field.addEventListener('change', updatePreview);
+            }
+        });
+    }
 
         function setupFormValidation() {
             const form = document.querySelector('.needs-validation');

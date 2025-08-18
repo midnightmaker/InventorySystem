@@ -515,7 +515,8 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		
+
+	
 		// Invoice Report - View invoice for a sale
 		[HttpGet]
 		public async Task<IActionResult> InvoiceReport(int saleId)
@@ -541,6 +542,9 @@ namespace InventorySystem.Controllers
 				// ✅ Calculate adjustments (NOT including discounts - those are part of the sale)
 				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
 
+				// ✅ NEW: Determine if this is a proforma invoice
+				var isProforma = sale.SaleStatus != SaleStatus.Shipped && sale.SaleStatus != SaleStatus.Delivered;
+
 				var viewModel = new InvoiceReportViewModel
 				{
 					InvoiceNumber = sale.SaleNumber,
@@ -564,8 +568,8 @@ namespace InventorySystem.Controllers
 					}).ToList(),
 					CompanyInfo = await GetCompanyInfo(),
 					CustomerEmail = sale.Customer?.Email ?? string.Empty,
-					EmailSubject = $"Invoice {sale.SaleNumber}",
-					EmailMessage = $"Please find attached Invoice {sale.SaleNumber} for your recent purchase.",
+					EmailSubject = $"{(isProforma ? "Proforma Invoice" : "Invoice")} {sale.SaleNumber}",
+					EmailMessage = $"Please find attached {(isProforma ? "Proforma Invoice" : "Invoice")} {sale.SaleNumber} for your recent {(isProforma ? "quote" : "purchase")}.",
 					PaymentMethod = sale.PaymentMethod ?? string.Empty,
 					IsOverdue = sale.IsOverdue,
 					DaysOverdue = sale.DaysOverdue,
@@ -580,8 +584,11 @@ namespace InventorySystem.Controllers
 					// Keep adjustments separate (for post-sale issues)
 					TotalAdjustments = totalAdjustments,
 					OriginalAmount = sale.TotalAmount, // This now includes the discount calculation
-				  // Calculate amount paid using CustomerPaymentService
-					AmountPaid = await GetTotalPaymentsBySaleAsync(sale.Id)
+																						 // ✅ NEW: Proforma invoice properties
+					IsProforma = isProforma,
+					InvoiceTitle = isProforma ? "Proforma Invoice" : "Invoice",
+					// Calculate amount paid using CustomerPaymentService (only for actual invoices)
+					AmountPaid = isProforma ? 0 : await GetTotalPaymentsBySaleAsync(sale.Id)
 				};
 
 				ViewBag.SaleId = saleId;
@@ -589,7 +596,7 @@ namespace InventorySystem.Controllers
 			}
 			catch (Exception ex)
 			{
-				TempData["ErrorMessage"] = $"Error generating printable invoice: {ex.Message}";
+				TempData["ErrorMessage"] = $"Error generating invoice: {ex.Message}";
 				return RedirectToAction("Index");
 			}
 		}
@@ -1806,7 +1813,106 @@ namespace InventorySystem.Controllers
 				return RedirectToAction("Details", new { id });
 			}
 		}
+		// ✅ NEW: Helper method to validate service orders for shipping
+		private async Task<ServiceOrderValidationResult> ValidateServiceOrdersForShipping(int saleId, List<SaleItem> serviceItems)
+		{
+			var result = new ServiceOrderValidationResult();
 
+			try
+			{
+				// Get existing service orders for this sale
+				var existingServiceOrders = await _context.ServiceOrders
+						.Where(so => so.SaleId == saleId)
+						.Include(so => so.ServiceType)
+						.ToListAsync();
+
+				foreach (var saleItem in serviceItems)
+				{
+					if (saleItem.ItemId.HasValue)
+					{
+						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+						if (item?.ItemType == ItemType.Service)
+						{
+							// Find corresponding service type
+							var serviceType = await _context.ServiceTypes
+									.FirstOrDefaultAsync(st => st.ServiceItemId == item.Id);
+
+							if (serviceType != null)
+							{
+								// Check if service order exists for this service type
+								var relatedServiceOrder = existingServiceOrders
+										.FirstOrDefault(so => so.ServiceTypeId == serviceType.Id);
+
+								if (relatedServiceOrder == null)
+								{
+									// No service order created yet
+									result.CanShip = false;
+									result.MissingServiceOrders.Add(new MissingServiceOrderInfo
+									{
+										ServiceTypeName = serviceType.ServiceName,
+										ItemName = item.Description,
+										ServiceTypeId = serviceType.Id,
+										ItemId = item.Id
+									});
+								}
+								else if (!IsServiceOrderReadyForShipment(relatedServiceOrder))
+								{
+									// Service order exists but not complete
+									result.CanShip = false;
+									result.IncompleteServiceOrders.Add(relatedServiceOrder);
+								}
+								// If service order exists and can ship, no action needed
+							}
+							else
+							{
+								// Service item but no corresponding service type found
+								_logger.LogWarning("Service item {ItemId} ({ItemDescription}) has no corresponding service type",
+										item.Id, item.Description);
+
+								result.CanShip = false;
+								result.MissingServiceOrders.Add(new MissingServiceOrderInfo
+								{
+									ServiceTypeName = "Unknown Service Type",
+									ItemName = item.Description,
+									ServiceTypeId = 0,
+									ItemId = item.Id
+								});
+							}
+						}
+					}
+				}
+
+				return result;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error validating service orders for shipping - Sale {SaleId}", saleId);
+				result.CanShip = false;
+				return result;
+			}
+		}
+
+		// ✅ NEW: Helper method to check if a service order is ready for shipment
+		private static bool IsServiceOrderReadyForShipment(ServiceOrder serviceOrder)
+		{
+			// Service must be completed
+			if (serviceOrder.Status != ServiceOrderStatus.Completed)
+				return false;
+
+			// Quality control check (if required)
+			if (serviceOrder.QcRequired && !serviceOrder.QcCompleted)
+				return false;
+
+			// Certificate check (if required)
+			if (serviceOrder.CertificateRequired && !serviceOrder.CertificateGenerated)
+				return false;
+
+			// Worksheet check (if required)
+			if (serviceOrder.WorksheetRequired && !serviceOrder.WorksheetUploaded)
+				return false;
+
+			return true;
+		}
 		// POST: Sales/ProcessSaleWithShipping - Enhanced process and ship with courier information
 		[HttpPost]
 		[ValidateAntiForgeryToken]
@@ -1818,6 +1924,7 @@ namespace InventorySystem.Controllers
 				ModelState.Remove("GeneratePackingSlip");
 				ModelState.Remove("EmailCustomer");
 				ModelState.Remove("PrintPackingSlip");
+				
 				// Get the sale with items
 				var sale = await _salesService.GetSaleByIdAsync(model.SaleId);
 				if (sale == null)
@@ -1839,6 +1946,62 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
+				// ✅ NEW: Check for service items and validate service orders completion
+				var serviceItems = new List<SaleItem>();
+				var nonServiceItems = new List<SaleItem>();
+
+				foreach (var saleItem in sale.SaleItems)
+				{
+					if (saleItem.ItemId.HasValue)
+					{
+						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+						if (item?.ItemType == ItemType.Service)
+						{
+							serviceItems.Add(saleItem);
+						}
+						else
+						{
+							nonServiceItems.Add(saleItem);
+						}
+					}
+					else
+					{
+						nonServiceItems.Add(saleItem);
+					}
+				}
+
+				// ✅ NEW: If there are service items, validate service orders
+				if (serviceItems.Any())
+				{
+					var serviceOrderValidation = await ValidateServiceOrdersForShipping(sale.Id, serviceItems);
+					if (!serviceOrderValidation.CanShip)
+					{
+						if (serviceOrderValidation.MissingServiceOrders.Any())
+						{
+							// Show beautiful UI prompt for creating service orders
+							TempData["ServiceOrderPrompt"] = true;
+							TempData["MissingServiceOrders"] = JsonSerializer.Serialize(serviceOrderValidation.MissingServiceOrders);
+							TempData["ErrorMessage"] = $"Cannot pack and ship this sale. Service orders must be created for {serviceOrderValidation.MissingServiceOrders.Count} service item(s).";
+							TempData["ServiceOrderCreationUrl"] = Url.Action("CreateServiceOrdersFromSale", new { saleId = sale.Id });
+							return RedirectToAction("Details", new { id = model.SaleId });
+						}
+						else
+						{
+							// Service orders exist but are not complete - show toast
+							var incompleteOrders = string.Join(", ", serviceOrderValidation.IncompleteServiceOrders.Select(so => so.ServiceOrderNumber));
+							TempData["ToastMessage"] = $"Cannot pack and ship until service orders are complete: {incompleteOrders}. Would you like to check their status?";
+							TempData["ToastType"] = "warning";
+							TempData["ServiceOrderLinks"] = JsonSerializer.Serialize(serviceOrderValidation.IncompleteServiceOrders.Select(so => new 
+							{
+								Number = so.ServiceOrderNumber,
+								Url = Url.Action("Details", "Services", new { id = so.Id }),
+								Status = so.Status.ToString()
+							}));
+							return RedirectToAction("Details", new { id = model.SaleId });
+						}
+					}
+				}
+
 				// Validate model
 				if (!ModelState.IsValid)
 				{
@@ -1848,7 +2011,6 @@ namespace InventorySystem.Controllers
 
 				// Check if any items track inventory (will affect stock)
 				var inventoryItems = new List<SaleItem>();
-				var nonInventoryItems = new List<SaleItem>();
 
 				foreach (var saleItem in sale.SaleItems)
 				{
@@ -1859,10 +2021,6 @@ namespace InventorySystem.Controllers
 						if (item != null && item.TrackInventory)
 						{
 							inventoryItems.Add(saleItem);
-						}
-						else
-						{
-							nonInventoryItems.Add(saleItem);
 						}
 					}
 					else if (saleItem.FinishedGoodId.HasValue)
@@ -1929,7 +2087,7 @@ namespace InventorySystem.Controllers
 					}
 				}
 
-				// ✅ NEW: Update sale with shipping information
+				// Update sale with shipping information
 				sale.SaleStatus = SaleStatus.Shipped;
 				sale.CourierService = model.CourierService;
 				sale.TrackingNumber = model.TrackingNumber;
@@ -1945,7 +2103,7 @@ namespace InventorySystem.Controllers
 				_logger.LogInformation("Sale {SaleId} processed and marked as shipped via {CourierService} with tracking {TrackingNumber}", 
 					model.SaleId, model.CourierService, model.TrackingNumber);
 
-				// ✅ NEW: Generate packing slip if requested
+				// Generate packing slip if requested
 				string packingSlipInfo = "";
 				if (model.GeneratePackingSlip)
 				{
@@ -1959,7 +2117,7 @@ namespace InventorySystem.Controllers
 					}
 				}
 
-				// ✅ NEW: Send email notification if requested
+				// Send email notification if requested
 				if (model.EmailCustomer && !string.IsNullOrEmpty(sale.Customer?.Email))
 				{
 					try
@@ -1976,24 +2134,26 @@ namespace InventorySystem.Controllers
 
 				// Create success message based on item types
 				string successMessage;
-				if (inventoryItems.Any() && nonInventoryItems.Any())
+				var totalItemCount = sale.SaleItems.Count();
+				var serviceItemCount = serviceItems.Count;
+				var physicalItemCount = totalItemCount - serviceItemCount;
+
+				if (serviceItemCount > 0 && physicalItemCount > 0)
 				{
 					successMessage = $"Sale {sale.SaleNumber} shipped successfully via {model.CourierService}! " +
 								   $"Tracking: {model.TrackingNumber}. " +
-								   $"Inventory reduced for {inventoryItems.Count} physical items. " +
-								   $"{nonInventoryItems.Count} service/virtual items processed.{packingSlipInfo}";
+								   $"Processed {physicalItemCount} physical item(s) and {serviceItemCount} service item(s).{packingSlipInfo}";
 				}
-				else if (inventoryItems.Any())
+				else if (serviceItemCount > 0)
 				{
-					successMessage = $"Sale {sale.SaleNumber} shipped successfully via {model.CourierService}! " +
-								   $"Tracking: {model.TrackingNumber}. " +
-								   $"Inventory has been reduced for all items.{packingSlipInfo}";
+					successMessage = $"Sale {sale.SaleNumber} processed successfully! " +
+								   $"All {serviceItemCount} service item(s) completed. No physical shipping required.{packingSlipInfo}";
 				}
 				else
 				{
 					successMessage = $"Sale {sale.SaleNumber} shipped successfully via {model.CourierService}! " +
 								   $"Tracking: {model.TrackingNumber}. " +
-								   $"No inventory adjustments needed (all items are services/virtual).{packingSlipInfo}";
+								   $"All {physicalItemCount} item(s) processed.{packingSlipInfo}";
 				}
 
 				TempData["SuccessMessage"] = successMessage;

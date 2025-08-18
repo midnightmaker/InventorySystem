@@ -72,6 +72,13 @@ namespace InventorySystem.ViewModels
 
 		[Display(Name = "Has Discount")]
 		public bool HasDiscount { get; set; } = false;
+
+		// ? NEW: Proforma invoice properties
+		public bool? IsProforma { get; set; }
+		public string InvoiceTitle { get; set; } = "Invoice";
+
+		// Helper property to determine if this is a proforma invoice
+		public bool IsProformaInvoice => IsProforma ?? (SaleStatus != SaleStatus.Shipped);
 	}
 
 	public class InvoiceLineItem
