@@ -314,15 +314,24 @@ namespace InventorySystem.Services
                            so.Status != ServiceOrderStatus.Cancelled)
                 .ToListAsync();
 
+            // Get completed services for revenue calculation
+            var completedServicesThisMonth = await _context.ServiceOrders
+                .Include(so => so.TimeLogs)
+                .Include(so => so.Materials)
+                .Where(so => so.CompletedDate >= startOfMonth && so.CompletedDate <= today &&
+                           so.Status == ServiceOrderStatus.Completed)
+                .ToListAsync();
+
+            // Calculate monthly revenue using the computed properties after loading from database
+            var monthlyRevenue = completedServicesThisMonth.Sum(so => so.TotalServiceCost);
+
             var dashboard = new ServiceDashboardViewModel
             {
                 TotalActiveServices = activeServices.Count,
                 ServicesScheduledToday = activeServices.Count(so => so.ScheduledDate?.Date == today),
                 OverdueServices = activeServices.Count(so => so.IsOverdue),
                 EmergencyServices = activeServices.Count(so => so.Priority == ServicePriority.Emergency),
-                MonthlyRevenue = await _context.ServiceOrders
-                    .Where(so => so.CompletedDate >= startOfMonth && so.CompletedDate <= today)
-                    .SumAsync(so => so.TotalServiceCost),
+                MonthlyRevenue = monthlyRevenue,
                 RecentServiceOrders = await _context.ServiceOrders
                     .Include(so => so.Customer)
                     .Include(so => so.ServiceType)
@@ -519,13 +528,16 @@ namespace InventorySystem.Services
                 .Where(so => so.RequestDate >= startDate && so.RequestDate <= endDate)
                 .ToListAsync();
 
+            // Calculate total revenue using computed properties after loading from database
+            var totalRevenue = services.Sum(s => s.TotalServiceCost);
+
             return new ServiceReportViewModel
             {
                 StartDate = startDate,
                 EndDate = endDate,
                 TotalServiceOrders = services.Count,
                 CompletedServiceOrders = services.Count(s => s.Status == ServiceOrderStatus.Completed),
-                TotalRevenue = services.Sum(s => s.TotalServiceCost),
+                TotalRevenue = totalRevenue,
                 TotalLaborHours = services.Sum(s => s.ActualHours),
                 ServicesByType = services.GroupBy(s => s.ServiceType.ServiceName)
                                        .ToDictionary(g => g.Key, g => g.Count()),
@@ -593,6 +605,8 @@ namespace InventorySystem.Services
         public async Task<decimal> GetCustomerServiceHistoryValueAsync(int customerId, DateTime? startDate = null)
         {
             var query = _context.ServiceOrders
+                .Include(so => so.TimeLogs)
+                .Include(so => so.Materials)
                 .Where(so => so.CustomerId == customerId &&
                            so.Status == ServiceOrderStatus.Completed);
 
@@ -601,7 +615,10 @@ namespace InventorySystem.Services
                 query = query.Where(so => so.CompletedDate >= startDate.Value);
             }
 
-            return await query.SumAsync(so => so.TotalServiceCost);
+            var serviceOrders = await query.ToListAsync();
+            
+            // Calculate total value using computed properties after loading from database
+            return serviceOrders.Sum(so => so.TotalServiceCost);
         }
 
         public async Task<bool> CompleteServiceAsync(int serviceOrderId, string completedBy, string? notes = null)
