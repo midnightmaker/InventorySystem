@@ -564,7 +564,9 @@ namespace InventorySystem.Controllers
 						UnitPrice = si.UnitPrice,
 						Notes = si.Notes ?? string.Empty,
 						ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
-						QuantityBackordered = si.QuantityBackordered
+						QuantityBackordered = si.QuantityBackordered,
+						SerialNumber = si.SerialNumber,
+						ModelNumber = si.ModelNumber
 					}).ToList(),
 					CompanyInfo = await GetCompanyInfo(),
 					CustomerEmail = sale.Customer?.Email ?? string.Empty,

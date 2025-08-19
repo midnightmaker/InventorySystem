@@ -62,5 +62,15 @@ namespace InventorySystem.ViewModels
     }
 
     public bool HasRequirements => RequiresSerialNumber || RequiresModelNumber;
+
+    // Image upload support
+    [Display(Name = "Product Image")]
+    public IFormFile? ImageFile { get; set; }
+
+    [Display(Name = "Has Image")]
+    public bool HasImage { get; set; }
+
+    [Display(Name = "Image File Name")]
+    public string? ImageFileName { get; set; }
   }
 }

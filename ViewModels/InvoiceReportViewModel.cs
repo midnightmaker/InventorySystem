@@ -92,11 +92,28 @@ namespace InventorySystem.ViewModels
 		public string Notes { get; set; } = string.Empty;
 		public string ProductType { get; set; } = string.Empty; // "Item" or "FinishedGood"
 		
+		// ? NEW: Serial and Model Number fields
+		public string? SerialNumber { get; set; }
+		public string? ModelNumber { get; set; }
+		
 		// Backorder information
 		public int QuantityBackordered { get; set; }
 		public bool IsBackordered => QuantityBackordered > 0;
 		public string BackorderStatus => QuantityBackordered > 0 ?
 				$"{QuantityBackordered} backordered" : "In stock";
+			
+		// ? NEW: Helper properties for display
+		public bool HasSerialModelInfo => !string.IsNullOrWhiteSpace(SerialNumber) || !string.IsNullOrWhiteSpace(ModelNumber);
+		public string SerialModelDisplay
+		{
+			get
+			{
+				var parts = new List<string>();
+				if (!string.IsNullOrWhiteSpace(SerialNumber)) parts.Add($"S/N: {SerialNumber}");
+				if (!string.IsNullOrWhiteSpace(ModelNumber)) parts.Add($"Model: {ModelNumber}");
+				return parts.Any() ? string.Join(" | ", parts) : "";
+			}
+		}
 	}
 
 	public class CustomerInfo

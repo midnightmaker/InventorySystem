@@ -39,9 +39,17 @@ namespace InventorySystem.Models
     [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
     [Display(Name = "Notes")]
     public string? Notes { get; set; }
+    
+		// Image properties for Finished Goods
+		public byte[]? ImageData { get; set; }
+		public string? ImageContentType { get; set; }
+		public string? ImageFileName { get; set; }
 
-    // ✅ NEW: Serial Number and Model Number Requirements
-    [Display(Name = "Requires Serial Number")]
+		[NotMapped]
+		public bool HasImage => ImageData != null && ImageData.Length > 0;
+
+		// ✅ NEW: Serial Number and Model Number Requirements
+		[Display(Name = "Requires Serial Number")]
     public bool RequiresSerialNumber { get; set; } = true; // Default TRUE for Finished Goods
 
     [Display(Name = "Requires Model Number")]

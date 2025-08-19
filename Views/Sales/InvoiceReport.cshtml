@@ -12,8 +12,8 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-file-invoice-dollar"></i> @(isProforma ? "Proforma Invoice" : "Invoice") @Model.InvoiceNumber</h2>
         <div class="btn-group">
-            <a href="@Url.Action("Index")" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to Sales
+            <a href="@Url.Action("Details", new { id = ViewBag.SaleId })" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Sale
             </a>
             <a href="@Url.Action("InvoiceReportPrint", new { saleId = ViewBag.SaleId })" 
                target="_blank" class="btn btn-primary">
@@ -191,10 +191,10 @@
                         <tr>
                             <th width="5%">Line #</th>
                             <th width="15%">Item Number</th>
-                            <th width="35%">Description</th>
+                            <th width="30%">Description</th>
                             <th width="10%" class="text-center">Qty</th>
-                            <th width="15%" class="text-end">Unit Price</th>
-                            <th width="15%" class="text-end">Line Total</th>
+                            <th width="12%" class="text-end">Unit Price</th>
+                            <th width="13%" class="text-end">Line Total</th>
                             @if (!isProforma)
                             {
                                 <th width="5%" class="text-center">Status</th>
@@ -211,7 +211,24 @@
                                 <td class="text-center bg-light"><strong>@lineNumber</strong></td>
                                 <td><strong>@item.PartNumber</strong></td>
                                 <td>
-                                    @item.Description
+                                    <strong>@item.Description</strong>
+                                    
+                                    @* ? NEW: Show Serial/Model Numbers *@
+                                    @if (item.HasSerialModelInfo)
+                                    {
+                                        <br><small class="text-muted">
+                                            <i class="fas fa-barcode"></i> @item.SerialModelDisplay
+                                        </small>
+                                    }
+                                    
+                                    @* ? NEW: Show Notes *@
+                                    @if (!string.IsNullOrWhiteSpace(item.Notes))
+                                    {
+                                        <br><small class="text-info">
+                                            <i class="fas fa-sticky-note"></i> @item.Notes
+                                        </small>
+                                    }
+                                    
                                     @if (!isProforma && item.IsBackordered)
                                     {
                                         <br><small class="text-warning"><i class="fas fa-clock"></i> @item.BackorderStatus</small>

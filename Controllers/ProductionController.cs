@@ -1046,6 +1046,93 @@ namespace InventorySystem.Controllers
             MinimumStock = viewModel.MinimumStock
           };
 
+          // ✅ NEW: Handle image upload
+          if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
+          {
+            // Validate file size (5MB limit)
+            if (viewModel.ImageFile.Length > 5 * 1024 * 1024)
+            {
+              ModelState.AddModelError("ImageFile", "Image file size must be less than 5MB.");
+              var boms = await _bomService.GetAllBomsAsync();
+              ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+              return View(viewModel);
+            }
+
+            // Validate file type
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp" };
+            if (!allowedTypes.Contains(viewModel.ImageFile.ContentType.ToLower()))
+            {
+              ModelState.AddModelError("ImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
+              var boms = await _bomService.GetAllBomsAsync();
+              ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+              return View(viewModel);
+            }
+
+            using var memoryStream = new MemoryStream();
+            await viewModel.ImageFile.CopyToAsync(memoryStream);
+            finishedGood.ImageData = memoryStream.ToArray();
+            finishedGood.ImageContentType = viewModel.ImageFile.ContentType;
+            finishedGood.ImageFileName = viewModel.ImageFile.FileName;
+          }
+
+          // ✅ NEW: Handle image upload
+          if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
+          {
+            // Validate file size (5MB limit)
+            if (viewModel.ImageFile.Length > 5 * 1024 * 1024)
+            {
+              ModelState.AddModelError("ImageFile", "Image file size must be less than 5MB.");
+              var boms = await _bomService.GetAllBomsAsync();
+              ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+              return View(viewModel);
+            }
+
+            // Validate file type
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp" };
+            if (!allowedTypes.Contains(viewModel.ImageFile.ContentType.ToLower()))
+            {
+              ModelState.AddModelError("ImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
+              var boms = await _bomService.GetAllBomsAsync();
+              ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+              return View(viewModel);
+            }
+
+            using var memoryStream = new MemoryStream();
+            await viewModel.ImageFile.CopyToAsync(memoryStream);
+            finishedGood.ImageData = memoryStream.ToArray();
+            finishedGood.ImageContentType = viewModel.ImageFile.ContentType;
+            finishedGood.ImageFileName = viewModel.ImageFile.FileName;
+          }
+
+          // ✅ NEW: Handle image upload
+          if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
+          {
+            // Validate file size (5MB limit)
+            if (viewModel.ImageFile.Length > 5 * 1024 * 1024)
+            {
+              ModelState.AddModelError("ImageFile", "Image file size must be less than 5MB.");
+              var boms = await _bomService.GetAllBomsAsync();
+              ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+              return View(viewModel);
+            }
+
+            // Validate file type
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp" };
+            if (!allowedTypes.Contains(viewModel.ImageFile.ContentType.ToLower()))
+            {
+              ModelState.AddModelError("ImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
+              var boms = await _bomService.GetAllBomsAsync();
+              ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+              return View(viewModel);
+            }
+
+            using var memoryStream = new MemoryStream();
+            await viewModel.ImageFile.CopyToAsync(memoryStream);
+            finishedGood.ImageData = memoryStream.ToArray();
+            finishedGood.ImageContentType = viewModel.ImageFile.ContentType;
+            finishedGood.ImageFileName = viewModel.ImageFile.FileName;
+          }
+
           await _productionService.CreateFinishedGoodAsync(finishedGood);
           TempData["SuccessMessage"] = $"Finished good '{finishedGood.PartNumber}' created successfully!";
           return RedirectToAction("FinishedGoods");
@@ -1091,65 +1178,110 @@ namespace InventorySystem.Controllers
           UnitCost = finishedGood.UnitCost,
           SellingPrice = finishedGood.SellingPrice,
           CurrentStock = finishedGood.CurrentStock,
-          MinimumStock = finishedGood.MinimumStock
+          MinimumStock = finishedGood.MinimumStock,
+          // ✅ CRITICAL FIX: Map the requirements properties
+          RequiresSerialNumber = finishedGood.RequiresSerialNumber,
+          RequiresModelNumber = finishedGood.RequiresModelNumber,
+          // ✅ CRITICAL FIX: Map the image properties
+          HasImage = finishedGood.HasImage,
+          ImageFileName = finishedGood.ImageFileName
         };
 
         return View("CreateFinishedGood", viewModel);
       }
       catch (Exception ex)
       {
-        TempData["ErrorMessage"] = $"Error loading finished good for editing: {ex.Message}";
+        _logger.LogError(ex, "Error loading finished good for edit: {FinishedGoodId}", id);
+        TempData["ErrorMessage"] = $"Error loading finished good: {ex.Message}";
         return RedirectToAction("FinishedGoods");
       }
     }
 
-    // Edit Finished Good - POST
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditFinishedGood(CreateFinishedGoodViewModel viewModel)
-    {
-      if (ModelState.IsValid)
-      {
-        try
-        {
-          var finishedGood = await _productionService.GetFinishedGoodByIdAsync(viewModel.Id);
-          if (finishedGood == null) return NotFound();
+		// Edit Finished Good - POST
+		// Edit Finished Good - POST
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> EditFinishedGood(CreateFinishedGoodViewModel viewModel)
+		{
+			if (ModelState.IsValid)
+			{
+				try
+				{
+					var finishedGood = await _productionService.GetFinishedGoodByIdAsync(viewModel.Id);
+					if (finishedGood == null) return NotFound();
 
-          finishedGood.PartNumber = viewModel.PartNumber;
-          finishedGood.Description = viewModel.Description;
-          finishedGood.BomId = viewModel.BomId;
-          finishedGood.UnitCost = viewModel.UnitCost;
-          finishedGood.SellingPrice = viewModel.SellingPrice;
-          finishedGood.CurrentStock = viewModel.CurrentStock;
-          finishedGood.MinimumStock = viewModel.MinimumStock;
+					finishedGood.PartNumber = viewModel.PartNumber;
+					finishedGood.Description = viewModel.Description;
+					finishedGood.BomId = viewModel.BomId;
+					finishedGood.UnitCost = viewModel.UnitCost;
+					finishedGood.SellingPrice = viewModel.SellingPrice;
+					finishedGood.CurrentStock = viewModel.CurrentStock;
+					finishedGood.MinimumStock = viewModel.MinimumStock;
+					finishedGood.RequiresSerialNumber = viewModel.RequiresSerialNumber;
+					finishedGood.RequiresModelNumber = viewModel.RequiresModelNumber;
+					finishedGood.LastModified = DateTime.Now;
+					finishedGood.ModifiedBy = User.Identity?.Name ?? "System";
 
-          await _productionService.UpdateFinishedGoodAsync(finishedGood);
-          TempData["SuccessMessage"] = $"Finished good '{finishedGood.PartNumber}' updated successfully!";
-          return RedirectToAction("FinishedGoods");
-        }
-        catch (Exception ex)
-        {
-          TempData["ErrorMessage"] = $"Error updating finished good: {ex.Message}";
-        }
-      }
+					// ✅ Handle image upload (new image replaces existing)
+					if (viewModel.ImageFile != null && viewModel.ImageFile.Length > 0)
+					{
+						// Validate file size (5MB limit)
+						if (viewModel.ImageFile.Length > 5 * 1024 * 1024)
+						{
+							ModelState.AddModelError("ImageFile", "Image file size must be less than 5MB.");
+							var boms = await _bomService.GetAllBomsAsync();
+							ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+							return View("CreateFinishedGood", viewModel);
+						}
 
-      // Reload dropdown data on validation error
-      try
-      {
-        var boms = await _bomService.GetAllBomsAsync();
-        ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, "Error reloading BOM dropdown");
-        ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
-      }
+						// Validate file type
+						var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp" };
+						if (!allowedTypes.Contains(viewModel.ImageFile.ContentType.ToLower()))
+						{
+							ModelState.AddModelError("ImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
+							var boms = await _bomService.GetAllBomsAsync();
+							ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+							return View("CreateFinishedGood", viewModel);
+						}
 
-      return View("CreateFinishedGood", viewModel);
-    }
+						using var memoryStream = new MemoryStream();
+						await viewModel.ImageFile.CopyToAsync(memoryStream);
+						finishedGood.ImageData = memoryStream.ToArray();
+						finishedGood.ImageContentType = viewModel.ImageFile.ContentType;
+						finishedGood.ImageFileName = viewModel.ImageFile.FileName;
+					}
 
-    // Delete Finished Good
-    [HttpPost]
+					await _productionService.UpdateFinishedGoodAsync(finishedGood);
+
+					TempData["SuccessMessage"] = $"Finished good '{finishedGood.PartNumber}' updated successfully! " +
+							$"Requirements: {(finishedGood.RequiresSerialNumber ? "Serial Number " : "")}" +
+							$"{(finishedGood.RequiresModelNumber ? "Model Number" : "")}";
+
+					return RedirectToAction("FinishedGoods");
+				}
+				catch (Exception ex)
+				{
+					TempData["ErrorMessage"] = $"Error updating finished good: {ex.Message}";
+				}
+			}
+
+			// Reload dropdown data on validation error
+			try
+			{
+				var boms = await _bomService.GetAllBomsAsync();
+				ViewBag.BomId = new SelectList(boms, "Id", "BomNumber", viewModel.BomId);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error reloading BOM dropdown");
+				ViewBag.BomId = new SelectList(new List<Bom>(), "Id", "BomNumber");
+			}
+
+			return View("CreateFinishedGood", viewModel);
+		}
+
+		// Delete Finished Good
+		[HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteFinishedGood(int id)
     {
@@ -1419,6 +1551,41 @@ namespace InventorySystem.Controllers
             ViewBag.ShortageAnalysis = null;
             ViewBag.Vendors = new List<Vendor>();
         }
+    }
+
+    // Image handling actions for Finished Goods
+public async Task<IActionResult> GetFinishedGoodImage(int id)
+    {
+        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
+        if (finishedGood == null || !finishedGood.HasImage) return NotFound();
+
+        return File(finishedGood.ImageData!, finishedGood.ImageContentType!, finishedGood.ImageFileName);
+    }
+
+    public async Task<IActionResult> GetFinishedGoodImageThumbnail(int id, int size = 150)
+    {
+        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
+        if (finishedGood == null || !finishedGood.HasImage) return NotFound();
+
+        // For simplicity, return the original image
+        return File(finishedGood.ImageData!, finishedGood.ImageContentType!, finishedGood.ImageFileName);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveFinishedGoodImage(int id)
+    {
+        var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
+        if (finishedGood == null) return NotFound();
+
+        finishedGood.ImageData = null;
+        finishedGood.ImageContentType = null;
+        finishedGood.ImageFileName = null;
+
+        await _productionService.UpdateFinishedGoodAsync(finishedGood);
+        TempData["SuccessMessage"] = "Image removed successfully!";
+
+        return RedirectToAction("FinishedGoodDetails", new { id });
     }
   }
 }

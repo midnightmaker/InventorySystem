@@ -512,6 +512,8 @@ else
       <div class="card-body">
         @if (Model.Sale.SaleItems?.Any() == true)
         {
+          <!-- Replace the table structure in the sale items section with this corrected version -->
+
           <div class="table-responsive">
             <table class="table table-hover" id="saleItemsTable" style="table-layout: fixed; width: 100%;">
               <colgroup>
@@ -530,18 +532,17 @@ else
               </colgroup>
               <thead>
                 <tr>
-                  <th>Image</th>
-                  <th>Part Number</th>
-                  <th>Description</th>
-                  <th>Type</th>
-                  <th class="text-center">Qty</th>
-                  <th class="text-end">Unit Price</th>
-                  <th class="text-end">Total</th>
-                  <!-- ✅ NEW: Add Serial/Model column -->
-                  <th>Serial/Model</th>
+                  <th class="align-middle">Image</th>
+                  <th class="align-middle">Part Number</th>
+                  <th class="align-middle">Description</th>
+                  <th class="align-middle">Type</th>
+                  <th class="text-center align-middle">Qty</th>
+                  <th class="text-end align-middle">Unit Price</th>
+                  <th class="text-end align-middle">Total</th>
+                  <th class="align-middle">Serial/Model</th>
                   @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
                   {
-                    <th class="text-center">Actions</th>
+                    <th class="text-center align-middle">Actions</th>
                   }
                 </tr>
               </thead>
@@ -549,82 +550,111 @@ else
                 @foreach (var item in Model.Sale.SaleItems)
                 {
                   <tr>
-                    <td class="text-center">
-                      @{
-                        var itemId = item.ItemId ?? item.FinishedGoodId ?? 0;
-                      }
+                    <!-- ✅ FIXED: Added align-middle to all table cells -->
+                    <td class="text-center align-middle">
                       @if (item.ItemId.HasValue)
                       {
-                        <!-- Item thumbnail -->
-                        <img src="/Items/GetImageThumbnail/@item.ItemId?size=40" 
-                             alt="@item.ProductPartNumber"
-                             class="item-thumbnail rounded"
-                             style="width: 40px; height: 40px; object-fit: cover; cursor: pointer;"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                             onclick="showItemImageModal('@item.ProductPartNumber', '/Items/GetImage/@item.ItemId')" />
-                        <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded" 
-                             style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6; display: none;">
-                          <i class="fas fa-image text-muted" style="font-size: 16px;"></i>
+                        <!-- ✅ FIXED: Item thumbnail with proper container and visibility control -->
+                        <div class="item-image-container" style="width: 40px; height: 40px; position: relative; display: inline-block;">
+                          <img src="/Items/GetImageThumbnail/@item.ItemId?size=40"
+                               alt="@item.ProductPartNumber"
+                               class="item-thumbnail rounded"
+                               style="width: 40px; height: 40px; object-fit: cover; cursor: pointer; position: absolute; top: 0; left: 0; z-index: 2;"
+                               onload="this.parentElement.querySelector('.item-thumbnail-placeholder').style.display='none';"
+                               onerror="this.style.display='none'; this.parentElement.querySelector('.item-thumbnail-placeholder').style.display='flex';"
+                               onclick="showItemImageModal('@item.ProductPartNumber', '/Items/GetImage/@item.ItemId')" />
+                          <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded"
+                               style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6; position: absolute; top: 0; left: 0; z-index: 1; display: flex;">
+                            <i class="fas fa-image text-muted" style="font-size: 16px;"></i>
+                          </div>
+                        </div>
+                      }
+                      else if (item.FinishedGoodId.HasValue)
+                      {
+                        <!-- ✅ FIXED: Finished Good thumbnail with proper container and visibility control -->
+                        <div class="item-image-container" style="width: 40px; height: 40px; position: relative; display: inline-block;">
+                          <img src="/Production/GetFinishedGoodImageThumbnail/@item.FinishedGoodId?size=40"
+                               alt="@item.ProductPartNumber"
+                               class="item-thumbnail rounded"
+                               style="width: 40px; height: 40px; object-fit: cover; cursor: pointer; position: absolute; top: 0; left: 0; z-index: 2;"
+                               onload="this.parentElement.querySelector('.item-thumbnail-placeholder').style.display='none';"
+                               onerror="this.style.display='none'; this.parentElement.querySelector('.item-thumbnail-placeholder').style.display='flex';"
+                               onclick="showItemImageModal('@item.ProductPartNumber', '/Production/GetFinishedGoodImage/@item.FinishedGoodId')" />
+                          <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded"
+                               style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6; position: absolute; top: 0; left: 0; z-index: 1; display: flex;">
+                            <i class="fas fa-cube text-muted" style="font-size: 16px;"></i>
+                          </div>
                         </div>
                       }
                       else
                       {
-                        <!-- Finished Good placeholder (no image support yet) -->
-                        <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded" 
+                        <!-- Fallback placeholder for items without ID -->
+                        <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded"
                              style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6;">
                           <i class="fas fa-cube text-muted" style="font-size: 16px;"></i>
                         </div>
                       }
                     </td>
-                    <td>
+                    <td class="align-middle">
                       @if (item.ItemId.HasValue)
                       {
-                        <a href="#" class="text-decoration-none" onclick="showItemDetails(@item.ItemId)" style="cursor: pointer;">
-                          <code>@item.ProductPartNumber</code>
+                        <a href="#" class="nav-link" onclick="showItemDetails(@item.ItemId)" style="cursor: pointer;">
+                          @item.ProductPartNumber
+                        </a>
+                      }
+                      else if (item.FinishedGoodId.HasValue)
+                      {
+                        <a href="#" class="nav-link" onclick="showFinishedGoodDetails(@item.FinishedGoodId)" style="cursor: pointer;">
+                          @item.ProductPartNumber
                         </a>
                       }
                       else
                       {
-                        <code>@item.ProductPartNumber</code>
+                        @item.ProductPartNumber
                       }
                       @if (item.QuantityBackordered > 0)
                       {
-                        <br><span class="badge bg-warning text-dark ms-1">Backordered</span>
+                        <br>
+                  
+                        <span class="badge bg-warning text-dark ms-1">Backordered</span>
                       }
                     </td>
-                    <td>
+                    <td class="align-middle">
                       <strong>@item.ProductName</strong>
                       @if (!string.IsNullOrEmpty(item.Notes))
                       {
-                        <br><small class="text-muted">@item.Notes</small>
+                        <br>
+                  
+                        <small class="text-muted">@item.Notes</small>
                       }
                     </td>
-                    <td>
+                    <td class="align-middle">
                       <span class="badge bg-secondary">
                         @(item.ItemId.HasValue ? "Item" : "Finished Good")
                       </span>
                     </td>
-                    <td class="text-center">
+                    <td class="text-center align-middle">
                       <span class="badge bg-primary">@item.QuantitySold</span>
                       @if (item.QuantityBackordered > 0)
                       {
-                        <br><small class="text-warning">(@item.QuantityBackordered backord.)</small>
+                        <br>
+                  
+                        <small class="text-warning">(@item.QuantityBackordered backord.)</small>
                       }
                     </td>
-                    <td class="text-end">@item.UnitPrice.ToString("C")</td>
-                    <td class="text-end"><strong>@item.TotalPrice.ToString("C")</strong></td>
-                    <!-- ✅ NEW: Serial/Model column -->
-                    <td>
+                    <td class="text-end align-middle">@item.UnitPrice.ToString("C")</td>
+                    <td class="text-end align-middle"><strong>@item.TotalPrice.ToString("C")</strong></td>
+                    <td class="align-middle">
                       @if (item.HasSerialModelInfo)
                       {
                         <small>
                           @if (!string.IsNullOrWhiteSpace(item.SerialNumber))
                           {
-                            <div><strong>S/N:</strong> <code>@item.SerialNumber</code></div>
+                            <div><strong>S/N:</strong> @item.SerialNumber</div>
                           }
                           @if (!string.IsNullOrWhiteSpace(item.ModelNumber))
                           {
-                            <div><strong>Model:</strong> <code>@item.ModelNumber</code></div>
+                            <div><strong>Model:</strong> @item.ModelNumber</div>
                           }
                         </small>
                       }
@@ -635,13 +665,11 @@ else
                     </td>
                     @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
                     {
-                      <td class="text-center">
+                      <td class="text-center align-middle">
                         <div class="btn-group btn-group-sm">
-                          <!-- ✅ NEW: Edit button -->
                           <a href="/Sales/EditSaleItem/@item.Id" class="btn btn-outline-primary" title="Edit Item">
                             <i class="fas fa-edit"></i>
                           </a>
-                          <!-- Existing remove button -->
                           <form method="post" action="/Sales/RemoveItem" style="display: inline;"
                                 onsubmit="return confirm('Remove this item from the sale?')">
                             @Html.AntiForgeryToken()
@@ -1363,7 +1391,75 @@ else
                 content.innerHTML = '<p class="text-danger">Error loading item details. Please try again.</p>';
             });
     }
-    
+        // ✅ NEW: Function to show finished good details in modal
+    function showFinishedGoodDetails(finishedGoodId) {
+        const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
+        const content = document.getElementById('itemDetailsContent');
+        const viewFullLink = document.getElementById('viewFullItemLink');
+        const modalTitle = document.getElementById('itemDetailsModalLabel');
+
+        // Update modal title
+        modalTitle.innerHTML = '<i class="fas fa-cube"></i> Finished Good Details';
+
+        // Set the full details link (you'll need to create this route)
+        viewFullLink.href = `/Production/FinishedGoodDetails/${finishedGoodId}`;
+
+        // Show loading spinner
+        content.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading finished good details...</p>
+            </div>
+        `;
+
+        // Show the modal
+        modal.show();
+
+        // Fetch finished good details
+        fetch(`/Production/FinishedGoodDetails/${finishedGoodId}`)
+            .then(response => response.text())
+            .then(html => {
+                // Extract just the main content from the full page
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
+
+                if (mainContent) {
+                    content.innerHTML = `
+                        <div class="row">
+                            <div class="col-12">
+                                ${mainContent.innerHTML}
+                            </div>
+                        </div>
+                    `;
+
+                    // Disable all form elements to make it read-only
+                    content.querySelectorAll('input, select, textarea, button').forEach(element => {
+                        element.disabled = true;
+                        if (element.tagName === 'BUTTON') {
+                            element.style.display = 'none';
+                        }
+                    });
+
+                    // Remove edit links and form actions
+                    content.querySelectorAll('a[href*="Edit"], a[href*="Delete"], form').forEach(element => {
+                        if (element.tagName === 'A' && (element.href.includes('Edit') || element.href.includes('Delete'))) {
+                            element.style.display = 'none';
+                        } else if (element.tagName === 'FORM') {
+                            element.style.display = 'none';
+                        }
+                    });
+                } else {
+                    content.innerHTML = '<p class="text-danger">Error loading finished good details.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching finished good details:', error);
+                content.innerHTML = '<p class="text-danger">Error loading finished good details. Please try again.</p>';
+            });
+    }
     // ✅ NEW: Function to show item image in modal
     function showItemImageModal(partNumber, imageUrl) {
         const modal = new bootstrap.Modal(document.getElementById('imageModal'));

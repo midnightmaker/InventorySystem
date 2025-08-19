@@ -21,19 +21,22 @@
   </div>
 </div>
 
+<!-- ✅ CHANGED: Single column layout for vertical stacking -->
 <div class="row">
-  <div class="col-md-8">
-    <div class="card">
+  <div class="col-12">
+
+    <!-- Basic Information Card -->
+    <div class="card mb-4">
       <div class="card-header">
         <h5><i class="fas fa-info-circle"></i> Finished Good Information</h5>
       </div>
       <div class="card-body">
         <dl class="row">
-          <dt class="col-sm-4">Description:</dt>
-          <dd class="col-sm-8">@Model.Description</dd>
+          <dt class="col-sm-3">Description:</dt>
+          <dd class="col-sm-9">@Model.Description</dd>
 
-          <dt class="col-sm-4">Current Stock:</dt>
-          <dd class="col-sm-8">
+          <dt class="col-sm-3">Current Stock:</dt>
+          <dd class="col-sm-9">
             <span class="badge bg-@(Model.IsLowStock ? "warning" : "primary") fs-6">
               @Model.CurrentStock units
             </span>
@@ -43,43 +46,178 @@
             }
           </dd>
 
-          <dt class="col-sm-4">Minimum Stock:</dt>
-          <dd class="col-sm-8">@Model.MinimumStock units</dd>
+          <dt class="col-sm-3">Minimum Stock:</dt>
+          <dd class="col-sm-9">@Model.MinimumStock units</dd>
 
-          <dt class="col-sm-4">Unit Cost:</dt>
-          <dd class="col-sm-8">@Model.UnitCost.ToString("C")</dd>
+          <dt class="col-sm-3">Unit Cost:</dt>
+          <dd class="col-sm-9">@Model.UnitCost.ToString("C")</dd>
 
-          <dt class="col-sm-4">Selling Price:</dt>
-          <dd class="col-sm-8">@Model.SellingPrice.ToString("C")</dd>
+          <dt class="col-sm-3">Selling Price:</dt>
+          <dd class="col-sm-9">@Model.SellingPrice.ToString("C")</dd>
 
-          <dt class="col-sm-4">Total Value:</dt>
-          <dd class="col-sm-8">@Model.TotalValue.ToString("C")</dd>
+          <dt class="col-sm-3">Total Value:</dt>
+          <dd class="col-sm-9">@Model.TotalValue.ToString("C")</dd>
 
           @if (Model.Bom != null)
           {
-            <dt class="col-sm-4">Associated BOM:</dt>
-            <dd class="col-sm-8">
+            <dt class="col-sm-3">Associated BOM:</dt>
+            <dd class="col-sm-9">
               <a href="/Boms/Details/@Model.BomId" class="btn btn-sm btn-outline-info">
                 @Model.Bom.BomNumber
               </a>
             </dd>
           }
 
-          <dt class="col-sm-4">Created Date:</dt>
-          <dd class="col-sm-8">@Model.CreatedDate.ToString("MMMM dd, yyyy")</dd>
+          <dt class="col-sm-3">Created Date:</dt>
+          <dd class="col-sm-9">@Model.CreatedDate.ToString("MMMM dd, yyyy")</dd>
 
           @if (!string.IsNullOrEmpty(Model.Notes))
           {
-            <dt class="col-sm-4">Notes:</dt>
-            <dd class="col-sm-8">@Model.Notes</dd>
+            <dt class="col-sm-3">Notes:</dt>
+            <dd class="col-sm-9">@Model.Notes</dd>
           }
         </dl>
       </div>
     </div>
 
+    <!-- Quick Stats Card -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5><i class="fas fa-chart-bar"></i> Quick Stats</h5>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-md-3">
+            <h4 class="text-primary">@(Model.Productions?.Sum(p => p.QuantityProduced) ?? 0)</h4>
+            <small class="text-muted">Total Produced</small>
+          </div>
+          <div class="col-md-3">
+            <h4 class="text-success">@(Model.SaleItems?.Sum(si => si.QuantitySold) ?? 0)</h4>
+            <small class="text-muted">Total Sold</small>
+          </div>
+          <div class="col-md-3">
+            <h4 class="text-info">@((Model.Productions?.Sum(p => p.QuantityProduced) ?? 0) - (Model.SaleItems?.Sum(si => si.QuantitySold) ?? 0))</h4>
+            <small class="text-muted">Net Production</small>
+          </div>
+          <div class="col-md-3">
+            <h4 class="text-warning">@Model.CurrentStock</h4>
+            <small class="text-muted">Current Stock</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Financial Summary Card -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5><i class="fas fa-dollar-sign"></i> Financial Summary</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <table class="table table-sm">
+              <tr>
+                <td>Unit Cost:</td>
+                <td class="text-end">@Model.UnitCost.ToString("C")</td>
+              </tr>
+              <tr>
+                <td>Selling Price:</td>
+                <td class="text-end">@Model.SellingPrice.ToString("C")</td>
+              </tr>
+              <tr class="table-info">
+                <td><strong>Profit per Unit:</strong></td>
+                <td class="text-end"><strong>@((Model.SellingPrice - Model.UnitCost).ToString("C"))</strong></td>
+              </tr>
+              <tr>
+                <td>Inventory Value:</td>
+                <td class="text-end">@Model.TotalValue.ToString("C")</td>
+              </tr>
+            </table>
+          </div>
+          <div class="col-md-6">
+            @if (Model.SaleItems?.Any() == true)
+            {
+              <table class="table table-sm">
+                <tr>
+                  <td>Total Revenue:</td>
+                  <td class="text-end">@Model.SaleItems.Sum(si => si.TotalPrice).ToString("C")</td>
+                </tr>
+                <tr>
+                  <td>Total Profit:</td>
+                  <td class="text-end">@Model.SaleItems.Sum(si => si.Profit).ToString("C")</td>
+                </tr>
+                <tr>
+                  <td>Avg Sale Price:</td>
+                  <td class="text-end">@(Model.SaleItems.Any() ? Model.SaleItems.Average(si => si.UnitPrice).ToString("C") : "$0.00")</td>
+                </tr>
+              </table>
+            }
+
+            @if (Model.SellingPrice > 0)
+            {
+              var profitMargin = Model.UnitCost > 0 ? ((Model.SellingPrice - Model.UnitCost) / Model.SellingPrice) * 100 : 0;
+              <div class="text-center mt-3">
+                <span class="badge bg-@(profitMargin > 0 ? "success" : "danger") fs-6">
+                  @profitMargin.ToString("F1")% Margin
+                </span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Low Stock Alert (if applicable) -->
+    @if (Model.IsLowStock)
+    {
+      <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning">
+          <h5><i class="fas fa-exclamation-triangle"></i> Low Stock Alert</h5>
+        </div>
+        <div class="card-body">
+          <p>Current stock (@Model.CurrentStock) is at or below minimum level (@Model.MinimumStock).</p>
+          @if (Model.BomId.HasValue)
+          {
+            <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-warning btn-sm">
+              <i class="fas fa-hammer"></i> Build More
+            </a>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Product Image Section -->
+    @if (Model.HasImage && Model.ImageData != null)
+    {
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-image"></i> Product Image</h5>
+        </div>
+        <div class="card-body text-center">
+          <img src="/Production/GetFinishedGoodImage/@Model.Id"
+               alt="@Model.PartNumber"
+               class="img-thumbnail"
+               style="max-height: 300px; cursor: pointer;"
+               onclick="showFinishedGoodImageModal('@Model.PartNumber', '/Production/GetFinishedGoodImage/@Model.Id')" />
+          <br>
+          <small class="text-muted">@Model.ImageFileName</small>
+          <div class="mt-2">
+            <form asp-controller="Production" asp-action="RemoveFinishedGoodImage" method="post" style="display: inline;">
+              <input type="hidden" name="id" value="@Model.Id" />
+              <button type="submit" class="btn btn-outline-danger btn-sm"
+                      onclick="return confirm('Remove the product image? This action cannot be undone.');">
+                <i class="fas fa-trash"></i> Remove Image
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Production History -->
     @if (Model.Productions?.Any() == true)
     {
-      <div class="card mt-4">
+      <div class="card mb-4">
         <div class="card-header">
           <h5><i class="fas fa-history"></i> Production History</h5>
         </div>
@@ -117,9 +255,10 @@
       </div>
     }
 
+    <!-- Sales History -->
     @if (Model.SaleItems?.Any() == true)
     {
-      <div class="card mt-4">
+      <div class="card mb-4">
         <div class="card-header">
           <h5><i class="fas fa-shopping-cart"></i> Sales History</h5>
         </div>
@@ -141,7 +280,6 @@
                 {
                   <tr>
                     <td>@saleItem.Sale.SaleDate.ToString("MM/dd/yyyy")</td>
-                    @* FIXED: Use Customer relationship instead of legacy CustomerName *@
                     <td>
                       @if (saleItem.Sale.Customer != null)
                       {
@@ -150,7 +288,9 @@
                         </a>
                         @if (!string.IsNullOrEmpty(saleItem.Sale.Customer.CompanyName))
                         {
-                          <br><small class="text-muted">@saleItem.Sale.Customer.CompanyName</small>
+                          <br>
+                  
+                          <small class="text-muted">@saleItem.Sale.Customer.CompanyName</small>
                         }
                       }
                       else
@@ -174,109 +314,30 @@
         </div>
       </div>
     }
-  </div>
 
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-header">
-        <h5><i class="fas fa-chart-bar"></i> Quick Stats</h5>
-      </div>
-      <div class="card-body">
-        <div class="row text-center">
-          <div class="col-6">
-            <h4 class="text-primary">@(Model.Productions?.Sum(p => p.QuantityProduced) ?? 0)</h4>
-            <small class="text-muted">Total Produced</small>
-          </div>
-          <div class="col-6">
-            <h4 class="text-success">@(Model.SaleItems?.Sum(si => si.QuantitySold) ?? 0)</h4>
-            <small class="text-muted">Total Sold</small>
-          </div>
-        </div>
-        <hr>
-        <div class="text-center">
-          <h5 class="text-info">@((Model.Productions?.Sum(p => p.QuantityProduced) ?? 0) - (Model.SaleItems?.Sum(si => si.QuantitySold) ?? 0))</h5>
-          <small class="text-muted">Net Production</small>
-        </div>
-      </div>
-    </div>
-
-    @if (Model.IsLowStock)
-    {
-      <div class="card mt-3 border-warning">
-        <div class="card-header bg-warning">
-          <h5><i class="fas fa-exclamation-triangle"></i> Low Stock Alert</h5>
-        </div>
-        <div class="card-body">
-          <p>Current stock (@Model.CurrentStock) is at or below minimum level (@Model.MinimumStock).</p>
-          @if (Model.BomId.HasValue)
-          {
-            <a href="/Production/BuildBom?bomId=@Model.BomId" class="btn btn-warning btn-sm">
-              <i class="fas fa-hammer"></i> Build More
-            </a>
-          }
-        </div>
-      </div>
-    }
-
-    <div class="card mt-3">
-      <div class="card-header">
-        <h5><i class="fas fa-dollar-sign"></i> Financial Summary</h5>
-      </div>
-      <div class="card-body">
-        <table class="table table-sm">
-          <tr>
-            <td>Unit Cost:</td>
-            <td class="text-end">@Model.UnitCost.ToString("C")</td>
-          </tr>
-          <tr>
-            <td>Selling Price:</td>
-            <td class="text-end">@Model.SellingPrice.ToString("C")</td>
-          </tr>
-          <tr class="table-info">
-            <td><strong>Profit per Unit:</strong></td>
-            <td class="text-end"><strong>@((Model.SellingPrice - Model.UnitCost).ToString("C"))</strong></td>
-          </tr>
-          <tr>
-            <td>Inventory Value:</td>
-            <td class="text-end">@Model.TotalValue.ToString("C")</td>
-          </tr>
-        </table>
-
-        @if (Model.SellingPrice > 0)
-        {
-          var profitMargin = Model.UnitCost > 0 ? ((Model.SellingPrice - Model.UnitCost) / Model.SellingPrice) * 100 : 0;
-          <div class="text-center">
-            <span class="badge bg-@(profitMargin > 0 ? "success" : "danger") fs-6">
-              @profitMargin.ToString("F1")% Margin
-            </span>
-          </div>
-        }
-      </div>
-    </div>
-
-    @if (Model.SaleItems?.Any() == true)
-    {
-      <div class="card mt-3">
-        <div class="card-header">
-          <h5><i class="fas fa-chart-pie"></i> Sales Performance</h5>
-        </div>
-        <div class="card-body">
-          <table class="table table-sm">
-            <tr>
-              <td>Total Revenue:</td>
-              <td class="text-end">@Model.SaleItems.Sum(si => si.TotalPrice).ToString("C")</td>
-            </tr>
-            <tr>
-              <td>Total Profit:</td>
-              <td class="text-end">@Model.SaleItems.Sum(si => si.Profit).ToString("C")</td>
-            </tr>
-            <tr>
-              <td>Avg Sale Price:</td>
-              <td class="text-end">@(Model.SaleItems.Any() ? Model.SaleItems.Average(si => si.UnitPrice).ToString("C") : "$0.00")</td>
-            </tr>
-          </table>
-        </div>
-      </div>
-    }
   </div>
 </div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="finishedGoodImageModal" tabindex="-1" aria-labelledby="finishedGoodImageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="finishedGoodImageModalLabel">Product Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="finishedGoodModalImage" src="#" alt="Product Image" class="img-fluid" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showFinishedGoodImageModal(partNumber, imageUrl) {
+      document.getElementById('finishedGoodImageModalLabel').textContent = 'Product Image - ' + partNumber;
+      document.getElementById('finishedGoodModalImage').src = imageUrl;
+      var imageModal = new bootstrap.Modal(document.getElementById('finishedGoodImageModal'));
+      imageModal.show();
+  }
+</script>
