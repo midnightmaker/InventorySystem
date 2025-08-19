@@ -40,6 +40,13 @@ namespace InventorySystem.Models
     [Display(Name = "Notes")]
     public string? Notes { get; set; }
 
+    // ✅ NEW: Serial Number and Model Number Requirements
+    [Display(Name = "Requires Serial Number")]
+    public bool RequiresSerialNumber { get; set; } = true; // Default TRUE for Finished Goods
+
+    [Display(Name = "Requires Model Number")]
+    public bool RequiresModelNumber { get; set; } = true; // Default TRUE for Finished Goods
+
     [Display(Name = "Created Date")]
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
@@ -67,6 +74,24 @@ namespace InventorySystem.Models
 
     [Display(Name = "Sale Items")]
     public virtual ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
+
+    // ✅ NEW: Helper properties for requirements
+    [NotMapped]
+    [Display(Name = "Serial/Model Requirements")]
+    public string RequirementsDisplay
+    {
+      get
+      {
+        var requirements = new List<string>();
+        if (RequiresSerialNumber) requirements.Add("Serial Number");
+        if (RequiresModelNumber) requirements.Add("Model Number");
+        return requirements.Any() ? string.Join(", ", requirements) : "None";
+      }
+    }
+
+    [NotMapped]
+    [Display(Name = "Has Requirements")]
+    public bool HasRequirements => RequiresSerialNumber || RequiresModelNumber;
 
     // Calculated properties
     [NotMapped]
@@ -263,6 +288,18 @@ namespace InventorySystem.Models
       return IsValidForProduction() &&
              SellingPrice > 0 &&
              (CurrentStock > 0 || HasBackorders);
+    }
+
+    // ✅ NEW: Validation method for sale item requirements
+    public bool ValidateSaleItemRequirements(string? serialNumber, string? modelNumber)
+    {
+      if (RequiresSerialNumber && string.IsNullOrWhiteSpace(serialNumber))
+        return false;
+      
+      if (RequiresModelNumber && string.IsNullOrWhiteSpace(modelNumber))
+        return false;
+      
+      return true;
     }
 
     // Helper methods

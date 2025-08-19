@@ -36,6 +36,15 @@ namespace InventorySystem.Models
     [Column(TypeName = "decimal(18,2)")]
     public decimal UnitCost { get; set; }
 
+    // ✅ NEW: Serial Number and Model Number fields
+    [StringLength(100, ErrorMessage = "Serial number cannot exceed 100 characters")]
+    [Display(Name = "Serial Number")]
+    public string? SerialNumber { get; set; }
+
+    [StringLength(100, ErrorMessage = "Model number cannot exceed 100 characters")]
+    [Display(Name = "Model Number")]
+    public string? ModelNumber { get; set; }
+
     [NotMapped]
     [Display(Name = "Total Price")]
     [Column(TypeName = "decimal(18,2)")]
@@ -74,5 +83,49 @@ namespace InventorySystem.Models
 
     [NotMapped]
     public string ProductPartNumber => Item?.PartNumber ?? FinishedGood?.PartNumber ?? "Unknown";
+
+    // ✅ NEW: Helper properties for serial/model requirements
+    [NotMapped]
+    [Display(Name = "Requires Serial Number")]
+    public bool RequiresSerialNumber => Item?.RequiresSerialNumber == true || FinishedGood?.RequiresSerialNumber == true;
+
+    [NotMapped]
+    [Display(Name = "Requires Model Number")]
+    public bool RequiresModelNumber => Item?.RequiresModelNumber == true || FinishedGood?.RequiresModelNumber == true;
+
+    [NotMapped]
+    [Display(Name = "Has Serial/Model Info")]
+    public bool HasSerialModelInfo => !string.IsNullOrWhiteSpace(SerialNumber) || !string.IsNullOrWhiteSpace(ModelNumber);
+
+    [NotMapped]
+    [Display(Name = "Serial/Model Display")]
+    public string SerialModelDisplay
+    {
+      get
+      {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(SerialNumber)) parts.Add($"S/N: {SerialNumber}");
+        if (!string.IsNullOrWhiteSpace(ModelNumber)) parts.Add($"Model: {ModelNumber}");
+        return parts.Any() ? string.Join(" | ", parts) : "Not Specified";
+      }
+    }
+
+    // ✅ NEW: Validation method for requirements
+    public bool ValidateRequirements(out List<string> errors)
+    {
+      errors = new List<string>();
+
+      if (RequiresSerialNumber && string.IsNullOrWhiteSpace(SerialNumber))
+      {
+        errors.Add($"Serial number is required for {ProductPartNumber}");
+      }
+
+      if (RequiresModelNumber && string.IsNullOrWhiteSpace(ModelNumber))
+      {
+        errors.Add($"Model number is required for {ProductPartNumber}");
+      }
+
+      return !errors.Any();
+    }
   }
 }

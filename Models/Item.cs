@@ -49,6 +49,13 @@ namespace InventorySystem.Models
     [Display(Name = "Version")]
     public string Version { get; set; } = "A";
 
+    // ? NEW: Serial Number and Model Number Requirements (Default FALSE for Items)
+    [Display(Name = "Requires Serial Number")]
+    public bool RequiresSerialNumber { get; set; } = false; // Default FALSE for Items
+
+    [Display(Name = "Requires Model Number")]
+    public bool RequiresModelNumber { get; set; } = false; // Default FALSE for Items
+
     // Computed properties
     [NotMapped]
     public bool TrackInventory => !IsExpense && (ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials);
@@ -85,6 +92,39 @@ namespace InventorySystem.Models
     [NotMapped]
     [Display(Name = "Has Preferred Vendor")]
     public bool HasPreferredVendor => PreferredVendorItem != null;
+
+    // ? NEW: Helper properties for requirements
+    [NotMapped]
+    [Display(Name = "Serial/Model Requirements")]
+    public string RequirementsDisplay
+    {
+      get
+      {
+        var requirements = new List<string>();
+        if (RequiresSerialNumber) requirements.Add("Serial Number");
+        if (RequiresModelNumber) requirements.Add("Model Number");
+        return requirements.Any() ? string.Join(", ", requirements) : "None";
+      }
+    }
+
+    [NotMapped]
+    [Display(Name = "Has Requirements")]
+    public bool HasRequirements => RequiresSerialNumber || RequiresModelNumber;
+
+    [NotMapped]
+    [Display(Name = "Typical Requirements by Type")]
+    public string TypicalRequirementsForType => ItemType switch
+    {
+      ItemType.Inventoried => "Often requires serial numbers for tracking",
+      ItemType.Service => "Rarely requires serial numbers",
+      ItemType.Virtual => "No serial numbers needed",
+      ItemType.Subscription => "May require license keys instead",
+      ItemType.Consumable => "Usually no tracking needed",
+      ItemType.Expense => "No tracking needed",
+      ItemType.Utility => "May require meter readings",
+      ItemType.RnDMaterials => "May require batch tracking",
+      _ => "Depends on specific use case"
+    };
 
     // Image properties
     public byte[]? ImageData { get; set; }
@@ -210,6 +250,35 @@ namespace InventorySystem.Models
 
     [NotMapped]
     public decimal EffectiveYield => YieldFactor ?? 1.0m;
+
+    // ? NEW: Validation method for sale item requirements
+    public bool ValidateSaleItemRequirements(string? serialNumber, string? modelNumber)
+    {
+      if (RequiresSerialNumber && string.IsNullOrWhiteSpace(serialNumber))
+        return false;
+      
+      if (RequiresModelNumber && string.IsNullOrWhiteSpace(modelNumber))
+        return false;
+      
+      return true;
+    }
+
+    // ? NEW: Helper method to suggest requirements based on item type
+    public (bool suggestSerial, bool suggestModel, string reason) GetSuggestedRequirements()
+    {
+      return ItemType switch
+      {
+        ItemType.Inventoried => (true, true, "Physical items often need tracking"),
+        ItemType.Service => (false, false, "Services typically don't require serial numbers"),
+        ItemType.Virtual => (false, false, "Virtual items don't need physical tracking"),
+        ItemType.Subscription => (false, true, "Subscriptions may need license/model tracking"),
+        ItemType.Consumable => (false, false, "Consumables are typically not tracked individually"),
+        ItemType.Expense => (false, false, "Expense items don't require tracking"),
+        ItemType.Utility => (false, true, "Utilities may need meter or model numbers"),
+        ItemType.RnDMaterials => (true, false, "R&D materials often need batch/serial tracking"),
+        _ => (false, false, "Requirements depend on specific use case")
+      };
+    }
 
     // Unit of Measure display properties
     [NotMapped]

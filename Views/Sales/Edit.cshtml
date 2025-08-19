@@ -310,43 +310,26 @@
           <h5><i class="fas fa-save"></i> Actions</h5>
         </div>
         <div class="card-body">
-          <div class="d-grid gap-2">
             <button type="submit" class="btn btn-primary">
               <i class="fas fa-save"></i> Update Sale
             </button>
-            <a href="/Sales/Details/@Model.Id" class="btn btn-outline-secondary">
-              <i class="fas fa-times"></i> Cancel
-            </a>
-          </div>
-
-          <hr>
-
-          <div class="d-grid">
-            <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
-              <i class="fas fa-plus"></i> Add Items
-            </a>
-          </div>
+          <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add Items
+          </a>
+          <a href="/Sales/Details/@Model.Id" class="btn btn-outline-secondary">
+            <i class="fas fa-times"></i> Cancel
+          </a>
         </div>
       </div>
 
       @if (Model.SaleStatus == SaleStatus.Processing)
       {
-        <div class="card mt-3 border-warning">
-          <div class="card-header bg-warning">
+        <div class="card mt-3 border-info">
+          <div class="card-header bg-info">
             <h6><i class="fas fa-exclamation-triangle"></i> Processing Status</h6>
           </div>
           <div class="card-body">
             <p class="mb-2">This sale is still being processed. You can still modify it.</p>
-            @if (Model.SaleItems?.Any() == true)
-            {
-              <form asp-action="ProcessSale" method="post">
-                <input type="hidden" name="id" value="@Model.Id" />
-                <button type="submit" class="btn btn-warning btn-sm w-100"
-                        onclick="return confirm('This will ship the sale and reduce inventory. Continue?')">
-                  <i class="fas fa-shipping-fast"></i> Process & Ship
-                </button>
-              </form>
-            }
           </div>
         </div>
       }

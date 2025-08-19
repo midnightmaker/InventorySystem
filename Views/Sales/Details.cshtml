@@ -681,7 +681,7 @@ else
                         <tbody>
                             @foreach (var serviceOrder in Model.ServiceOrders)
                             {
-                                <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-warning" : "")">
+                                <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-lightgrey" : "")">
                                     <td>
                                         <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })">
                                             @serviceOrder.ServiceOrderNumber
@@ -725,16 +725,16 @@ else
                 @* ✅ NEW: Service Orders Status Summary *@
                 @if (hasServiceItems)
                 {
-                    <div class="alert alert-info mt-3">
+                    <div class="alert alert-light mt-3">
                         <i class="fas fa-info-circle"></i>
                         <strong>Service Orders Status:</strong>
                         @if (hasIncompleteServiceOrders)
                         {
-                            <span class="text-warning">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
+                            <span class="text-dark">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
                         }
                         else
                         {
-                            <span class="text-success">All service orders are completed and ready for shipment.</span>
+                            <span class="text-dark">All service orders are completed and ready for shipment.</span>
                         }
                     </div>
                 }
