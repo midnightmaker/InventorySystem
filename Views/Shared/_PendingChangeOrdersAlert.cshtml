@@ -36,9 +36,6 @@
 <script>
   // Function to show pending change orders in a modal instead of top alert
   function showPendingChangeOrdersModal(errorData) {
-    // Set the message
-    document.getElementById('pendingModalMessage').textContent = errorData.message;
-
     // Build the pending change orders list
     let listHtml = '';
     if (errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
@@ -85,57 +82,63 @@
     modal.show();
   }
 
-  // Function to implement a change order via AJAX
-  function implementChangeOrder(changeOrderId, changeOrderNumber) {
-    if (!confirm(`Are you sure you want to implement change order ${changeOrderNumber}? This will create the new version and cannot be undone.`)) {
-      return;
+  // ✅ ENHANCED: Beautiful confirmation for implementing change order
+  async function implementChangeOrder(changeOrderId, changeOrderNumber) {
+    const confirmed = await confirmAction(`implement change order ${changeOrderNumber}`, 
+      `<div class="alert alert-warning mt-2 mb-0">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        <strong>Warning:</strong> This will create the new version and cannot be undone. The existing version will remain accessible but the new version will become active.
+       </div>`
+    );
+
+    if (confirmed) {
+      // Create a form and submit it
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/ChangeOrders/Implement/${changeOrderId}`;
+
+      // Add CSRF token
+      const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+      if (csrfToken) {
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = '__RequestVerificationToken';
+        tokenInput.value = csrfToken;
+        form.appendChild(tokenInput);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
     }
-
-    // Create a form and submit it
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/ChangeOrders/Implement/${changeOrderId}`;
-
-    // Add CSRF token
-    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-    if (csrfToken) {
-      const tokenInput = document.createElement('input');
-      tokenInput.type = 'hidden';
-      tokenInput.name = '__RequestVerificationToken';
-      tokenInput.value = csrfToken;
-      form.appendChild(tokenInput);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
   }
 
-  // Function to cancel a change order via AJAX
-  function cancelChangeOrder(changeOrderId, changeOrderNumber) {
-    if (!confirm(`Are you sure you want to cancel change order ${changeOrderNumber}? This action cannot be undone.`)) {
-      return;
+  // ✅ ENHANCED: Beautiful confirmation for canceling change order
+  async function cancelChangeOrder(changeOrderId, changeOrderNumber) {
+    const confirmed = await confirmAction(`cancel change order ${changeOrderNumber}`, 
+      `<div class="alert alert-danger mt-2 mb-0">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        <strong>Warning:</strong> This action cannot be undone. The change order will be permanently cancelled and cannot be recovered.
+       </div>`
+    );
+
+    if (confirmed) {
+      // Create a form and submit it  
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/ChangeOrders/Cancel/${changeOrderId}`;
+
+      // Add CSRF token
+      const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+      if (csrfToken) {
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = '__RequestVerificationToken';
+        tokenInput.value = csrfToken;
+        form.appendChild(tokenInput);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
     }
-
-    // Create a form and submit it
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/ChangeOrders/Cancel/${changeOrderId}`;
-
-    // Add CSRF token
-    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-    if (csrfToken) {
-      const tokenInput = document.createElement('input');
-      tokenInput.type = 'hidden';
-      tokenInput.name = '__RequestVerificationToken';
-      tokenInput.value = csrfToken;
-      form.appendChild(tokenInput);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
-  }
-
-  function refreshPage() {
-    location.reload();
   }
 </script>

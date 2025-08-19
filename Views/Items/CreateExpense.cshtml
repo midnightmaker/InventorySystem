@@ -407,8 +407,9 @@
 </div>
 
 @section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
+  <script src="~/js/confirmation-dialog.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
             console.log('Create Expense Item page loaded');
 
             // Handle recurring expense checkbox
@@ -455,16 +456,32 @@
                 });
             }
 
-            // Form validation
-            const form = document.getElementById('createExpenseForm');
+            // ? ENHANCED: Form validation with beautiful alerts
+            const form = document.querySelector('form');
             if (form) {
-                form.addEventListener('submit', function (e) {
+                form.addEventListener('submit', async function(e) {
                     const partNumber = document.querySelector('input[name="PartNumber"]').value.trim();
                     const description = document.querySelector('input[name="Description"]').value.trim();
 
                     if (!partNumber || !description) {
                         e.preventDefault();
-                        alert('Please fill in the required fields: Expense Code and Description');
+                        
+                        await confirmDialog.confirm({
+                            title: 'Missing Required Fields',
+                            message: 'Please fill in the required fields before continuing.',
+                            details: `Missing fields: ${!partNumber ? 'Expense Code' : ''} ${!partNumber && !description ? 'and ' : ''}${!description ? 'Description' : ''}`,
+                            confirmText: 'OK',
+                            icon: 'fas fa-exclamation-triangle text-warning',
+                            confirmClass: 'btn-primary'
+                        });
+                        
+                        // Focus on the first empty required field
+                        if (!partNumber) {
+                            document.querySelector('input[name="PartNumber"]').focus();
+                        } else if (!description) {
+                            document.querySelector('input[name="Description"]').focus();
+                        }
+                        
                         return false;
                     }
 
@@ -472,12 +489,19 @@
                 });
             }
 
-            // Function to open create vendor modal
-            window.openCreateVendorModal = function() {
-                if (confirm('This will open the vendor creation page in a new tab. Continue?')) {
+            // ? ENHANCED: Beautiful confirmation for opening vendor creation
+            window.openCreateVendorModal = async function() {
+                const confirmed = await confirmAction('open the vendor creation page in a new tab',
+                  `<div class="alert alert-info mt-2 mb-0">
+                    <i class="fas fa-info-circle me-1"></i>
+                    This will open a new browser tab for creating a vendor. You can return to this page when finished.
+                   </div>`
+                );
+
+                if (confirmed) {
                     window.open('/Vendors/Create', '_blank');
                 }
             };
         });
-    </script>
+  </script>
 }

@@ -47,6 +47,7 @@
       @Html.HiddenFor(model => model.BaseItemId)
       @Html.HiddenFor(model => model.Version)
       @Html.HiddenFor(model => model.CreatedFromChangeOrderId)
+      @Html.HiddenFor(model => model.IsExpense) <!-- ? ADD THIS -->
 
       <!-- Basic Information Card -->
       <div class="card">
@@ -115,6 +116,11 @@
                   <option value="1">Non-Inventoried - Firmware, software, documentation</option>
                   <option value="2">Service - Labor, consulting, services</option>
                   <option value="3">Virtual - Licenses, digital assets</option>
+                  <option value="4">Consumable - Office supplies, consumables</option>
+                  <option value="5">Expense - Direct expense items (utilities, rent)</option>
+                  <option value="6">Subscription - Recurring subscription services</option>
+                  <option value="7">Utility - Utility expenses (electricity, water, internet)</option>
+                  <option value="8">R&D Materials - Research and development materials</option>
                 </select>
                 <span asp-validation-for="ItemType" class="text-danger"></span>
                 <div class="form-text">Determines how this item is tracked and managed.</div>
@@ -727,119 +733,51 @@
     });
 
     document.addEventListener('DOMContentLoaded', function () {
-      console.log('Edit Item page loaded');
+    console.log('Edit Item page loaded');
 
-      // Get elements
-      const itemTypeSelect = document.getElementById('itemTypeSelect');
-      const stockManagement = document.getElementById('stockManagement');
+    // Get elements
+    const itemTypeSelect = document.getElementById('itemTypeSelect');
+    const stockManagement = document.getElementById('stockManagement');
+    const pricingSection = document.getElementById('pricingSection');
 
-      function updateFormBasedOnItemType() {
-        const itemType = parseInt(itemTypeSelect.value);
-        const isInventoried = itemType === 0; // Inventoried = 0
+    // ? FIX: Use the IsExpense flag directly from the model
+    const isExpenseItem = @Model.IsExpense.ToString().ToLower();
 
-        if (isInventoried) {
-          stockManagement.style.display = 'block';
+    function updateFormBasedOnItemType() {
+      const itemType = parseInt(itemTypeSelect.value);
+      const isInventoried = itemType === 0; // Inventoried = 0
+
+      if (isInventoried) {
+        stockManagement.style.display = 'block';
+        pricingSection.style.display = 'block';
+      } else {
+        stockManagement.style.display = 'none';
+
+        // ? FIX: Use IsExpense flag instead of inferring from ItemType
+        if (isExpenseItem) {
+          pricingSection.style.display = 'none'; // Hide pricing for expense items
         } else {
-          stockManagement.style.display = 'none';
+          pricingSection.style.display = 'block';
         }
       }
+    }
 
-      // Initial setup
+    // Initial setup
+    updateFormBasedOnItemType();
+
+    // Handle item type changes
+    itemTypeSelect.addEventListener('change', function() {
       updateFormBasedOnItemType();
 
-      // Handle item type changes
-      itemTypeSelect.addEventListener('change', function() {
-        updateFormBasedOnItemType();
+      // Show warning if changing from inventoried to non-inventoried with existing stock
+      const currentStock = @Model.CurrentStock;
+      const newItemType = parseInt(this.value);
 
-        // Show warning if changing from inventoried to non-inventoried with existing stock
-        const currentStock = @Model.CurrentStock;
-        const newItemType = parseInt(this.value);
-
-        if (currentStock > 0 && newItemType !== 0) {
-          if (!confirm('This item has current stock of ' + currentStock + ' @Model.UnitOfMeasureDisplayName. Changing to non-inventoried will hide stock tracking. Continue?')) {
-            this.value = '0'; // Reset to inventoried
-            updateFormBasedOnItemType();
-          }
+      if (currentStock > 0 && newItemType !== 0) {
+        if (!confirm('This item has current stock of ' + currentStock + ' @Model.UnitOfMeasureDisplayName. Changing to non-inventoried will hide stock tracking. Continue?')) {
+          this.value = '0'; // Reset to inventoried
+          updateFormBasedOnItemType();
         }
-      });
-
-      // Handle image preview
-      const imageFileInput = document.getElementById('newImageFile');
-      const imagePreview = document.getElementById('imagePreview');
-      const previewImg = document.getElementById('previewImg');
-
-      if (imageFileInput && imagePreview && previewImg) {
-        imageFileInput.addEventListener('change', function (e) {
-          const file = e.target.files[0];
-          if (file) {
-            // Validate file size (5MB limit)
-            if (file.size > 5 * 1024 * 1024) {
-              alert('Image file size must be less than 5MB.');
-              this.value = '';
-              imagePreview.style.display = 'none';
-              return;
-            }
-
-            // Validate file type
-            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp'];
-            if (!allowedTypes.includes(file.type.toLowerCase())) {
-              alert('Please upload a valid image file (JPG, PNG, GIF, BMP).');
-              this.value = '';
-              imagePreview.style.display = 'none';
-              return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function (e) {
-              previewImg.src = e.target.result;
-              imagePreview.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-          } else {
-            imagePreview.style.display = 'none';
-          }
-        });
-      }
-
-      // Unit of Measure change warning
-      const uomSelect = document.querySelector('select[name="UnitOfMeasure"]');
-      if (uomSelect) {
-        const originalUom = uomSelect.value;
-
-        uomSelect.addEventListener('change', function() {
-          if (this.value !== originalUom && @Model.CurrentStock > 0) {
-            const confirmed = confirm(
-              'Changing the unit of measure will affect how quantities are displayed throughout the system.\n\n' +
-              'Current stock: @Model.CurrentStock @Model.UnitOfMeasureDisplayName\n\n' +
-              'This change will NOT convert existing values automatically. Continue?'
-            );
-
-            if (!confirmed) {
-              this.value = originalUom; // Reset to original value
-            }
-          }
-        });
-      }
-
-      // Form submission validation
-      const form = document.getElementById('editItemForm');
-      if (form) {
-        form.addEventListener('submit', function (e) {
-          console.log('Form submission started');
-
-          // Check required fields
-          const partNumber = document.querySelector('input[name="PartNumber"]').value.trim();
-          const description = document.querySelector('input[name="Description"]').value.trim();
-
-          if (!partNumber || !description) {
-            e.preventDefault();
-            alert('Please fill in the required fields: Part Number and Description');
-            return false;
-          }
-
-          console.log('Form validation passed, submitting...');
-          return true;
-        });
       }
     });
 

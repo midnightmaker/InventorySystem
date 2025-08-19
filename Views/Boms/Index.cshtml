@@ -806,48 +806,76 @@
       window.location.href = '@Url.Action("Index")';
   }
 
-  function saveSearch() {
-      // In a real application, you might save this to user preferences
+  // ? ENHANCED: Beautiful confirmation for saving search
+  async function saveSearch() {
       const searchData = {
-          search: document.getElementById('search').value,
+          searchTerm: document.getElementById('searchTerm').value,
           bomTypeFilter: document.getElementById('bomTypeFilter').value,
           versionFilter: document.getElementById('versionFilter').value,
           assemblyFilter: document.getElementById('assemblyFilter').value
       };
 
-      localStorage.setItem('savedBomSearch', JSON.stringify(searchData));
-      alert('Search criteria saved! Use the browser bookmark to return to this search.');
-  }
-
-  function exportBoms() {
-      // Build export URL with current filters
-      const params = new URLSearchParams(window.location.search);
-      params.set('export', 'true');
-
-      // Show loading for export operation
-      if (window.LoadingIndicator) {
-          window.LoadingIndicator.showForOperation('generating-report');
-      }
-
-      // In a real application, this would trigger a CSV/Excel download
-      setTimeout(() => {
-          if (window.LoadingIndicator) {
-              window.LoadingIndicator.hide();
-          }
-          alert('Export functionality would download filtered results as CSV/Excel file.');
-      }, 2000);
-  }
-
-  function changePageSize(size) {
-      if (window.LoadingIndicator) {
-          window.LoadingIndicator.show('Loading Page...', `Fetching ${size} BOMs per page`);
-      }
+      const hasFilters = Object.values(searchData).some(value => value && value.trim());
       
-      const params = new URLSearchParams(window.location.search);
-      params.set('pageSize', size);
-      params.set('page', 1); // Reset to first page on page size change
+      if (!hasFilters) {
+          await confirmDialog.confirm({
+              title: 'No Search Criteria',
+              message: 'There are no search criteria to save.',
+              details: 'Please apply some filters before saving your search.',
+              confirmText: 'OK',
+              icon: 'fas fa-info-circle text-info',
+              confirmClass: 'btn-primary'
+          });
+          return;
+      }
 
-      window.location.search = params.toString();
+      localStorage.setItem('savedBomSearch', JSON.stringify(searchData));
+      
+      await confirmDialog.confirm({
+          title: 'Search Saved',
+          message: 'Your search criteria have been saved successfully!',
+          details: 'Use a browser bookmark to return to this search later.',
+          confirmText: 'OK',
+          icon: 'fas fa-check-circle text-success',
+          confirmClass: 'btn-success'
+      });
+  }
+
+  // ? ENHANCED: Beautiful confirmation for export
+  async function exportBoms() {
+      const confirmed = await confirmAction('export the filtered BOM results',
+        `<div class="alert alert-info mt-2 mb-0">
+          <i class="fas fa-info-circle me-1"></i>
+          This will generate a CSV/Excel file with the current BOM list and applied filters.
+         </div>`
+      );
+
+      if (confirmed) {
+          // Build export URL with current filters
+          const params = new URLSearchParams(window.location.search);
+          params.set('export', 'true');
+
+          // Show loading for export operation
+          if (window.LoadingIndicator) {
+              window.LoadingIndicator.showForOperation('generating-report');
+          }
+
+          // In a real application, this would trigger a CSV/Excel download
+          setTimeout(async () => {
+              if (window.LoadingIndicator) {
+                  window.LoadingIndicator.hide();
+              }
+              
+              await confirmDialog.confirm({
+                  title: 'Export Complete',
+                  message: 'Export functionality would download filtered results as CSV/Excel file.',
+                  details: 'This is a placeholder for the actual export implementation.',
+                  confirmText: 'OK',
+                  icon: 'fas fa-download text-success',
+                  confirmClass: 'btn-success'
+              });
+          }, 2000);
+      }
   }
 
   @functions {

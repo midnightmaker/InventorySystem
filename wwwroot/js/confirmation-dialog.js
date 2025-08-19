@@ -252,9 +252,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 const match = onclick.match(/confirm\(['"`]([^'"`]+)['"`]\)/);
                 const message = match ? match[1] : 'Are you sure?';
                 
+                // Determine confirmation type based on context
+                let confirmationType = 'confirm';
+                let icon = 'fas fa-question-circle text-warning';
+                let confirmClass = 'btn-danger';
+                
+                if (message.toLowerCase().includes('delete')) {
+                    confirmationType = 'delete';
+                    icon = 'fas fa-trash text-danger';
+                } else if (message.toLowerCase().includes('remove')) {
+                    confirmationType = 'remove';
+                    icon = 'fas fa-exclamation-triangle text-warning';
+                    confirmClass = 'btn-warning';
+                } else if (message.toLowerCase().includes('export') || message.toLowerCase().includes('download')) {
+                    confirmationType = 'action';
+                    icon = 'fas fa-download text-info';
+                    confirmClass = 'btn-primary';
+                }
+                
                 const confirmed = await window.confirmDialog.confirm({
                     message: message,
-                    icon: 'fas fa-question-circle text-warning'
+                    icon: icon,
+                    confirmClass: confirmClass,
+                    destructive: confirmationType === 'delete'
                 });
                 
                 if (confirmed) {
@@ -267,4 +287,54 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+
+    // Replace onsubmit confirm handlers
+    document.querySelectorAll('form[onsubmit*="confirm("]').forEach(form => {
+        const onsubmit = form.getAttribute('onsubmit');
+        if (onsubmit && onsubmit.includes('confirm(')) {
+            form.removeAttribute('onsubmit');
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const match = onsubmit.match(/confirm\(['"`]([^'"`]+)['"`]\)/);
+                const message = match ? match[1] : 'Are you sure you want to submit this form?';
+                
+                const confirmed = await window.confirmDialog.confirm({
+                    message: message,
+                    icon: 'fas fa-question-circle text-warning'
+                });
+                
+                if (confirmed) {
+                    // Remove the event listener to avoid infinite loop
+                    this.removeEventListener('submit', arguments.callee);
+                    this.submit();
+                }
+            });
+        }
+    });
+
+    // Replace standalone confirm calls in script tags (less common but possible)
+    const scripts = document.querySelectorAll('script');
+    scripts.forEach(script => {
+        if (script.innerHTML && script.innerHTML.includes('confirm(')) {
+            // This is more complex and dangerous, so we'll skip it for now
+            // Could be implemented with more sophisticated parsing if needed
+        }
+    });
 });
+
+// Global function to replace window.confirm
+const originalConfirm = window.confirm;
+window.confirm = function(message) {
+    console.warn('window.confirm() called - consider using the beautiful confirmation dialog instead');
+    // For now, fall back to original confirm to avoid breaking existing functionality
+    return originalConfirm(message);
+};
+
+// Function to upgrade existing confirm calls to beautiful dialogs
+window.upgradeConfirm = async function(message, options = {}) {
+    return await window.confirmDialog.confirm({
+        message: message,
+        ...options
+    });
+};

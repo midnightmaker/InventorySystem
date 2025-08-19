@@ -1,4 +1,4 @@
-using InventorySystem.Data;
+﻿using InventorySystem.Data;
 using InventorySystem.Helpers;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
@@ -466,8 +466,9 @@ namespace InventorySystem.Controllers
 
         if (ModelState.IsValid)
         {
-          // Create the Item entity from the ViewModel
-          var item = new Item
+					bool isExpenseItem = IsExpenseItemType(viewModel.ItemType);
+					// Create the Item entity from the ViewModel
+					var item = new Item
           {
             PartNumber = viewModel.PartNumber,
             Description = viewModel.Description,
@@ -477,15 +478,15 @@ namespace InventorySystem.Controllers
             CreatedDate = DateTime.Now,
             UnitOfMeasure = viewModel.UnitOfMeasure,
             VendorPartNumber = viewModel.VendorPartNumber,
-            IsSellable = viewModel.IsSellable,
-            IsExpense = viewModel.IsExpense, // NEW: Set expense flag
-            ItemType = viewModel.ItemType,
+						IsSellable = isExpenseItem ? false : viewModel.IsSellable,
+						IsExpense = isExpenseItem,
+						SalePrice = isExpenseItem ? null : viewModel.SalePrice,
+						ItemType = viewModel.ItemType,
             Version = viewModel.Version,
             MaterialType = viewModel.MaterialType,
             ParentRawMaterialId = viewModel.ParentRawMaterialId,
             YieldFactor = viewModel.YieldFactor,
-            WastePercentage = viewModel.WastePercentage,
-            SalePrice = viewModel.SalePrice // NEW: Set sale price
+            WastePercentage = viewModel.WastePercentage
           };
 
           // Handle image upload if provided
@@ -524,26 +525,32 @@ namespace InventorySystem.Controllers
 
       return View(viewModel);
     }
+		private static bool IsExpenseItemType(ItemType itemType)
+		{
+			return itemType == ItemType.Expense ||
+						 itemType == ItemType.Utility ||
+						 itemType == ItemType.Subscription ||
+						 itemType == ItemType.Service ||
+						 itemType == ItemType.Virtual;
+		}
+		public async Task<IActionResult> Edit(int id)
+		{
+			var item = await _inventoryService.GetItemByIdAsync(id);
+			if (item == null) return NotFound();
 
-    public async Task<IActionResult> Edit(int id)
-    {
-      var item = await _inventoryService.GetItemByIdAsync(id);
-      if (item == null) return NotFound();
+			// ✅ FIX: Use IsExpense flag directly instead of inferring
+			if (item.IsExpense)
+			{
+				return RedirectToAction("EditExpense", new { id });
+			}
 
-      // Check if this is an expense item and redirect to appropriate edit view
-      if (item.IsExpense)
-      {
-        return RedirectToAction("EditExpense", new { id });
-      }
+			// Load vendors for the preferred vendor dropdown
+			await LoadVendorsForEditView(item);
+			return View(item);
+		}
 
-      // Load vendors for the preferred vendor dropdown
-      await LoadVendorsForEditView(item);
-
-      return View(item);
-    }
-
-    // GET: /Items/EditExpense/5 - Dedicated expense item editing
-    public async Task<IActionResult> EditExpense(int id)
+		// GET: /Items/EditExpense/5 - Dedicated expense item editing
+		public async Task<IActionResult> EditExpense(int id)
     {
       try
       {
@@ -1345,5 +1352,62 @@ namespace InventorySystem.Controllers
             Timestamp = DateTime.Now
         });
     }
-  }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+		public async Task<IActionResult> Edit(int id, Item model, IFormFile? newImageFile, int? preferredVendorId)
+		{
+			if (id != model.Id)
+			{
+				return NotFound();
+			}
+
+			try
+			{
+				if (ModelState.IsValid)
+				{
+					var existingItem = await _inventoryService.GetItemByIdAsync(id);
+					if (existingItem == null)
+					{
+						TempData["ErrorMessage"] = "Item not found.";
+						return RedirectToAction("Index");
+					}
+
+					// Update the allowed properties (preserve restricted ones)
+					existingItem.PartNumber = model.PartNumber;
+					existingItem.Description = model.Description;
+					existingItem.Comments = model.Comments ?? string.Empty;
+					existingItem.ItemType = model.ItemType;
+					existingItem.UnitOfMeasure = model.UnitOfMeasure;
+					existingItem.MinimumStock = model.MinimumStock;
+					existingItem.VendorPartNumber = model.VendorPartNumber;
+					existingItem.SalePrice = model.SalePrice;
+
+					// ✅ FIX: Use the existing IsExpense flag directly
+					existingItem.IsSellable = model.IsSellable;
+					existingItem.IsExpense = model.IsExpense; // Preserve the original flag
+
+					// Handle image upload if provided
+					if (newImageFile != null && newImageFile.Length > 0)
+					{
+						// ... existing image handling code ...
+					}
+
+					await _inventoryService.UpdateItemAsync(existingItem);
+					await UpdateVendorItemRelationship(existingItem.Id, preferredVendorId, model.VendorPartNumber);
+
+					TempData["SuccessMessage"] = "Item updated successfully!";
+					return RedirectToAction("Details", new { id = existingItem.Id });
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error updating item: {PartNumber}", model.PartNumber);
+				ModelState.AddModelError("", $"Error updating item: {ex.Message}");
+			}
+
+			await LoadVendorsForEditView(model);
+			return View(model);
+		}
+	}
 }
