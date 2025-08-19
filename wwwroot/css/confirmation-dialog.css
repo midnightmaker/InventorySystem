@@ -1,0 +1,91 @@
+/* Confirmation Dialog Enhancements */
+
+#confirmationModal .modal-content {
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+#confirmationModal .modal-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px 15px 0 0;
+}
+
+#confirmationModal .modal-title {
+    font-weight: 600;
+    color: #495057;
+}
+
+#confirmationModal .modal-body {
+    padding: 1.5rem;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+#confirmationModal .modal-footer {
+    background-color: #f8f9fa;
+    border-radius: 0 0 15px 15px;
+    padding: 1rem 1.5rem;
+}
+
+#confirmationModal .btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    transition: all 0.2s ease;
+}
+
+#confirmationModal .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+#confirmationModal .alert {
+    border-radius: 8px;
+    border: none;
+    font-size: 0.9rem;
+}
+
+/* Animation enhancements */
+#confirmationModal.fade .modal-dialog {
+    transform: translate(0, -50px) scale(0.95);
+    transition: transform 0.2s ease-out;
+}
+
+#confirmationModal.show .modal-dialog {
+    transform: translate(0, 0) scale(1);
+}
+
+/* Icon styling */
+#confirmationModal .modal-title i {
+    font-size: 1.2em;
+}
+
+/* Details section styling */
+#confirmationDetails {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem;
+    border-left: 4px solid #007bff;
+}
+
+/* Enhanced button styling */
+#confirmationModal .btn-danger {
+    background: linear-gradient(45deg, #dc3545, #c82333);
+    border: none;
+}
+
+#confirmationModal .btn-warning {
+    background: linear-gradient(45deg, #ffc107, #e0a800);
+    border: none;
+    color: #212529;
+}
+
+#confirmationModal .btn-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    border: none;
+}
+
+#confirmationModal .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
