@@ -29,6 +29,15 @@ namespace InventorySystem.ViewModels
 		[StringLength(500)]
 		public string? Notes { get; set; }
 
+		// ✅ NEW: Serial Number and Model Number fields
+		[StringLength(100, ErrorMessage = "Serial number cannot exceed 100 characters")]
+		[Display(Name = "Serial Number")]
+		public string? SerialNumber { get; set; }
+
+		[StringLength(100, ErrorMessage = "Model number cannot exceed 100 characters")]
+		[Display(Name = "Model Number")]
+		public string? ModelNumber { get; set; }
+
 		// Display properties (populated via AJAX or server-side)
 		public string ProductPartNumber { get; set; } = "";
 		public string ProductDescription { get; set; } = "";
@@ -36,6 +45,10 @@ namespace InventorySystem.ViewModels
 		public decimal SuggestedPrice { get; set; }
 		public bool HasSalePrice { get; set; }
 		public bool TracksInventory { get; set; } = true;
+
+		// ✅ NEW: Requirements properties (populated via AJAX)
+		public bool RequiresSerialNumber { get; set; }
+		public bool RequiresModelNumber { get; set; }
 
 		// Computed Properties
 		public decimal LineTotal => Quantity * UnitPrice;
@@ -57,6 +70,29 @@ namespace InventorySystem.ViewModels
 
 		public string PriceSource => HasSalePrice ? "Set Price" : "Calculated";
 
+		// ✅ NEW: Serial/Model validation
+		public bool HasRequiredFields
+		{
+			get
+			{
+				if (RequiresSerialNumber && string.IsNullOrWhiteSpace(SerialNumber))
+					return false;
+				if (RequiresModelNumber && string.IsNullOrWhiteSpace(ModelNumber))
+					return false;
+				return true;
+			}
+		}
+
+		public List<string> GetValidationErrors()
+		{
+			var errors = new List<string>();
+			if (RequiresSerialNumber && string.IsNullOrWhiteSpace(SerialNumber))
+				errors.Add($"Serial number is required for {ProductPartNumber}");
+			if (RequiresModelNumber && string.IsNullOrWhiteSpace(ModelNumber))
+				errors.Add($"Model number is required for {ProductPartNumber}");
+			return errors;
+		}
+
 		// Helper method for display formatting
 		public string GetFormattedLineTotal()
 		{
@@ -72,7 +108,16 @@ namespace InventorySystem.ViewModels
 		{
 			return SuggestedPrice.ToString("C");
 		}
-
+		public string SerialModelDisplay
+		{
+			get
+			{
+				var parts = new List<string>();
+				if (!string.IsNullOrWhiteSpace(SerialNumber)) parts.Add($"S/N: {SerialNumber}");
+				if (!string.IsNullOrWhiteSpace(ModelNumber)) parts.Add($"Model: {ModelNumber}");
+				return parts.Any() ? string.Join(" | ", parts) : "";
+			}
+		}
 		// Validation method for individual line item
 		public bool IsValid(out List<string> errors)
 		{

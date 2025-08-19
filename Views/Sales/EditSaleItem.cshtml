@@ -1,0 +1,300 @@
+@model InventorySystem.ViewModels.EditSaleItemViewModel
+@{
+    ViewData["Title"] = "Edit Sale Item";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-edit"></i> Edit Sale Item</h1>
+    <a href="/Sales/Details/@Model.SaleId" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Sale
+    </a>
+</div>
+
+<div class="alert alert-info">
+    <h6><i class="fas fa-info-circle"></i> Sale Information</h6>
+    <p class="mb-0">Editing item in <strong>@ViewBag.SaleNumber</strong> for customer <strong>@ViewBag.CustomerName</strong></p>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form asp-action="EditSaleItem" method="post">
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="SaleId" type="hidden" />
+    <input asp-for="ProductType" type="hidden" />
+    <input asp-for="ItemId" type="hidden" />
+    <input asp-for="FinishedGoodId" type="hidden" />
+    <input asp-for="ProductPartNumber" type="hidden" />
+    <input asp-for="ProductName" type="hidden" />
+    <input asp-for="RequiresSerialNumber" type="hidden" />
+    <input asp-for="RequiresModelNumber" type="hidden" />
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Product Information (Read-Only) -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-box"></i> Product Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Product:</dt>
+                                <dd class="col-sm-8">
+                                    <strong>@Model.ProductPartNumber</strong>
+                                    <span class="badge bg-secondary ms-2">@Model.ProductType</span>
+                                </dd>
+                                <dt class="col-sm-4">Description:</dt>
+                                <dd class="col-sm-8">@Model.ProductName</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            @if (Model.RequiresSerialNumber || Model.RequiresModelNumber)
+                            {
+                                <div class="alert alert-info">
+                                    <small>
+                                        <i class="fas fa-info-circle"></i>
+                                        <strong>Requirements:</strong>
+                                        @if (Model.RequiresSerialNumber && Model.RequiresModelNumber)
+                                        {
+                                            <text>Serial Number and Model Number</text>
+                                        }
+                                        else if (Model.RequiresSerialNumber)
+                                        {
+                                            <text>Serial Number</text>
+                                        }
+                                        else if (Model.RequiresModelNumber)
+                                        {
+                                            <text>Model Number</text>
+                                        }
+                                    </small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Editable Fields -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-edit"></i> Sale Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Quantity" class="form-label">Quantity *</label>
+                                <input asp-for="Quantity" class="form-control" id="quantityInput" />
+                                <span asp-validation-for="Quantity" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="UnitPrice" class="form-label">Unit Price *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="UnitPrice" class="form-control" step="0.01" id="unitPriceInput" />
+                                </div>
+                                <span asp-validation-for="UnitPrice" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label">Notes</label>
+                        <textarea asp-for="Notes" class="form-control" rows="2"></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product Identification -->
+            @if (Model.RequiresSerialNumber || Model.RequiresModelNumber)
+            {
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-barcode"></i> Product Identification</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!Model.HasRequiredInfo)
+                        {
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Missing Information:</strong>
+                                This item is missing: @string.Join(", ", Model.GetMissingRequirements())
+                            </div>
+                        }
+                        
+                        <div class="row">
+                            @if (Model.RequiresSerialNumber)
+                            {
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label asp-for="SerialNumber" class="form-label">
+                                            Serial Number
+                                            <span class="text-danger">*</span>
+                                        </label>
+                                        <input asp-for="SerialNumber" class="form-control" id="serialNumberInput" 
+                                               placeholder="Enter serial number..." />
+                                        <span asp-validation-for="SerialNumber" class="text-danger"></span>
+                                        <div class="form-text">Unique identifier for this specific unit</div>
+                                    </div>
+                                </div>
+                            }
+                            
+                            @if (Model.RequiresModelNumber)
+                            {
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label asp-for="ModelNumber" class="form-label">
+                                            Model Number
+                                            <span class="text-danger">*</span>
+                                        </label>
+                                        <input asp-for="ModelNumber" class="form-control" id="modelNumberInput" 
+                                               placeholder="Enter model number..." />
+                                        <span asp-validation-for="ModelNumber" class="text-danger"></span>
+                                        <div class="form-text">Product model or version identifier</div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Action Buttons -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Update Sale Item
+                        </button>
+                        <a href="/Sales/Details/@Model.SaleId" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Sidebar -->
+        <div class="col-md-4">
+            <div class="card sticky-top">
+                <div class="card-header">
+                    <h5><i class="fas fa-calculator"></i> Item Summary</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Quantity:</td>
+                            <td class="text-end" id="displayQuantity">@Model.Quantity</td>
+                        </tr>
+                        <tr>
+                            <td>Unit Price:</td>
+                            <td class="text-end" id="displayUnitPrice">@Model.UnitPrice.ToString("C")</td>
+                        </tr>
+                        <tr class="table-dark">
+                            <td><strong>Total Price:</strong></td>
+                            <td class="text-end"><strong id="displayTotalPrice">@Model.TotalPrice.ToString("C")</strong></td>
+                        </tr>
+                    </table>
+
+                    @if (Model.RequiresSerialNumber || Model.RequiresModelNumber)
+                    {
+                        <hr>
+                        <h6>Product Identification</h6>
+                        <table class="table table-sm">
+                            @if (Model.RequiresSerialNumber)
+                            {
+                                <tr>
+                                    <td>Serial Number:</td>
+                                    <td class="text-end">
+                                        <code id="displaySerial">@(string.IsNullOrWhiteSpace(Model.SerialNumber) ? "Not Set" : Model.SerialNumber)</code>
+                                    </td>
+                                </tr>
+                            }
+                            @if (Model.RequiresModelNumber)
+                            {
+                                <tr>
+                                    <td>Model Number:</td>
+                                    <td class="text-end">
+                                        <code id="displayModel">@(string.IsNullOrWhiteSpace(Model.ModelNumber) ? "Not Set" : Model.ModelNumber)</code>
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    }
+
+                    @if (!Model.HasRequiredInfo)
+                    {
+                        <div class="alert alert-warning">
+                            <small>
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Note:</strong> This item is missing required identification information.
+                            </small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const quantityInput = document.getElementById('quantityInput');
+            const unitPriceInput = document.getElementById('unitPriceInput');
+            const serialNumberInput = document.getElementById('serialNumberInput');
+            const modelNumberInput = document.getElementById('modelNumberInput');
+
+            // Update calculations when quantity or price changes
+            if (quantityInput) quantityInput.addEventListener('input', updateTotalPrice);
+            if (unitPriceInput) unitPriceInput.addEventListener('input', updateTotalPrice);
+
+            // Update serial/model display when fields change
+            if (serialNumberInput) serialNumberInput.addEventListener('input', updateSerialModelDisplay);
+            if (modelNumberInput) modelNumberInput.addEventListener('input', updateSerialModelDisplay);
+
+            function updateTotalPrice() {
+                const quantity = parseInt(quantityInput.value) || 0;
+                const unitPrice = parseFloat(unitPriceInput.value) || 0;
+                const totalPrice = quantity * unitPrice;
+
+                document.getElementById('displayQuantity').textContent = quantity;
+                document.getElementById('displayUnitPrice').textContent = '$' + unitPrice.toFixed(2);
+                document.getElementById('displayTotalPrice').textContent = '$' + totalPrice.toFixed(2);
+            }
+
+            function updateSerialModelDisplay() {
+                const serialDisplay = document.getElementById('displaySerial');
+                const modelDisplay = document.getElementById('displayModel');
+
+                if (serialDisplay && serialNumberInput) {
+                    const serialValue = serialNumberInput.value.trim();
+                    serialDisplay.textContent = serialValue || 'Not Set';
+                }
+
+                if (modelDisplay && modelNumberInput) {
+                    const modelValue = modelNumberInput.value.trim();
+                    modelDisplay.textContent = modelValue || 'Not Set';
+                }
+            }
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        .sticky-top {
+            top: 20px;
+        }
+    </style>
+}

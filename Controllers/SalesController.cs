@@ -1037,57 +1037,212 @@ namespace InventorySystem.Controllers
 				return RedirectToAction("Details", new { id = saleId });
 			}
 		}
-
-		// POST: Sales/AddItem
-		[HttpPost]
-		[ValidateAntiForgeryToken]
-		public async Task<IActionResult> AddItem(AddSaleItemViewModel model)
+		// GET: Sales/EditSaleItem/5
+		[HttpGet]
+		public async Task<IActionResult> EditSaleItem(int id)
 		{
 			try
 			{
-				// Validate that either ItemId or FinishedGoodId is selected
-				if (model.ProductType == "Item" && !model.ItemId.HasValue)
+				var saleItem = await _context.SaleItems
+						.Include(si => si.Sale)
+						.Include(si => si.Item)
+						.Include(si => si.FinishedGood)
+						.FirstOrDefaultAsync(si => si.Id == id);
+
+				if (saleItem == null)
 				{
-					ModelState.AddModelError(nameof(model.ItemId), "Please select an item.");
-				}
-				else if (model.ProductType == "FinishedGood" && !model.FinishedGoodId.HasValue)
-				{
-					ModelState.AddModelError(nameof(model.FinishedGoodId), "Please select a finished good.");
+					TempData["ErrorMessage"] = "Sale item not found.";
+					return RedirectToAction("Index");
 				}
 
-				if (!ModelState.IsValid)
+				// Check if sale allows modifications
+				if (saleItem.Sale.SaleStatus == SaleStatus.Shipped || saleItem.Sale.SaleStatus == SaleStatus.Delivered)
 				{
-					await LoadAddItemDropdowns(model);
-					return View(model);
+					TempData["ErrorMessage"] = "Cannot edit items in a sale that has been shipped or delivered.";
+					return RedirectToAction("Details", new { id = saleItem.SaleId });
 				}
 
-				var saleItem = new SaleItem
+				var viewModel = new EditSaleItemViewModel
 				{
-					SaleId = model.SaleId,
-					QuantitySold = model.Quantity,
-					UnitPrice = model.UnitPrice,
-					Notes = model.Notes
+					Id = saleItem.Id,
+					SaleId = saleItem.SaleId,
+					ProductType = saleItem.ItemId.HasValue ? "Item" : "FinishedGood",
+					ItemId = saleItem.ItemId,
+					FinishedGoodId = saleItem.FinishedGoodId,
+					Quantity = saleItem.QuantitySold,
+					UnitPrice = saleItem.UnitPrice,
+					Notes = saleItem.Notes,
+					SerialNumber = saleItem.SerialNumber,
+					ModelNumber = saleItem.ModelNumber,
+					// Product info for display
+					ProductPartNumber = saleItem.ProductPartNumber,
+					ProductName = saleItem.ProductName
 				};
+
+				// Check requirements
+				if (saleItem.ItemId.HasValue && saleItem.Item != null)
+				{
+					viewModel.RequiresSerialNumber = saleItem.Item.RequiresSerialNumber;
+					viewModel.RequiresModelNumber = saleItem.Item.RequiresModelNumber;
+				}
+				else if (saleItem.FinishedGoodId.HasValue && saleItem.FinishedGood != null)
+				{
+					viewModel.RequiresSerialNumber = saleItem.FinishedGood.RequiresSerialNumber;
+					viewModel.RequiresModelNumber = saleItem.FinishedGood.RequiresModelNumber;
+				}
+
+				ViewBag.SaleNumber = saleItem.Sale.SaleNumber;
+				ViewBag.CustomerName = saleItem.Sale.Customer?.CustomerName ?? "Unknown Customer";
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading sale item for edit: {SaleItemId}", id);
+				TempData["ErrorMessage"] = $"Error loading sale item: {ex.Message}";
+				return RedirectToAction("Index");
+			}
+		}
+
+		// POST: Sales/EditSaleItem
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> EditSaleItem(EditSaleItemViewModel model)
+		{
+			if (!ModelState.IsValid)
+			{
+				ViewBag.SaleNumber = "Unknown";
+				ViewBag.CustomerName = "Unknown Customer";
+				return View(model);
+			}
+
+			try
+			{
+				var saleItem = await _context.SaleItems
+						.Include(si => si.Sale)
+						.Include(si => si.Item)
+						.Include(si => si.FinishedGood)
+						.FirstOrDefaultAsync(si => si.Id == model.Id);
+
+				if (saleItem == null)
+				{
+					TempData["ErrorMessage"] = "Sale item not found.";
+					return RedirectToAction("Index");
+				}
+
+				// Check if sale allows modifications
+				if (saleItem.Sale.SaleStatus == SaleStatus.Shipped || saleItem.Sale.SaleStatus == SaleStatus.Delivered)
+				{
+					TempData["ErrorMessage"] = "Cannot edit items in a sale that has been shipped or delivered.";
+					return RedirectToAction("Details", new { id = saleItem.SaleId });
+				}
+
+				// Update the sale item
+				saleItem.QuantitySold = model.Quantity;
+				saleItem.UnitPrice = model.UnitPrice;
+				saleItem.Notes = model.Notes;
+				saleItem.SerialNumber = model.SerialNumber;
+				saleItem.ModelNumber = model.ModelNumber;
+
+				_context.SaleItems.Update(saleItem);
+				await _context.SaveChangesAsync();
+
+				TempData["SuccessMessage"] = "Sale item updated successfully!";
+				return RedirectToAction("Details", new { id = saleItem.SaleId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error updating sale item: {SaleItemId}", model.Id);
+				TempData["ErrorMessage"] = $"Error updating sale item: {ex.Message}";
+
+				ViewBag.SaleNumber = "Unknown";
+				ViewBag.CustomerName = "Unknown Customer";
+				return View(model);
+			}
+		}
+		// POST: Sales/AddItem
+		[HttpPost]
+		public async Task<IActionResult> AddItem(AddSaleItemViewModel model)
+		{
+			if (!ModelState.IsValid)
+			{
+				// Reload dropdowns and return to view
+				await LoadAddItemDropdowns(model);
+				return View(model);
+			}
+
+			try
+			{
+				// ✅ UPDATED: Change validation from blocking to warning only
+				var requirementsWarnings = new List<string>();
 
 				if (model.ProductType == "Item" && model.ItemId.HasValue)
 				{
-					saleItem.ItemId = model.ItemId.Value;
+					var item = await _context.Items.FindAsync(model.ItemId.Value);
+					if (item != null && !item.ValidateSaleItemRequirements(model.SerialNumber, model.ModelNumber))
+					{
+						if (item.RequiresSerialNumber && string.IsNullOrWhiteSpace(model.SerialNumber))
+							requirementsWarnings.Add($"Serial number is recommended for {item.PartNumber}");
+						if (item.RequiresModelNumber && string.IsNullOrWhiteSpace(model.ModelNumber))
+							requirementsWarnings.Add($"Model number is recommended for {item.PartNumber}");
+					}
 				}
 				else if (model.ProductType == "FinishedGood" && model.FinishedGoodId.HasValue)
 				{
-					saleItem.FinishedGoodId = model.FinishedGoodId.Value;
+					var finishedGood = await _context.FinishedGoods.FindAsync(model.FinishedGoodId.Value);
+					if (finishedGood != null && !finishedGood.ValidateSaleItemRequirements(model.SerialNumber, model.ModelNumber))
+					{
+						if (finishedGood.RequiresSerialNumber && string.IsNullOrWhiteSpace(model.SerialNumber))
+							requirementsWarnings.Add($"Serial number is recommended for {finishedGood.PartNumber}");
+						if (finishedGood.RequiresModelNumber && string.IsNullOrWhiteSpace(model.ModelNumber))
+							requirementsWarnings.Add($"Model number is recommended for {finishedGood.PartNumber}");
+					}
 				}
 
-				await _salesService.AddSaleItemAsync(saleItem);
+				// ✅ UPDATED: Show warnings as informational message instead of blocking
+				if (requirementsWarnings.Any())
+				{
+					TempData["InfoMessage"] = "Item added successfully! Note: " + string.Join(", ", requirementsWarnings) + ". You can edit the sale item to add this information later.";
+				}
+				else
+				{
+					TempData["SuccessMessage"] = "Item added to sale successfully!";
+				}
 
-				TempData["SuccessMessage"] = "Item added to sale successfully!";
+				// Create the sale item (same as before)
+				var saleItem = new SaleItem
+				{
+					SaleId = model.SaleId,
+					ItemId = model.ItemId,
+					FinishedGoodId = model.FinishedGoodId,
+					QuantitySold = model.Quantity,
+					UnitPrice = model.UnitPrice,
+					Notes = model.Notes,
+					// ✅ Set serial/model numbers (even if empty)
+					SerialNumber = model.SerialNumber,
+					ModelNumber = model.ModelNumber
+				};
+
+				// Set unit cost based on product type
+				if (model.ItemId.HasValue)
+				{
+					var item = await _context.Items.FindAsync(model.ItemId.Value);
+					saleItem.UnitCost = 0; // Implement your cost logic
+				}
+				else if (model.FinishedGoodId.HasValue)
+				{
+					var finishedGood = await _context.FinishedGoods.FindAsync(model.FinishedGoodId.Value);
+					saleItem.UnitCost = finishedGood?.UnitCost ?? 0;
+				}
+
+				_context.SaleItems.Add(saleItem);
+				await _context.SaveChangesAsync();
+
 				return RedirectToAction("Details", new { id = model.SaleId });
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error adding item to sale {SaleId}", model.SaleId);
-				TempData["ErrorMessage"] = $"Error adding item: {ex.Message}";
-
+				TempData["ErrorMessage"] = "Error adding item: " + ex.Message;
 				await LoadAddItemDropdowns(model);
 				return View(model);
 			}
@@ -1293,46 +1448,86 @@ namespace InventorySystem.Controllers
 		{
 			try
 			{
-				_logger.LogInformation("Product availability check - Type: {ProductType}, ID: {ProductId}, Quantity: {Quantity}",
-						productType, productId, quantity);
-
-				if (string.IsNullOrEmpty(productType) || productId <= 0 || quantity <= 0)
+				if (productType == "Item")
 				{
+					var item = await _context.Items.FindAsync(productId);
+					if (item == null)
+						return Json(new { success = false, message = "Item not found" });
+
+					var productInfo = new
+					{
+						partNumber = item.PartNumber,
+						description = item.Description,
+						currentStock = item.CurrentStock,
+						suggestedPrice = item.SalePrice ?? item.SuggestedSalePrice,
+						hasSalePrice = item.HasSalePrice,
+						tracksInventory = item.TrackInventory,
+						// ✅ NEW: Include requirements
+						requiresSerialNumber = item.RequiresSerialNumber,
+						requiresModelNumber = item.RequiresModelNumber
+					};
+
+					var stockInfo = new
+					{
+						canFulfill = !item.TrackInventory || item.CurrentStock >= quantity
+					};
+
+					var availabilityMessage = !item.TrackInventory
+							? "Service/Virtual item - No stock tracking required"
+							: item.CurrentStock >= quantity
+									? $"✓ {quantity} units available (Stock: {item.CurrentStock})"
+									: $"⚠ Only {item.CurrentStock} units in stock. {quantity - item.CurrentStock} will be backordered.";
+
 					return Json(new
 					{
-						success = false,
-						message = "Invalid parameters",
-						availabilityMessage = "Please select a product and enter a valid quantity."
+						success = true,
+						productInfo,
+						stockInfo,
+						availabilityMessage
+					});
+				}
+				else if (productType == "FinishedGood")
+				{
+					var finishedGood = await _context.FinishedGoods.FindAsync(productId);
+					if (finishedGood == null)
+						return Json(new { success = false, message = "Finished good not found" });
+
+					var productInfo = new
+					{
+						partNumber = finishedGood.PartNumber,
+						description = finishedGood.Description,
+						currentStock = finishedGood.CurrentStock,
+						suggestedPrice = finishedGood.SellingPrice,
+						hasSalePrice = finishedGood.SellingPrice > 0,
+						tracksInventory = true, // Finished goods always track inventory
+																		// ✅ NEW: Include requirements
+						requiresSerialNumber = finishedGood.RequiresSerialNumber,
+						requiresModelNumber = finishedGood.RequiresModelNumber
+					};
+
+					var stockInfo = new
+					{
+						canFulfill = finishedGood.CurrentStock >= quantity
+					};
+
+					var availabilityMessage = finishedGood.CurrentStock >= quantity
+							? $"✓ {quantity} units available (Stock: {finishedGood.CurrentStock})"
+							: $"⚠ Only {finishedGood.CurrentStock} units in stock. {quantity - finishedGood.CurrentStock} will be backordered.";
+
+					return Json(new
+					{
+						success = true,
+						productInfo,
+						stockInfo,
+						availabilityMessage
 					});
 				}
 
-				if (productType.Equals("Item", StringComparison.OrdinalIgnoreCase))
-				{
-					return await CheckItemAvailability(productId, quantity);
-				}
-				else if (productType.Equals("FinishedGood", StringComparison.OrdinalIgnoreCase))
-				{
-					return await CheckFinishedGoodAvailability(productId, quantity);
-				}
-				else
-				{
-					return Json(new
-					{
-						success = false,
-						message = "Invalid product type",
-						availabilityMessage = "Invalid product type selected."
-					});
-				}
+				return Json(new { success = false, message = "Invalid product type" });
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error checking product availability - Type: {ProductType}, ID: {ProductId}", productType, productId);
-				return Json(new
-				{
-					success = false,
-					message = "Error checking product availability",
-					availabilityMessage = "Unable to check product availability. Please try again."
-				});
+				return Json(new { success = false, message = "Error checking availability: " + ex.Message });
 			}
 		}
 

@@ -517,10 +517,11 @@ else
               <colgroup>
                 <col width="8%">
                 <col width="12%">
-                <col width="30%">
+                <col width="25%">
                 <col width="10%">
                 <col width="10%">
-                <col width="15%">
+                <col width="10%">
+                <col width="10%">
                 <col width="15%">
                 @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
                 {
@@ -536,6 +537,8 @@ else
                   <th class="text-center">Qty</th>
                   <th class="text-end">Unit Price</th>
                   <th class="text-end">Total</th>
+                  <!-- ✅ NEW: Add Serial/Model column -->
+                  <th>Serial/Model</th>
                   @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
                   {
                     <th class="text-center">Actions</th>
@@ -610,19 +613,45 @@ else
                     </td>
                     <td class="text-end">@item.UnitPrice.ToString("C")</td>
                     <td class="text-end"><strong>@item.TotalPrice.ToString("C")</strong></td>
+                    <!-- ✅ NEW: Serial/Model column -->
+                    <td>
+                      @if (item.HasSerialModelInfo)
+                      {
+                        <small>
+                          @if (!string.IsNullOrWhiteSpace(item.SerialNumber))
+                          {
+                            <div><strong>S/N:</strong> <code>@item.SerialNumber</code></div>
+                          }
+                          @if (!string.IsNullOrWhiteSpace(item.ModelNumber))
+                          {
+                            <div><strong>Model:</strong> <code>@item.ModelNumber</code></div>
+                          }
+                        </small>
+                      }
+                      else
+                      {
+                        <span class="text-muted">-</span>
+                      }
+                    </td>
                     @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
                     {
                       <td class="text-center">
-                        <form method="post" action="/Sales/RemoveItem" style="display: inline;"
-                              onsubmit="return confirm('Remove this item from the sale?')">
-                          @Html.AntiForgeryToken()
-                          <input type="hidden" name="saleItemId" value="@item.Id" />
-                          <input type="hidden" name="saleId" value="@Model.Sale.Id" />
-                          <button type="submit" class="btn btn-sm btn-outline-danger"
-                                  title="Remove Item">
-                            <i class="fas fa-trash"></i>
-                          </button>
-                        </form>
+                        <div class="btn-group btn-group-sm">
+                          <!-- ✅ NEW: Edit button -->
+                          <a href="/Sales/EditSaleItem/@item.Id" class="btn btn-outline-primary" title="Edit Item">
+                            <i class="fas fa-edit"></i>
+                          </a>
+                          <!-- Existing remove button -->
+                          <form method="post" action="/Sales/RemoveItem" style="display: inline;"
+                                onsubmit="return confirm('Remove this item from the sale?')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="saleItemId" value="@item.Id" />
+                            <input type="hidden" name="saleId" value="@Model.Sale.Id" />
+                            <button type="submit" class="btn btn-outline-danger" title="Remove Item">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </form>
+                        </div>
                       </td>
                     }
                   </tr>

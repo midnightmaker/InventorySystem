@@ -62,6 +62,13 @@
             <div class="alert alert-info">
               <h6 id="productName"></h6>
               <div id="productDetails"></div>
+              <!-- ✅ NEW: Requirements display -->
+              <div id="requirementsInfo" style="display: none;" class="mt-2">
+                <small class="text-info">
+                  <i class="fas fa-info-circle"></i>
+                  <strong>Required:</strong> <span id="requirementsText"></span>
+                </small>
+              </div>
             </div>
           </div>
 
@@ -92,6 +99,43 @@
                   <span id="priceHelpText">Price automatically filled from item settings</span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- ✅ NEW: Serial Number and Model Number Section -->
+          <div id="serialModelSection" style="display: none;">
+            <hr>
+            <h6><i class="fas fa-barcode"></i> Product Identification</h6>
+            <div class="row">
+              <div class="col-md-6" id="serialNumberSection" style="display: none;">
+                <div class="mb-3">
+                  <label asp-for="SerialNumber" class="form-label">
+                    Serial Number <span class="text-danger serial-required" style="display: none;">*</span>
+                  </label>
+                  <input asp-for="SerialNumber" class="form-control" id="serialNumberInput" 
+                         placeholder="Enter serial number..." />
+                  <span asp-validation-for="SerialNumber" class="text-danger"></span>
+                  <div class="form-text">Unique identifier for this specific unit</div>
+                </div>
+              </div>
+              <div class="col-md-6" id="modelNumberSection" style="display: none;">
+                <div class="mb-3">
+                  <label asp-for="ModelNumber" class="form-label">
+                    Model Number <span class="text-danger model-required" style="display: none;">*</span>
+                  </label>
+                  <input asp-for="ModelNumber" class="form-control" id="modelNumberInput" 
+                         placeholder="Enter model number..." />
+                  <span asp-validation-for="ModelNumber" class="text-danger"></span>
+                  <div class="form-text">Product model or version identifier</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- ✅ NEW: Requirements validation alert -->
+            <div id="requirementsAlert" class="alert alert-warning" style="display: none;">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Missing Required Information:</strong>
+              <ul id="requirementsList" class="mb-0 mt-1"></ul>
             </div>
           </div>
 
@@ -130,6 +174,21 @@
               <td class="text-end"><strong id="displayTotalPrice">$0.00</strong></td>
             </tr>
           </table>
+
+          <!-- ✅ NEW: Serial/Model Info Display -->
+          <div id="serialModelInfo" style="display: none;">
+            <hr>
+            <table class="table table-sm">
+              <tr id="serialRow" style="display: none;">
+                <td>Serial Number:</td>
+                <td class="text-end"><code id="displaySerial">-</code></td>
+              </tr>
+              <tr id="modelRow" style="display: none;">
+                <td>Model Number:</td>
+                <td class="text-end"><code id="displayModel">-</code></td>
+              </tr>
+            </table>
+          </div>
 
           <div id="stockInfo" style="display: none;">
             <hr>
@@ -178,6 +237,7 @@
   <script>
     // Global variables
     let currentSuggestedPrice = 0;
+    let currentRequirements = { serial: false, model: false };
 
     document.addEventListener('DOMContentLoaded', function() {
       const productTypeSelect = document.getElementById('productTypeSelect');
@@ -186,6 +246,10 @@
       const quantityInput = document.getElementById('quantityInput');
       const unitPriceInput = document.getElementById('unitPriceInput');
       const addItemButton = document.getElementById('addItemButton');
+      
+      // ✅ NEW: Serial/Model inputs
+      const serialNumberInput = document.getElementById('serialNumberInput');
+      const modelNumberInput = document.getElementById('modelNumberInput');
 
       // Event listeners
       productTypeSelect.addEventListener('change', toggleProductSelection);
@@ -196,6 +260,12 @@
         updateTotalPrice();
       });
       unitPriceInput.addEventListener('input', updateTotalPrice);
+      
+      // ✅ NEW: Serial/Model validation listeners
+      serialNumberInput.addEventListener('input', updateSerialModelDisplay);
+      modelNumberInput.addEventListener('input', updateSerialModelDisplay);
+      serialNumberInput.addEventListener('input', updateRequirementsWarning); // Changed from validateRequirements
+      modelNumberInput.addEventListener('input', updateRequirementsWarning); // Changed from validateRequirements
 
       // Initialize
       toggleProductSelection();
@@ -219,7 +289,7 @@
         validateForm();
       }
 
-      // Enhanced updateProductInfo with better visual feedback and safety checks
+      // ✅ ENHANCED: updateProductInfo with serial/model requirements
       function updateProductInfo(data) {
         const productInfo = document.getElementById('productInfo');
         const productName = document.getElementById('productName');
@@ -241,6 +311,12 @@
 
         // Store the suggested price for later use
         currentSuggestedPrice = safeSuggestedPrice;
+
+        // ✅ NEW: Store requirements
+        currentRequirements = {
+          serial: data.productInfo?.requiresSerialNumber || false,
+          model: data.productInfo?.requiresModelNumber || false
+        };
 
         // SAFETY CHECK: Ensure product name exists
         const safeProductName = (data.productInfo && data.productInfo.partNumber && data.productInfo.description) 
@@ -297,7 +373,130 @@
         clearPriceButton.style.display = 'block';
         priceHelp.style.display = 'block';
         
+        // ✅ NEW: Update serial/model requirements
+        updateRequirementsDisplay();
+        
         updateTotalPrice();
+      }
+
+      // ✅ NEW: Update requirements display
+      function updateRequirementsDisplay() {
+        const serialModelSection = document.getElementById('serialModelSection');
+        const serialNumberSection = document.getElementById('serialNumberSection');
+        const modelNumberSection = document.getElementById('modelNumberSection');
+        const requirementsInfo = document.getElementById('requirementsInfo');
+        const requirementsText = document.getElementById('requirementsText');
+        const serialRequired = document.querySelectorAll('.serial-required');
+        const modelRequired = document.querySelectorAll('.model-required');
+
+        const hasRequirements = currentRequirements.serial || currentRequirements.model;
+
+        if (hasRequirements) {
+          serialModelSection.style.display = 'block';
+          
+          if (currentRequirements.serial) {
+            serialNumberSection.style.display = 'block';
+            serialRequired.forEach(el => el.style.display = 'inline');
+          } else {
+            serialNumberSection.style.display = 'none';
+            serialRequired.forEach(el => el.style.display = 'none');
+          }
+          
+          if (currentRequirements.model) {
+            modelNumberSection.style.display = 'block';
+            modelRequired.forEach(el => el.style.display = 'inline');
+          } else {
+            modelNumberSection.style.display = 'none';
+            modelRequired.forEach(el => el.style.display = 'none');
+          }
+
+          // Show requirements info
+          const requirements = [];
+          if (currentRequirements.serial) requirements.push('Serial Number');
+          if (currentRequirements.model) requirements.push('Model Number');
+          
+          requirementsText.textContent = requirements.join(', ');
+          requirementsInfo.style.display = 'block';
+        } else {
+          serialModelSection.style.display = 'none';
+          requirementsInfo.style.display = 'none';
+        }
+
+        updateRequirementsWarning(); // Changed from validateRequirements
+      }
+
+      // ✅ UPDATED: Changed from validateRequirements to updateRequirementsWarning
+      function updateRequirementsWarning() {
+        const requirementsAlert = document.getElementById('requirementsAlert');
+        const requirementsList = document.getElementById('requirementsList');
+        const serialInput = document.getElementById('serialNumberInput');
+        const modelInput = document.getElementById('modelNumberInput');
+
+        const missingRequirements = [];
+        
+        if (currentRequirements.serial && !serialInput.value.trim()) {
+          missingRequirements.push('<li>Serial Number is recommended for tracking</li>');
+        }
+        
+        if (currentRequirements.model && !modelInput.value.trim()) {
+          missingRequirements.push('<li>Model Number is recommended for identification</li>');
+        }
+
+        if (missingRequirements.length > 0) {
+          requirementsList.innerHTML = missingRequirements.join('');
+          requirementsAlert.innerHTML = `
+            <i class="fas fa-info-circle"></i>
+            <strong>Recommended Information:</strong>
+            <ul id="requirementsList" class="mb-0 mt-1">${missingRequirements.join('')}</ul>
+            <small class="text-muted mt-2 d-block">
+              <i class="fas fa-lightbulb"></i> 
+              You can add this information later by editing the sale item after creation.
+            </small>
+          `;
+          requirementsAlert.className = 'alert alert-info'; // Changed from alert-warning to alert-info
+          requirementsAlert.style.display = 'block';
+          // ✅ REMOVED: Don't disable the button anymore
+          // addItemButton.disabled = true;
+        } else {
+          requirementsAlert.style.display = 'none';
+        }
+
+        // ✅ REMOVED: Don't return validation status since we're not blocking
+        // return missingRequirements.length === 0;
+      }
+
+      // ✅ NEW: Update serial/model display
+      function updateSerialModelDisplay() {
+        const serialModelInfo = document.getElementById('serialModelInfo');
+        const serialRow = document.getElementById('serialRow');
+        const modelRow = document.getElementById('modelRow');
+        const displaySerial = document.getElementById('displaySerial');
+        const displayModel = document.getElementById('displayModel');
+        const serialInput = document.getElementById('serialNumberInput');
+        const modelInput = document.getElementById('modelNumberInput');
+
+        const hasSerial = serialInput.value.trim();
+        const hasModel = modelInput.value.trim();
+
+        if (hasSerial || hasModel) {
+          serialModelInfo.style.display = 'block';
+          
+          if (hasSerial) {
+            serialRow.style.display = 'table-row';
+            displaySerial.textContent = serialInput.value;
+          } else {
+            serialRow.style.display = 'none';
+          }
+          
+          if (hasModel) {
+            modelRow.style.display = 'table-row';
+            displayModel.textContent = modelInput.value;
+          } else {
+            modelRow.style.display = 'none';
+          }
+        } else {
+          serialModelInfo.style.display = 'none';
+        }
       }
 
       function updateStockAlert(data) {
@@ -323,8 +522,6 @@
           stockMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${availabilityMessage}`;
         }
 
-        // Always enable the button
-        addItemButton.disabled = false;
         availabilityAlert.style.display = 'block';
       }
 
@@ -337,40 +534,52 @@
         document.getElementById('clearPriceButton').style.display = 'none';
         document.getElementById('priceHelp').style.display = 'none';
         
+        // ✅ NEW: Clear serial/model sections
+        document.getElementById('serialModelSection').style.display = 'none';
+        document.getElementById('serialModelInfo').style.display = 'none';
+        document.getElementById('requirementsAlert').style.display = 'none';
+        document.getElementById('serialNumberInput').value = '';
+        document.getElementById('modelNumberInput').value = '';
+        
         // Clear the unit price when no product is selected
         unitPriceInput.value = '';
         currentSuggestedPrice = 0;
+        currentRequirements = { serial: false, model: false };
         updateTotalPrice();
       }
 
-      // MISSING FUNCTION: validateForm - checks product availability and updates UI
+      // ✅ UPDATED: validateForm simplified - only checks basic requirements
       function validateForm() {
         const productType = productTypeSelect.value;
         const productId = productType === 'Item' ? itemSelect.value : finishedGoodSelect.value;
         const quantity = parseInt(quantityInput.value) || 0;
+        const unitPrice = parseFloat(unitPriceInput.value) || 0;
 
-        // Reset button state
-        addItemButton.disabled = true;
+        // ✅ SIMPLIFIED: Only check basic requirements (product, quantity, price)
+        const isBasicValid = productId && quantity > 0 && unitPrice > 0;
 
         if (productId && quantity > 0) {
-          fetch(`/Sales/CheckProductAvailability?productType=${productType}&productId=${productId}&quantity=${quantity}`)
-            .then(response => response.json())
-            .then(data => {
-              if (data.success) {
-                updateProductInfo(data);
-                updateStockAlert(data);
-                // Button is enabled in updateStockAlert
-              } else {
-                clearProductInfo();
-                console.error('Product availability check failed:', data.message);
-              }
-            })
-            .catch(error => {
-              console.error('Error checking availability:', error);
-              clearProductInfo();
-            });
+            fetch(`/Sales/CheckProductAvailability?productType=${productType}&productId=${productId}&quantity=${quantity}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateProductInfo(data);
+                        updateStockAlert(data);
+                        
+                        // ✅ ENABLE button based on basic validation only - ignore serial/model requirements
+                        addItemButton.disabled = !isBasicValid;
+                    } else {
+                      clearProductInfo();
+                      addItemButton.disabled = true;
+                    }
+                })
+                .catch(error => {
+                  clearProductInfo();
+                  addItemButton.disabled = true;
+                });
         } else {
           clearProductInfo();
+          addItemButton.disabled = true;
         }
       }
 
@@ -396,18 +605,40 @@
       // Make setSuggestedPrice available globally for the onclick handler
       window.setSuggestedPrice = setSuggestedPrice;
 
-      // Updated form submission logic for non-inventory items
+      // ✅ UPDATED: Form submission with warning instead of blocking
       document.querySelector('form').addEventListener('submit', function(e) {
-        const stockAlert = document.getElementById('stockAlert');
+    const stockAlert = document.getElementById('stockAlert');
+    const serialInput = document.getElementById('serialNumberInput');
+    const modelInput = document.getElementById('modelNumberInput');
+    
+    // ✅ NEW: Check for missing requirements and show confirmation
+    const missingRequirements = [];
+    if (currentRequirements.serial && !serialInput.value.trim()) {
+        missingRequirements.push('Serial Number');
+    }
+    if (currentRequirements.model && !modelInput.value.trim()) {
+        missingRequirements.push('Model Number');
+    }
+
+    if (missingRequirements.length > 0) {
+        const confirmMessage = `This item recommends the following information:\n\n` +
+            missingRequirements.map(req => `• ${req}`).join('\n') + 
+            `\n\nYou can add this information later by editing the sale item.\n\nDo you want to continue adding the item without this information?`;
         
-        // Only show backorder confirmation for inventory-tracked items
-        if (stockAlert && stockAlert.classList.contains('alert-warning')) {
-          const confirmed = confirm('This item will be backordered. Do you want to continue?');
-          if (!confirmed) {
+        if (!confirm(confirmMessage)) {
             e.preventDefault();
-          }
+            return;
         }
-      });
+    }
+    
+    // Stock backorder confirmation (unchanged)
+    if (stockAlert && stockAlert.classList.contains('alert-warning')) {
+        const confirmed = confirm('This item will be backordered. Do you want to continue?');
+        if (!confirmed) {
+            e.preventDefault();
+        }
+    }
+});
     });
 
     // Global function to update total price calculation

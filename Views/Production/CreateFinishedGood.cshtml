@@ -127,7 +127,61 @@
           </div>
         </div>
       </div>
+      <!-- ✅ NEW: Sales Requirements Section -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-barcode"></i> Sales Requirements</h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">
+            <i class="fas fa-info-circle"></i>
+            Configure what information is required when this finished good is sold. These requirements will be enforced during sales entry.
+          </p>
 
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input asp-for="RequiresSerialNumber" class="form-check-input" type="checkbox" id="requiresSerialNumber" onchange="updateRequirementsPreview()" />
+                <label asp-for="RequiresSerialNumber" class="form-check-label">
+                  <i class="fas fa-hashtag"></i> Requires Serial Number
+                </label>
+                <div class="form-text">Each unit sold must have a unique serial number recorded</div>
+                <span asp-validation-for="RequiresSerialNumber" class="text-danger"></span>
+              </div>
+
+              <div class="form-check mb-3">
+                <input asp-for="RequiresModelNumber" class="form-check-input" type="checkbox" id="requiresModelNumber" onchange="updateRequirementsPreview()" />
+                <label asp-for="RequiresModelNumber" class="form-check-label">
+                  <i class="fas fa-tag"></i> Requires Model Number
+                </label>
+                <div class="form-text">Each unit sold must have a model number recorded</div>
+                <span asp-validation-for="RequiresModelNumber" class="text-danger"></span>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <!-- ✅ NEW: Requirements Preview -->
+              <div class="alert alert-light" id="requirementsPreview">
+                <h6><i class="fas fa-eye"></i> Requirements Preview</h6>
+                <p class="small mb-2">When selling this finished good:</p>
+                <ul id="requirementsList" class="small mb-0">
+                  <!-- Will be populated by JavaScript -->
+                </ul>
+              </div>
+
+              <!-- ✅ NEW: Guidelines -->
+              <div class="mt-3">
+                <h6 class="small text-muted"><i class="fas fa-lightbulb"></i> Guidelines</h6>
+                <ul class="small text-muted">
+                  <li><strong>Serial Numbers:</strong> Enable for items requiring individual tracking (warranty, service history)</li>
+                  <li><strong>Model Numbers:</strong> Enable when products have multiple variants or versions</li>
+                  <li><strong>Default:</strong> Finished goods typically require both for traceability</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <!-- Action Buttons -->
       <div class="card">
         <div class="card-body">
@@ -214,6 +268,20 @@
               <strong id="displayTotalValue" class="text-primary">$0.00</strong>
             </div>
           </div>
+
+          <!-- ✅ NEW: Requirements Summary -->
+          <div class="mb-3">
+            <h6 class="text-muted">Sales Requirements</h6>
+            <div class="d-flex justify-content-between">
+              <span>Serial Number:</span>
+              <span id="displayRequiresSerial" class="badge bg-warning">Required</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span>Model Number:</span>
+              <span id="displayRequiresModel" class="badge bg-warning">Required</span>
+            </div>
+            <hr>
+          </div>
         </div>
       </div>
     </div>
@@ -247,6 +315,7 @@
 
         // Initial calculation
         updateCalculations();
+        updateRequirementsPreview();
 
         function handleBomChange() {
             const bomId = bomSelect.value;
@@ -329,6 +398,45 @@
             document.getElementById('deleteForm').submit();
         }
     }
+
+        // ✅ NEW: Update requirements preview function (called from view)
+    function updateRequirementsPreview() {
+        const requiresSerial = document.getElementById('requiresSerialNumber').checked;
+        const requiresModel = document.getElementById('requiresModelNumber').checked;
+        const requirementsList = document.getElementById('requirementsList');
+
+        const requirements = [];
+        if (requiresSerial) requirements.push('<li><i class="fas fa-hashtag text-warning"></i> Serial number will be required for each unit sold</li>');
+        if (requiresModel) requirements.push('<li><i class="fas fa-tag text-warning"></i> Model number will be required for each unit sold</li>');
+
+        if (requirements.length === 0) {
+            requirementsList.innerHTML = '<li><i class="fas fa-info-circle text-muted"></i> No special requirements - standard sales process</li>';
+        } else {
+            requirementsList.innerHTML = requirements.join('');
+        }
+
+        // Update sidebar display
+        updateRequirementsDisplay();
+    }
+
+    // ✅ NEW: Update requirements display function
+    function updateRequirementsDisplay() {
+        const requiresSerial = document.getElementById('requiresSerialNumber').checked;
+        const requiresModel = document.getElementById('requiresModelNumber').checked;
+
+        const serialElement = document.getElementById('displayRequiresSerial');
+        const modelElement = document.getElementById('displayRequiresModel');
+
+        if (serialElement) {
+            serialElement.textContent = requiresSerial ? 'Required' : 'Optional';
+            serialElement.className = requiresSerial ? 'badge bg-warning' : 'badge bg-secondary';
+        }
+
+        if (modelElement) {
+            modelElement.textContent = requiresModel ? 'Required' : 'Optional';
+            modelElement.className = requiresModel ? 'badge bg-warning' : 'badge bg-secondary';
+        }
+    }
   </script>
 }
 
@@ -344,6 +452,29 @@
 
     .form-text {
       margin-top: 0.25rem;
+    }
+    /* ✅ NEW: Enhanced checkbox styling */
+    .form-check-input:checked {
+      background-color: #28a745;
+      border-color: #28a745;
+    }
+
+    .form-check-label {
+      font-weight: 500;
+    }
+
+    .form-check .form-text {
+      margin-left: 1.5rem;
+      font-size: 0.875rem;
+    }
+
+    /* ✅ NEW: Requirements preview styling */
+    #requirementsPreview {
+      border-left: 4px solid #17a2b8;
+    }
+
+    #requirementsList li {
+      margin-bottom: 0.25rem;
     }
   </style>
 }

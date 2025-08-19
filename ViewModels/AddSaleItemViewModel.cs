@@ -28,5 +28,18 @@ namespace InventorySystem.ViewModels
     public decimal UnitPrice { get; set; }
 
     public string? Notes { get; set; }
+
+    // ✅ NEW: Serial Number and Model Number fields
+    [StringLength(100, ErrorMessage = "Serial number cannot exceed 100 characters")]
+    [Display(Name = "Serial Number")]
+    public string? SerialNumber { get; set; }
+
+    [StringLength(100, ErrorMessage = "Model number cannot exceed 100 characters")]
+    [Display(Name = "Model Number")]
+    public string? ModelNumber { get; set; }
+
+    // ✅ NEW: Helper properties for validation (populated via AJAX)
+    public bool RequiresSerialNumber { get; set; }
+    public bool RequiresModelNumber { get; set; }
   }
 }
