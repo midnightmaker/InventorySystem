@@ -1,585 +1,606 @@
 @model InventorySystem.ViewModels.InvoiceReportViewModel
 @{
-    ViewData["Title"] = $"{(Model.IsProformaInvoice ? "Proforma Invoice" : "Invoice")} {Model.InvoiceNumber}";
-    var isProforma = Model.IsProformaInvoice;
+  ViewData["Title"] = $"{(Model.IsProformaInvoice ? "Proforma Invoice" : "Invoice")} {Model.InvoiceNumber}";
+  var isProforma = Model.IsProformaInvoice;
 }
 
 @{
   var afterDiscountAmount = Model.SubtotalAmount - Model.TotalDiscount;
 }
 <div class="container-fluid">
-    <!-- Header with Action Buttons -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-file-invoice-dollar"></i> @(isProforma ? "Proforma Invoice" : "Invoice") @Model.InvoiceNumber</h2>
-        <div class="btn-group">
-            <a href="@Url.Action("Details", new { id = ViewBag.SaleId })" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to Sale
-            </a>
-            <a href="@Url.Action("InvoiceReportPrint", new { saleId = ViewBag.SaleId })" 
-               target="_blank" class="btn btn-primary">
-                <i class="fas fa-print"></i> Print
-            </a>
-            @if (!isProforma)
-            {
-                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#emailModal">
-                    <i class="fas fa-envelope"></i> Email to Customer
-                </button>
-                @if (Model.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
-                {
-                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#paymentModal">
-                        <i class="fas fa-dollar-sign"></i> Record Payment
-                    </button>
-                }
-            }
-            else
-            {
-                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#emailModal">
-                    <i class="fas fa-envelope"></i> Email Quote
-                </button>
-            }
-        </div>
+  <!-- Header with Action Buttons -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-invoice-dollar"></i> @(isProforma ? "Proforma Invoice" : "Invoice") @Model.InvoiceNumber</h2>
+    <div class="btn-group">
+      <a href="@Url.Action("Details", new { id = ViewBag.SaleId })" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Sale
+      </a>
+      <a href="@Url.Action("InvoiceReportPrint", new { saleId = ViewBag.SaleId })"
+         target="_blank" class="btn btn-primary">
+        <i class="fas fa-print"></i> Print
+      </a>
+      @if (!isProforma)
+      {
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#emailModal">
+          <i class="fas fa-envelope"></i> Email to Customer
+        </button>
+        @if (Model.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
+        {
+          <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#paymentModal">
+            <i class="fas fa-dollar-sign"></i> Record Payment
+          </button>
+        }
+      }
+      else
+      {
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#emailModal">
+          <i class="fas fa-envelope"></i> Email Quote
+        </button>
+      }
     </div>
+  </div>
 
-    <!-- Invoice Document -->
-    <div class="card">
-        <div class="card-body">
-            <!-- Header with Logo -->
-            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
-                <div class="text-center flex-grow-1">
-                    @if (isProforma)
+  <!-- Invoice Document -->
+  <div class="card">
+    <div class="card-body">
+      <!-- Header with Logo -->
+      <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+        <div class="text-center flex-grow-1">
+          @if (isProforma)
+          {
+            <h1 class="display-6 text-info">PROFORMA INVOICE</h1>
+            <h2 class="text-info">Proforma# @Model.InvoiceNumber</h2>
+            <div class="alert alert-info mt-2">
+              <i class="fas fa-info-circle"></i>
+              <strong>This is a Proforma Invoice (Quote)</strong> - Not a tax invoice
+            </div>
+          }
+          else
+          {
+            <h1 class="display-6">INVOICE</h1>
+            <h2 class="text-primary">Invoice# @Model.InvoiceNumber</h2>
+            @if (Model.IsOverdue)
+            {
+              <div class="alert alert-danger mt-2">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>OVERDUE</strong> - @Model.DaysOverdue days past due
+              </div>
+            }
+          }
+        </div>
+        @if (Model.CompanyInfo.HasLogo)
+        {
+          <div class="company-logo">
+            <img src="@Url.Action("CompanyLogo", "Purchases")"
+                 alt="@Model.CompanyInfo.CompanyName Logo"
+                 class="img-fluid"
+                 style="max-width: 150px; max-height: 100px;" />
+          </div>
+        }
+      </div>
+
+      <!-- Company and Customer Info -->
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <h5><i class="fas fa-building text-primary"></i> From:</h5>
+          <div class="d-flex align-items-start">
+            @if (Model.CompanyInfo.HasLogo)
+            {
+              <div class="me-3">
+                <img src="@Url.Action("CompanyLogo", "Purchases")"
+                     alt="@Model.CompanyInfo.CompanyName Logo"
+                     class="img-fluid"
+                     style="max-width: 80px; max-height: 60px;" />
+              </div>
+            }
+            <address>
+              <strong>@Model.CompanyInfo.CompanyName</strong><br>
+              @Model.CompanyInfo.Address<br>
+              @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
+              <i class="fas fa-phone"></i> @Model.CompanyInfo.Phone<br>
+              <i class="fas fa-envelope"></i> @Model.CompanyInfo.Email<br>
+              <i class="fas fa-globe"></i> @Model.CompanyInfo.Website
+            </address>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <!-- Customer Information -->
+          <div class="invoice-to">
+            <h6>
+              @(isProforma ? "Quote To:" : "Bill To:")
+              @if (Model.IsDirectedToAP)
+              {
+                <small class="badge bg-info ms-2">AP</small>
+              }
+            </h6>
+            <address class="mb-0">
+              @if (!string.IsNullOrEmpty(Model.Customer.CompanyName))
+              {
+                <strong>@Model.Customer.CompanyName</strong>
+
+                <br>
+              }
+              @if (Model.IsDirectedToAP && !string.IsNullOrEmpty(Model.APContactName))
+              {
+                <span>Attn: @Model.APContactName</span>
+
+                <br>
+              }
+              else if (!string.IsNullOrEmpty(Model.Customer.CustomerName))
+              {
+                <span>@Model.Customer.CustomerName</span>
+
+                <br>
+              }
+              @Html.Raw(Model.Customer.BillingAddress?.Replace(", ", "<br>") ?? "")
+            </address>
+            @if (!string.IsNullOrEmpty(Model.Customer.CustomerEmail))
+            {
+              <p class="mb-0"><strong>Email:</strong> @Model.Customer.CustomerEmail</p>
+            }
+            @if (Model.RequiresPO && !isProforma)
+            {
+              <p class="mb-0"><small class="text-warning"><i class="fas fa-exclamation-triangle"></i> PO Required</small></p>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoice Details -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <strong>@(isProforma ? "Quote Date:" : "Invoice Date:")</strong> @Model.InvoiceDate.ToString("MMMM dd, yyyy")
+        </div>
+        @if (!isProforma)
+        {
+          <div class="col-md-3">
+            <strong>Due Date:</strong> @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
+          </div>
+          <div class="col-md-3">
+            <strong>Payment Terms:</strong> @Model.PaymentTerms
+          </div>
+          <div class="col-md-3">
+            <strong>Payment Status:</strong>
+            <span class="badge bg-@(Model.PaymentStatus switch
+                  {
+                    InventorySystem.Models.Enums.PaymentStatus.Pending => "warning",
+                    InventorySystem.Models.Enums.PaymentStatus.Paid => "success",
+                    InventorySystem.Models.Enums.PaymentStatus.Overdue => "danger",
+                    InventorySystem.Models.Enums.PaymentStatus.PartiallyPaid => "info",
+                    _ => "secondary"
+                  })">
+            @Model.PaymentStatus
+          </span>
+        </div>
+                }
+        else
+        {
+          <div class="col-md-3">
+            <strong>Valid Until:</strong> @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "30 days")
+          </div>
+          <div class="col-md-3">
+            <strong>Proposed Terms:</strong> @Model.PaymentTerms
+          </div>
+          <div class="col-md-3">
+            <strong>Status:</strong>
+            <span class="badge bg-info">
+              Pending Approval
+            </span>
+          </div>
+        }
+      </div>
+
+      @if (!string.IsNullOrWhiteSpace(Model.OrderNumber))
+      {
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <strong>@(isProforma ? "Reference Number:" : "Order Number:"):</strong> @Model.OrderNumber
+          </div>
+        </div>
+      }
+
+      <!-- Line Items Table -->
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+          <thead class="table-dark">
+            <tr>
+              <th width="5%">Line #</th>
+              <th width="15%">Item Number</th>
+              <th width="30%">Description</th>
+              <th width="10%" class="text-center">Qty</th>
+              <th width="12%" class="text-end">Unit Price</th>
+              <th width="13%" class="text-end">Line Total</th>
+              @if (!isProforma)
+              {
+                <th width="5%" class="text-center">Status</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @{
+              int lineNumber = 1;
+            }
+            @foreach (var item in Model.LineItems)
+            {
+              <tr>
+                <td class="text-center bg-light"><strong>@lineNumber</strong></td>
+                <td><strong>@item.PartNumber</strong></td>
+                <td>
+                  <strong>@item.Description</strong>
+
+                  @* ? NEW: Show Serial/Model Numbers *@
+                  @if (item.HasSerialModelInfo)
+                  {
+                    <br>
+                
+                    <small class="text-muted">
+                      <i class="fas fa-barcode"></i> @item.SerialModelDisplay
+                    </small>
+                  }
+
+                  @* ? NEW: Show Notes *@
+                  @if (!string.IsNullOrWhiteSpace(item.Notes))
+                  {
+                    <br>
+                
+                    <small class="text-info">
+                      <i class="fas fa-sticky-note"></i> @item.Notes
+                    </small>
+                  }
+
+                  @if (!isProforma && item.IsBackordered)
+                  {
+                    <br>
+                
+                    <small class="text-warning"><i class="fas fa-clock"></i> @item.BackorderStatus</small>
+                  }
+                </td>
+                <td class="text-center">@item.Quantity</td>
+                <td class="text-end">$@item.UnitPrice.ToString("N2")</td>
+                <td class="text-end">$@item.LineTotal.ToString("N2")</td>
+                @if (!isProforma)
+                {
+                  <td class="text-center">
+                    @if (item.IsBackordered)
                     {
-                        <h1 class="display-6 text-info">PROFORMA INVOICE</h1>
-                        <h2 class="text-info">Proforma# @Model.InvoiceNumber</h2>
-                        <div class="alert alert-info mt-2">
-                            <i class="fas fa-info-circle"></i> 
-                            <strong>This is a Proforma Invoice (Quote)</strong> - Not a tax invoice
-                        </div>
+                      <span class="badge bg-warning text-dark">
+                        <i class="fas fa-clock"></i> BO
+                      </span>
                     }
                     else
                     {
-                        <h1 class="display-6">INVOICE</h1>
-                        <h2 class="text-primary">Invoice# @Model.InvoiceNumber</h2>
-                        @if (Model.IsOverdue)
-                        {
-                            <div class="alert alert-danger mt-2">
-                                <i class="fas fa-exclamation-triangle"></i> 
-                                <strong>OVERDUE</strong> - @Model.DaysOverdue days past due
-                            </div>
-                        }
+                      <span class="badge bg-success">
+                        <i class="fas fa-check"></i> OK
+                      </span>
                     }
-                </div>
-                @if (Model.CompanyInfo.HasLogo)
-                {
-                    <div class="company-logo">
-                        <img src="@Url.Action("CompanyLogo", "Purchases")" 
-                             alt="@Model.CompanyInfo.CompanyName Logo" 
-                             class="img-fluid" 
-                             style="max-width: 150px; max-height: 100px;" />
-                    </div>
+                  </td>
                 }
-            </div>
+              </tr>
+              lineNumber++;
+            }
+          </tbody>
 
-            <!-- Company and Customer Info -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <h5><i class="fas fa-building text-primary"></i> From:</h5>
-                    <div class="d-flex align-items-start">
-                        @if (Model.CompanyInfo.HasLogo)
-                        {
-                            <div class="me-3">
-                                <img src="@Url.Action("CompanyLogo", "Purchases")" 
-                                     alt="@Model.CompanyInfo.CompanyName Logo" 
-                                     class="img-fluid" 
-                                     style="max-width: 80px; max-height: 60px;" />
-                            </div>
-                        }
-                        <address>
-                            <strong>@Model.CompanyInfo.CompanyName</strong><br>
-                            @Model.CompanyInfo.Address<br>
-                            @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br>
-                            <i class="fas fa-phone"></i> @Model.CompanyInfo.Phone<br>
-                            <i class="fas fa-envelope"></i> @Model.CompanyInfo.Email<br>
-                            <i class="fas fa-globe"></i> @Model.CompanyInfo.Website
-                        </address>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <h5><i class="fas fa-user text-info"></i> @(isProforma ? "Quote To:" : "Bill To:")</h5>
-                    <address>
-                        <strong>@Model.Customer.CustomerName</strong><br>
-                        @if (!string.IsNullOrWhiteSpace(Model.Customer.BillingAddress))
-                        {
-                            @Model.Customer.BillingAddress<br>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerPhone))
-                        {
-                            <i class="fas fa-phone"></i> @Model.Customer.CustomerPhone<br>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerEmail))
-                        {
-                            <i class="fas fa-envelope"></i> @Model.Customer.CustomerEmail<br>
-                        }
-                    </address>
-                    
-                    @if (!string.IsNullOrWhiteSpace(Model.ShippingAddress) && Model.ShippingAddress != Model.Customer.BillingAddress)
-                    {
-                        <h6><i class="fas fa-shipping-fast text-success"></i> Ship To:</h6>
-                        <address>
-                            @Model.ShippingAddress
-                        </address>
-                    }
-                </div>
-            </div>
+          <!-- Invoice Total Section with proforma-specific labels -->
+          <tfoot class="table-secondary">
+            <tr>
+              <th colspan="@(isProforma ? "4" : "5")" class="text-end">Subtotal (@Model.LineItemCount items, @Model.TotalQuantity total qty):</th>
+              <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
+              @if (!isProforma)
+              {
+                <th></th>
+              }
+            </tr>
 
-            <!-- Invoice Details -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <strong>@(isProforma ? "Quote Date:" : "Invoice Date:")</strong> @Model.InvoiceDate.ToString("MMMM dd, yyyy")
-                </div>
+            @if (Model.HasDiscount && Model.TotalDiscount > 0)
+            {
+              <tr class="table-success">
+                <th colspan="@(isProforma ? "4" : "5")" class="text-end">
+                  <i class="fas fa-hand-holding-usd"></i>
+                  Discount:
+                </th>
+                <th class="text-end text-success">-$@Model.TotalDiscount.ToString("N2")</th>
                 @if (!isProforma)
                 {
-                    <div class="col-md-3">
-                        <strong>Due Date:</strong> @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Payment Terms:</strong> @Model.PaymentTerms
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Payment Status:</strong> 
-                        <span class="badge bg-@(Model.PaymentStatus switch 
-                        {
-                            InventorySystem.Models.Enums.PaymentStatus.Pending => "warning",
-                            InventorySystem.Models.Enums.PaymentStatus.Paid => "success",
-                            InventorySystem.Models.Enums.PaymentStatus.Overdue => "danger",
-                            InventorySystem.Models.Enums.PaymentStatus.PartiallyPaid => "info",
-                            _ => "secondary"
-                        })">
-                            @Model.PaymentStatus
-                        </span>
-                    </div>
+                  <th></th>
                 }
-                else
+              </tr>
+              <tr>
+                <th colspan="@(isProforma ? "4" : "5")" class="text-end">After Discount:</th>
+                <th class="text-end">$@afterDiscountAmount.ToString("N2")</th>
+                @if (!isProforma)
                 {
-                    <div class="col-md-3">
-                        <strong>Valid Until:</strong> @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "30 days")
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Proposed Terms:</strong> @Model.PaymentTerms
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Status:</strong> 
-                        <span class="badge bg-info">
-                            Pending Approval
-                        </span>
-                    </div>
+                  <th></th>
                 }
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(Model.OrderNumber))
-            {
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <strong>@(isProforma ? "Reference Number:" : "Order Number:"):</strong> @Model.OrderNumber
-                    </div>
-                </div>
+              </tr>
             }
 
-            <!-- Line Items Table -->
-            <div class="table-responsive">
-                <table class="table table-striped table-bordered">
-                    <thead class="table-dark">
-                        <tr>
-                            <th width="5%">Line #</th>
-                            <th width="15%">Item Number</th>
-                            <th width="30%">Description</th>
-                            <th width="10%" class="text-center">Qty</th>
-                            <th width="12%" class="text-end">Unit Price</th>
-                            <th width="13%" class="text-end">Line Total</th>
-                            @if (!isProforma)
-                            {
-                                <th width="5%" class="text-center">Status</th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @{
-                            int lineNumber = 1;
-                        }
-                        @foreach (var item in Model.LineItems)
-                        {
-                            <tr>
-                                <td class="text-center bg-light"><strong>@lineNumber</strong></td>
-                                <td><strong>@item.PartNumber</strong></td>
-                                <td>
-                                    <strong>@item.Description</strong>
-                                    
-                                    @* ? NEW: Show Serial/Model Numbers *@
-                                    @if (item.HasSerialModelInfo)
-                                    {
-                                        <br><small class="text-muted">
-                                            <i class="fas fa-barcode"></i> @item.SerialModelDisplay
-                                        </small>
-                                    }
-                                    
-                                    @* ? NEW: Show Notes *@
-                                    @if (!string.IsNullOrWhiteSpace(item.Notes))
-                                    {
-                                        <br><small class="text-info">
-                                            <i class="fas fa-sticky-note"></i> @item.Notes
-                                        </small>
-                                    }
-                                    
-                                    @if (!isProforma && item.IsBackordered)
-                                    {
-                                        <br><small class="text-warning"><i class="fas fa-clock"></i> @item.BackorderStatus</small>
-                                    }
-                                </td>
-                                <td class="text-center">@item.Quantity</td>
-                                <td class="text-end">$@item.UnitPrice.ToString("N2")</td>
-                                <td class="text-end">$@item.LineTotal.ToString("N2")</td>
-                                @if (!isProforma)
-                                {
-                                    <td class="text-center">
-                                        @if (item.IsBackordered)
-                                        {
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-clock"></i> BO
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-check"></i> OK
-                                            </span>
-                                        }
-                                    </td>
-                                }
-                            </tr>
-                            lineNumber++;
-                        }
-                    </tbody>
-
-                    <!-- Invoice Total Section with proforma-specific labels -->
-                    <tfoot class="table-secondary">
-                        <tr>
-                            <th colspan="@(isProforma ? "4" : "5")" class="text-end">Subtotal (@Model.LineItemCount items, @Model.TotalQuantity total qty):</th>
-                            <th class="text-end">$@Model.SubtotalAmount.ToString("N2")</th>
-                            @if (!isProforma)
-                            {
-                                <th></th>
-                            }
-                        </tr>
-                        
-                        @if (Model.HasDiscount && Model.TotalDiscount > 0)
-                        {
-                            <tr class="table-success">
-                                <th colspan="@(isProforma ? "4" : "5")" class="text-end">
-                                    <i class="fas fa-hand-holding-usd"></i> 
-                                    Discount:
-                                </th>
-                                <th class="text-end text-success">-$@Model.TotalDiscount.ToString("N2")</th>
-                                @if (!isProforma)
-                                {
-                                    <th></th>
-                                }
-                            </tr>
-                            <tr>
-                                <th colspan="@(isProforma ? "4" : "5")" class="text-end">After Discount:</th>
-                                <th class="text-end">$@afterDiscountAmount.ToString("N2")</th>
-                                @if (!isProforma)
-                                {
-                                    <th></th>
-                                }
-                            </tr>
-                        }
-                        
-                        <tr>
-                            <th colspan="@(isProforma ? "4" : "5")" class="text-end">Shipping:</th>
-                            <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
-                            @if (!isProforma)
-                            {
-                                <th></th>
-                            }
-                        </tr>
-                        <tr>
-                            <th colspan="@(isProforma ? "4" : "5")" class="text-end">Tax:</th>
-                            <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
-                            @if (!isProforma)
-                            {
-                                <th></th>
-                            }
-                        </tr>
-
-                        @if (Model.HasAdjustments && !isProforma)
-                        {
-                            <tr class="table-light">
-                                <th colspan="5" class="text-end">Invoice Total:</th>
-                                <th class="text-end">$@Model.UnadjustedTotal.ToString("N2")</th>
-                                <th></th>
-                            </tr>
-                            <tr class="table-warning">
-                                <th colspan="5" class="text-end">Post-Sale Adjustments:</th>
-                                <th class="text-end text-success">-$@Model.TotalAdjustments.ToString("N2")</th>
-                                <th></th>
-                            </tr>
-                            <tr class="table-info">
-                                <th colspan="5" class="text-end"><strong>ADJUSTED INVOICE TOTAL:</strong></th>
-                                <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
-                                <th></th>
-                            </tr>
-                        }
-                        else
-                        {
-                            <tr class="table-info">
-                                <th colspan="@(isProforma ? "4" : "5")" class="text-end"><strong>@(isProforma ? "PROFORMA TOTAL:" : "INVOICE TOTAL:"):</strong></th>
-                                <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
-                                @if (!isProforma)
-                                {
-                                    <th></th>
-                                }
-                            </tr>
-                        }
-
-                        @if (Model.AmountPaid > 0 && !isProforma)
-                        {
-                            <tr class="table-success">
-                                <th colspan="5" class="text-end">Amount Paid:</th>
-                                <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
-                                <th></th>
-                            </tr>
-                            <tr class="@(Model.AmountDue > 0 ? "table-warning" : "table-success")">
-                                <th colspan="5" class="text-end"><strong>AMOUNT DUE:</strong></th>
-                                <th class="text-end"><strong>$@Model.AmountDue.ToString("N2")</strong></th>
-                                <th></th>
-                            </tr>
-                        }
-                    </tfoot>
-                </table>
-            </div>
+            <tr>
+              <th colspan="@(isProforma ? "4" : "5")" class="text-end">Shipping:</th>
+              <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
+              @if (!isProforma)
+              {
+                <th></th>
+              }
+            </tr>
+            <tr>
+              <th colspan="@(isProforma ? "4" : "5")" class="text-end">Tax:</th>
+              <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
+              @if (!isProforma)
+              {
+                <th></th>
+              }
+            </tr>
 
             @if (Model.HasAdjustments && !isProforma)
             {
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card border-warning">
-                            <div class="card-header bg-warning text-dark">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-adjust"></i> Post-Sale Adjustments Applied
-                                    <span class="badge bg-dark ms-2">$@Model.TotalAdjustments.ToString("N2") Total</span>
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-0">
-                                    <i class="fas fa-info-circle"></i>
-                                    This invoice has been adjusted from the original amount of
-                                    <strong>$@Model.UnadjustedTotal.ToString("N2")</strong> to
-                                    <strong>$@Model.InvoiceTotal.ToString("N2")</strong>.
-                                </p>
-                                <small class="text-muted">
-                                    For detailed adjustment information, please contact our accounting department.
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            }
-
-            <!-- Payment Information -->
-            @if (!string.IsNullOrWhiteSpace(Model.PaymentMethod) && !isProforma)
-            {
-                <div class="alert alert-info">
-                    <h6><i class="fas fa-credit-card"></i> Payment Method:</h6>
-                    <p class="mb-0">@Model.PaymentMethod</p>
-                </div>
-            }
-
-            <!-- Notes -->
-            @if (!string.IsNullOrEmpty(Model.Notes))
-            {
-                <div class="alert alert-info">
-                    <h6><i class="fas fa-sticky-note"></i> Notes:</h6>
-                    <p class="mb-0">@Model.Notes</p>
-                </div>
-            }
-
-            <!-- Footer -->
-            @if (isProforma)
-            {
-                <!-- Proforma-specific footer -->
-                <div class="alert alert-info mt-4">
-                    <h6><i class="fas fa-info-circle"></i> Important Information:</h6>
-                    <ul class="mb-0">
-                        <li>This is a <strong>Proforma Invoice (Quote)</strong> and is not a tax invoice</li>
-                        <li>Prices and availability are subject to change</li>
-                        <li>This quote is valid for 30 days from the date shown above</li>
-                        <li>Final invoice will be issued upon order confirmation and shipment</li>
-                        <li>All sales subject to our standard terms and conditions</li>
-                    </ul>
-                </div>
-                <div class="text-center mt-4 pt-3 border-top">
-                    <p class="text-muted mb-1">Thank you for considering our services!</p>
-                    <p class="text-muted mb-1">Please contact us to place your order or if you have any questions.</p>
-                    <small class="text-muted">
-                        Quote generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")
-                    </small>
-                </div>
+              <tr class="table-light">
+                <th colspan="5" class="text-end">Invoice Total:</th>
+                <th class="text-end">$@Model.UnadjustedTotal.ToString("N2")</th>
+                <th></th>
+              </tr>
+              <tr class="table-warning">
+                <th colspan="5" class="text-end">Post-Sale Adjustments:</th>
+                <th class="text-end text-success">-$@Model.TotalAdjustments.ToString("N2")</th>
+                <th></th>
+              </tr>
+              <tr class="table-info">
+                <th colspan="5" class="text-end"><strong>ADJUSTED INVOICE TOTAL:</strong></th>
+                <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+                <th></th>
+              </tr>
             }
             else
             {
-                <!-- Regular invoice footer -->
-                <div class="text-center mt-4 pt-3 border-top">
-                    <p class="text-muted mb-1">Thank you for your business!</p>
-                    <p class="text-muted mb-1">Please include invoice number @Model.InvoiceNumber with your payment.</p>
-                    <small class="text-muted">
-                        Generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")
-                    </small>
-                </div>
+              <tr class="table-info">
+                <th colspan="@(isProforma ? "4" : "5")" class="text-end"><strong>@(isProforma ? "PROFORMA TOTAL:" : "INVOICE TOTAL:"):</strong></th>
+                <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+                @if (!isProforma)
+                {
+                  <th></th>
+                }
+              </tr>
             }
+
+            @if (Model.AmountPaid > 0 && !isProforma)
+            {
+              <tr class="table-success">
+                <th colspan="5" class="text-end">Amount Paid:</th>
+                <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
+                <th></th>
+              </tr>
+              <tr class="@(Model.AmountDue > 0 ? "table-warning" : "table-success")">
+                <th colspan="5" class="text-end"><strong>AMOUNT DUE:</strong></th>
+                <th class="text-end"><strong>$@Model.AmountDue.ToString("N2")</strong></th>
+                <th></th>
+              </tr>
+            }
+          </tfoot>
+        </table>
+      </div>
+
+      @if (Model.HasAdjustments && !isProforma)
+      {
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card border-warning">
+              <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                  <i class="fas fa-adjust"></i> Post-Sale Adjustments Applied
+                  <span class="badge bg-dark ms-2">$@Model.TotalAdjustments.ToString("N2") Total</span>
+                </h6>
+              </div>
+              <div class="card-body">
+                <p class="text-muted mb-0">
+                  <i class="fas fa-info-circle"></i>
+                  This invoice has been adjusted from the original amount of
+                  <strong>$@Model.UnadjustedTotal.ToString("N2")</strong> to
+                  <strong>$@Model.InvoiceTotal.ToString("N2")</strong>.
+                </p>
+                <small class="text-muted">
+                  For detailed adjustment information, please contact our accounting department.
+                </small>
+              </div>
+            </div>
+          </div>
         </div>
+      }
+
+      <!-- Payment Information -->
+      @if (!string.IsNullOrWhiteSpace(Model.PaymentMethod) && !isProforma)
+      {
+        <div class="alert alert-info">
+          <h6><i class="fas fa-credit-card"></i> Payment Method:</h6>
+          <p class="mb-0">@Model.PaymentMethod</p>
+        </div>
+      }
+
+      <!-- Notes -->
+      @if (!string.IsNullOrEmpty(Model.Notes))
+      {
+        <div class="alert alert-info">
+          <h6><i class="fas fa-sticky-note"></i> Notes:</h6>
+          <p class="mb-0">@Model.Notes</p>
+        </div>
+      }
+
+      <!-- Footer -->
+      @if (isProforma)
+      {
+        <!-- Proforma-specific footer -->
+        <div class="alert alert-info mt-4">
+          <h6><i class="fas fa-info-circle"></i> Important Information:</h6>
+          <ul class="mb-0">
+            <li>This is a <strong>Proforma Invoice (Quote)</strong> and is not a tax invoice</li>
+            <li>Prices and availability are subject to change</li>
+            <li>This quote is valid for 30 days from the date shown above</li>
+            <li>Final invoice will be issued upon order confirmation and shipment</li>
+            <li>All sales subject to our standard terms and conditions</li>
+          </ul>
+        </div>
+        <div class="text-center mt-4 pt-3 border-top">
+          <p class="text-muted mb-1">Thank you for considering our services!</p>
+          <p class="text-muted mb-1">Please contact us to place your order or if you have any questions.</p>
+          <small class="text-muted">
+            Quote generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")
+          </small>
+        </div>
+      }
+      else
+      {
+        <!-- Regular invoice footer -->
+        <div class="text-center mt-4 pt-3 border-top">
+          <p class="text-muted mb-1">Thank you for your business!</p>
+          <p class="text-muted mb-1">Please include invoice number @Model.InvoiceNumber with your payment.</p>
+          <small class="text-muted">
+            Generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")
+          </small>
+        </div>
+      }
     </div>
+  </div>
 </div>
 
 @* Email and payment modals - only show payment modal for regular invoices *@
 <!-- Email Modal -->
 <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form asp-action="EmailInvoiceReport" method="post">
-                <input type="hidden" asp-for="InvoiceNumber" />
-                <div class="modal-header">
-                    <h5 class="modal-title" id="emailModalLabel">
-                        <i class="fas fa-envelope"></i> Email @(isProforma ? "Quote" : "Invoice") to Customer
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label asp-for="CustomerEmail" class="form-label">Customer Email Address</label>
-                        <input asp-for="CustomerEmail" class="form-control" type="email" required />
-                        <div class="form-text">
-                            Current customer email: @(string.IsNullOrEmpty(Model.CustomerEmail) ? "None on file" : Model.CustomerEmail)
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label asp-for="EmailSubject" class="form-label">Email Subject</label>
-                        <input asp-for="EmailSubject" class="form-control" required />
-                    </div>
-                    <div class="mb-3">
-                        <label asp-for="EmailMessage" class="form-label">Email Message</label>
-                        <textarea asp-for="EmailMessage" class="form-control" rows="4" required></textarea>
-                        <div class="form-text">
-                            The @(isProforma ? "quote" : "invoice") will be included as an HTML attachment in the email body.
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-paper-plane"></i> Send Email
-                    </button>
-                </div>
-            </form>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form asp-action="EmailInvoiceReport" method="post">
+        <input type="hidden" asp-for="InvoiceNumber" />
+        <div class="modal-header">
+          <h5 class="modal-title" id="emailModalLabel">
+            <i class="fas fa-envelope"></i> Email @(isProforma ? "Quote" : "Invoice") to Customer
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label asp-for="CustomerEmail" class="form-label">Customer Email Address</label>
+            <input asp-for="CustomerEmail" class="form-control" type="email" required />
+            <div class="form-text">
+              Current customer email: @(string.IsNullOrEmpty(Model.CustomerEmail) ? "None on file" : Model.CustomerEmail)
+            </div>
+          </div>
+          <div class="mb-3">
+            <label asp-for="EmailSubject" class="form-label">Email Subject</label>
+            <input asp-for="EmailSubject" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label asp-for="EmailMessage" class="form-label">Email Message</label>
+            <textarea asp-for="EmailMessage" class="form-control" rows="4" required></textarea>
+            <div class="form-text">
+              The @(isProforma ? "quote" : "invoice") will be included as an HTML attachment in the email body.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-paper-plane"></i> Send Email
+          </button>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
 
 @* Only show payment modal for regular invoices *@
 @if (!isProforma)
 {
-    <!-- Payment Recording Modal -->
-    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form asp-action="RecordPayment" method="post">
-                    <input type="hidden" name="saleId" value="@ViewBag.SaleId" />
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="paymentModalLabel">
-                            <i class="fas fa-dollar-sign"></i> Record Payment
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Invoice Total</label>
-                            <input type="text" class="form-control" value="$@Model.InvoiceTotal.ToString("N2")" readonly />
-                        </div>
-                        @if (Model.AmountPaid > 0)
-                        {
-                            <div class="mb-3">
-                                <label class="form-label">Amount Already Paid</label>
-                                <input type="text" class="form-control" value="$@Model.AmountPaid.ToString("N2")" readonly />
-                            </div>
-                        }
-                        <div class="mb-3">
-                            <label class="form-label">Remaining Balance</label>
-                            <input type="text" class="form-control" value="$@Model.AmountDue.ToString("N2")" readonly />
-                        </div>
-                        <div class="mb-3">
-                            <label for="paymentAmount" class="form-label">Payment Amount</label>
-                            <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount" 
-                                   value="@Model.AmountDue" max="@Model.AmountDue" required />
-                            <div class="form-text">Enter the amount received from the customer</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="paymentMethod" class="form-label">Payment Method</label>
-                            <select class="form-select" id="paymentMethod" name="paymentMethod" required>
-                              <option value="">Select payment method...</option>
-                              <option value="Cash">Cash</option>
-                              <option value="Check">Check</option>
-                              <option value="Credit Card">Credit Card</option>
-                              <option value="Bank Transfer">Bank Transfer</option>
-                              <option value="PayPal">PayPal</option>
-                              <option value="Square">Square</option>
-                              <option value="Stripe">Stripe</option>
-                              <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="paymentDate" class="form-label">Payment Date</label>
-                            <input type="date" class="form-control" id="paymentDate" name="paymentDate" 
-                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
-                        </div>
-                        <div class="mb-3">
-                            <label for="paymentNotes" class="form-label">Payment Notes</label>
-                            <textarea class="form-control" id="paymentNotes" name="paymentNotes" rows="2" 
-                                      placeholder="Check number, transaction ID, etc."></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save"></i> Record Payment
-                        </button>
-                    </div>
-                </form>
+  <!-- Payment Recording Modal -->
+  <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form asp-action="RecordPayment" method="post">
+          <input type="hidden" name="saleId" value="@ViewBag.SaleId" />
+          <div class="modal-header">
+            <h5 class="modal-title" id="paymentModalLabel">
+              <i class="fas fa-dollar-sign"></i> Record Payment
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Invoice Total</label>
+              <input type="text" class="form-control" value="$@Model.InvoiceTotal.ToString("N2")" readonly />
             </div>
-        </div>
+            @if (Model.AmountPaid > 0)
+            {
+              <div class="mb-3">
+                <label class="form-label">Amount Already Paid</label>
+                <input type="text" class="form-control" value="$@Model.AmountPaid.ToString("N2")" readonly />
+              </div>
+            }
+            <div class="mb-3">
+              <label class="form-label">Remaining Balance</label>
+              <input type="text" class="form-control" value="$@Model.AmountDue.ToString("N2")" readonly />
+            </div>
+            <div class="mb-3">
+              <label for="paymentAmount" class="form-label">Payment Amount</label>
+              <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount"
+                     value="@Model.AmountDue" max="@Model.AmountDue" required />
+              <div class="form-text">Enter the amount received from the customer</div>
+            </div>
+            <div class="mb-3">
+              <label for="paymentMethod" class="form-label">Payment Method</label>
+              <select class="form-select" id="paymentMethod" name="paymentMethod" required>
+                <option value="">Select payment method...</option>
+                <option value="Cash">Cash</option>
+                <option value="Check">Check</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="PayPal">PayPal</option>
+                <option value="Square">Square</option>
+                <option value="Stripe">Stripe</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="paymentDate" class="form-label">Payment Date</label>
+              <input type="date" class="form-control" id="paymentDate" name="paymentDate"
+                     value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+            </div>
+            <div class="mb-3">
+              <label for="paymentNotes" class="form-label">Payment Notes</label>
+              <textarea class="form-control" id="paymentNotes" name="paymentNotes" rows="2"
+                      placeholder="Check number, transaction ID, etc."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-save"></i> Record Payment
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
+  </div>
 }
 
 @section Scripts {
-<script>
+  <script>
     // Auto-populate customer email if not already filled
     $(document).ready(function() {
         if (!$('#CustomerEmail').val() && '@Model.CustomerEmail') {
             $('#CustomerEmail').val('@Model.CustomerEmail');
         }
-        
+
         @if (!isProforma)
         {
-            <text>
-            // Payment amount validation - only for regular invoices
-            $('#paymentAmount').on('change', function() {
-                var paymentAmount = parseFloat($(this).val());
-                var remainingBalance = @Model.AmountDue;
-                
-                if (paymentAmount > remainingBalance) {
-                    alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
-                    $(this).val(remainingBalance.toFixed(2));
-                }
-            });
-            </text>
+              <text>
+              // Payment amount validation - only for regular invoices
+              $('#paymentAmount').on('change', function() {
+                  var paymentAmount = parseFloat($(this).val());
+                  var remainingBalance = @Model.AmountDue;
+
+                  if (paymentAmount > remainingBalance) {
+                      alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
+                      $(this).val(remainingBalance.toFixed(2));
+                  }
+              });
+              </text>
         }
     });
-</script>
+  </script>
 }

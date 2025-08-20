@@ -79,6 +79,25 @@ namespace InventorySystem.ViewModels
 
 		// Helper property to determine if this is a proforma invoice
 		public bool IsProformaInvoice => IsProforma ?? (SaleStatus != SaleStatus.Shipped);
+
+		// Add these properties to the existing InvoiceReportViewModel
+
+		[Display(Name = "Directed to AP")]
+		public bool IsDirectedToAP { get; set; }
+
+		[Display(Name = "AP Contact Name")]
+		public string? APContactName { get; set; }
+
+		[Display(Name = "Requires Purchase Order")]
+		public bool RequiresPO { get; set; }
+
+		[Display(Name = "Customer Display Name")]
+		public string CustomerDisplayName => !string.IsNullOrEmpty(Customer.CompanyName) ? Customer.CompanyName : Customer.CustomerName;
+
+		[Display(Name = "Invoice Recipient")]
+		public string InvoiceRecipient => IsDirectedToAP && !string.IsNullOrEmpty(APContactName)
+				? $"{APContactName} - {Customer.CompanyName}"
+				: Customer.CustomerName;
 	}
 
 	public class InvoiceLineItem

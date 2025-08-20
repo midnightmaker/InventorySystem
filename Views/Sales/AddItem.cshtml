@@ -234,6 +234,9 @@
 </form>
 
 @section Scripts {
+  <!-- Include the beautiful confirmation dialog -->
+  <script src="~/js/confirmation-dialog.js"></script>
+  
   <script>
         // Global variables
         let currentSuggestedPrice = 0;
@@ -267,8 +270,8 @@
           // ✅ NEW: Serial/Model validation listeners
           serialNumberInput.addEventListener('input', updateSerialModelDisplay);
           modelNumberInput.addEventListener('input', updateSerialModelDisplay);
-          serialNumberInput.addEventListener('input', updateRequirementsWarning); // Changed from validateRequirements
-          modelNumberInput.addEventListener('input', updateRequirementsWarning); // Changed from validateRequirements
+          serialNumberInput.addEventListener('input', updateRequirementsWarning);
+          modelNumberInput.addEventListener('input', updateRequirementsWarning);
 
           // Initialize
           toggleProductSelection();
@@ -429,7 +432,7 @@
               requirementsInfo.style.display = 'none';
             }
 
-            updateRequirementsWarning(); // Changed from validateRequirements
+            updateRequirementsWarning();
           }
 
           // ✅ UPDATED: Changed from validateRequirements to updateRequirementsWarning
@@ -460,16 +463,11 @@
                   You can add this information later by editing the sale item after creation.
                 </small>
               `;
-              requirementsAlert.className = 'alert alert-info'; // Changed from alert-warning to alert-info
+              requirementsAlert.className = 'alert alert-info';
               requirementsAlert.style.display = 'block';
-              // ✅ REMOVED: Don't disable the button anymore
-              // addItemButton.disabled = true;
             } else {
               requirementsAlert.style.display = 'none';
             }
-
-            // ✅ REMOVED: Don't return validation status since we're not blocking
-            // return missingRequirements.length === 0;
           }
 
           // ✅ NEW: Update serial/model display
@@ -612,40 +610,138 @@
           // Make setSuggestedPrice available globally for the onclick handler
           window.setSuggestedPrice = setSuggestedPrice;
 
-          // ✅ UPDATED: Form submission with warning instead of blocking
-          document.querySelector('form').addEventListener('submit', function(e) {
-        const stockAlert = document.getElementById('stockAlert');
-        const serialInput = document.getElementById('serialNumberInput');
-        const modelInput = document.getElementById('modelNumberInput');
+          // ✅ FIXED: Use stopImmediatePropagation to prevent global loading
+          document.querySelector('form').addEventListener('submit', async function(e) {
+            // ✅ CRITICAL: Stop all event propagation immediately
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
 
-        // ✅ NEW: Check for missing requirements and show confirmation
-        const missingRequirements = [];
-        if (currentRequirements.serial && !serialInput.value.trim()) {
-            missingRequirements.push('Serial Number');
-        }
-        if (currentRequirements.model && !modelInput.value.trim()) {
-            missingRequirements.push('Model Number');
-        }
+            const stockAlert = document.getElementById('stockAlert');
+            const serialInput = document.getElementById('serialNumberInput');
+            const modelInput = document.getElementById('modelNumberInput');
+            const quantityInput = document.getElementById('quantityInput');
 
-        if (missingRequirements.length > 0) {
-            const confirmMessage = `This item recommends the following information:\n\n` +
-                missingRequirements.map(req => `• ${req}`).join('\n') +
-                `\n\nYou can add this information later by editing the sale item.\n\nDo you want to continue adding the item without this information?`;
+            try {
+              // Check for missing requirements and show beautiful confirmation
+              const missingRequirements = [];
+              if (currentRequirements.serial && !serialInput.value.trim()) {
+                  missingRequirements.push('Serial Number');
+              }
+              if (currentRequirements.model && !modelInput.value.trim()) {
+                  missingRequirements.push('Model Number');
+              }
 
-            if (!confirm(confirmMessage)) {
-                e.preventDefault();
-                return;
+              if (missingRequirements.length > 0) {
+                  const confirmed = await confirmDialog.confirm({
+                      title: 'Missing Recommended Information',
+                      message: 'This item recommends the following information:',
+                      details: `
+                          <div class="alert alert-info border-0 mt-2">
+                              <ul class="mb-0">
+                                  ${missingRequirements.map(req => `<li><strong>${req}</strong></li>`).join('')}
+                              </ul>
+                          </div>
+                          <div class="alert alert-light border-info mt-2">
+                              <i class="fas fa-lightbulb text-info"></i>
+                              <strong>Note:</strong> You can add this information later by editing the sale item after creation.
+                          </div>
+                          <p class="mb-0">Do you want to continue adding the item without this information?</p>
+                      `,
+                      confirmText: 'Continue Without Info',
+                      cancelText: 'Go Back and Add Info',
+                      confirmClass: 'btn-warning',
+                      icon: 'fas fa-exclamation-triangle text-warning'
+                  });
+
+                  if (!confirmed) {
+                      return; // User cancelled, don't submit
+                  }
+              }
+
+              // Stock backorder confirmation with beautiful modal
+              if (stockAlert && stockAlert.classList.contains('alert-warning')) {
+                  const quantity = parseInt(quantityInput.value) || 0;
+                  const availableStock = document.getElementById('availableStock').textContent;
+                  
+                  const confirmed = await confirmDialog.confirm({
+                      title: 'Item Will Be Backordered',
+                      message: 'This item will be backordered due to insufficient stock.',
+                      details: `
+                          <div class="row mt-3">
+                              <div class="col-6">
+                                  <div class="card bg-light">
+                                      <div class="card-body text-center py-2">
+                                          <h6 class="card-title text-muted mb-1">Requested</h6>
+                                          <h4 class="text-primary mb-0">${quantity}</h4>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="col-6">
+                                  <div class="card bg-light">
+                                      <div class="card-body text-center py-2">
+                                          <h6 class="card-title text-muted mb-1">Available</h6>
+                                          <h4 class="text-success mb-0">${availableStock}</h4>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                          <div class="alert alert-info border-0 mt-3">
+                              <i class="fas fa-info-circle"></i>
+                              <strong>What this means:</strong>
+                              <ul class="mb-0 mt-2">
+                                  <li>Available stock will be allocated immediately</li>
+                                  <li>Remaining quantity will be fulfilled when stock arrives</li>
+                                  <li>Customer will be notified of partial shipment</li>
+                              </ul>
+                          </div>
+                      `,
+                      confirmText: 'Continue with Backorder',
+                      cancelText: 'Cancel',
+                      confirmClass: 'btn-warning',
+                      icon: 'fas fa-clock text-warning'
+                  });
+
+                  if (!confirmed) {
+                      return; // User cancelled, don't submit
+                  }
+              }
+
+              // ✅ Show loading indicator manually for actual submission
+              if (window.LoadingIndicator && window.LoadingIndicator.show) {
+                  window.LoadingIndicator.show('Adding Item...', 'Processing your request');
+              }
+
+              // ✅ Submit form programmatically to bypass all event listeners
+              // Create a new form element to avoid triggering existing listeners
+              const originalForm = this;
+              const newForm = document.createElement('form');
+              newForm.method = originalForm.method;
+              newForm.action = originalForm.action;
+
+              // Copy all form data
+              const formData = new FormData(originalForm);
+              for (let [key, value] of formData.entries()) {
+                  const input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = key;
+                  input.value = value;
+                  newForm.appendChild(input);
+              }
+
+              // Add the new form to the document and submit it
+              document.body.appendChild(newForm);
+              newForm.submit();
+              
+            } catch (error) {
+              console.error('Error during form submission:', error);
+              // Hide loading indicator on error
+              if (window.LoadingIndicator && window.LoadingIndicator.hide) {
+                  window.LoadingIndicator.hide();
+              }
             }
-        }
-
-        // Stock backorder confirmation (unchanged)
-        if (stockAlert && stockAlert.classList.contains('alert-warning')) {
-            const confirmed = confirm('This item will be backordered. Do you want to continue?');
-            if (!confirmed) {
-                e.preventDefault();
-            }
-        }
-    });
+        }, true); // ✅ Use capture phase to ensure we get the event first
+        
         });
 
         // Global function to update total price calculation

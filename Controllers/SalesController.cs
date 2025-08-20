@@ -519,6 +519,9 @@ namespace InventorySystem.Controllers
 	
 		// Invoice Report - View invoice for a sale
 		[HttpGet]
+		// Replace the existing InvoiceReport method in SalesController.cs with this enhanced version
+
+		[HttpGet]
 		public async Task<IActionResult> InvoiceReport(int saleId)
 		{
 			try
@@ -530,12 +533,16 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Index");
 				}
 
+				// ✅ NEW: Get invoice recipient information based on customer AP settings
+				var (recipientName, recipientEmail, billingAddress, companyName, contactName) = GetInvoiceRecipientInfo(sale.Customer);
+
 				var customer = new CustomerInfo
 				{
-					CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
-					CustomerEmail = sale.Customer?.Email ?? string.Empty,
+					CompanyName = companyName,
+					CustomerName = contactName,
+					CustomerEmail = recipientEmail,
 					CustomerPhone = sale.Customer?.Phone ?? string.Empty,
-					BillingAddress = sale.Customer?.FullBillingAddress ?? string.Empty,
+					BillingAddress = billingAddress,
 					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
 				};
 
@@ -569,7 +576,7 @@ namespace InventorySystem.Controllers
 						ModelNumber = si.ModelNumber
 					}).ToList(),
 					CompanyInfo = await GetCompanyInfo(),
-					CustomerEmail = sale.Customer?.Email ?? string.Empty,
+					CustomerEmail = recipientEmail,
 					EmailSubject = $"{(isProforma ? "Proforma Invoice" : "Invoice")} {sale.SaleNumber}",
 					EmailMessage = $"Please find attached {(isProforma ? "Proforma Invoice" : "Invoice")} {sale.SaleNumber} for your recent {(isProforma ? "quote" : "purchase")}.",
 					PaymentMethod = sale.PaymentMethod ?? string.Empty,
@@ -579,16 +586,25 @@ namespace InventorySystem.Controllers
 					OrderNumber = sale.OrderNumber ?? string.Empty,
 					TotalShipping = sale.ShippingCost,
 					TotalTax = sale.TaxAmount,
+
 					// ✅ NEW: Add discount information to invoice
 					TotalDiscount = sale.DiscountCalculated,
 					DiscountReason = sale.DiscountReason,
 					HasDiscount = sale.HasDiscount,
+
 					// Keep adjustments separate (for post-sale issues)
 					TotalAdjustments = totalAdjustments,
 					OriginalAmount = sale.TotalAmount, // This now includes the discount calculation
-																						 // ✅ NEW: Proforma invoice properties
+
+					// ✅ NEW: Proforma invoice properties
 					IsProforma = isProforma,
 					InvoiceTitle = isProforma ? "Proforma Invoice" : "Invoice",
+
+					// ✅ NEW: B2B Invoice Properties
+					IsDirectedToAP = sale.Customer?.DirectInvoicesToAP ?? false,
+					APContactName = sale.Customer?.AccountsPayableContactName,
+					RequiresPO = sale.Customer?.RequiresPurchaseOrder ?? false,
+
 					// Calculate amount paid using CustomerPaymentService (only for actual invoices)
 					AmountPaid = isProforma ? 0 : await GetTotalPaymentsBySaleAsync(sale.Id)
 				};
@@ -603,7 +619,46 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		// ✅ NEW: Helper method to get invoice recipient information based on customer AP settings
+		private (string recipientName, string recipientEmail, string billingAddress, string companyName, string contactName) GetInvoiceRecipientInfo(Customer customer)
+		{
+			if (customer == null)
+			{
+				return ("Unknown Customer", "", "", "", "Unknown Customer");
+			}
+
+			// Determine company name (always prioritized for B2B)
+			var companyName = !string.IsNullOrEmpty(customer.CompanyName) ? customer.CompanyName : customer.CustomerName;
+
+			// Determine contact name
+			var contactName = customer.CustomerName;
+
+			if (customer.DirectInvoicesToAP && customer.HasAccountsPayableInfo)
+			{
+				// Direct to AP - use AP contact info
+				return (
+						customer.AccountsPayableContactName ?? $"Accounts Payable - {companyName}",
+						customer.AccountsPayableEmail ?? customer.Email,
+						customer.InvoiceBillingAddress,
+						companyName,
+						customer.AccountsPayableContactName ?? contactName
+				);
+			}
+
+			// Standard invoice - use customer contact info but prioritize company name
+			return (
+					contactName,
+					customer.ContactEmail ?? customer.Email,
+					customer.FullBillingAddress,
+					companyName,
+					contactName
+			);
+		}
+
 		// Invoice Report Print - Print-friendly version of invoice
+		[HttpGet]
+		// Replace the existing InvoiceReportPrint method with this enhanced version
+
 		[HttpGet]
 		public async Task<IActionResult> InvoiceReportPrint(int saleId)
 		{
@@ -618,16 +673,16 @@ namespace InventorySystem.Controllers
 
 				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
 
-				// Includes in view model:
-				
+				// ✅ NEW: Get invoice recipient information based on customer AP settings
+				var (recipientName, recipientEmail, billingAddress, companyName, contactName) = GetInvoiceRecipientInfo(sale.Customer);
 
 				var customer = new CustomerInfo
 				{
-					CompanyName = sale.Customer?.CompanyName ?? "Unknown Company Name",
-					CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
-					CustomerEmail = sale.Customer?.Email ?? string.Empty,
+					CompanyName = companyName,
+					CustomerName = contactName,
+					CustomerEmail = recipientEmail,
 					CustomerPhone = sale.Customer?.Phone ?? string.Empty,
-					BillingAddress = sale.Customer?.FullBillingAddress ?? string.Empty,
+					BillingAddress = billingAddress,
 					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
 				};
 
@@ -652,10 +707,12 @@ namespace InventorySystem.Controllers
 						UnitPrice = si.UnitPrice,
 						Notes = si.Notes ?? string.Empty,
 						ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
-						QuantityBackordered = si.QuantityBackordered
+						QuantityBackordered = si.QuantityBackordered,
+						SerialNumber = si.SerialNumber,
+						ModelNumber = si.ModelNumber
 					}).ToList(),
 					CompanyInfo = await GetCompanyInfo(),
-					CustomerEmail = sale.Customer?.Email ?? string.Empty,
+					CustomerEmail = recipientEmail,
 					EmailSubject = $"Invoice {sale.SaleNumber}",
 					EmailMessage = $"Please find attached Invoice {sale.SaleNumber} for your recent purchase.",
 					PaymentMethod = sale.PaymentMethod ?? string.Empty,
@@ -668,6 +725,12 @@ namespace InventorySystem.Controllers
 					TotalDiscount = sale.DiscountCalculated,
 					DiscountReason = sale.DiscountReason,
 					HasDiscount = sale.HasDiscount,
+
+					// ✅ NEW: B2B Invoice Properties
+					IsDirectedToAP = sale.Customer?.DirectInvoicesToAP ?? false,
+					APContactName = sale.Customer?.AccountsPayableContactName,
+					RequiresPO = sale.Customer?.RequiresPurchaseOrder ?? false,
+
 					// Calculate amount paid using CustomerPaymentService
 					AmountPaid = await GetTotalPaymentsBySaleAsync(sale.Id)
 				};

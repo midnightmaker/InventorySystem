@@ -137,9 +137,6 @@ namespace InventorySystem.Models
 		    [StringLength(100)]
 		    public string? PreferredPaymentMethod { get; set; }
 
-		    public bool TaxExempt { get; set; } = false;
-
-
 		// Navigation properties
 		public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
         public virtual ICollection<CustomerDocument> Documents { get; set; } = new List<CustomerDocument>();
@@ -271,6 +268,126 @@ namespace InventorySystem.Models
 		public CustomerBalanceAdjustment? LatestAdjustment => BalanceAdjustments?
 				.OrderByDescending(ba => ba.AdjustmentDate)
 				.FirstOrDefault();
+
+		[StringLength(200)]
+		[Display(Name = "AP Contact Name")]
+		public string? AccountsPayableContactName { get; set; }
+
+		[StringLength(100)]
+		[Display(Name = "AP Contact Title")]
+		public string? AccountsPayableContactTitle { get; set; }
+
+		[StringLength(150)]
+		[Display(Name = "AP Contact Email")]
+		[EmailAddress]
+		public string? AccountsPayableEmail { get; set; }
+
+		[StringLength(50)]
+		[Display(Name = "AP Contact Phone")]
+		public string? AccountsPayablePhone { get; set; }
+
+		[StringLength(300)]
+		[Display(Name = "AP Billing Address")]
+		public string? AccountsPayableBillingAddress { get; set; }
+
+		[StringLength(100)]
+		[Display(Name = "AP Billing City")]
+		public string? AccountsPayableBillingCity { get; set; }
+
+		[StringLength(50)]
+		[Display(Name = "AP Billing State")]
+		public string? AccountsPayableBillingState { get; set; }
+
+		[StringLength(20)]
+		[Display(Name = "AP Billing Zip Code")]
+		public string? AccountsPayableBillingZipCode { get; set; }
+
+		[StringLength(100)]
+		[Display(Name = "AP Billing Country")]
+		public string? AccountsPayableBillingCountry { get; set; } = "United States";
+
+		[StringLength(50)]
+		[Display(Name = "AP Invoice Number Prefix")]
+		public string? AccountsPayableInvoicePrefix { get; set; }
+
+		
+		[Display(Name = "AP Purchase Order Required")]
+		public bool RequiresPurchaseOrder { get; set; } = false;
+
+		[Display(Name = "Direct Invoices to AP")]
+		public bool DirectInvoicesToAP { get; set; } = false;
+
+		[StringLength(1000)]
+		[Display(Name = "AP Special Instructions")]
+		public string? AccountsPayableNotes { get; set; }
+
+		// Computed properties for AP
+		[NotMapped]
+		[Display(Name = "Full AP Billing Address")]
+		public string FullAccountsPayableBillingAddress
+		{
+			get
+			{
+				var parts = new List<string>();
+				if (!string.IsNullOrEmpty(AccountsPayableBillingAddress)) parts.Add(AccountsPayableBillingAddress);
+				if (!string.IsNullOrEmpty(AccountsPayableBillingCity)) parts.Add(AccountsPayableBillingCity);
+				if (!string.IsNullOrEmpty(AccountsPayableBillingState)) parts.Add(AccountsPayableBillingState);
+				if (!string.IsNullOrEmpty(AccountsPayableBillingZipCode)) parts.Add(AccountsPayableBillingZipCode);
+				return string.Join(", ", parts);
+			}
+		}
+
+		[NotMapped]
+		[Display(Name = "Has AP Info")]
+		public bool HasAccountsPayableInfo => !string.IsNullOrEmpty(AccountsPayableContactName) || 
+										 !string.IsNullOrEmpty(AccountsPayableEmail) ||
+										 !string.IsNullOrEmpty(AccountsPayableBillingAddress);
+
+		[NotMapped]
+		[Display(Name = "Primary Display Name")]
+		public string PrimaryDisplayName => !string.IsNullOrEmpty(CompanyName) ? CompanyName : CustomerName;
+
+		[NotMapped]
+		[Display(Name = "Invoice Recipient Info")]
+		public string InvoiceRecipientInfo
+		{
+			get
+			{
+				if (DirectInvoicesToAP && HasAccountsPayableInfo)
+				{
+					return $"{AccountsPayableContactName ?? "Accounts Payable"} - {CompanyName ?? CustomerName}";
+				}
+				return $"{CustomerName} - {CompanyName ?? "Individual"}";
+			}
+		}
+
+		[NotMapped]
+		[Display(Name = "Invoice Email")]
+		public string InvoiceEmail
+		{
+			get
+			{
+				if (DirectInvoicesToAP && !string.IsNullOrEmpty(AccountsPayableEmail))
+				{
+					return AccountsPayableEmail;
+				}
+				return ContactEmail ?? Email;
+			}
+		}
+
+		[NotMapped]
+		[Display(Name = "Invoice Billing Address")]
+		public string InvoiceBillingAddress
+		{
+			get
+			{
+				if (DirectInvoicesToAP && !string.IsNullOrEmpty(AccountsPayableBillingAddress))
+				{
+					return FullAccountsPayableBillingAddress;
+				}
+				return FullBillingAddress;
+			}
+		}
 	}
 
 	public class CustomerDocument

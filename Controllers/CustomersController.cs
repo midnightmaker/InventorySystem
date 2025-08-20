@@ -476,7 +476,7 @@ namespace InventorySystem.Controllers
 						currentBalance = customer.OutstandingBalance,
 						isActive = customer.IsActive,
 						// Additional fields that might be useful
-						taxExempt = customer.TaxExempt,
+						taxExempt = customer.IsTaxExempt,
 						discountPercentage = customer.DiscountPercentage,
 						preferredPaymentMethod = customer.PreferredPaymentMethod,
 						// Calculated fields

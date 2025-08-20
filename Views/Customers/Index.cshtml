@@ -161,7 +161,8 @@
             <table class="table table-hover">
                 <thead class="table-dark">
                     <tr>
-                        <th>Customer</th>
+                        <!-- ? UPDATED: Change "Customer" to "Company/Customer" to reflect B2B priority -->
+                        <th>Company/Customer</th>
                         <th>Type</th>
                         <th>Contact</th>
                         <th>Sales</th>
@@ -175,11 +176,17 @@
                     {
                         <tr class="clickable-row" data-href="@Url.Action("Details", new { id = customer.Id })" style="cursor: pointer;">
                             <td>
+                                <!-- ? UPDATED: Prioritize Company Name over Customer Name -->
                                 <div>
-                                    <strong>@customer.CustomerName</strong>
                                     @if (!string.IsNullOrEmpty(customer.CompanyName))
                                     {
-                                        <br><small class="text-muted">@customer.CompanyName</small>
+                                        <strong>@customer.CompanyName</strong>
+                                        <br><small class="text-muted"><i class="fas fa-user"></i> @customer.CustomerName</small>
+                                    }
+                                    else
+                                    {
+                                        <strong>@customer.CustomerName</strong>
+                                        <br><small class="text-muted text-italic">No company specified</small>
                                     }
                                 </div>
                             </td>
