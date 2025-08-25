@@ -21,15 +21,17 @@
   var adjustedProfit = netProfit - totalAdjustments; // Final profit after all adjustments
   var afterDiscountAmount = Model.Sale.SubtotalAmount - Model.Sale.DiscountCalculated; // Add this line
 
-  // ✅ NEW: Check if sale has service items that might need service orders
-  var hasServiceItems = Model.Sale.SaleItems?.Any(si => si.Item?.ItemType == ItemType.Service) == true;
+  // REMOVED: Service items check - no longer part of operational items
+  // var hasServiceItems = Model.Sale.SaleItems?.Any(si => si.Item?.ItemType == ItemType.Service) == true;
+  
+  // UPDATED: Check if sale has incomplete service orders for any existing service orders
   var hasIncompleteServiceOrders = Model.ServiceOrders.Any(so => so.Status != ServiceOrderStatus.Completed);
-  var canProcessSale = !hasServiceItems || !hasIncompleteServiceOrders;
+  var canProcessSale = !hasIncompleteServiceOrders; // Simplified - just check existing service orders
 
-  // ✅ NEW: Determine if adjustments can be created
+  // Determine if adjustments can be created
   var canCreateAdjustments = Model.Sale.SaleStatus == SaleStatus.Shipped || Model.Sale.SaleStatus == SaleStatus.Delivered;
 
-  // ✅ NEW: Determine invoice type
+  // Determine invoice type
   var isProformaInvoice = Model.Sale.SaleStatus != SaleStatus.Shipped && Model.Sale.SaleStatus != SaleStatus.Delivered;
 }
 
@@ -50,7 +52,7 @@
       </a>
     }
 
-    @* ✅ UPDATED: Process & Ship button with service validation *@
+    @* UPDATED: Process & Ship button with simplified service validation *@
     @if (Model.Sale.SaleStatus == SaleStatus.Processing && Model.Sale.SaleItems?.Any() == true)
     {
       @if (canProcessSale)
@@ -68,7 +70,15 @@
       }
     }
 
-    @* ✅ UPDATED: View Invoice button shows proforma status *@
+    @* NEW: Additional Shipment button for partially shipped/backordered sales *@
+    @if (Model.Sale.CanShipAdditionalItems)
+    {
+      <a href="@Url.Action("CreateAdditionalShipment", new { saleId = Model.Sale.Id })" class="btn btn-info">
+        <i class="fas fa-shipping-fast"></i> Create Additional Shipment
+      </a>
+    }
+
+    @* View Invoice button shows proforma status *@
     <a href="@Url.Action("InvoiceReport", new { saleId = Model.Sale.Id })"
        class="btn btn-primary">
       <i class="fas fa-file-invoice-dollar"></i>
@@ -82,14 +92,7 @@
       }
     </a>
 
-    @* ✅ ADD PACKING SLIP BUTTON for shipped sales *@
-    @if (Model.Sale.SaleStatus == SaleStatus.Shipped || Model.Sale.SaleStatus == SaleStatus.Delivered)
-    {
-      <a href="@Url.Action("PackingSlip", new { saleId = Model.Sale.Id })"
-         target="_blank" class="btn btn-info">
-        <i class="fas fa-clipboard-list"></i> Packing Slip
-      </a>
-    }
+    @* REMOVED: Single Packing Slip Button - now replaced with comprehensive shipments card below *@
 
     @if (Model.Sale.PaymentStatus != PaymentStatus.Paid)
     {
@@ -116,7 +119,25 @@
   </div>
 }
 
-<!-- ✅ MOVED TO TOP: Customer Information Card - Full Width -->
+<!-- NEW: Backorder Availability Notification -->
+@if (Model.Sale.CanShipAdditionalItems)
+{
+    <div class="alert alert-info d-flex align-items-center mb-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <div class="flex-grow-1">
+            <strong>Items Available for Shipment</strong>
+            <p class="mb-1">This sale has @Model.Sale.ItemsAvailableForShipment.Count item(s) available for additional shipment.</p>
+        </div>
+        <div>
+            <a href="@Url.Action("CreateAdditionalShipment", new { saleId = Model.Sale.Id })" 
+               class="btn btn-primary">
+                <i class="fas fa-shipping-fast"></i> Create Shipment
+            </a>
+        </div>
+    </div>
+}
+
+<!-- Customer Information Card - Full Width -->
 @if (Model.Sale.Customer != null)
 {
   <div class="row mb-4">
@@ -192,8 +213,8 @@
                 <a href="/Customers/Details/@Model.Sale.Customer.Id" class="btn btn-outline-info btn-sm">
                   <i class="fas fa-user"></i> View Customer Details
                 </a>
-                @* ✅ UPDATED: Create Adjustment button with status check *@
-                @if (canCreateAdjustments)
+                @* Create Adjustment button with status check *@
+                @if (Model.Sale.CanMakeAdjustments)
                 {
                   <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id" class="btn btn-outline-success btn-sm">
                     <i class="fas fa-adjust"></i> Create Adjustment
@@ -215,39 +236,91 @@
   </div>
 }
 
-<!-- Sale Information Header -->
+<!-- UPDATED: Consolidated Sale Information Header with Status -->
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title"><i class="fas fa-calendar-alt"></i> Sale Information</h6>
+        <dl class="row mb-0">
+          <dt class="col-sm-5">Sale Date:</dt>
+          <dd class="col-sm-7">@Model.Sale.SaleDate.ToString("MM/dd/yyyy")</dd>
+          <dt class="col-sm-5">Due Date:</dt>
+          <dd class="col-sm-7">@Model.Sale.PaymentDueDate.ToString("MM/dd/yyyy")</dd>
+          <dt class="col-sm-5">Terms:</dt>
+          <dd class="col-sm-7">@Model.Sale.Terms</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title"><i class="fas fa-info-circle"></i> Status Overview</h6>
+        <dl class="row mb-0">
+          <dt class="col-sm-6">Status:</dt>
+          <dd class="col-sm-6">
+            <span class="badge bg-@Model.ConsolidatedStatusBadgeColor fs-6">
+              @Model.ConsolidatedStatus
+            </span>
+          </dd>
+          <dt class="col-sm-6">Payment:</dt>
+          <dd class="col-sm-6">
+            <span class="badge bg-@BadgeHelper.GetPaymentStatusBadgeColor(Model.Sale.PaymentStatus)">@Model.Sale.PaymentStatus</span>
+          </dd>
+          @if (Model.Sale.IsOverdue)
+          {
+            <dt class="col-sm-6">Overdue:</dt>
+            <dd class="col-sm-6"><span class="badge bg-danger">@Model.Sale.DaysOverdue days</span></dd>
+          }
+        </dl>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title"><i class="fas fa-truck"></i> Fulfillment Summary</h6>
+        <dl class="row mb-0">
+          <dt class="col-sm-6">Shipments:</dt>
+          <dd class="col-sm-6">
+            @if (Model.TotalShipments > 0)
+            {
+              <span class="badge bg-info">@Model.TotalShipments</span>
+            }
+            else
+            {
+              <span class="text-muted">None</span>
+            }
+          </dd>
+          @if (Model.Sale.HasBackorders)
+          {
+            <dt class="col-sm-6">Backorders:</dt>
+            <dd class="col-sm-6">
+              <span class="badge bg-warning text-dark">@Model.Sale.TotalBackorders units</span>
+            </dd>
+          }
+          @if (Model.TotalShipments > 0)
+          {
+            <dt class="col-sm-6">Last Ship:</dt>
+            <dd class="col-sm-6">
+              <small>@(Model.LastShipmentDate?.ToString("MM/dd/yyyy") ?? "N/A")</small>
+            </dd>
+          }
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Additional Sale Details Row -->
 <div class="row mb-4">
   <div class="col-12">
     <div class="card">
       <div class="card-body">
         <div class="row">
-          <div class="col-md-3">
-            <dl class="row">
-              <dt class="col-sm-6">Sale Date:</dt>
-              <dd class="col-sm-6">@Model.Sale.SaleDate.ToString("MM/dd/yyyy")</dd>
-              <dt class="col-sm-6">Due Date:</dt>
-              <dd class="col-sm-6">@Model.Sale.PaymentDueDate.ToString("MM/dd/yyyy")</dd>
-              <dt class="col-sm-6">Terms:</dt>
-              <dd class="col-sm-6">@Model.Sale.Terms</dd>
-            </dl>
-          </div>
-          <div class="col-md-3">
-            <dl class="row">
-              <dt class="col-sm-6">Sale Status:</dt>
-              <dd class="col-sm-6">
-                <span class="badge bg-@BadgeHelper.GetSaleStatusBadgeColor(Model.Sale.SaleStatus)">@Model.Sale.SaleStatus</span>
-              </dd>
-              <dt class="col-sm-6">Payment:</dt>
-              <dd class="col-sm-6">
-                <span class="badge bg-@BadgeHelper.GetPaymentStatusBadgeColor(Model.Sale.PaymentStatus)">@Model.Sale.PaymentStatus</span>
-              </dd>
-              @if (Model.Sale.IsOverdue)
-              {
-                <dt class="col-sm-6">Days Overdue:</dt>
-                <dd class="col-sm-6"><span class="badge bg-danger">@Model.Sale.DaysOverdue</span></dd>
-              }
-            </dl>
-          </div>
           <div class="col-md-3">
             @if (!string.IsNullOrEmpty(Model.Sale.OrderNumber))
             {
@@ -264,12 +337,12 @@
               </dl>
             }
           </div>
-          <div class="col-md-3">
+          <div class="col-md-9">
             @if (!string.IsNullOrEmpty(Model.Sale.Notes))
             {
               <dl class="row">
-                <dt class="col-sm-12">Notes:</dt>
-                <dd class="col-sm-12"><small class="text-muted">@Model.Sale.Notes</small></dd>
+                <dt class="col-sm-2">Notes:</dt>
+                <dd class="col-sm-10"><small class="text-muted">@Model.Sale.Notes</small></dd>
               </dl>
             }
           </div>
@@ -369,7 +442,7 @@
                 <a href="/Sales/GenerateRevisedInvoice/@Model.Sale.Id" class="btn btn-outline-primary btn-sm">
                   <i class="fas fa-file-invoice"></i> Generate Revised Invoice
                 </a>
-                @if (canCreateAdjustments)
+                @if (Model.Sale.CanMakeAdjustments)
                 {
                   <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id" class="btn btn-outline-success btn-sm">
                     <i class="fas fa-plus"></i> Add New Adjustment
@@ -466,7 +539,7 @@ else
         <div class="card-body text-center py-3">
           <div class="text-muted mb-2">
             <i class="fas fa-info-circle"></i>
-            @if (canCreateAdjustments)
+            @if (Model.Sale.CanMakeAdjustments)
             {
               <text>No adjustments have been applied to this sale.</text>
             }
@@ -475,7 +548,7 @@ else
               <text>No adjustments have been applied to this sale. Adjustments for shipping damage, missing items etc. can only be made after the sale has been processed and shipped.</text>
             }
           </div>
-          @if (canCreateAdjustments)
+          @if (Model.Sale.CanMakeAdjustments)
           {
             <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id"
                class="btn btn-outline-primary btn-sm">
@@ -512,8 +585,6 @@ else
       <div class="card-body">
         @if (Model.Sale.SaleItems?.Any() == true)
         {
-          <!-- Replace the table structure in the sale items section with this corrected version -->
-
           <div class="table-responsive">
             <table class="table table-hover" id="saleItemsTable" style="table-layout: fixed; width: 100%;">
               <colgroup>
@@ -550,11 +621,9 @@ else
                 @foreach (var item in Model.Sale.SaleItems)
                 {
                   <tr>
-                    <!-- ✅ FIXED: Added align-middle to all table cells -->
                     <td class="text-center align-middle">
                       @if (item.ItemId.HasValue)
                       {
-                        <!-- ✅ FIXED: Item thumbnail with proper container and visibility control -->
                         <div class="item-image-container" style="width: 40px; height: 40px; position: relative; display: inline-block;">
                           <img src="/Items/GetImageThumbnail/@item.ItemId?size=40"
                                alt="@item.ProductPartNumber"
@@ -571,7 +640,6 @@ else
                       }
                       else if (item.FinishedGoodId.HasValue)
                       {
-                        <!-- ✅ FIXED: Finished Good thumbnail with proper container and visibility control -->
                         <div class="item-image-container" style="width: 40px; height: 40px; position: relative; display: inline-block;">
                           <img src="/Production/GetFinishedGoodImageThumbnail/@item.FinishedGoodId?size=40"
                                alt="@item.ProductPartNumber"
@@ -588,7 +656,6 @@ else
                       }
                       else
                       {
-                        <!-- Fallback placeholder for items without ID -->
                         <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded"
                              style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6;">
                           <i class="fas fa-cube text-muted" style="font-size: 16px;"></i>
@@ -615,7 +682,6 @@ else
                       @if (item.QuantityBackordered > 0)
                       {
                         <br>
-
                         <span class="badge bg-warning text-dark ms-1">Backordered</span>
                       }
                     </td>
@@ -624,13 +690,28 @@ else
                       @if (!string.IsNullOrEmpty(item.Notes))
                       {
                         <br>
-
                         <small class="text-muted">@item.Notes</small>
                       }
                     </td>
                     <td class="align-middle">
                       <span class="badge bg-secondary">
-                        @(item.ItemId.HasValue ? "Item" : "Finished Good")
+                        @* ✅ FIXED: Properly determine ProductType including ServiceType *@
+                        @if (item.ItemId.HasValue)
+                        {
+                            <text>Item</text>
+                        }
+                        else if (item.ServiceTypeId.HasValue)
+                        {
+                            <text>Service</text>
+                        }
+                        else if (item.FinishedGoodId.HasValue)
+                        {
+                            <text>Finished Good</text>
+                        }
+                        else
+                        {
+                            <text>Unknown</text>
+                        }
                       </span>
                     </td>
                     <td class="text-center align-middle">
@@ -638,7 +719,6 @@ else
                       @if (item.QuantityBackordered > 0)
                       {
                         <br>
-
                         <small class="text-warning">(@item.QuantityBackordered backord.)</small>
                       }
                     </td>
@@ -670,7 +750,6 @@ else
                           <a href="/Sales/EditSaleItem/@item.Id" class="btn btn-outline-primary" title="Edit Item">
                             <i class="fas fa-edit"></i>
                           </a>
-                          <!-- ✅ ENHANCED: Beautiful confirmation dialog for remove item -->
                           <button type="button" class="btn btn-outline-danger" title="Remove Item"
                                   onclick="removeItemWithConfirmation(@item.Id, @Model.Sale.Id, '@Html.Raw(item.ProductPartNumber)', '@Html.Raw(item.ProductName)', @item.QuantitySold, '@item.UnitPrice.ToString("C")')">
                             <i class="fas fa-trash"></i>
@@ -702,119 +781,355 @@ else
     </div>
   </div>
 </div>
-<!-- Service Orders Section  -->
-@if (Model.ServiceOrders.Any() || Model.Sale.SaleItems.Any(si => si.Item?.ItemType == ItemType.Service))
-{
-  <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5><i class="fas fa-cogs"></i> Related Service Orders</h5>
-      @if (Model.Sale.SaleItems.Any(si => si.Item?.ItemType == ItemType.Service))
-      {
-        <a href="@Url.Action("CreateServiceOrdersFromSale", new { saleId = Model.Sale.Id })"
-           class="btn btn-sm btn-outline-primary">
-          <i class="fas fa-plus"></i> Create Service Orders
-        </a>
-      }
-    </div>
-    <div class="card-body">
-      @if (Model.ServiceOrders.Any())
-      {
-        <div class="table-responsive">
-          <table class="table table-sm">
-            <thead>
-              <tr>
-                <th>Service Order</th>
-                <th>Service Type</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Promised Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach (var serviceOrder in Model.ServiceOrders)
-              {
-                <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-lightgrey" : "")">
-                  <td>
-                    <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })">
-                      @serviceOrder.ServiceOrderNumber
-                    </a>
-                    @if (serviceOrder.Status != ServiceOrderStatus.Completed)
-                    {
-                      <br>
-              
-                      <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Pending</small>
-                    }
-                  </td>
-                  <td>@serviceOrder.ServiceType?.ServiceName</td>
-                  <td>
-                    <span class="badge bg-@BadgeHelper.GetServiceOrderStatusBadgeColor(serviceOrder.Status)">
-                      @serviceOrder.StatusDisplay
-                    </span>
-                  </td>
-                  <td>
-                    <span class="badge bg-@BadgeHelper.GetServicePriorityBadgeColor(serviceOrder.Priority)">
-                      @serviceOrder.PriorityDisplay
-                    </span>
-                  </td>
-                  <td>
-                    @if (serviceOrder.PromisedDate.HasValue)
-                    {
-                      <span class="@(serviceOrder.IsOverdue ? "text-danger" : "")">
-                        @serviceOrder.PromisedDate.Value.ToString("MM/dd/yyyy")
-                      </span>
-                    }
-                  </td>
-                  <td>
-                    <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })"
-                       class="btn btn-sm btn-outline-primary">
-                      View
-                    </a>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
 
-        @* ✅ NEW: Service Orders Status Summary *@
-        @if (hasServiceItems)
-        {
-          <div class="alert alert-light mt-3">
-            <i class="fas fa-info-circle"></i>
-            <strong>Service Orders Status:</strong>
-            @if (hasIncompleteServiceOrders)
+<!-- NEW: Comprehensive Shipments Card -->
+@if (Model.TotalShipments > 0)
+{
+  <div class="row mt-0">
+    <div class="col-12">
+      <div class="card border-info" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-shipping-fast"></i> Shipments 
+            <span class="badge bg-dark ms-2">@Model.TotalShipments shipment@(Model.TotalShipments > 1 ? "s" : "")</span>
+          </h5>
+          <div class="d-flex align-items-center gap-3">
+            @if (Model.HasMultipleShipments)
             {
-              <span class="text-dark">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
+              <small>
+                <i class="fas fa-info-circle"></i> 
+                Multiple shipments: @Model.FirstShipmentDate?.ToString("MM/dd") - @Model.LastShipmentDate?.ToString("MM/dd")
+              </small>
             }
-            else
+            @if (Model.Sale.CanShipAdditionalItems)
             {
-              <span class="text-dark">All service orders are completed and ready for shipment.</span>
+              <a href="@Url.Action("CreateAdditionalShipment", new { saleId = Model.Sale.Id })" 
+                 class="btn btn-light btn-sm">
+                <i class="fas fa-plus"></i> Create Additional Shipment
+              </a>
             }
           </div>
-        }
-      }
-      else if (Model.Sale.SaleItems.Any(si => si.Item?.ItemType == ItemType.Service))
-      {
-        <div class="alert alert-warning">
-          <i class="fas fa-exclamation-triangle"></i>
-          <strong>Service Orders Required:</strong> This sale contains service items but no service orders have been created yet. Service orders must be created and completed before this sale can be shipped.
-          <a href="@Url.Action("CreateServiceOrdersFromSale", new { saleId = Model.Sale.Id })"
-             class="btn btn-sm btn-primary ms-2">
-            Create Service Orders Now
-          </a>
         </div>
-      }
+        <div class="card-body">
+          <!-- Shipment Summary -->
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-boxes fa-2x text-primary"></i>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                  <div class="fw-bold">@Model.TotalItemsShipped</div>
+                  <small class="text-muted">Total Items Shipped</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                  <div class="fw-bold">@Model.TotalShipmentValue.ToString("C")</div>
+                  <small class="text-muted">Total Shipment Value</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-clock fa-2x text-info"></i>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                  <div class="fw-bold">
+                    @if (Model.HasMultipleShipments)
+                    {
+                      <span>@((Model.LastShipmentDate - Model.FirstShipmentDate)?.Days ?? 0) days</span>
+                    }
+                    else
+                    {
+                      <span>Same day</span>
+                    }
+                  </div>
+                  <small class="text-muted">Shipping Timespan</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Individual Shipments Table -->
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-dark">
+                <tr>
+                  <th>Packing Slip</th>
+                  <th>Ship Date</th>
+                  <th>Courier</th>
+                  <th>Tracking</th>
+                  <th class="text-center">Items</th>
+                  <th class="text-end">Value</th>
+                  <th>Expected Delivery</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var shipment in Model.Shipments)
+                {
+                  <tr>
+                    <td>
+                      <strong>@shipment.PackingSlipNumber</strong>
+                      <br>
+                      <small class="text-muted">by @shipment.ShippedBy</small>
+                    </td>
+                    <td>
+                      @shipment.ShipmentDate.ToString("MM/dd/yyyy")
+                      <br>
+                      <small class="text-muted">@shipment.ShipmentDate.ToString("h:mm tt")</small>
+                    </td>
+                    <td>
+                      <span class="badge bg-secondary">@shipment.CourierService</span>
+                      @if (shipment.PackageWeight.HasValue)
+                      {
+                        <br>
+                        <small class="text-muted">@shipment.PackageWeight.Value lbs</small>
+                      }
+                    </td>
+                    <td>
+                      @if (!string.IsNullOrEmpty(shipment.TrackingNumber) && shipment.TrackingNumber != "N/A")
+                      {
+                        <strong>@shipment.TrackingNumber</strong>
+                        @if (shipment.CourierService == "FedEx")
+                        {
+                          <br>
+                          <a href="https://www.fedex.com/apps/fedextrack/?tracknumbers=@shipment.TrackingNumber" 
+                             target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt"></i> Track
+                          </a>
+                        }
+                        else if (shipment.CourierService == "UPS")
+                        {
+                          <br>
+                          <a href="https://www.ups.com/track?tracknum=@shipment.TrackingNumber" 
+                             target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt"></i> Track
+                          </a>
+                        }
+                        else if (shipment.CourierService == "USPS")
+                        {
+                          <br>
+                          <a href="https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=@shipment.TrackingNumber" 
+                             target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt"></i> Track
+                          </a>
+                        }
+                      }
+                      else
+                      {
+                        <span class="text-muted">Local/Pickup</span>
+                      }
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-info">@shipment.TotalItemsShipped items</span>
+                      @if (shipment.ShipmentItems.Any())
+                      {
+                        <br>
+                        <small class="text-muted">
+                          @string.Join(", ", shipment.ShipmentItems.Take(2).Select(si => $"{si.SaleItem.ProductPartNumber} ({si.QuantityShipped})"))
+                          @if (shipment.ShipmentItems.Count() > 2)
+                          {
+                            <text>...</text>
+                          }
+                        </small>
+                      }
+                    </td>
+                    <td class="text-end">
+                      <strong>@shipment.ShipmentItems.Sum(si => si.QuantityShipped * si.SaleItem.UnitPrice).ToString("C")</strong>
+                    </td>
+                    <td>
+                      @if (shipment.ExpectedDeliveryDate.HasValue)
+                      {
+                        @shipment.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
+                        var isOverdue = DateTime.Now > shipment.ExpectedDeliveryDate.Value && Model.Sale.SaleStatus != SaleStatus.Delivered;
+                        @if (isOverdue)
+                        {
+                          <br>
+                          <span class="badge bg-danger">Overdue</span>
+                        }
+                      }
+                      else
+                      {
+                        <span class="text-muted">TBD</span>
+                      }
+                    </td>
+                    <td class="text-center">
+                      <div class="btn-group btn-group-sm">
+                        <a href="@Url.Action("ShipmentDetails", new { id = shipment.Id })" 
+                           class="btn btn-outline-info" title="View Shipment Details">
+                          <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="@Url.Action("PackingSlip", new { id = shipment.Id })" 
+                           target="_blank" class="btn btn-outline-primary" title="View Packing Slip">
+                          <i class="fas fa-file-alt"></i>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (!string.IsNullOrEmpty(Model.Shipments.FirstOrDefault()?.ShippingInstructions))
+          {
+            <div class="mt-3">
+              <h6><i class="fas fa-info-circle"></i> Shipping Instructions</h6>
+              <div class="alert alert-light">
+                @Model.Shipments.FirstOrDefault()?.ShippingInstructions
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
+else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
+{
+  <!-- No Shipments Yet - Show Ready to Ship -->
+  <div class="row mt-0">
+    <div class="col-12">
+      <div class="card border-warning" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0">
+            <i class="fas fa-clock"></i> Ready for Shipment
+          </h5>
+        </div>
+        <div class="card-body text-center">
+          <div class="row">
+            <div class="col-md-6 offset-md-3">
+              <i class="fas fa-shipping-fast fa-3x text-warning mb-3"></i>
+              <h6>This sale is ready to be processed and shipped</h6>
+              <p class="text-muted mb-3">
+                Click the "Process & Ship" button above to create the first shipment for this sale.
+                @if (Model.Sale.HasBackorders)
+                {
+                  <br>
+                  <strong>Note:</strong>
+                  <span>This sale has backorders. A partial shipment will be created for available items.</span>
+                }
+              </p>
+              @if (canProcessSale)
+              {
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal">
+                  <i class="fas fa-shipping-fast"></i> Process & Ship Sale
+                </button>
+              }
+              else
+              {
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle"></i>
+                  Complete all service orders before shipping this sale.
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 }
 
-<!-- Sale Summary Card - Perfect Column Alignment for Spreadsheet Effect -->
+<!-- UPDATED: Service Orders Section - Only show if service orders exist -->
+@if (Model.ServiceOrders.Any())
+{
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5><i class="fas fa-cogs"></i> Related Service Orders</h5>
+      <a href="@Url.Action("CreateServiceOrder", "Services", new { saleId = Model.Sale.Id })"
+         class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-plus"></i> Create Service Order
+      </a>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Service Order</th>
+              <th>Service Type</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Promised Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var serviceOrder in Model.ServiceOrders)
+            {
+              <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-light" : "")">
+                <td>
+                  <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })">
+                    @serviceOrder.ServiceOrderNumber
+                  </a>
+                  @if (serviceOrder.Status != ServiceOrderStatus.Completed)
+                  {
+                    <br>
+                    <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Pending</small>
+                  }
+                </td>
+                <td>@serviceOrder.ServiceType?.ServiceName</td>
+                <td>
+                  <span class="badge bg-@BadgeHelper.GetServiceOrderStatusBadgeColor(serviceOrder.Status)">
+                    @serviceOrder.StatusDisplay
+                  </span>
+                </td>
+                <td>
+                  <span class="badge bg-@BadgeHelper.GetServicePriorityBadgeColor(serviceOrder.Priority)">
+                    @serviceOrder.PriorityDisplay
+                  </span>
+                </td>
+                <td>
+                  @if (serviceOrder.PromisedDate.HasValue)
+                  {
+                    <span class="@(serviceOrder.IsOverdue ? "text-danger" : "")">
+                      @serviceOrder.PromisedDate.Value.ToString("MM/dd/yyyy")
+                    </span>
+                  }
+                </td>
+                <td>
+                  <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })"
+                     class="btn btn-sm btn-outline-primary">
+                    View
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @* UPDATED: Service Orders Status Summary *@
+      <div class="alert alert-light mt-3">
+        <i class="fas fa-info-circle"></i>
+        <strong>Service Orders Status:</strong>
+        @if (hasIncompleteServiceOrders)
+        {
+          <span class="text-dark">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
+        }
+        else
+        {
+          <span class="text-dark">All service orders are completed and ready for shipment.</span>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Sale Summary Card -->
 @if (Model.Sale.SaleItems?.Any() == true)
 {
   <div class="row mt-0">
     <div class="col-12">
-      <!-- Sale Summary Card with precise alignment -->
       <div class="card border-success" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
         <div class="card-header bg-light">
           <h5 class="mb-0"><i class="fas fa-calculator"></i> Financial Summary</h5>
@@ -836,7 +1151,6 @@ else
                 }
               </colgroup>
               <tbody>
-                <!-- Financial Summary Rows -->
                 <tr class="table-light">
                   <td colspan="6"><strong>Subtotal:</strong></td>
                   <td class="text-end"><strong>@Model.Sale.SubtotalAmount.ToString("C")</strong></td>
@@ -846,7 +1160,6 @@ else
                   }
                 </tr>
 
-                @* Show discount if applied *@
                 @if (Model.Sale.HasDiscount)
                 {
                   <tr class="table-warning">
@@ -931,12 +1244,99 @@ else
   </div>
 }
 
-<!-- ✅ NEW: Profit Analysis Card with Header -->
+<!-- NEW: Comprehensive Shipments Card -->
+
+<!-- UPDATED: Service Orders Section - Only show if service orders exist -->
+@if (Model.ServiceOrders.Any())
+{
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5><i class="fas fa-cogs"></i> Related Service Orders</h5>
+      <a href="@Url.Action("CreateServiceOrder", "Services", new { saleId = Model.Sale.Id })"
+         class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-plus"></i> Create Service Order
+      </a>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Service Order</th>
+              <th>Service Type</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Promised Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var serviceOrder in Model.ServiceOrders)
+            {
+              <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-light" : "")">
+                <td>
+                  <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })">
+                    @serviceOrder.ServiceOrderNumber
+                  </a>
+                  @if (serviceOrder.Status != ServiceOrderStatus.Completed)
+                  {
+                    <br>
+                    <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Pending</small>
+                  }
+                </td>
+                <td>@serviceOrder.ServiceType?.ServiceName</td>
+                <td>
+                  <span class="badge bg-@BadgeHelper.GetServiceOrderStatusBadgeColor(serviceOrder.Status)">
+                    @serviceOrder.StatusDisplay
+                  </span>
+                </td>
+                <td>
+                  <span class="badge bg-@BadgeHelper.GetServicePriorityBadgeColor(serviceOrder.Priority)">
+                    @serviceOrder.PriorityDisplay
+                  </span>
+                </td>
+                <td>
+                  @if (serviceOrder.PromisedDate.HasValue)
+                  {
+                    <span class="@(serviceOrder.IsOverdue ? "text-danger" : "")">
+                      @serviceOrder.PromisedDate.Value.ToString("MM/dd/yyyy")
+                    </span>
+                  }
+                </td>
+                <td>
+                  <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })"
+                     class="btn btn-sm btn-outline-primary">
+                    View
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @* UPDATED: Service Orders Status Summary *@
+      <div class="alert alert-light mt-3">
+        <i class="fas fa-info-circle"></i>
+        <strong>Service Orders Status:</strong>
+        @if (hasIncompleteServiceOrders)
+        {
+          <span class="text-dark">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
+        }
+        else
+        {
+          <span class="text-dark">All service orders are completed and ready for shipment.</span>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Profit Analysis Card -->
 @if (Model.Sale.SaleItems?.Any() == true)
 {
   <div class="row mt-0">
     <div class="col-12">
-      <!-- Profit Analysis Card -->
       <div class="card border-info" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
         <div class="card-header bg-info text-white">
           <h5 class="mb-0"><i class="fas fa-chart-line"></i> Profit Analysis</h5>
@@ -958,7 +1358,6 @@ else
                 }
               </colgroup>
               <tbody>
-                <!-- Profit Analysis Rows -->
                 <tr class="table-secondary">
                   <td colspan="6"><strong>Total Cost:</strong></td>
                   <td class="text-end"><strong>@totalCost.ToString("C")</strong></td>
@@ -968,7 +1367,6 @@ else
                   }
                 </tr>
 
-                @* Show gross profit calculation that accounts for discount *@
                 @if (Model.Sale.HasDiscount)
                 {
                   <tr class="table-secondary">
@@ -1012,7 +1410,6 @@ else
                   </tr>
                 }
 
-                @* Show profit margins *@
                 @if (netRevenue > 0)
                 {
                   var profitMargin = (netProfit / netRevenue) * 100;
@@ -1157,7 +1554,7 @@ else
   </div>
 }
 
-<!-- Process Sale Confirmation Modal - ENHANCED VERSION -->
+<!-- Process Sale Confirmation Modal -->
 <div class="modal fade" id="processSaleModal" tabindex="-1" aria-labelledby="processSaleModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -1186,7 +1583,7 @@ else
           <div class="alert alert-info" id="noInventoryInfo" style="display: none;">
             <i class="fas fa-info-circle"></i>
             <strong>No Inventory Impact:</strong>
-            <p class="mb-0">This sale contains only services and virtual items. No inventory will be reduced.</p>
+            <p class="mb-0">This sale contains only finished goods and non-inventory items. No raw material inventory will be reduced.</p>
           </div>
 
           <!-- Shipping Information Section -->
@@ -1246,7 +1643,6 @@ else
             </div>
           </div>
 
-          <!-- ✅ FIXED: Options Section with proper checkbox binding -->
           <hr>
           <h6><i class="fas fa-cogs"></i> Processing Options</h6>
 
@@ -1306,394 +1702,388 @@ else
   </div>
 </div>
 
+@functions {
+  private string GetStatusBadgeClass(SaleStatus status)
+  {
+    return $"bg-{BadgeHelper.GetSaleStatusBadgeColor(status)}";
+  }
+}
+
 @section Scripts {
   <script src="~/js/confirmation-dialog.js"></script>
   <script src="~/js/sales-enhanced-validation.js"></script>
   <script>
-        // Set data attributes for JavaScript
-  @if (TempData["ToastMessage"] != null)
-  {
-              <text>document.body.dataset.toastMessage = @Html.Raw(Json.Serialize(TempData["ToastMessage"].ToString()));</text>
-              <text>document.body.dataset.toastType = @Html.Raw(Json.Serialize(TempData["ToastType"]?.ToString() ?? "info"));</text>
-  }
+    // Set data attributes for JavaScript
+    @if (TempData["ToastMessage"] != null)
+    {
+          <text>document.body.dataset.toastMessage = @Html.Raw(Json.Serialize(TempData["ToastMessage"].ToString()));</text>
+          <text>document.body.dataset.toastType = @Html.Raw(Json.Serialize(TempData["ToastType"]?.ToString() ?? "info"));</text>
+    }
 
-  @if (TempData["ServiceOrderPrompt"] != null)
-  {
-              <text>document.body.dataset.serviceOrderPrompt = 'true';</text>
-              <text>document.body.dataset.missingServiceOrders = @Html.Raw(TempData["MissingServiceOrders"]?.ToString() ?? "[]");</text>
-              <text>document.body.dataset.serviceOrderCreationUrl = @Html.Raw(Json.Serialize(TempData["ServiceOrderCreationUrl"]?.ToString() ?? ""));</text>
-  }
+    @if (TempData["ServiceOrderPrompt"] != null)
+    {
+          <text>document.body.dataset.serviceOrderPrompt = 'true';</text>
+          <text>document.body.dataset.missingServiceOrders = @Html.Raw(TempData["MissingServiceOrders"]?.ToString() ?? "[]");</text>
+          <text>document.body.dataset.serviceOrderCreationUrl = @Html.Raw(Json.Serialize(TempData["ServiceOrderCreationUrl"]?.ToString() ?? ""));</text>
+    }
 
-        // ✅ ENHANCED: Beautiful remove item confirmation
-        async function removeItemWithConfirmation(saleItemId, saleId, partNumber, productName, quantity, unitPrice) {
-            const confirmed = await confirmRemove('sale item',
-                `<div class="mt-2">
-                    <strong>Item Details:</strong><br>
-                    <div class="ps-3">
-                        <div><strong>Part Number:</strong> ${partNumber}</div>
-                        <div><strong>Product:</strong> ${productName}</div>
-                        <div><strong>Quantity:</strong> ${quantity}</div>
-                        <div><strong>Unit Price:</strong> ${unitPrice}</div>
-                    </div>
-                    <div class="alert alert-warning mt-2 mb-0">
-                        <i class="fas fa-exclamation-triangle me-1"></i>
-                        <strong>Warning:</strong> This will permanently remove the item from this sale and cannot be undone.
-                    </div>
-                </div>`
-            );
-
-            if (confirmed) {
-                // Create and submit the form
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/Sales/RemoveItem';
-                form.style.display = 'none';
-
-                // Add anti-forgery token
-                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-                const tokenInput = document.createElement('input');
-                tokenInput.type = 'hidden';
-                tokenInput.name = '__RequestVerificationToken';
-                tokenInput.value = token;
-                form.appendChild(tokenInput);
-
-                // Add sale item ID
-                const saleItemInput = document.createElement('input');
-                saleItemInput.type = 'hidden';
-                saleItemInput.name = 'saleItemId';
-                saleItemInput.value = saleItemId;
-                form.appendChild(saleItemInput);
-
-                // Add sale ID
-                const saleInput = document.createElement('input');
-                saleInput.type = 'hidden';
-                saleInput.name = 'saleId';
-                saleInput.value = saleId;
-                form.appendChild(saleInput);
-
-                // Show loading state
-                const button = event.target.closest('button');
-                const originalHtml = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                button.disabled = true;
-
-                // Submit form
-                document.body.appendChild(form);
-                form.submit();
-            }
-        }
-
-
-        // ✅ NEW: Function to show item details in modal
-        function showItemDetails(itemId) {
-            const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
-            const content = document.getElementById('itemDetailsContent');
-            const viewFullLink = document.getElementById('viewFullItemLink');
-
-            // Set the full details link
-            viewFullLink.href = `/Items/Details/${itemId}`;
-
-            // Show loading spinner
-            content.innerHTML = `
-                <div class="text-center">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2">Loading item details...</p>
-                </div>
-            `;
-
-            // Show the modal
-            modal.show();
-
-            // Fetch item details
-            fetch(`/Items/Details/${itemId}`)
-                .then(response => response.text())
-                .then(html => {
-                    // Extract just the main content from the full page
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
-
-                    if (mainContent) {
-                        // Create a simplified read-only view
-                        content.innerHTML = `
-                            <div class="row">
-                                <div class="col-12">
-                                    ${mainContent.innerHTML}
-                                </div>
-                            </div>
-                        `;
-
-                        // Disable all form elements to make it read-only
-                        content.querySelectorAll('input, select, textarea, button').forEach(element => {
-                            element.disabled = true;
-                            if (element.tagName === 'BUTTON') {
-                                element.style.display = 'none';
-                            }
-                        });
-
-                        // Remove edit links and form actions
-                        content.querySelectorAll('a[href*="Edit"], a[href*="Delete"], form').forEach(element => {
-                            if (element.tagName === 'A' && (element.href.includes('Edit') || element.href.includes('Delete'))) {
-                                element.style.display = 'none';
-                            } else if (element.tagName === 'FORM') {
-                                element.style.display = 'none';
-                            }
-                        });
-                    } else {
-                        content.innerHTML = '<p class="text-danger">Error loading item details.</p>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching item details:', error);
-                    content.innerHTML = '<p class="text-danger">Error loading item details. Please try again.</p>';
-                });
-        }
-            // ✅ NEW: Function to show finished good details in modal
-        function showFinishedGoodDetails(finishedGoodId) {
-            const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
-            const content = document.getElementById('itemDetailsContent');
-            const viewFullLink = document.getElementById('viewFullItemLink');
-            const modalTitle = document.getElementById('itemDetailsModalLabel');
-
-            // Update modal title
-            modalTitle.innerHTML = '<i class="fas fa-cube"></i> Finished Good Details';
-
-            // Set the full details link (you'll need to create this route)
-            viewFullLink.href = `/Production/FinishedGoodDetails/${finishedGoodId}`;
-
-            // Show loading spinner
-            content.innerHTML = `
-                <div class="text-center">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2">Loading finished good details...</p>
-                </div>
-            `;
-
-            // Show the modal
-            modal.show();
-
-            // Fetch finished good details
-            fetch(`/Production/FinishedGoodDetails/${finishedGoodId}`)
-                .then(response => response.text())
-                .then(html => {
-                    // Extract just the main content from the full page
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
-
-                    if (mainContent) {
-                        content.innerHTML = `
-                            <div class="row">
-                                <div class="col-12">
-                                    ${mainContent.innerHTML}
-                                </div>
-                            </div>
-                        `;
-
-                        // Disable all form elements to make it read-only
-                        content.querySelectorAll('input, select, textarea, button').forEach(element => {
-                            element.disabled = true;
-                            if (element.tagName === 'BUTTON') {
-                                element.style.display = 'none';
-                            }
-                        });
-
-                        // Remove edit links and form actions
-                        content.querySelectorAll('a[href*="Edit"], a[href*="Delete"], form').forEach(element => {
-                            if (element.tagName === 'A' && (element.href.includes('Edit') || element.href.includes('Delete'))) {
-                                element.style.display = 'none';
-                            } else if (element.tagName === 'FORM') {
-                                element.style.display = 'none';
-                            }
-                        });
-                    } else {
-                        content.innerHTML = '<p class="text-danger">Error loading finished good details.</p>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching finished good details:', error);
-                    content.innerHTML = '<p class="text-danger">Error loading finished good details. Please try again.</p>';
-                });
-        }
-        // ✅ NEW: Function to show item image in modal
-        function showItemImageModal(partNumber, imageUrl) {
-            const modal = new bootstrap.Modal(document.getElementById('imageModal'));
-            const modalTitle = document.getElementById('imageModalLabel');
-            const modalImage = document.getElementById('modalImage');
-
-            modalTitle.textContent = `${partNumber} - Item Image`;
-            modalImage.src = imageUrl;
-            modalImage.alt = partNumber;
-
-            modal.show();
-        }
-
-        // Auto-populate courier service based on common patterns
-        $('#courierService').on('change', function() {
-            const courier = $(this).val();
-            const trackingInput = $('#trackingNumber');
-
-            // Clear tracking number when courier changes
-            trackingInput.val('');
-
-            // Set placeholders and validation patterns based on courier
-            switch(courier) {
-                case 'FedEx':
-                    trackingInput.attr('placeholder', 'e.g., 1234 5678 9012');
-                    trackingInput.attr('pattern', '[0-9\\s]{12,}');
-                    break;
-                case 'UPS':
-                    trackingInput.attr('placeholder', 'e.g., 1Z999AA1234567890');
-                    trackingInput.attr('pattern', '1Z[0-9A-Z]{16}');
-                    break;
-                case 'USPS':
-                    trackingInput.attr('placeholder', 'e.g., 9400 1234 5678 9012 3456 78');
-                    trackingInput.attr('pattern', '[0-9\\s]{20,}');
-                    break;
-                case 'Customer Pickup':
-                case 'Local Delivery':
-                    trackingInput.val('N/A');
-                    trackingInput.attr('readonly', true);
-                    trackingInput.removeAttr('required');
-                    break;
-                default:
-                    trackingInput.attr('placeholder', 'Enter tracking number');
-                    trackingInput.removeAttr('pattern');
-                    trackingInput.removeAttr('readonly');
-                    trackingInput.attr('required', true);
-                    break;
-            }
-        });
-
-        // Load inventory info when modal opens
-        $('#processSaleModal').on('show.bs.modal', function () {
-            loadSaleInventoryInfo(@Model.Sale.Id);
-        });
-
-        function loadSaleInventoryInfo(saleId) {
-            $.get('/Sales/GetSaleInventoryInfo/' + saleId, function(data) {
-                if (data.success) {
-                    if (data.inventoryItemsCount > 0) {
-                        $('#inventoryItemCount').text(data.inventoryItemsCount + ' item(s)');
-
-                        var itemsList = $('#inventoryItemsList');
-                        itemsList.empty();
-
-                        data.inventoryItems.forEach(function(item) {
-                            itemsList.append('<li>' + item.partNumber + ' - ' + item.description + ' (Qty: ' + item.quantity + ', Stock: ' + item.currentStock + ')</li>');
-                        });
-
-                        $('#inventoryWarning').show();
-                        $('#noInventoryInfo').hide();
-                    } else {
-                        $('#noInventoryInfo').show();
-                        $('#inventoryWarning').hide();
-                    }
-                }
-            });
-        }
-
-
-
-        // Auto-populate customer email if not already filled
-        $(document).ready(function() {
-            if (!$('#CustomerEmail').val() && '@Model.Sale.Customer?.Email') {
-                $('#CustomerEmail').val('@Model.Sale.Customer?.Email');
-            }
-
-            // Payment amount validation
-            $('#paymentAmount').on('change', function() {
-                var paymentAmount = parseFloat($(this).val());
-                var remainingBalance = @((Model.Sale.Customer?.OutstandingBalance ?? 0));
-
-                if (paymentAmount > remainingBalance) {
-                    alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
-                    $(this).val(remainingBalance.toFixed(2));
-                }
-            });
-        });
-
-        // ✅ ENHANCED: Beautiful remove item confirmation
+    // Enhanced remove item confirmation
     async function removeItemWithConfirmation(saleItemId, saleId, partNumber, productName, quantity, unitPrice) {
-        const confirmed = await confirmRemove('sale item',
-            `<div class="mt-2">
-                <strong>Item Details:</strong><br>
-                <div class="ps-3">
-                    <div><strong>Part Number:</strong> ${partNumber}</div>
-                    <div><strong>Product:</strong> ${productName}</div>
-                    <div><strong>Quantity:</strong> ${quantity}</div>
-                    <div><strong>Unit Price:</strong> ${unitPrice}</div>
+      const confirmed = await confirmRemove('sale item',
+        `<div class="mt-2">
+          <strong>Item Details:</strong><br>
+          <div class="ps-3">
+            <div><strong>Part Number:</strong> ${partNumber}</div>
+            <div><strong>Product:</strong> ${productName}</div>
+            <div><strong>Quantity:</strong> ${quantity}</div>
+            <div><strong>Unit Price:</strong> ${unitPrice}</div>
+          </div>
+          <div class="alert alert-warning mt-2 mb-0">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <strong>Warning:</strong> This will permanently remove the item from this sale and cannot be undone.
+          </div>
+        </div>`
+      );
+
+      if (confirmed) {
+        // Create and submit the form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/Sales/RemoveItem';
+        form.style.display = 'none';
+
+        // Add anti-forgery token
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = '__RequestVerificationToken';
+        tokenInput.value = token;
+        form.appendChild(tokenInput);
+
+        // Add sale item ID
+        const saleItemInput = document.createElement('input');
+        saleItemInput.type = 'hidden';
+        saleItemInput.name = 'saleItemId';
+        saleItemInput.value = saleItemId;
+        form.appendChild(saleItemInput);
+
+        // Add sale ID
+        const saleInput = document.createElement('input');
+        saleInput.type = 'hidden';
+        saleInput.name = 'saleId';
+        saleInput.value = saleId;
+        form.appendChild(saleInput);
+
+        // Show loading state
+        const button = event.target.closest('button');
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+
+        // Submit form
+        document.body.appendChild(form);
+        form.submit();
+      }
+    }
+
+    // Function to show item details in modal
+    function showItemDetails(itemId) {
+      const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
+      const content = document.getElementById('itemDetailsContent');
+      const viewFullLink = document.getElementById('viewFullItemLink');
+
+      // Set the full details link
+      viewFullLink.href = `/Items/Details/${itemId}`;
+
+      // Show loading spinner
+      content.innerHTML = `
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2">Loading item details...</p>
+        </div>
+      `;
+
+      // Show the modal
+      modal.show();
+
+      // Fetch item details
+      fetch(`/Items/Details/${itemId}`)
+        .then(response => response.text())
+        .then(html => {
+          // Extract just the main content from the full page
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
+
+          if (mainContent) {
+            // Create a simplified read-only view
+            content.innerHTML = `
+              <div class="row">
+                <div class="col-12">
+                  ${mainContent.innerHTML}
                 </div>
-                <div class="alert alert-warning mt-2 mb-0">
-                    <i class="fas fa-exclamation-triangle me-1"></i>
-                    <strong>Warning:</strong> This will permanently remove the item from this sale and cannot be undone.
+              </div>
+            `;
+
+            // Disable all form elements to make it read-only
+            content.querySelectorAll('input, select, textarea, button').forEach(element => {
+              element.disabled = true;
+              if (element.tagName === 'BUTTON') {
+                element.style.display = 'none';
+              }
+            });
+
+            // Remove edit links and form actions
+            content.querySelectorAll('a[href*="Edit"], a[href*="Delete"], form').forEach(element => {
+              if (element.tagName === 'A' && (element.href.includes('Edit') || element.href.includes('Delete'))) {
+                element.style.display = 'none';
+              } else if (element.tagName === 'FORM') {
+                element.style.display = 'none';
+              }
+            });
+          } else {
+            content.innerHTML = '<p class="text-danger">Error loading item details.</p>';
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching item details:', error);
+          content.innerHTML = '<p class="text-danger">Error loading item details. Please try again.</p>';
+        });
+    }
+
+    // Function to show finished good details in modal
+    function showFinishedGoodDetails(finishedGoodId) {
+      const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
+      const content = document.getElementById('itemDetailsContent');
+      const viewFullLink = document.getElementById('viewFullItemLink');
+      const modalTitle = document.getElementById('itemDetailsModalLabel');
+
+      // Update modal title
+      modalTitle.innerHTML = '<i class="fas fa-cube"></i> Finished Good Details';
+
+      // Set the full details link
+      viewFullLink.href = `/Production/FinishedGoodDetails/${finishedGoodId}`;
+
+      // Show loading spinner
+      content.innerHTML = `
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2">Loading finished good details...</p>
+        </div>
+      `;
+
+      // Show the modal
+      modal.show();
+
+      // Fetch finished good details
+      fetch(`/Production/FinishedGoodDetails/${finishedGoodId}`)
+        .then(response => response.text())
+        .then(html => {
+          // Extract just the main content from the full page
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
+
+          if (mainContent) {
+            content.innerHTML = `
+              <div class="row">
+                <div class="col-12">
+                  ${mainContent.innerHTML}
                 </div>
-            </div>`
-        );
+              </div>
+            `;
 
-        if (confirmed) {
-            // Create and submit the form
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/Sales/RemoveItem';
-            form.style.display = 'none';
+            // Disable all form elements to make it read-only
+            content.querySelectorAll('input, select, textarea, button').forEach(element => {
+              element.disabled = true;
+              if (element.tagName === 'BUTTON') {
+                element.style.display = 'none';
+              }
+            });
 
-            // Add anti-forgery token
-            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-            const tokenInput = document.createElement('input');
-            tokenInput.type = 'hidden';
-            tokenInput.name = '__RequestVerificationToken';
-            tokenInput.value = token;
-            form.appendChild(tokenInput);
+            // Remove edit links and form actions
+            content.querySelectorAll('a[href*="Edit"], a[href*="Delete"], form').forEach(element => {
+              if (element.tagName === 'A' && (element.href.includes('Edit') || element.href.includes('Delete'))) {
+                element.style.display = 'none';
+              } else if (element.tagName === 'FORM') {
+                element.style.display = 'none';
+              }
+            });
+          } else {
+            content.innerHTML = '<p class="text-danger">Error loading finished good details.</p>';
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching finished good details:', error);
+          content.innerHTML = '<p class="text-danger">Error loading finished good details. Please try again.</p>';
+        });
+    }
 
-            // Add sale item ID
-            const saleItemInput = document.createElement('input');
-            saleItemInput.type = 'hidden';
-            saleItemInput.name = 'saleItemId';
-            saleItemInput.value = saleItemId;
-            form.appendChild(saleItemInput);
+    // Function to show item image in modal
+    function showItemImageModal(partNumber, imageUrl) {
+      const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+      const modalTitle = document.getElementById('imageModalLabel');
+      const modalImage = document.getElementById('modalImage');
 
-            // Add sale ID
-            const saleInput = document.createElement('input');
-            saleInput.type = 'hidden';
-            saleInput.name = 'saleId';
-            saleInput.value = saleId;
-            form.appendChild(saleInput);
+      modalTitle.textContent = `${partNumber} - Item Image`;
+      modalImage.src = imageUrl;
+      modalImage.alt = partNumber;
 
-            // Show loading state
-            const button = event.target.closest('button');
-            const originalHtml = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            button.disabled = true;
+      modal.show();
+    }
 
-            // Submit form
-            document.body.appendChild(form);
-            form.submit();
+    // Auto-populate courier service based on common patterns
+    $(document).ready(function() {
+      $('#courierService').on('change', function() {
+        const courier = $(this).val();
+        const trackingInput = $('#trackingNumber');
+
+        // Clear tracking number when courier changes
+        trackingInput.val('');
+
+        // Set placeholders and validation patterns based on courier
+        switch(courier) {
+          case 'FedEx':
+            trackingInput.attr('placeholder', 'e.g., 1234 5678 9012');
+            trackingInput.attr('pattern', '[0-9\\s]{12,}');
+            break;
+          case 'UPS':
+            trackingInput.attr('placeholder', 'e.g., 1Z999AA1234567890');
+            trackingInput.attr('pattern', '1Z[0-9A-Z]{16}');
+            break;
+          case 'USPS':
+            trackingInput.attr('placeholder', 'e.g., 9400 1234 5678 9012 3456 78');
+            trackingInput.attr('pattern', '[0-9\\s]{20,}');
+            break;
+          case 'Customer Pickup':
+          case 'Local Delivery':
+            trackingInput.val('N/A');
+            trackingInput.attr('readonly', true);
+            trackingInput.removeAttr('required');
+            break;
+          default:
+            trackingInput.attr('placeholder', 'Enter tracking number');
+            trackingInput.removeAttr('pattern');
+            trackingInput.removeAttr('readonly');
+            trackingInput.attr('required', true);
+            break;
         }
+      });
+
+      // Auto-populate customer email if not already filled
+      if (!$('#CustomerEmail').val() && '@Model.Sale.Customer?.Email') {
+        $('#CustomerEmail').val('@Model.Sale.Customer?.Email');
+      }
+
+      // Payment amount validation
+      $('#paymentAmount').on('change', function() {
+        var paymentAmount = parseFloat($(this).val());
+        var remainingBalance = @((Model.Sale.Customer?.OutstandingBalance ?? 0));
+
+        if (paymentAmount > remainingBalance) {
+          alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
+          $(this).val(remainingBalance.toFixed(2));
+        }
+      });
+    });
+
+    // Load inventory info when modal opens
+    $('#processSaleModal').on('show.bs.modal', function () {
+      loadSaleInventoryInfo(@Model.Sale.Id);
+    });
+
+    function loadSaleInventoryInfo(saleId) {
+      $.get('/Sales/GetSaleInventoryInfo/' + saleId, function(data) {
+        if (data.success) {
+          if (data.inventoryItemsCount > 0) {
+            $('#inventoryItemCount').text(data.inventoryItemsCount + ' item(s)');
+
+            var itemsList = $('#inventoryItemsList');
+            itemsList.empty();
+
+            data.inventoryItems.forEach(function(item) {
+              itemsList.append('<li>' + item.partNumber + ' - ' + item.description + ' (Qty: ' + item.quantity + ', Stock: ' + item.currentStock + ')</li>');
+            });
+
+            $('#inventoryWarning').show();
+            $('#noInventoryInfo').hide();
+          } else {
+            $('#noInventoryInfo').show();
+            $('#inventoryWarning').hide();
+          }
+        }
+      }).fail(function() {
+        console.error('Failed to load sale inventory info');
+        $('#noInventoryInfo').show();
+        $('#inventoryWarning').hide();
+      });
     }
 
     // Confirmation dialog for processing sale
     async function confirmProcessSale() {
-        return await confirmAction('process and ship this sale',
-            `<div class="alert alert-info mt-2 mb-0">
-                <i class="fas fa-info-circle me-1"></i>
-                This will mark the sale as shipped and reduce inventory levels. This action cannot be undone.
-            </div>`
-        );
+      return await confirmAction('process and ship this sale',
+        `<div class="alert alert-info mt-2 mb-0">
+          <i class="fas fa-info-circle me-1"></i>
+          This will mark the sale as shipped and reduce inventory levels. This action cannot be undone.
+        </div>`
+      );
     }
 
     // Confirmation dialog for deleting sale
     async function confirmDeleteSale() {
-        return await confirmDelete('sale',
-            `<div class="alert alert-danger mt-2 mb-0">
-                <i class="fas fa-exclamation-triangle me-1"></i>
-                <strong>Warning:</strong> This will permanently delete the entire sale and all associated items.
-            </div>`
-        );
+      return await confirmDelete('sale',
+        `<div class="alert alert-danger mt-2 mb-0">
+          <i class="fas fa-exclamation-triangle me-1"></i>
+          <strong>Warning:</strong> This will permanently delete the entire sale and all associated items.
+        </div>`
+      );
+    }
+
+    // Check backorder availability for this sale
+    function checkBackorderAvailability() {
+      fetch('/Sales/CheckBackorderAvailability?saleId=' + @Model.Sale.Id)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.hasAvailableItems) {
+            showBackorderNotification(data.summary);
+          }
+        })
+        .catch(error => console.error('Error checking backorder availability:', error));
+    }
+
+    function showBackorderNotification(summary) {
+      // Show notification that items are available for shipment
+      const notification = document.createElement('div');
+      notification.className = 'alert alert-success alert-dismissible fade show';
+      notification.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        <strong>Items Available for Shipment!</strong><br>
+        ${summary.itemsAvailable} of ${summary.totalItems} backordered items are now available for shipment.
+        <a href="/Sales/CreateAdditionalShipment?saleId=@Model.Sale.Id" class="btn btn-sm btn-success ms-2">
+          <i class="fas fa-shipping-fast"></i> Create Shipment
+        </a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+
+      // Insert at top of page
+      const firstCard = document.querySelector('.card');
+      if (firstCard) {
+        firstCard.parentNode.insertBefore(notification, firstCard);
+      }
+    }
+
+    // Check for available backorders on page load (for backordered sales)
+    @if (Model.Sale.SaleStatus == SaleStatus.Backordered)
+    {
+        <text>
+        setTimeout(() => {
+          checkBackorderAvailability();
+        }, 1000);
+        </text>
     }
   </script>
 }

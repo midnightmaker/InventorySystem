@@ -1,5 +1,7 @@
 using InventorySystem.Data;
 using InventorySystem.Models;
+using InventorySystem.Models.Enums;
+using InventorySystem.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -9,11 +11,90 @@ namespace InventorySystem.Services
     {
         private readonly InventoryContext _context;
         private readonly ILogger<CustomerPaymentService> _logger;
+        private readonly IAccountingService _accountingService; // NEW: Add accounting service
 
-        public CustomerPaymentService(InventoryContext context, ILogger<CustomerPaymentService> logger)
+        public CustomerPaymentService(
+            InventoryContext context, 
+            ILogger<CustomerPaymentService> logger,
+            IAccountingService accountingService) // NEW: Inject accounting service
         {
             _context = context;
             _logger = logger;
+            _accountingService = accountingService; // NEW: Initialize accounting service
+        }
+
+        // Payment recording - UPDATED to include journal entry generation
+        public async Task<CustomerPayment> RecordPaymentAsync(int saleId, decimal amount, string paymentMethod, 
+            DateTime paymentDate, string? paymentReference = null, string? notes = null, string? createdBy = null)
+        {
+            try
+            {
+                // Get the sale to verify it exists and get customer ID
+                var sale = await _context.Sales
+                    .Include(s => s.CustomerPayments)
+                    .Include(s => s.Customer) // Include customer for journal entry
+                    .FirstOrDefaultAsync(s => s.Id == saleId);
+                
+                if (sale == null)
+                {
+                    throw new ArgumentException($"Sale with ID {saleId} not found");
+                }
+
+                // Validate payment amount
+                if (!await ValidatePaymentAmountAsync(saleId, amount))
+                {
+                    var remainingBalance = await GetRemainingBalanceAsync(saleId);
+                    throw new ArgumentException($"Payment amount {amount:C} exceeds remaining balance of {remainingBalance:C}");
+                }
+
+                var payment = new CustomerPayment
+                {
+                    SaleId = saleId,
+                    CustomerId = sale.CustomerId,
+                    PaymentDate = paymentDate,
+                    Amount = amount,
+                    PaymentMethod = paymentMethod,
+                    PaymentReference = paymentReference,
+                    Notes = notes,
+                    CreatedBy = createdBy ?? "System",
+                    Status = PaymentRecordStatus.Processed
+                };
+
+                // Create the payment record
+                var createdPayment = await CreatePaymentAsync(payment);
+
+                // NEW: Generate journal entry for the payment
+                try
+                {
+                    var journalEntryCreated = await _accountingService.GenerateJournalEntriesForCustomerPaymentAsync(createdPayment);
+                    
+                    if (journalEntryCreated)
+                    {
+                        _logger.LogInformation("Journal entry created for customer payment {PaymentId} on sale {SaleId}", 
+                            createdPayment.Id, saleId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to create journal entry for customer payment {PaymentId} on sale {SaleId}", 
+                            createdPayment.Id, saleId);
+                    }
+                }
+                catch (Exception journalEx)
+                {
+                    _logger.LogError(journalEx, "Error creating journal entry for customer payment {PaymentId} on sale {SaleId}. Payment was recorded successfully but journal entry failed.", 
+                        createdPayment.Id, saleId);
+                    
+                    // Don't throw - payment was successful even if journal entry failed
+                    // This allows for manual journal entry creation later if needed
+                }
+
+                return createdPayment;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error recording payment for sale {SaleId}", saleId);
+                throw;
+            }
         }
 
         // Basic CRUD operations
@@ -118,7 +199,7 @@ namespace InventorySystem.Services
         {
             return await _context.CustomerPayments
                 .Include(p => p.Customer)
-                .Where(p => p.SaleId == saleId && p.Status == InventorySystem.Models.Enums.PaymentRecordStatus.Processed)
+                .Where(p => p.SaleId == saleId && p.Status == PaymentRecordStatus.Processed)
                 .OrderBy(p => p.PaymentDate)
                 .ToListAsync();
         }
@@ -127,7 +208,7 @@ namespace InventorySystem.Services
         {
             return await _context.CustomerPayments
                 .Include(p => p.Sale)
-                .Where(p => p.CustomerId == customerId && p.Status == InventorySystem.Models.Enums.PaymentRecordStatus.Processed)
+                .Where(p => p.CustomerId == customerId && p.Status == PaymentRecordStatus.Processed)
                 .OrderByDescending(p => p.PaymentDate)
                 .ToListAsync();
         }
@@ -137,7 +218,7 @@ namespace InventorySystem.Services
             return await _context.CustomerPayments
                 .Include(p => p.Sale)
                 .Include(p => p.Customer)
-                .Where(p => p.PaymentMethod == paymentMethod && p.Status == InventorySystem.Models.Enums.PaymentRecordStatus.Processed)
+                .Where(p => p.PaymentMethod == paymentMethod && p.Status == PaymentRecordStatus.Processed)
                 .OrderByDescending(p => p.PaymentDate)
                 .ToListAsync();
         }
@@ -147,7 +228,7 @@ namespace InventorySystem.Services
             return await _context.CustomerPayments
                 .Include(p => p.Sale)
                 .Include(p => p.Customer)
-                .Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate && p.Status == InventorySystem.Models.Enums.PaymentRecordStatus.Processed)
+                .Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate && p.Status == PaymentRecordStatus.Processed)
                 .OrderByDescending(p => p.PaymentDate)
                 .ToListAsync();
         }
@@ -156,14 +237,14 @@ namespace InventorySystem.Services
         public async Task<decimal> GetTotalPaymentsBySaleAsync(int saleId)
         {
             return await _context.CustomerPayments
-                .Where(p => p.SaleId == saleId && p.Status == InventorySystem.Models.Enums.PaymentRecordStatus.Processed)
+                .Where(p => p.SaleId == saleId && p.Status == PaymentRecordStatus.Processed)
                 .SumAsync(p => p.Amount);
         }
 
         public async Task<decimal> GetTotalPaymentsByCustomerAsync(int customerId)
         {
             return await _context.CustomerPayments
-                .Where(p => p.CustomerId == customerId && p.Status == InventorySystem.Models.Enums.PaymentRecordStatus.Processed)
+                .Where(p => p.CustomerId == customerId && p.Status == PaymentRecordStatus.Processed)
                 .SumAsync(p => p.Amount);
         }
 
@@ -182,51 +263,6 @@ namespace InventorySystem.Services
             return remainingBalance <= 0.01m; // Allow for small rounding differences
         }
 
-        // Payment recording
-        public async Task<CustomerPayment> RecordPaymentAsync(int saleId, decimal amount, string paymentMethod, 
-            DateTime paymentDate, string? paymentReference = null, string? notes = null, string? createdBy = null)
-        {
-            try
-            {
-                // Get the sale to verify it exists and get customer ID
-                var sale = await _context.Sales
-                    .Include(s => s.CustomerPayments)
-                    .FirstOrDefaultAsync(s => s.Id == saleId);
-                
-                if (sale == null)
-                {
-                    throw new ArgumentException($"Sale with ID {saleId} not found");
-                }
-
-                // Validate payment amount
-                if (!await ValidatePaymentAmountAsync(saleId, amount))
-                {
-                    var remainingBalance = await GetRemainingBalanceAsync(saleId);
-                    throw new ArgumentException($"Payment amount {amount:C} exceeds remaining balance of {remainingBalance:C}");
-                }
-
-                var payment = new CustomerPayment
-                {
-                    SaleId = saleId,
-                    CustomerId = sale.CustomerId,
-                    PaymentDate = paymentDate,
-                    Amount = amount,
-                    PaymentMethod = paymentMethod,
-                    PaymentReference = paymentReference,
-                    Notes = notes,
-                    CreatedBy = createdBy ?? "System",
-                    Status = InventorySystem.Models.Enums.PaymentRecordStatus.Processed
-                };
-
-                return await CreatePaymentAsync(payment);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error recording payment for sale {SaleId}", saleId);
-                throw;
-            }
-        }
-
         // Payment reversal
         public async Task<CustomerPayment> ReversePaymentAsync(int paymentId, string reason, string? reversedBy = null)
         {
@@ -238,17 +274,24 @@ namespace InventorySystem.Services
                     throw new ArgumentException($"Payment with ID {paymentId} not found");
                 }
 
-                if (payment.Status == InventorySystem.Models.Enums.PaymentRecordStatus.Reversed)
+                if (payment.Status == PaymentRecordStatus.Reversed)
                 {
                     throw new InvalidOperationException("Payment is already reversed");
                 }
 
-                payment.Status = InventorySystem.Models.Enums.PaymentRecordStatus.Reversed;
+                payment.Status = PaymentRecordStatus.Reversed;
                 payment.Notes = $"{payment.Notes}\n\nREVERSED: {reason} (by {reversedBy ?? "System"} on {DateTime.Now})";
                 payment.LastUpdated = DateTime.Now;
                 payment.UpdatedBy = reversedBy ?? "System";
 
                 await UpdatePaymentAsync(payment);
+
+                // NEW: Log information about potential journal entry reversal
+                if (!string.IsNullOrEmpty(payment.JournalEntryNumber))
+                {
+                    _logger.LogInformation("Payment {PaymentId} with journal entry {JournalNumber} has been reversed. Consider creating a reversing journal entry.", 
+                        paymentId, payment.JournalEntryNumber);
+                }
 
                 _logger.LogInformation("Reversed payment ID {PaymentId}. Reason: {Reason}", paymentId, reason);
 
@@ -348,12 +391,12 @@ namespace InventorySystem.Services
             return report;
         }
 
-        public async Task<IEnumerable<Services.CustomerPaymentSummary>> GetCustomerPaymentSummariesAsync()
+        public async Task<IEnumerable<CustomerPaymentSummary>> GetCustomerPaymentSummariesAsync()
         {
             return await _context.CustomerPayments
-                .Where(p => p.Status == InventorySystem.Models.Enums.PaymentRecordStatus.Processed)
+                .Where(p => p.Status == PaymentRecordStatus.Processed)
                 .GroupBy(p => new { p.CustomerId, p.Customer.CustomerName })
-                .Select(g => new Services.CustomerPaymentSummary
+                .Select(g => new CustomerPaymentSummary
                 {
                     CustomerId = g.Key.CustomerId,
                     CustomerName = g.Key.CustomerName,
@@ -380,16 +423,16 @@ namespace InventorySystem.Services
                 // Update payment status based on payments
                 if (remainingBalance <= 0.01m) // Allow for small rounding differences
                 {
-                    sale.PaymentStatus = InventorySystem.Models.Enums.PaymentStatus.Paid;
+                    sale.PaymentStatus = PaymentStatus.Paid;
                 }
                 else if (totalPayments > 0)
                 {
-                    sale.PaymentStatus = InventorySystem.Models.Enums.PaymentStatus.PartiallyPaid;
+                    sale.PaymentStatus = PaymentStatus.PartiallyPaid;
                 }
                 else
                 {
                     // Check if overdue
-                    sale.PaymentStatus = sale.IsOverdue ? InventorySystem.Models.Enums.PaymentStatus.Overdue : InventorySystem.Models.Enums.PaymentStatus.Pending;
+                    sale.PaymentStatus = sale.IsOverdue ? PaymentStatus.Overdue : PaymentStatus.Pending;
                 }
 
                 await _context.SaveChangesAsync();

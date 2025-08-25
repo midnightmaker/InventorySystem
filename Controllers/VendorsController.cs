@@ -3,11 +3,11 @@ using InventorySystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.IO;
-using InventorySystem.ViewModels; // Add this using directive at the top
+using InventorySystem.ViewModels;
 
 namespace InventorySystem.Controllers
 {
-	public class VendorsController : Controller
+	public class VendorsController : BaseController // ✅ Changed from Controller to BaseController
 	{
 		private readonly IVendorService _vendorService;
 		private readonly IInventoryService _inventoryService;
@@ -169,8 +169,8 @@ namespace InventorySystem.Controllers
 			{
 				_logger.LogError(ex, "Error loading vendors index");
 
-				// Set essential ViewBag properties that the view expects
-				TempData["ErrorMessage"] = "Error loading vendors: " + ex.Message;
+				// ✅ Using BaseController method
+				SetErrorMessage("Error loading vendors: " + ex.Message);
 				ViewBag.AllowedPageSizes = AllowedPageSizes;
 
 				// Set pagination defaults to prevent null reference exceptions
@@ -244,7 +244,7 @@ namespace InventorySystem.Controllers
 				var vendor = await _vendorService.GetVendorByIdAsync(id);
 				if (vendor == null)
 				{
-					TempData["ErrorMessage"] = "Vendor not found.";
+					SetErrorMessage("Vendor not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index");
 				}
 
@@ -261,7 +261,7 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error loading vendor details for ID: {VendorId}", id);
-				TempData["ErrorMessage"] = "Error loading vendor details: " + ex.Message;
+				SetErrorMessage("Error loading vendor details: " + ex.Message); // ✅ Using BaseController method
 				return RedirectToAction("Index");
 			}
 		}
@@ -300,7 +300,7 @@ namespace InventorySystem.Controllers
 					}
 
 					var createdVendor = await _vendorService.CreateVendorAsync(vendor);
-					TempData["SuccessMessage"] = $"Vendor '{createdVendor.CompanyName}' created successfully!";
+					SetSuccessMessage($"Vendor '{createdVendor.CompanyName}' created successfully!"); // ✅ Using BaseController method
 					return RedirectToAction("Details", new { id = createdVendor.Id });
 				}
 				catch (Exception ex)
@@ -321,7 +321,7 @@ namespace InventorySystem.Controllers
 				var vendor = await _vendorService.GetVendorByIdAsync(id);
 				if (vendor == null)
 				{
-					TempData["ErrorMessage"] = "Vendor not found.";
+					SetErrorMessage("Vendor not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index");
 				}
 
@@ -330,7 +330,7 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error loading vendor for edit: {VendorId}", id);
-				TempData["ErrorMessage"] = "Error loading vendor: " + ex.Message;
+				SetErrorMessage("Error loading vendor: " + ex.Message); // ✅ Using BaseController method
 				return RedirectToAction("Index");
 			}
 		}
@@ -358,7 +358,7 @@ namespace InventorySystem.Controllers
 					}
 
 					await _vendorService.UpdateVendorAsync(vendor);
-					TempData["SuccessMessage"] = $"Vendor '{vendor.CompanyName}' updated successfully!";
+					SetSuccessMessage($"Vendor '{vendor.CompanyName}' updated successfully!"); // ✅ Using BaseController method
 					return RedirectToAction("Details", new { id = vendor.Id });
 				}
 				catch (Exception ex)
@@ -381,17 +381,17 @@ namespace InventorySystem.Controllers
 				var success = await _vendorService.DeactivateVendorAsync(id);
 				if (success)
 				{
-					TempData["SuccessMessage"] = "Vendor deactivated successfully.";
+					SetSuccessMessage("Vendor deactivated successfully."); // ✅ Using BaseController method
 				}
 				else
 				{
-					TempData["ErrorMessage"] = "Vendor not found.";
+					SetErrorMessage("Vendor not found."); // ✅ Using BaseController method
 				}
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error deactivating vendor: {VendorId}", id);
-				TempData["ErrorMessage"] = "Error deactivating vendor: " + ex.Message;
+				SetErrorMessage("Error deactivating vendor: " + ex.Message); // ✅ Using BaseController method
 			}
 
 			return RedirectToAction("Index");
@@ -407,17 +407,17 @@ namespace InventorySystem.Controllers
 				var success = await _vendorService.ActivateVendorAsync(id);
 				if (success)
 				{
-					TempData["SuccessMessage"] = "Vendor activated successfully.";
+					SetSuccessMessage("Vendor activated successfully."); // ✅ Using BaseController method
 				}
 				else
 				{
-					TempData["ErrorMessage"] = "Vendor not found.";
+					SetErrorMessage("Vendor not found."); // ✅ Using BaseController method
 				}
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error activating vendor: {VendorId}", id);
-				TempData["ErrorMessage"] = "Error activating vendor: " + ex.Message;
+				SetErrorMessage("Error activating vendor: " + ex.Message); // ✅ Using BaseController method
 			}
 
 			return RedirectToAction("Index");
@@ -431,7 +431,7 @@ namespace InventorySystem.Controllers
 				var vendor = await _vendorService.GetVendorByIdAsync(id);
 				if (vendor == null)
 				{
-					TempData["ErrorMessage"] = "Vendor not found.";
+					SetErrorMessage("Vendor not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index");
 				}
 
@@ -445,7 +445,7 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error loading vendor items management: {VendorId}", id);
-				TempData["ErrorMessage"] = "Error loading vendor items: " + ex.Message;
+				SetErrorMessage("Error loading vendor items: " + ex.Message); // ✅ Using BaseController method
 				return RedirectToAction("Details", new { id });
 			}
 		}
@@ -467,22 +467,22 @@ namespace InventorySystem.Controllers
 					var existingVendorItem = await _vendorService.GetVendorItemAsync(vendorItem.VendorId, vendorItem.ItemId);
 					if (existingVendorItem != null)
 					{
-						TempData["ErrorMessage"] = "This item is already associated with this vendor.";
+						SetErrorMessage("This item is already associated with this vendor."); // ✅ Using BaseController method
 						return RedirectToAction("ManageItems", new { id = vendorItem.VendorId });
 					}
 
 					await _vendorService.CreateVendorItemAsync(vendorItem);
-					TempData["SuccessMessage"] = "Item added to vendor successfully!";
+					SetSuccessMessage("Item added to vendor successfully!"); // ✅ Using BaseController method
 				}
 				catch (Exception ex)
 				{
 					_logger.LogError(ex, "Error adding item to vendor: {VendorId}, {ItemId}", vendorItem.VendorId, vendorItem.ItemId);
-					TempData["ErrorMessage"] = "Error adding item to vendor: " + ex.Message;
+					SetErrorMessage("Error adding item to vendor: " + ex.Message); // ✅ Using BaseController method
 				}
 			}
 			else
 			{
-				TempData["ErrorMessage"] = "Invalid data provided.";
+				SetErrorMessage("Invalid data provided."); // ✅ Using BaseController method
 			}
 
 			return RedirectToAction("ManageItems", new { id = vendorItem.VendorId });
@@ -502,17 +502,17 @@ namespace InventorySystem.Controllers
 				try
 				{
 					await _vendorService.UpdateVendorItemAsync(vendorItem);
-					TempData["SuccessMessage"] = "Vendor item updated successfully!";
+					SetSuccessMessage("Vendor item updated successfully!"); // ✅ Using BaseController method
 				}
 				catch (Exception ex)
 				{
 					_logger.LogError(ex, "Error updating vendor item: {VendorId}, {ItemId}", vendorItem.VendorId, vendorItem.ItemId);
-					TempData["ErrorMessage"] = "Error updating vendor item: " + ex.Message;
+					SetErrorMessage("Error updating vendor item: " + ex.Message); // ✅ Using BaseController method
 				}
 			}
 			else
 			{
-				TempData["ErrorMessage"] = "Invalid data provided.";
+				SetErrorMessage("Invalid data provided."); // ✅ Using BaseController method
 			}
 
 			return RedirectToAction("ManageItems", new { id = vendorItem.VendorId });
@@ -528,17 +528,17 @@ namespace InventorySystem.Controllers
 				var success = await _vendorService.DeleteVendorItemAsync(vendorId, itemId);
 				if (success)
 				{
-					TempData["SuccessMessage"] = "Item removed from vendor successfully.";
+					SetSuccessMessage("Item removed from vendor successfully."); // ✅ Using BaseController method
 				}
 				else
 				{
-					TempData["ErrorMessage"] = "Vendor item relationship not found.";
+					SetErrorMessage("Vendor item relationship not found."); // ✅ Using BaseController method
 				}
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error removing item from vendor: {VendorId}, {ItemId}", vendorId, itemId);
-				TempData["ErrorMessage"] = "Error removing item from vendor: " + ex.Message;
+				SetErrorMessage("Error removing item from vendor: " + ex.Message); // ✅ Using BaseController method
 			}
 
 			return RedirectToAction("ManageItems", new { id = vendorId });
@@ -578,7 +578,7 @@ namespace InventorySystem.Controllers
 
 				if (item == null)
 				{
-					TempData["ErrorMessage"] = "Item not found.";
+					SetErrorMessage("Item not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index", "Items");
 				}
 
@@ -588,7 +588,7 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error loading item vendors: {ItemId}", itemId);
-				TempData["ErrorMessage"] = "Error loading item vendors: " + ex.Message;
+				SetErrorMessage("Error loading item vendors: " + ex.Message); // ✅ Using BaseController method
 				return RedirectToAction("Index", "Items");
 			}
 		}
@@ -672,7 +672,7 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error loading vendor reports");
-				TempData["ErrorMessage"] = "Error loading vendor reports: " + ex.Message;
+				SetErrorMessage("Error loading vendor reports: " + ex.Message); // ✅ Using BaseController method
 				return View();
 			}
 		}
@@ -751,7 +751,7 @@ namespace InventorySystem.Controllers
 			if (viewModel == null)
 			{
 				_logger.LogWarning("ProcessBulkUpload received null viewModel");
-				TempData["ErrorMessage"] = "Invalid form data. Please try uploading the file again.";
+				SetErrorMessage("Invalid form data. Please try uploading the file again."); // ✅ Using BaseController method
 				return RedirectToAction("BulkUpload");
 			}
 
@@ -761,7 +761,7 @@ namespace InventorySystem.Controllers
 			if (viewModel.PreviewVendors == null || !viewModel.PreviewVendors.Any())
 			{
 				_logger.LogWarning("ProcessBulkUpload - No preview vendors found");
-				TempData["ErrorMessage"] = "No vendors to import. Please upload and validate a file first.";
+				SetErrorMessage("No vendors to import. Please upload and validate a file first."); // ✅ Using BaseController method
 				return RedirectToAction("BulkUpload");
 			}
 
@@ -772,7 +772,7 @@ namespace InventorySystem.Controllers
 
 				if (result.SuccessfulImports > 0)
 				{
-					TempData["SuccessMessage"] = $"Successfully imported {result.SuccessfulImports} vendors.";
+					SetSuccessMessage($"Successfully imported {result.SuccessfulImports} vendors."); // ✅ Using BaseController method
 
 					if (result.FailedImports > 0)
 					{
@@ -782,7 +782,7 @@ namespace InventorySystem.Controllers
 							TempData["VendorImportErrors"] = errorDetails;
 						}
 
-						TempData["WarningMessage"] = $"{result.FailedImports} vendors failed to import. Click 'View Error Details' to see specific issues.";
+						SetWarningMessage($"{result.FailedImports} vendors failed to import. Click 'View Error Details' to see specific issues."); // ✅ Using BaseController method
 					}
 				}
 				else
@@ -791,18 +791,18 @@ namespace InventorySystem.Controllers
 					{
 						var errorDetails = System.Text.Json.JsonSerializer.Serialize(result.DetailedErrors);
 						TempData["VendorImportErrors"] = errorDetails;
-						TempData["ErrorMessage"] = $"No vendors were imported. {result.DetailedErrors.Count} vendors had errors. Click 'View Error Details' below.";
+						SetErrorMessage($"No vendors were imported. {result.DetailedErrors.Count} vendors had errors. Click 'View Error Details' below."); // ✅ Using BaseController method
 					}
 					else
 					{
-						TempData["ErrorMessage"] = "No vendors were imported. " + string.Join("; ", result.Errors);
+						SetErrorMessage("No vendors were imported. " + string.Join("; ", result.Errors)); // ✅ Using BaseController method
 					}
 				}
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error during vendor bulk import");
-				TempData["ErrorMessage"] = $"Error during import: {ex.Message}";
+				SetErrorMessage($"Error during import: {ex.Message}"); // ✅ Using BaseController method
 			}
 
 			return RedirectToAction("Index");
@@ -818,7 +818,7 @@ namespace InventorySystem.Controllers
 				return View(errors);
 			}
 
-			TempData["InfoMessage"] = "No vendor import errors to display.";
+			SetInfoMessage("No vendor import errors to display."); // ✅ Using BaseController method
 			return RedirectToAction("Index");
 		}
 	}

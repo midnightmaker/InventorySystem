@@ -21,7 +21,7 @@ namespace InventorySystem.ViewModels
         public string? Comments { get; set; }
 
         [Display(Name = "Expense Type")]
-        public ItemType ItemType { get; set; } = ItemType.Service;
+        public ItemType ItemType { get; set; } = ItemType.Inventoried;
 
         [Display(Name = "Unit of Measure")]
         public UnitOfMeasure UnitOfMeasure { get; set; } = UnitOfMeasure.Each;

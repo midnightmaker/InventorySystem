@@ -126,32 +126,34 @@
           }
 
           <!-- UPDATED: Enhanced preferred vendor display with TBA support -->
-          <dt class="col-sm-3">Preferred Vendor:</dt>
+          <dt class="col-sm-3">Primary Vendor:</dt>
           <dd class="col-sm-9">
-            @if (Model.PreferredVendorItem != null && Model.PreferredVendorItem.Vendor != null)
+            @{
+              var primaryVendorItem = vendorItems.FirstOrDefault(vi => vi.IsPrimary && vi.IsActive);
+            }
+            @if (primaryVendorItem != null && primaryVendorItem.Vendor != null)
             {
               <div class="d-flex align-items-center">
-                <strong class="text-success">@Model.PreferredVendorItem.Vendor.CompanyName</strong>
+                <strong class="text-success">@primaryVendorItem.Vendor.CompanyName</strong>
                 <span class="badge bg-success ms-2">
                   <i class="fas fa-link"></i> Linked
                 </span>
-                @if (Model.PreferredVendorItem.IsPrimary)
-                {
-                  <span class="badge bg-primary ms-1">
-                    <i class="fas fa-star"></i> Primary
-                  </span>
-                }
-                <a href="/Vendors/Details/@Model.PreferredVendorItem.VendorId" class="btn btn-outline-info btn-sm ms-2" target="_blank">
+                <span class="badge bg-primary ms-1">
+                  <i class="fas fa-star"></i> Primary
+                </span>
+                <a href="/Vendors/Details/@primaryVendorItem.VendorId" class="btn btn-outline-info btn-sm ms-2" target="_blank">
                   <i class="fas fa-external-link-alt"></i> View Vendor
                 </a>
               </div>
-              @if (Model.PreferredVendorItem.UnitCost > 0)
+              @if (primaryVendorItem.UnitCost > 0)
               {
-                <small class="text-muted">Expected Cost: @Model.PreferredVendorItem.UnitCost.ToString("C")</small>
+                <small class="text-muted">Expected Cost: @primaryVendorItem.UnitCost.ToString("C")</small>
               }
-              @if (!string.IsNullOrEmpty(Model.PreferredVendorItem.VendorPartNumber))
+              @if (!string.IsNullOrEmpty(primaryVendorItem.VendorPartNumber))
               {
-                <br><small class="text-muted">Vendor P/N: @Model.PreferredVendorItem.VendorPartNumber</small>
+                <br>
+            
+                <small class="text-muted">Vendor P/N: @primaryVendorItem.VendorPartNumber</small>
               }
             }
             else
@@ -170,7 +172,7 @@
                   </a>
                 }
               </div>
-              <small class="text-muted">No preferred vendor assigned. Consider setting up vendor relationships for better procurement management.</small>
+              <small class="text-muted">No primary vendor assigned. Consider setting up vendor relationships for better procurement management.</small>
             }
           </dd>
 
@@ -301,9 +303,9 @@
                         }
                         <div>
                           <strong>@vendorItem.Vendor.CompanyName</strong>
-                          @if (Model.PreferredVendorItemId == vendorItem.Id)
+                          @if(vendorItem.IsPrimary)
                           {
-                            <br><small class="text-success"><i class="fas fa-check-circle"></i> Preferred</small>
+                            <br><small class="text-success"><i class="fas fa-check-circle"></i> Primary</small>
                           }
                         </div>
                       </div>
@@ -311,7 +313,7 @@
                     <td>
                       @if (!string.IsNullOrEmpty(vendorItem.VendorPartNumber))
                       {
-                        <code>@vendorItem.VendorPartNumber</code>
+                        @vendorItem.VendorPartNumber
                       }
                       else
                       {
@@ -694,9 +696,12 @@
           <dt class="col-sm-6">Vendors:</dt>
           <dd class="col-sm-6">@vendorItems.Count()</dd>
 
-          <dt class="col-sm-6">Preferred:</dt>
+          <dt class="col-sm-6">Primary:</dt>
           <dd class="col-sm-6">
-            @if (Model.PreferredVendorItem != null)
+            @{
+              var hasPrimaryVendor = vendorItems.Any(vi => vi.IsPrimary && vi.IsActive);
+            }
+            @if (hasPrimaryVendor)
             {
               <span class="badge bg-success">Set</span>
             }

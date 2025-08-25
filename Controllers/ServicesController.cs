@@ -17,6 +17,7 @@ namespace InventorySystem.Controllers
 		private readonly ISalesService _salesService;
 		private readonly IInventoryService _inventoryService;
 		private readonly IAccountingService _accountingService;
+		private readonly IVendorService _vendorService; // Add this field
 		private readonly ILogger<ServicesController> _logger;
 		private readonly InventoryContext _context;
 
@@ -27,6 +28,7 @@ namespace InventorySystem.Controllers
 						ISalesService salesService,
 						IInventoryService inventoryService,
 						IAccountingService accountingService,
+						IVendorService vendorService, // Add this parameter
 						InventoryContext context, // Add this parameter
 						ILogger<ServicesController> logger)
 		{
@@ -35,6 +37,7 @@ namespace InventorySystem.Controllers
 			_salesService = salesService;
 			_inventoryService = inventoryService;
 			_accountingService = accountingService;
+			_vendorService = vendorService; // Add this assignment
 			_context = context; // Add this assignment
 			_logger = logger;
 		}
@@ -605,6 +608,7 @@ namespace InventorySystem.Controllers
 					}
 				});
 			}
+
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error adding material");
@@ -629,9 +633,25 @@ namespace InventorySystem.Controllers
 		}
 
 		// GET: Services/CreateServiceType
-		public IActionResult CreateServiceType()
+		public async Task<IActionResult> CreateServiceType()
 		{
-			return View(new ServiceTypeViewModel());
+			try
+			{
+				var vendors = await _vendorService.GetActiveVendorsAsync();
+				
+				var viewModel = new ServiceTypeViewModel
+				{
+					VendorOptions = new SelectList(vendors, "Id", "CompanyName")
+				};
+				
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading create service type form");
+				TempData["ErrorMessage"] = "Error loading form";
+				return View(new ServiceTypeViewModel());
+			}
 		}
 
 		// POST: Services/CreateServiceType
@@ -641,6 +661,9 @@ namespace InventorySystem.Controllers
 		{
 			if (!ModelState.IsValid)
 			{
+				// Reload vendor options if validation fails
+				var vendors = await _vendorService.GetActiveVendorsAsync();
+				model.VendorOptions = new SelectList(vendors, "Id", "CompanyName", model.VendorId);
 				return View(model);
 			}
 
@@ -655,6 +678,7 @@ namespace InventorySystem.Controllers
 					StandardHours = model.StandardHours,
 					StandardRate = model.StandardRate,
 					ServiceCode = model.ServiceCode,
+					VendorId = model.VendorId, // NEW: Include VendorId
 					QcRequired = model.QcRequired,
 					CertificateRequired = model.CertificateRequired,
 					WorksheetRequired = model.WorksheetRequired, // ✅ NEW: Include worksheet requirement
@@ -662,19 +686,19 @@ namespace InventorySystem.Controllers
 				};
 
 				// Create corresponding service item
-				if (model.CreateServiceItem)
-				{
-					var serviceItem = await CreateServiceItemFromServiceType(serviceType);
-					if (serviceItem != null)
-					{
-						serviceType.ServiceItemId = serviceItem.Id;
-						TempData["SuccessMessage"] = $"Service type '{model.ServiceName}' and corresponding service item '{serviceItem.PartNumber}' created successfully";
-					}
-					else
-					{
-						TempData["WarningMessage"] = $"Service type '{model.ServiceName}' created, but service item creation failed";
-					}
-				}
+				//if (model.CreateServiceItem)
+				//{
+				//	var serviceItem = await CreateServiceItemFromServiceType(serviceType);
+				//	if (serviceItem != null)
+				//	{
+				//		serviceType.ServiceItemId = serviceItem.Id;
+				//		TempData["SuccessMessage"] = $"Service type '{model.ServiceName}' and corresponding service item '{serviceItem.PartNumber}' created successfully";
+				//	}
+				//	else
+				//	{
+				//		TempData["WarningMessage"] = $"Service type '{model.ServiceName}' created, but service item creation failed";
+				//	}
+				//}
 
 				await _serviceOrderService.CreateServiceTypeAsync(serviceType);
 
@@ -684,6 +708,10 @@ namespace InventorySystem.Controllers
 			{
 				_logger.LogError(ex, "Error creating service type");
 				ModelState.AddModelError("", $"Error creating service type: {ex.Message}");
+				
+				// Reload vendor options if error occurs
+				var vendors = await _vendorService.GetActiveVendorsAsync();
+				model.VendorOptions = new SelectList(vendors, "Id", "CompanyName", model.VendorId);
 				return View(model);
 			}
 		}
@@ -765,7 +793,7 @@ namespace InventorySystem.Controllers
 						estimatedCost = serviceType.StandardHours * serviceType.StandardRate,
 						qcRequired = serviceType.QcRequired,
 						certificateRequired = serviceType.CertificateRequired,
-						requiredEquipment = serviceType.RequiredEquipment
+						requiredEquipment = serviceType.RequiresEquipment
 					}
 				});
 			}
@@ -854,29 +882,40 @@ namespace InventorySystem.Controllers
 		// Add these methods to your existing ServicesController
 
 		// GET: Services/EditServiceType/5
+		// GET: Services/EditServiceType/5
 		public async Task<IActionResult> EditServiceType(int id)
 		{
 			try
 			{
-				var serviceType = await _serviceOrderService.GetServiceTypeByIdAsync(id);
+				// Load service type with documents included
+				var serviceType = await _context.ServiceTypes
+						.Include(st => st.Documents)
+						.FirstOrDefaultAsync(st => st.Id == id);
+
 				if (serviceType == null)
 				{
 					TempData["ErrorMessage"] = "Service type not found";
 					return RedirectToAction(nameof(ServiceTypes));
 				}
 
+				var vendors = await _vendorService.GetActiveVendorsAsync();
+
 				var viewModel = new ServiceTypeViewModel
 				{
 					Id = serviceType.Id,
 					ServiceName = serviceType.ServiceName,
 					ServiceCode = serviceType.ServiceCode,
+					VendorId = serviceType.VendorId,
 					ServiceCategory = serviceType.ServiceCategory,
 					Description = serviceType.Description,
 					StandardHours = serviceType.StandardHours,
 					StandardRate = serviceType.StandardRate,
 					QcRequired = serviceType.QcRequired,
 					CertificateRequired = serviceType.CertificateRequired,
-					IsActive = serviceType.IsActive
+					WorksheetRequired = serviceType.WorksheetRequired,
+					IsActive = serviceType.IsActive,
+					VendorOptions = new SelectList(vendors, "Id", "CompanyName", serviceType.VendorId),
+					Documents = serviceType.Documents // ✅ ADD THIS LINE
 				};
 
 				// Get usage statistics for the sidebar
@@ -892,18 +931,46 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+
 		// POST: Services/EditServiceType/5
 		[HttpPost]
-		[ValidateAntiForgeryToken]
 		public async Task<IActionResult> EditServiceType(int id, ServiceTypeViewModel model)
 		{
+			// Add debug logging to confirm method is being called
+			_logger.LogInformation("EditServiceType POST called - ID: {Id}, ModelId: {ModelId}", id, model.Id);
+
 			if (id != model.Id)
 			{
+				_logger.LogWarning("ID mismatch - URL: {UrlId}, Model: {ModelId}", id, model.Id);
 				return NotFound();
 			}
 
+			// Remove problematic navigation properties from validation
+			ModelState.Remove(nameof(ServiceTypeViewModel.VendorOptions));
+			ModelState.Remove(nameof(ServiceTypeViewModel.Documents));
+			ModelState.Remove(nameof(ServiceTypeViewModel.DocumentFile));
+			ModelState.Remove(nameof(ServiceTypeViewModel.DocumentType));
+			ModelState.Remove(nameof(ServiceTypeViewModel.DocumentName));
+			ModelState.Remove(nameof(ServiceTypeViewModel.DocumentDescription));
+
+			// Log validation state
 			if (!ModelState.IsValid)
 			{
+				_logger.LogWarning("Model validation failed for ServiceType {Id}", id);
+				foreach (var modelError in ModelState.Values.SelectMany(v => v.Errors))
+				{
+					_logger.LogWarning("Validation error: {Error}", modelError.ErrorMessage);
+				}
+
+				var vendors = await _vendorService.GetActiveVendorsAsync();
+				model.VendorOptions = new SelectList(vendors, "Id", "CompanyName", model.VendorId);
+
+				// Reload documents
+				var serviceTypeWithDocs = await _context.ServiceTypes
+						.Include(st => st.Documents)
+						.FirstOrDefaultAsync(st => st.Id == id);
+				model.Documents = serviceTypeWithDocs?.Documents;
+
 				await LoadServiceTypeStatistics(id);
 				return View(model);
 			}
@@ -913,58 +980,54 @@ namespace InventorySystem.Controllers
 				var existingServiceType = await _serviceOrderService.GetServiceTypeByIdAsync(id);
 				if (existingServiceType == null)
 				{
+					_logger.LogWarning("ServiceType not found: {Id}", id);
 					TempData["ErrorMessage"] = "Service type not found";
 					return RedirectToAction(nameof(ServiceTypes));
 				}
 
 				// Check for service code conflicts
 				if (!string.IsNullOrEmpty(model.ServiceCode) &&
-						model.ServiceCode != existingServiceType.ServiceCode)
+								model.ServiceCode != existingServiceType.ServiceCode)
 				{
 					var existingWithCode = await _context.ServiceTypes
-							.FirstOrDefaultAsync(st => st.ServiceCode == model.ServiceCode && st.Id != id);
+									.FirstOrDefaultAsync(st => st.ServiceCode == model.ServiceCode && st.Id != id);
 
 					if (existingWithCode != null)
 					{
 						ModelState.AddModelError("ServiceCode", "Service code already exists");
+
+						var vendors = await _vendorService.GetActiveVendorsAsync();
+						model.VendorOptions = new SelectList(vendors, "Id", "CompanyName", model.VendorId);
+
+						// Reload documents
+						var serviceTypeWithDocs = await _context.ServiceTypes
+								.Include(st => st.Documents)
+								.FirstOrDefaultAsync(st => st.Id == id);
+						model.Documents = serviceTypeWithDocs?.Documents;
+
 						await LoadServiceTypeStatistics(id);
 						return View(model);
 					}
 				}
 
-				// Store original values for comparison
-				var originalName = existingServiceType.ServiceName;
-				var originalPrice = existingServiceType.StandardPrice;
-				var originalCode = existingServiceType.ServiceCode;
-
-				// Update the service type
+				// Update the service type - REMOVED all service item references
 				existingServiceType.ServiceName = model.ServiceName;
 				existingServiceType.ServiceCode = model.ServiceCode;
+				existingServiceType.VendorId = model.VendorId;
 				existingServiceType.ServiceCategory = model.ServiceCategory;
 				existingServiceType.Description = model.Description;
 				existingServiceType.StandardHours = model.StandardHours;
 				existingServiceType.StandardRate = model.StandardRate;
 				existingServiceType.QcRequired = model.QcRequired;
 				existingServiceType.CertificateRequired = model.CertificateRequired;
+				existingServiceType.WorksheetRequired = model.WorksheetRequired;
 				existingServiceType.IsActive = model.IsActive;
 
-				// Update corresponding service item if it exists
-				if (existingServiceType.HasServiceItem)
-				{
-					await SynchronizeServiceItemWithServiceType(existingServiceType);
-				}
-				// Create service item if requested and doesn't exist
-				else if (model.CreateServiceItem)
-				{
-					var serviceItem = await CreateServiceItemFromServiceType(existingServiceType);
-					if (serviceItem != null)
-					{
-						existingServiceType.ServiceItemId = serviceItem.Id;
-						TempData["SuccessMessage"] += " Service item created and linked.";
-					}
-				}
+				_logger.LogInformation("Updating ServiceType {Id} with name: {ServiceName}", id, model.ServiceName);
 
 				await _serviceOrderService.UpdateServiceTypeAsync(existingServiceType);
+
+				_logger.LogInformation("ServiceType {Id} updated successfully", id);
 
 				TempData["SuccessMessage"] = $"Service type '{model.ServiceName}' updated successfully";
 				return RedirectToAction(nameof(ServiceTypes));
@@ -973,6 +1036,16 @@ namespace InventorySystem.Controllers
 			{
 				_logger.LogError(ex, "Error updating service type: {ServiceTypeId}", id);
 				ModelState.AddModelError("", $"Error updating service type: {ex.Message}");
+
+				var vendors = await _vendorService.GetActiveVendorsAsync();
+				model.VendorOptions = new SelectList(vendors, "Id", "CompanyName", model.VendorId);
+
+				// Reload documents
+				var serviceTypeWithDocs = await _context.ServiceTypes
+						.Include(st => st.Documents)
+						.FirstOrDefaultAsync(st => st.Id == id);
+				model.Documents = serviceTypeWithDocs?.Documents;
+
 				await LoadServiceTypeStatistics(id);
 				return View(model);
 			}
@@ -1091,101 +1164,7 @@ namespace InventorySystem.Controllers
 		}
 
 		// Helper method to create service item from service type
-		private async Task<Item?> CreateServiceItemFromServiceType(ServiceType serviceType)
-		{
-			try
-			{
-				// Generate part number for service
-				var partNumber = GenerateServicePartNumber(serviceType);
-
-				// Check if item with this part number already exists
-				var existingItem = await _context.Items
-					.FirstOrDefaultAsync(i => i.PartNumber == partNumber);
-
-				if (existingItem != null)
-				{
-					_logger.LogWarning("Service item with part number {PartNumber} already exists", partNumber);
-					return existingItem;
-				}
-
-				// Create the service item
-				var serviceItem = new Item
-				{
-					PartNumber = partNumber,
-					Description = $"{serviceType.ServiceName} - {serviceType.ServiceCategory ?? "Service"}",
-					Comments = $"Auto-generated from service type: {serviceType.ServiceName}",
-					ItemType = ItemType.Service,
-					IsSellable = true,
-					IsExpense = false,
-					SalePrice = serviceType.StandardPrice,
-					MinimumStock = 0,
-					CurrentStock = 0,
-					CreatedDate = DateTime.Now,
-					UnitOfMeasure = UnitOfMeasure.Each,
-					Version = "A",
-					IsCurrentVersion = true
-				};
-
-				_context.Items.Add(serviceItem);
-				await _context.SaveChangesAsync();
-
-				_logger.LogInformation("Created service item {PartNumber} for service type {ServiceTypeName}", 
-					partNumber, serviceType.ServiceName);
-
-				return serviceItem;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error creating service item for service type {ServiceTypeName}", serviceType.ServiceName);
-				return null;
-			}
-		}
-
-		// Helper method to synchronize service item with service type changes
-		private async Task SynchronizeServiceItemWithServiceType(ServiceType serviceType)
-		{
-			try
-			{
-				if (!serviceType.HasServiceItem)
-					return;
-
-				var serviceItem = await _context.Items.FindAsync(serviceType.ServiceItemId);
-				if (serviceItem == null)
-				{
-					_logger.LogWarning("Service item {ServiceItemId} not found for service type {ServiceTypeId}", 
-						serviceType.ServiceItemId, serviceType.Id);
-					return;
-				}
-
-				// Update service item properties to match service type
-				serviceItem.Description = $"{serviceType.ServiceName} - {serviceType.ServiceCategory ?? "Service"}";
-				serviceItem.SalePrice = serviceType.StandardPrice;
-				serviceItem.IsSellable = serviceType.IsActive;
-				
-				// Update part number if service code changed
-				var newPartNumber = GenerateServicePartNumber(serviceType);
-				if (serviceItem.PartNumber != newPartNumber)
-				{
-					// Check if new part number is available
-					var existingWithNewNumber = await _context.Items
-						.FirstOrDefaultAsync(i => i.PartNumber == newPartNumber && i.Id != serviceItem.Id);
-			
-					if (existingWithNewNumber == null)
-					{
-						serviceItem.PartNumber = newPartNumber;
-					}
-				}
-
-				await _context.SaveChangesAsync();
-				
-				_logger.LogInformation("Synchronized service item {PartNumber} with service type {ServiceTypeName}", 
-					serviceItem.PartNumber, serviceType.ServiceName);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error synchronizing service item for service type {ServiceTypeId}", serviceType.Id);
-			}
-		}
+		
 
 		// Helper method to generate service part numbers
 		private string GenerateServicePartNumber(ServiceType serviceType)
@@ -1620,6 +1599,277 @@ namespace InventorySystem.Controllers
 					email = serviceOrder.Customer?.Email
 				}
 			};
+		}
+
+		// GET: Services/EditServiceItem/5
+		public async Task<IActionResult> EditServiceItem(int id)
+		{
+			try
+			{
+				// Get the service item
+				var serviceItem = await _context.Items
+					.Include(i => i.VendorItems)
+						.ThenInclude(vi => vi.Vendor)
+					.FirstOrDefaultAsync(i => i.Id == id && i.ItemType == ItemType.Service);
+
+				if (serviceItem == null)
+				{
+					TempData["ErrorMessage"] = "Service item not found";
+					return RedirectToAction("Index", "Items");
+				}
+
+				// Find the related service type
+				var serviceType = await _context.ServiceTypes
+					.Include(st => st.Vendor)
+					.FirstOrDefaultAsync(st => st.ServiceItemId == id);
+
+				if (serviceType != null)
+				{
+					// If there's a service type, redirect to edit the service type
+					return RedirectToAction("EditServiceType", new { id = serviceType.Id });
+				}
+				else
+				{
+					// If no service type exists, redirect to regular item edit
+					// This handles orphaned service items
+					TempData["WarningMessage"] = "This service item is not linked to a service type. Editing as a regular item.";
+					return RedirectToAction("Edit", "Items", new { id });
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading service item for editing: {ItemId}", id);
+				TempData["ErrorMessage"] = "Error loading service item";
+				return RedirectToAction("Index", "Items");
+			}
+		}
+
+		// GET: Services/UploadServiceTypeDocument
+		[HttpGet]
+		public async Task<IActionResult> UploadServiceTypeDocument(int serviceTypeId)
+		{
+			try
+			{
+				var serviceType = await _serviceOrderService.GetServiceTypeByIdAsync(serviceTypeId);
+				if (serviceType == null)
+				{
+					TempData["ErrorMessage"] = "Service type not found";
+					return RedirectToAction(nameof(ServiceTypes));
+				}
+
+				var viewModel = new ServiceTypeDocumentUploadViewModel
+				{
+					ServiceTypeId = serviceTypeId,
+					ServiceTypeName = serviceType.ServiceName,
+					DocumentType = "General"
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading document upload form for service type {ServiceTypeId}", serviceTypeId);
+				TempData["ErrorMessage"] = "Error loading upload form";
+				return RedirectToAction(nameof(EditServiceType), new { id = serviceTypeId });
+			}
+		}
+		// POST: Services/UploadServiceTypeDocument
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		[RequestSizeLimit(52428800)] // 50MB limit
+		public async Task<IActionResult> UploadServiceTypeDocument(ServiceTypeDocumentUploadViewModel model)
+		{
+			if (!ModelState.IsValid)
+			{
+				return View(model);
+			}
+
+			try
+			{
+				_logger.LogInformation("Starting document upload for ServiceTypeId: {ServiceTypeId}", model.ServiceTypeId);
+
+				var serviceType = await _serviceOrderService.GetServiceTypeByIdAsync(model.ServiceTypeId);
+				if (serviceType == null)
+				{
+					TempData["ErrorMessage"] = "Service type not found";
+					return RedirectToAction(nameof(ServiceTypes));
+				}
+
+				var file = model.DocumentFile;
+
+				// Validate file size (50MB limit)
+				const long maxFileSize = 50 * 1024 * 1024;
+				if (file.Length > maxFileSize)
+				{
+					ModelState.AddModelError("DocumentFile", "File size cannot exceed 50MB");
+					return View(model);
+				}
+
+				// Validate file type
+				var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff",
+															 ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+															 ".dwg", ".dxf", ".step", ".stp", ".iges", ".igs",
+															 ".txt", ".rtf", ".zip", ".rar", ".7z" };
+
+				var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+				if (!allowedExtensions.Contains(fileExtension))
+				{
+					ModelState.AddModelError("DocumentFile", "File type not allowed");
+					return View(model);
+				}
+
+				// Process the file
+				using var memoryStream = new MemoryStream();
+				await file.CopyToAsync(memoryStream);
+
+				var document = new ServiceTypeDocument
+				{
+					ServiceTypeId = model.ServiceTypeId,
+					DocumentName = !string.IsNullOrWhiteSpace(model.DocumentName) ? model.DocumentName : Path.GetFileNameWithoutExtension(file.FileName),
+					DocumentType = model.DocumentType,
+					OriginalFileName = file.FileName,
+					ContentType = file.ContentType,
+					FileSize = file.Length,
+					DocumentData = memoryStream.ToArray(),
+					Description = model.Description,
+					UploadedDate = DateTime.Now,
+					UploadedBy = User.Identity?.Name ?? "System"
+				};
+
+				_context.ServiceTypeDocuments.Add(document);
+				await _context.SaveChangesAsync();
+
+				_logger.LogInformation("Document {DocumentName} uploaded successfully for service type {ServiceTypeName}",
+						document.DocumentName, serviceType.ServiceName);
+
+				TempData["SuccessMessage"] = $"Document '{document.DocumentName}' uploaded successfully!";
+				return RedirectToAction(nameof(EditServiceType), new { id = model.ServiceTypeId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error uploading document for service type {ServiceTypeId}", model.ServiceTypeId);
+				TempData["ErrorMessage"] = "Error uploading document. Please try again.";
+				return View(model);
+			}
+		}
+
+		// GET: Services/GetServiceTypeDocuments
+		[HttpGet]
+		public async Task<IActionResult> GetServiceTypeDocuments(int serviceTypeId)
+		{
+			try
+			{
+				var documents = await _context.ServiceTypeDocuments
+					.Where(d => d.ServiceTypeId == serviceTypeId)
+					.OrderByDescending(d => d.UploadedDate)
+					.ToListAsync();
+				
+				var documentList = documents.Select(d => new
+				{
+					id = d.Id,
+					documentName = d.DocumentName,
+					documentType = d.DocumentType,
+					originalFileName = d.OriginalFileName,
+					fileName = d.OriginalFileName ?? d.DocumentName,
+					fileSize = d.FileSize,
+					description = d.Description,
+					uploadedDate = d.UploadedDate,
+					uploadedBy = d.UploadedBy
+				});
+
+				return Json(new { success = true, documents = documentList });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting documents for service type {ServiceTypeId}", serviceTypeId);
+				return Json(new { success = false, message = "Error loading documents" });
+			}
+		}
+
+		// GET: Services/ViewServiceTypeDocument/5
+		[HttpGet]
+		public async Task<IActionResult> ViewServiceTypeDocument(int id)
+		{
+			try
+			{
+				var document = await _context.ServiceTypeDocuments.FindAsync(id);
+				if (document == null)
+				{
+					TempData["ErrorMessage"] = "Document not found";
+					return RedirectToAction("ServiceTypes");
+				}
+
+				_logger.LogInformation("Document {DocumentName} viewed from service type", document.DocumentName);
+
+				// Set appropriate content type for viewing (not downloading)
+				var contentType = GetViewableContentType(document.ContentType, document.OriginalFileName);
+				
+				// Return file for viewing (inline) instead of download
+				Response.Headers.Add("Content-Disposition", $"inline; filename=\"{document.OriginalFileName ?? document.DocumentName}\"");
+				
+				return File(document.DocumentData, contentType);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error viewing service type document {DocumentId}", id);
+				TempData["ErrorMessage"] = "Error viewing document";
+				return RedirectToAction("ServiceTypes");
+			}
+		}
+
+		// GET: Services/DownloadServiceTypeDocument/5
+		[HttpGet]
+		public async Task<IActionResult> DownloadServiceTypeDocument(int id)
+		{
+			try
+			{
+				var document = await _context.ServiceTypeDocuments.FindAsync(id);
+				if (document == null)
+				{
+					TempData["ErrorMessage"] = "Document not found";
+					return RedirectToAction("ServiceTypes");
+				}
+
+				_logger.LogInformation("Document {DocumentName} downloaded from service type", document.DocumentName);
+
+				// Force download with attachment disposition
+				return File(document.DocumentData, 
+                   document.ContentType ?? "application/octet-stream", 
+                   document.OriginalFileName ?? document.DocumentName);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error downloading service type document {DocumentId}", id);
+				TempData["ErrorMessage"] = "Error downloading document";
+				return RedirectToAction("ServiceTypes");
+			}
+		}
+
+		// POST: Services/DeleteServiceTypeDocument
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> DeleteServiceTypeDocument([FromBody] DeleteDocumentRequest request)
+		{
+			try
+			{
+				var document = await _context.ServiceTypeDocuments.FindAsync(request.DocumentId);
+				if (document == null)
+				{
+					return Json(new { success = false, message = "Document not found" });
+				}
+
+				_context.ServiceTypeDocuments.Remove(document);
+				await _context.SaveChangesAsync();
+
+				_logger.LogInformation("Document {DocumentName} deleted from service type", document.DocumentName);
+
+				return Json(new { success = true, message = "Document deleted successfully" });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error deleting service type document {DocumentId}", request.DocumentId);
+				return Json(new { success = false, message = "Error deleting document" });
+			}
 		}
 	}
 }

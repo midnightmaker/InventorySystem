@@ -1,11 +1,11 @@
-// Controllers/HomeController.cs - COMPLETE FIX
+// Controllers/HomeController.cs - FIXED: Removed IsExpense reference, use ItemType filtering
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
 using InventorySystem.Data;
-using InventorySystem.Models; // Added for Item model
-using InventorySystem.Models.Enums; // Added for ItemType enum
+using InventorySystem.Models;
+using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Controllers
 {
@@ -14,7 +14,7 @@ namespace InventorySystem.Controllers
     private readonly IInventoryService _inventoryService;
     private readonly IPurchaseService _purchaseService;
     private readonly IBomService _bomService;
-    private readonly IVendorService _vendorService; // ADDED - This was missing!
+    private readonly IVendorService _vendorService;
     private readonly InventoryContext _context;
     private readonly IBackorderNotificationService _backorderNotificationService;
     private readonly ISalesService _salesService;
@@ -23,7 +23,7 @@ namespace InventorySystem.Controllers
         IInventoryService inventoryService,
         IPurchaseService purchaseService,
         IBomService bomService,
-        IVendorService vendorService, // ADDED - This was missing!
+        IVendorService vendorService,
         InventoryContext context,
         IBackorderNotificationService backorderNotificationService,
         ISalesService salesService)
@@ -31,7 +31,7 @@ namespace InventorySystem.Controllers
       _inventoryService = inventoryService;
       _purchaseService = purchaseService;
       _bomService = bomService;
-      _vendorService = vendorService; // ADDED - This was missing!
+      _vendorService = vendorService;
       _context = context;
       _backorderNotificationService = backorderNotificationService;
       _salesService = salesService;
@@ -56,7 +56,7 @@ namespace InventorySystem.Controllers
       }
     }
 
-    // ADDED - Fallback method for when services fail
+    // ? FIXED: Fallback method - Remove IsExpense reference, use ItemType filtering
     private async Task<DashboardViewModel> GetFallbackDashboardDataAsync()
     {
       try
@@ -66,10 +66,10 @@ namespace InventorySystem.Controllers
         var totalBoms = await _context.Boms.CountAsync();
         var totalPurchases = await _context.Purchases.CountAsync();
         var totalVendors = await _context.Vendors.CountAsync(v => v.IsActive);
-        // FIXED: Use actual database fields instead of computed property
+        
+        // ? FIXED: Filter by ItemType instead of IsExpense
         var lowStockItems = await _context.Items
-            .Where(i => !i.IsExpense && 
-                       (i.ItemType == ItemType.Inventoried || 
+            .Where(i => (i.ItemType == ItemType.Inventoried || 
                         i.ItemType == ItemType.Consumable || 
                         i.ItemType == ItemType.RnDMaterials) && 
                        i.CurrentStock <= i.MinimumStock)
@@ -192,11 +192,10 @@ namespace InventorySystem.Controllers
         var totalItemDocuments = allItems.Sum(i => i.DesignDocuments?.Count ?? 0);
         var totalPurchaseDocuments = allPurchases.Sum(p => p.PurchaseDocuments?.Count ?? 0);
 
-        // FIXED - Only count inventoried items for stock calculations
-        var inventoriedItems = allItems.Where(i => !i.IsExpense && 
-                                                 (i.ItemType == ItemType.Inventoried || 
+        // ? FIXED: Filter by ItemType instead of IsExpense for stock calculations
+        var inventoriedItems = allItems.Where(i => i.ItemType == ItemType.Inventoried || 
                                                   i.ItemType == ItemType.Consumable || 
-                                                  i.ItemType == ItemType.RnDMaterials)).ToList();
+                                                  i.ItemType == ItemType.RnDMaterials).ToList();
         var itemsInStock = inventoriedItems.Count(i => i.CurrentStock > i.MinimumStock);
         var itemsLowStock = inventoriedItems.Count(i => i.CurrentStock <= i.MinimumStock && i.CurrentStock > 0);
         var itemsNoStock = inventoriedItems.Count(i => i.CurrentStock == 0);
@@ -226,7 +225,7 @@ namespace InventorySystem.Controllers
           LowStockCount = lowStockItems.Count(),
           TotalBoms = allBoms.Count(),
           TotalPurchases = allPurchases.Count(),
-          ActiveVendorsCount = activeVendors.Count(), // FIXED - Now using actual vendor service
+          ActiveVendorsCount = activeVendors.Count(),
 
           // Inventory Health
           ItemsInStock = itemsInStock,

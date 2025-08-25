@@ -55,7 +55,7 @@
                       @foreach (var item in Model.NewVendorRequests[i].RelatedItems)
                       {
                         <tr>
-                          <td><code>@item.PartNumber</code></td>
+                          <td>@item.PartNumber</td>
                           <td>@item.Description</td>
                           <td>@(item.VendorPartNumber ?? "N/A")</td>
                         </tr>
@@ -104,7 +104,7 @@
                   @foreach (var assignment in Model.PendingAssignments.Where(pa => pa.IsAssigned))
                   {
                     <tr>
-                      <td><code>@assignment.PartNumber</code></td>
+                      <td>@assignment.PartNumber</td>
                       <td>@assignment.Description</td>
                       <td>
                         <strong class="text-success">@assignment.FoundVendorName</strong>

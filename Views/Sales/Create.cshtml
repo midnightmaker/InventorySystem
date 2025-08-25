@@ -451,20 +451,21 @@
         console.log('Performing customer search for:', query);
         
         $.ajax({
-            url: '@Url.Action("SearchCustomers")',
+            url: '/Customers/SearchCustomers', // ✅ Fixed: Use Customers controller
             type: 'GET',
-            data: { query: query, page: 1, pageSize: 10 },
+            data: { term: query, limit: 10 }, // ✅ Fixed: Use correct parameter names
             success: function(response) {
                 hideCustomerLoadingSpinner();
                 
                 console.log('Customer search response received:', response);
                 
-                if (response.success && response.customers && response.customers.length > 0) {
-                    console.log('Displaying', response.customers.length, 'customer results');
-                    displayCustomerSearchResults(response.customers, response.hasMore);
+                // ✅ Fixed: Handle direct array response from SearchCustomers endpoint
+                if (response && Array.isArray(response) && response.length > 0) {
+                    console.log('Displaying', response.length, 'customer results');
+                    displayCustomerSearchResults(response, false);
                 } else {
-                    console.log('No customers found or search failed');
-                    displayCustomerNoResults(response.message || 'No customers found');
+                    console.log('No customers found');
+                    displayCustomerNoResults('No customers found');
                 }
             },
             error: function(xhr, status, error) {
@@ -475,7 +476,7 @@
         });
     }
 
-    // Display customer search results
+    // Update the display function to handle the different response format
     function displayCustomerSearchResults(customers, hasMore) {
         console.log('displayCustomerSearchResults called with', customers.length, 'customers');
         
@@ -485,10 +486,15 @@
         window.customerSearchResultsData = customers;
         
         customers.forEach(function(customer, index) {
+            // ✅ Fixed: Handle the response format from CustomersController.SearchCustomers
+            const displayText = customer.text || `${customer.name} - ${customer.company || customer.name}`;
+            const creditLimit = customer.creditLimit || 0;
+            const currentBalance = customer.currentBalance || 0;
+            
             let creditBadge = '';
-            if (customer.outstandingBalance > customer.creditLimit && customer.creditLimit > 0) {
+            if (currentBalance > creditLimit && creditLimit > 0) {
                 creditBadge = '<span class="badge bg-danger text-white ms-2">Over Credit</span>';
-            } else if (customer.creditLimit > 0) {
+            } else if (creditLimit > 0) {
                 creditBadge = '<span class="badge bg-success text-white ms-2">Credit OK</span>';
             }
             
@@ -496,12 +502,12 @@
                 <a href="#" class="dropdown-item customer-result py-2" data-customer-index="${index}">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
-                            <div class="fw-bold">${escapeHtml(customer.displayText)} ${creditBadge}</div>
+                            <div class="fw-bold">${escapeHtml(displayText)} ${creditBadge}</div>
                             <div class="text-muted small">${escapeHtml(customer.email || 'No email')}</div>
-                            <div class="text-muted small">${escapeHtml(customer.phone || 'No phone')} | Credit: $${customer.creditLimit.toLocaleString()}</div>
+                            <div class="text-muted small">${escapeHtml(customer.phone || 'No phone')} | Credit: $${creditLimit.toLocaleString()}</div>
                         </div>
                         <div class="text-end">
-                            <small class="badge bg-secondary">${escapeHtml(customer.customerType)}</small>
+                            <small class="badge bg-secondary">${escapeHtml(customer.type || 'Customer')}</small>
                         </div>
                     </div>
                 </a>

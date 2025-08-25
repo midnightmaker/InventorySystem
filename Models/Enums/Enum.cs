@@ -16,7 +16,8 @@ namespace InventorySystem.Models.Enums
   {
     Processing,
     Backordered,    // NEW - Added backorder status
-    Shipped,
+		PartiallyShipped,
+		Shipped,
     Delivered,
     Cancelled,
     Returned

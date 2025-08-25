@@ -1,23 +1,18 @@
 ﻿@model InventorySystem.Models.Purchase
 @{
   ViewData["Title"] = "Edit Purchase";
-  // Check if this is an expense item
-  bool isExpenseItem = Model.Item?.IsExpense == true ||
-                      (Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Expense ||
-                       Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Utility ||
-                       Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Subscription ||
-                       Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Service ||
-                       Model.Item?.ItemType == InventorySystem.Models.Enums.ItemType.Virtual);
+  // UPDATED: Use the new computed property instead of old IsExpense logic
+  bool isExpenseItem = Model.IsExpensePurchase;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-edit"></i> @(isExpenseItem ? "Edit Expense Payment" : "Edit Purchase")</h1>
+  <h1><i class="fas fa-edit"></i> @(isExpenseItem ? "Edit Expense Purchase" : "Edit Purchase")</h1>
   <div class="btn-group">
     <a href="/Purchases/Details/@Model.Id" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Details
     </a>
-    <a href="@(isExpenseItem ? "/Purchases/ExpensePayments" : "/Purchases")" class="btn btn-outline-info">
-      <i class="fas fa-list"></i> @(isExpenseItem ? "All Expense Payments" : "All Purchases")
+    <a href="/Purchases" class="btn btn-outline-info">
+      <i class="fas fa-list"></i> All Purchases
     </a>
   </div>
 </div>
@@ -48,7 +43,13 @@
 
       <div class="card">
         <div class="card-header">
-          <h5><i class="fas fa-info-circle"></i> @(isExpenseItem ? "Expense Payment" : "Purchase") Details</h5>
+          <h5><i class="fas fa-info-circle"></i> Purchase Details</h5>
+          @if (isExpenseItem)
+          {
+            <small class="text-muted d-block mt-1">
+              <i class="fas fa-info-circle"></i> This purchase is for operational expenses (non-inventory items)
+            </small>
+          }
         </div>
         <div class="card-body">
           <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
@@ -58,19 +59,26 @@
               <div class="mb-3">
                 <label asp-for="ItemId" class="form-label">
                   <i class="fas fa-cube text-primary"></i>
-                  @(isExpenseItem ? "Expense Item" : "Item") <span class="text-danger">*</span>
+                  Item <span class="text-danger">*</span>
                 </label>
                 <select asp-for="ItemId" class="form-select" asp-items="ViewBag.ItemId" id="itemSelect">
-                  <option value="">-- Select @(isExpenseItem ? "Expense Item" : "Item") --</option>
+                  <option value="">-- Select Item --</option>
                 </select>
                 <span asp-validation-for="ItemId" class="text-danger"></span>
+                @if (isExpenseItem)
+                {
+                  <div class="form-text">
+                    <i class="fas fa-info-circle"></i>
+                    This item is for operational expenses and won't affect inventory levels
+                  </div>
+                }
               </div>
             </div>
             <div class="col-md-6">
               <div class="mb-3">
                 <label asp-for="PurchaseDate" class="form-label">
                   <i class="fas fa-calendar text-info"></i>
-                  @(isExpenseItem ? "Payment Date" : "Purchase Date") <span class="text-danger">*</span>
+                  Purchase Date <span class="text-danger">*</span>
                 </label>
                 <input asp-for="PurchaseDate" class="form-control" type="date" />
                 <span asp-validation-for="PurchaseDate" class="text-danger"></span>
@@ -96,7 +104,7 @@
                 <span asp-validation-for="VendorId" class="text-danger"></span>
                 <div class="form-text">
                   <i class="fas fa-info-circle"></i>
-                  Select the vendor for this @(isExpenseItem ? "expense payment" : "purchase"). Click the history button to use the last vendor for the selected item.
+                  Select the vendor for this purchase. Click the history button to use the last vendor for the selected item.
                 </div>
               </div>
             </div>
@@ -104,20 +112,20 @@
               <div class="mb-3">
                 <label asp-for="PurchaseOrderNumber" class="form-label">
                   <i class="fas fa-receipt text-warning"></i>
-                  @(isExpenseItem ? "Reference Number" : "Purchase Order Number")
+                  Purchase Order Number
                 </label>
-                <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="@(isExpenseItem ? "Optional reference number" : "Optional PO number")" />
+                <input asp-for="PurchaseOrderNumber" class="form-control" placeholder="Optional PO number" />
                 <span asp-validation-for="PurchaseOrderNumber" class="text-danger"></span>
               </div>
             </div>
           </div>
 
-          <!-- UPDATED: Conditionally show inventory warning only for non-expense items -->
-          @if (!isExpenseItem)
+          <!-- UPDATED: Show appropriate warning based on item type -->
+          @if (Model.IsInventoryPurchase)
           {
             <div class="alert alert-warning">
               <i class="fas fa-exclamation-triangle"></i>
-              <strong>Important:</strong> Changing quantity will affect FIFO calculations and inventory levels.
+              <strong>Inventory Item:</strong> Changing quantity will affect FIFO calculations and inventory levels.
               Current remaining quantity: <strong>@Model.RemainingQuantity</strong>
             </div>
           }
@@ -125,7 +133,8 @@
           {
             <div class="alert alert-info">
               <i class="fas fa-info-circle"></i>
-              <strong>Note:</strong> This is an expense payment. Changes will not affect inventory levels.
+              <strong>Operational Expense:</strong> This purchase is for @Model.GetExpenseCategory().ToLower() and will not affect inventory levels.
+              Changes will be posted to: <strong>@Model.GetAccountName()</strong>
             </div>
           }
 
@@ -134,22 +143,15 @@
               <div class="mb-3">
                 <label asp-for="QuantityPurchased" class="form-label">
                   <i class="fas fa-boxes text-primary"></i>
-                  @(isExpenseItem ? "Quantity" : "Quantity Purchased") <span class="text-danger">*</span>
+                  Quantity Purchased <span class="text-danger">*</span>
                 </label>
-                @if (isExpenseItem)
-                {
-                  <input asp-for="QuantityPurchased" class="form-control" type="number" min="1" readonly />
-                }
-                else
-                {
-                  <input asp-for="QuantityPurchased" class="form-control" type="number" min="1" />
-                }
+                <input asp-for="QuantityPurchased" class="form-control" type="number" min="1" />
                 <span asp-validation-for="QuantityPurchased" class="text-danger"></span>
                 @if (isExpenseItem)
                 {
                   <div class="form-text">
                     <i class="fas fa-info-circle"></i>
-                    Expense items typically have a quantity of 1
+                    For services and subscriptions, quantity typically represents units, hours, or licenses
                   </div>
                 }
               </div>
@@ -158,17 +160,21 @@
               <div class="mb-3">
                 <label asp-for="CostPerUnit" class="form-label">
                   <i class="fas fa-dollar-sign text-success"></i>
-                  @(isExpenseItem ? "Amount" : "Cost Per Unit") <span class="text-danger">*</span>
+                  Cost Per Unit <span class="text-danger">*</span>
                 </label>
-                <input asp-for="CostPerUnit" class="form-control" type="number" step="0.01" min="0" />
+                <input asp-for="CostPerUnit" class="form-control" type="number" step="0.000001" min="0" />
                 <span asp-validation-for="CostPerUnit" class="text-danger"></span>
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i>
+                  Up to 6 decimal places supported for precision
+                </div>
               </div>
             </div>
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label">
                   <i class="fas fa-calculator text-info"></i>
-                  @(isExpenseItem ? "Subtotal" : "Total Cost")
+                  Subtotal
                 </label>
                 <input type="text" class="form-control" id="totalCost" readonly
                        value="@((Model.QuantityPurchased * Model.CostPerUnit).ToString("C"))" />
@@ -177,8 +183,8 @@
           </div>
 
           <div class="row">
-            <!-- UPDATED: Hide shipping for expense items -->
-            @if (!isExpenseItem)
+            <!-- UPDATED: Show shipping for inventory items, hide for most expense items -->
+            @if (Model.IsInventoryPurchase || Model.Item?.ItemType == ItemType.Consumable)
             {
               <div class="col-md-6">
                 <div class="mb-3">
@@ -207,6 +213,7 @@
             }
             else
             {
+              <!-- For pure services/subscriptions, only show tax -->
               <div class="col-md-12">
                 <div class="mb-3">
                   <label asp-for="TaxAmount" class="form-label">
@@ -217,11 +224,13 @@
                   <span asp-validation-for="TaxAmount" class="text-danger"></span>
                 </div>
               </div>
+              <!-- Hidden shipping field for services -->
+              <input asp-for="ShippingCost" type="hidden" value="0" />
             }
           </div>
 
-          <!-- UPDATED: Hide delivery dates for expense items -->
-          @if (!isExpenseItem)
+          <!-- UPDATED: Show delivery dates for physical items only -->
+          @if (Model.IsInventoryPurchase || Model.Item?.ItemType == ItemType.Consumable)
           {
             <div class="row">
               <div class="col-md-6">
@@ -250,29 +259,58 @@
           <div class="mb-3">
             <label asp-for="Status" class="form-label">
               <i class="fas fa-flag text-primary"></i>
-              @(isExpenseItem ? "Payment Status" : "Status")
+              Status
             </label>
-            @if (isExpenseItem)
-            {
-              <select asp-for="Status" class="form-select">
-                <option value="Pending">Pending</option>
-                <option value="Paid">Paid</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            }
-            else
-            {
-              <select asp-for="Status" class="form-select">
-                <option value="Pending">Pending</option>
-                <option value="Ordered">Ordered</option>
+            <select asp-for="Status" class="form-select">
+              <option value="Pending">Pending</option>
+              <option value="Ordered">Ordered</option>
+              @if (Model.IsInventoryPurchase || Model.Item?.ItemType == ItemType.Consumable)
+              {
                 <option value="Shipped">Shipped</option>
                 <option value="Delivered">Delivered</option>
                 <option value="PartiallyReceived">Partially Received</option>
-                <option value="Received">Received</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            }
+              }
+              <option value="Received">@(isExpenseItem ? "Completed" : "Received")</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
             <span asp-validation-for="Status" class="text-danger"></span>
+            @if (isExpenseItem)
+            {
+              <div class="form-text">
+                <i class="fas fa-info-circle"></i>
+                For operational expenses, "Received" means the service/expense has been completed
+              </div>
+            }
+          </div>
+
+          <!-- UPDATED: Add Invoice Number field -->
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="InvoiceNumber" class="form-label">
+                  <i class="fas fa-file-invoice text-info"></i>
+                  Vendor Invoice Number
+                </label>
+                <input asp-for="InvoiceNumber" class="form-control" placeholder="Invoice number from vendor" />
+                <span asp-validation-for="InvoiceNumber" class="text-danger"></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <!-- Project field for R&D items -->
+              @if (Model.Item?.ItemType == ItemType.RnDMaterials)
+              {
+                <div class="mb-3">
+                  <label asp-for="ProjectId" class="form-label">
+                    <i class="fas fa-project-diagram text-warning"></i>
+                    R&D Project
+                  </label>
+                  <select asp-for="ProjectId" class="form-select" asp-items="ViewBag.ProjectId">
+                    <option value="">-- No Project Assignment --</option>
+                  </select>
+                  <span asp-validation-for="ProjectId" class="text-danger"></span>
+                </div>
+              }
+            </div>
           </div>
 
           <div class="mb-3">
@@ -280,7 +318,7 @@
               <i class="fas fa-sticky-note text-secondary"></i>
               Notes
             </label>
-            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Optional notes about this @(isExpenseItem ? "expense payment" : "purchase")"></textarea>
+            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Optional notes about this purchase"></textarea>
             <span asp-validation-for="Notes" class="text-danger"></span>
           </div>
         </div>
@@ -292,10 +330,18 @@
                 <i class="fas fa-info-circle"></i>
                 Created: @Model.CreatedDate.ToString("MM/dd/yyyy hh:mm tt")
               </small>
+              @if (!string.IsNullOrEmpty(Model.AccountCode))
+              {
+                <br>
+                <small class="text-muted">
+                  <i class="fas fa-chart-line"></i>
+                  GL Account: @Model.AccountCode - @Model.GetAccountName()
+                </small>
+              }
             </div>
             <div>
               <button type="submit" class="btn btn-success me-2">
-                <i class="fas fa-save"></i> Update @(isExpenseItem ? "Expense Payment" : "Purchase")
+                <i class="fas fa-save"></i> Update Purchase
               </button>
               <a href="/Purchases/Details/@Model.Id" class="btn btn-outline-secondary">
                 <i class="fas fa-times"></i> Cancel
@@ -317,7 +363,6 @@
       <div class="card-body">
         @if (Model.PurchaseDocuments?.Any() == true)
         {
-          <!-- Same document display code as before -->
           <div class="table-responsive">
             <table class="table table-sm">
               <thead>
@@ -391,7 +436,7 @@
           <div class="text-center py-4">
             <i class="fas fa-file-upload fa-3x text-muted mb-3"></i>
             <h6 class="text-muted">No @(isExpenseItem ? "Receipts" : "Documents") Uploaded</h6>
-            <p class="text-muted">Upload @(isExpenseItem ? "receipts, invoices" : "invoices, receipts, purchase orders"), and other @(isExpenseItem ? "expense" : "purchase")-related documents.</p>
+            <p class="text-muted">Upload @(isExpenseItem ? "receipts, invoices" : "invoices, receipts, purchase orders"), and other purchase-related documents.</p>
             <a href="/PurchaseDocuments/Upload?purchaseId=@Model.Id" class="btn btn-outline-success">
               <i class="fas fa-upload"></i> Upload First @(isExpenseItem ? "Receipt" : "Document")
             </a>
@@ -401,12 +446,12 @@
     </div>
   </div>
 
-  <!-- Right Sidebar - Same logic but updated labels for expenses -->
+  <!-- Right Sidebar -->
   <div class="col-md-4">
-    <!-- Payment/Purchase Summary Card -->
+    <!-- Purchase Summary Card -->
     <div class="card">
       <div class="card-header">
-        <h5><i class="fas fa-chart-line"></i> @(isExpenseItem ? "Payment" : "Purchase") Summary</h5>
+        <h5><i class="fas fa-chart-line"></i> Purchase Summary</h5>
       </div>
       <div class="card-body">
         <div class="row text-center">
@@ -421,7 +466,7 @@
         </div>
         <hr>
         <div class="row text-center">
-          @if (!isExpenseItem)
+          @if (Model.IsInventoryPurchase || Model.Item?.ItemType == ItemType.Consumable)
           {
             <div class="col-6">
               <h5 class="text-info">@Model.ShippingCost.ToString("C")</h5>
@@ -443,10 +488,22 @@
         <hr>
         <div class="text-center">
           <h4 class="text-dark" id="grandTotal">
-            @((Model.QuantityPurchased * Model.CostPerUnit + Model.ShippingCost + Model.TaxAmount).ToString("C"))
+            @Model.ExtendedTotal.ToString("C")
           </h4>
           <small class="text-muted">Grand Total</small>
         </div>
+        
+        <!-- UPDATED: Show accounting information -->
+        @if (!string.IsNullOrEmpty(Model.AccountCode))
+        {
+          <hr>
+          <div class="text-center">
+            <small class="text-muted">
+              <strong>GL Account:</strong><br>
+              @Model.AccountCode - @Model.GetAccountName()
+            </small>
+          </div>
+        }
       </div>
     </div>
 
@@ -455,19 +512,24 @@
     {
       <div class="card mt-3">
         <div class="card-header">
-          <h5><i class="fas fa-cube"></i> @(isExpenseItem ? "Expense Item" : "Item") Information</h5>
+          <h5><i class="fas fa-cube"></i> Item Information</h5>
         </div>
         <div class="card-body">
           <p><strong>Part Number:</strong> @Model.Item.PartNumber</p>
           <p><strong>Description:</strong> @Model.Item.Description</p>
-          @if (!isExpenseItem)
+          <p><strong>Type:</strong> 
+            <span class="badge bg-@(Model.IsInventoryPurchase ? "primary" : "secondary")">
+              @Model.Item.ItemType.ToString().Replace("_", " ")
+            </span>
+          </p>
+          @if (Model.IsInventoryPurchase)
           {
             <p><strong>Current Stock:</strong> @Model.Item.CurrentStock</p>
             <p><strong>Min Stock:</strong> @Model.Item.MinimumStock</p>
           }
           else
           {
-            <p><strong>Type:</strong> @Model.Item.ItemType</p>
+            <p><strong>Expense Category:</strong> @Model.GetExpenseCategory()</p>
           }
           <hr>
           <a href="/Items/Details/@Model.Item.Id" class="btn btn-outline-info btn-sm">
@@ -477,7 +539,7 @@
       </div>
     }
 
-    <!-- Vendor Information Card - Same for both -->
+    <!-- Vendor Information Card -->
     @if (Model.Vendor != null)
     {
       <div class="card mt-3">
@@ -502,6 +564,29 @@
         </div>
       </div>
     }
+
+    <!-- UPDATED: Project Information for R&D Materials -->
+    @if (Model.Project != null)
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-project-diagram"></i> R&D Project</h5>
+        </div>
+        <div class="card-body">
+          <p><strong>Project:</strong> @Model.Project.ProjectName</p>
+          <p><strong>Code:</strong> @Model.Project.ProjectCode</p>
+          <p><strong>Status:</strong> @Model.Project.Status</p>
+          @if (!string.IsNullOrEmpty(Model.Project.ProjectManager))
+          {
+            <p><strong>Manager:</strong> @Model.Project.ProjectManager</p>
+          }
+          <hr>
+          <a href="/Projects/Details/@Model.Project.Id" class="btn btn-outline-warning btn-sm">
+            <i class="fas fa-eye"></i> View Project Details
+          </a>
+        </div>
+      </div>
+    }
   </div>
 </div>
 
@@ -509,12 +594,13 @@
     <script>
         $(document).ready(function() {
             var isExpenseItem = @(isExpenseItem.ToString().ToLower());
+            var hasShipping = @((Model.IsInventoryPurchase || Model.Item?.ItemType == ItemType.Consumable).ToString().ToLower());
 
             // Auto-calculate totals when values change
             function updateTotals() {
                 var quantity = parseFloat($('#QuantityPurchased').val()) || 0;
                 var costPerUnit = parseFloat($('#CostPerUnit').val()) || 0;
-                var shipping = isExpenseItem ? 0 : (parseFloat($('#ShippingCost').val()) || 0);
+                var shipping = hasShipping ? (parseFloat($('#ShippingCost').val()) || 0) : 0;
                 var tax = parseFloat($('#TaxAmount').val()) || 0;
 
                 var subtotal = quantity * costPerUnit;
@@ -572,11 +658,11 @@
             });
 
             // Bind total calculation to input changes
-            if (isExpenseItem) {
-                $('#QuantityPurchased, #CostPerUnit, #TaxAmount').on('input', updateTotals);
-            } else {
-                $('#QuantityPurchased, #CostPerUnit, #ShippingCost, #TaxAmount').on('input', updateTotals);
+            var inputsToWatch = '#QuantityPurchased, #CostPerUnit, #TaxAmount';
+            if (hasShipping) {
+                inputsToWatch += ', #ShippingCost';
             }
+            $(inputsToWatch).on('input', updateTotals);
 
             // Form validation
             $('form').submit(function(e) {
@@ -634,6 +720,10 @@
           border-left: 4px solid #ffc107;
         }
 
+        .alert-info {
+          border-left: 4px solid #17a2b8;
+        }
+
         .form-text {
           font-size: 0.875em;
         }
@@ -646,6 +736,10 @@
 
         .badge {
           font-size: 0.75rem;
+        }
+
+        .text-muted {
+          font-size: 0.875rem;
         }
     </style>
 }

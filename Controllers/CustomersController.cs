@@ -304,21 +304,46 @@ namespace InventorySystem.Controllers
 			ViewBag.CommunicationPreferences = new SelectList(Enum.GetValues<CommunicationPreference>());
 			ViewBag.PricingTiers = new SelectList(Enum.GetValues<PricingTier>());
 		}
-
-		// AJAX method for customer search
+		// AJAX method for customer search - Updated to handle both use cases
 		[HttpGet]
-		public async Task<JsonResult> SearchCustomers(string term)
+		public async Task<JsonResult> SearchCustomers(string term, int limit = 10)
 		{
 			try
 			{
+				if (string.IsNullOrWhiteSpace(term))
+				{
+					return Json(new List<object>());
+				}
+
 				var customers = await _customerService.SearchCustomersAsync(term);
-				var results = customers.Take(10).Select(c => new
+				var results = customers.Take(limit).Select(c => new
 				{
 					id = c.Id,
+					text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
 					name = c.CustomerName,
 					email = c.Email,
+					phone = c.Phone ?? "",
 					company = c.CompanyName ?? "",
-					type = c.CustomerType.ToString()
+					companyName = c.CompanyName,
+					customerName = c.CustomerName,
+					type = c.CustomerType.ToString(),
+					customerType = c.CustomerType.ToString(),
+					currentBalance = c.OutstandingBalance,
+					outstandingBalance = c.OutstandingBalance,
+					creditLimit = c.CreditLimit,
+					paymentTerms = c.DefaultPaymentTerms.ToString(),
+					isActive = c.IsActive,
+					// Additional display info for enhanced sales creation
+					displayText = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
+					displayInfo = new
+					{
+						primaryInfo = c.CustomerName,
+						secondaryInfo = c.CompanyName ?? c.Email,
+						balanceInfo = $"Balance: {c.OutstandingBalance:C}",
+						creditInfo = c.CreditLimit > 0 ? $"Credit: {c.CreditLimit:C}" : "No Credit Limit",
+						statusBadge = c.IsActive ? "Active" : "Inactive",
+						statusClass = c.IsActive ? "success" : "warning"
+					}
 				});
 
 				return Json(results);
@@ -489,52 +514,6 @@ namespace InventorySystem.Controllers
 			{
 				_logger.LogError(ex, "Error getting customer info for customer {CustomerId}", id);
 				return Json(new { success = false, message = "Error retrieving customer information" });
-			}
-		}
-
-		// API endpoint for customer search (enhanced dropdown functionality)
-		[HttpGet]
-		public async Task<JsonResult> SearchCustomers(string term, int limit = 10)
-		{
-			try
-			{
-				if (string.IsNullOrWhiteSpace(term))
-				{
-					return Json(new { success = true, customers = new List<object>() });
-				}
-
-				var customers = await _customerService.SearchCustomersAsync(term);
-
-				var results = customers.Select(c => new
-				{
-					id = c.Id,
-					text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
-					customerName = c.CustomerName,
-					companyName = c.CompanyName,
-					email = c.Email,
-					phone = c.Phone,
-					currentBalance = c.OutstandingBalance,
-					creditLimit = c.CreditLimit,
-					paymentTerms = c.DefaultPaymentTerms.ToString(),
-					isActive = c.IsActive,
-					// Additional display info
-					displayInfo = new
-					{
-						primaryInfo = c.CustomerName,
-						secondaryInfo = c.CompanyName ?? c.Email,
-						balanceInfo = $"Balance: {c.OutstandingBalance:C}",
-						creditInfo = c.CreditLimit > 0 ? $"Credit: {c.CreditLimit:C}" : "No Credit Limit",
-						statusBadge = c.IsActive ? "Active" : "Inactive",
-						statusClass = c.IsActive ? "success" : "warning"
-					}
-				}).ToList();
-
-				return Json(new { success = true, customers = results });
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error searching customers with term '{Term}'", term);
-				return Json(new { success = false, message = "Error searching customers" });
 			}
 		}
 

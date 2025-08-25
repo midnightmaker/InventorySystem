@@ -84,10 +84,10 @@
           <div class="col-md-4">
             <h6 class="small">Wildcard Search:</h6>
             <ul class="list-unstyled small">
-              <li><code>Crystal*</code> - Vendors starting with "Crystal"</li>
-              <li><code>*Supply</code> - Vendors ending with "Supply"</li>
-              <li><code>*Tech*</code> - Contains "Tech"</li>
-              <li><code>?BC Corp</code> - ABC Corp, XBC Corp, etc.</li>
+              <li>Crystal* - Vendors starting with "Crystal"</li>
+              <li>*Supply - Vendors ending with "Supply"</li>
+              <li>*Tech* - Contains "Tech"</li>
+              <li>?BC Corp - ABC Corp, XBC Corp, etc.</li>
             </ul>
           </div>
           <div class="col-md-4">
@@ -431,7 +431,7 @@
                   <td>
                     @if (!string.IsNullOrEmpty(vendor.VendorCode))
                     {
-                      <code>@vendor.VendorCode</code>
+                      <span class="text-monospace">@vendor.VendorCode</span>
                     }
                     else
                     {

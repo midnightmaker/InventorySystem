@@ -1,4 +1,5 @@
 ﻿// ViewModels/BulkItemUploadViewModel.cs
+using InventorySystem.Models;
 using InventorySystem.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -30,7 +31,7 @@ namespace InventorySystem.ViewModels
     public int InvalidItemsCount => ValidationResults.Count(vr => !vr.IsValid);
     public bool HasValidationResults => ValidationResults.Any();
     public bool CanProceedWithImport => ValidItemsCount > 0;
-	}
+  }
 
   public class BulkItemPreview
   {
@@ -44,16 +45,16 @@ namespace InventorySystem.ViewModels
     public string? VendorPartNumber { get; set; }
     public string? PreferredVendor { get; set; }
 
-    // NEW: Manufacturer information
+    // Manufacturer information
     public string? Manufacturer { get; set; }
     public string? ManufacturerPartNumber { get; set; }
 
     public bool IsSellable { get; set; } = true;
-    public bool IsExpense { get; set; } = false; // NEW: Expense flag
+    // ✅ REMOVED: IsExpense property (no longer used in operational-only items)
     public ItemType ItemType { get; set; } = ItemType.Inventoried;
     public string Version { get; set; } = "A";
     
-    // ADD: Unit of Measure support
+    // Unit of Measure support
     public UnitOfMeasure UnitOfMeasure { get; set; } = UnitOfMeasure.Each;
 
     // Initial purchase data (optional)
@@ -63,12 +64,13 @@ namespace InventorySystem.ViewModels
     public DateTime? InitialPurchaseDate { get; set; }
     public string? InitialPurchaseOrderNumber { get; set; }
 
-    // Helper properties
-    public bool TrackInventory => !IsExpense && ItemType == ItemType.Inventoried;
+    // Helper properties - ✅ UPDATED for operational items only
+    public bool TrackInventory => ItemType == ItemType.Inventoried || 
+                                  ItemType == ItemType.Consumable || 
+                                  ItemType == ItemType.RnDMaterials;
+    
     public string ItemTypeDisplayName => ItemType.ToString();
-
-    // NEW: Helper property for display
-    public string BusinessPurpose => IsExpense ? "Expense" : (IsSellable ? "Sellable" : "Internal Use");
+    public string BusinessPurpose => IsSellable ? "Sellable" : "Internal Use";
     public string FullDisplayName => $"{ItemTypeDisplayName} ({BusinessPurpose})";
 
     public string ManufacturerInfo => !string.IsNullOrEmpty(Manufacturer) || !string.IsNullOrEmpty(ManufacturerPartNumber)
@@ -76,6 +78,7 @@ namespace InventorySystem.ViewModels
         : "Not specified";
   }
 
+  // ✅ ENHANCED: Updated with vendor creation prompts
   public class ItemValidationResult
   {
     public int RowNumber { get; set; }
@@ -84,10 +87,12 @@ namespace InventorySystem.ViewModels
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new List<string>();
     public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> InfoMessages { get; set; } = new List<string>(); // ✅ NEW
+    public List<VendorCreationPrompt> VendorCreationPrompts { get; set; } = new List<VendorCreationPrompt>(); // ✅ NEW
     public BulkItemPreview? ItemData { get; set; }
   }
 
-  // NEW: Vendor upload classes
+  // Vendor upload classes
   public class BulkVendorPreview
   {
     public int RowNumber { get; set; }
@@ -146,5 +151,53 @@ namespace InventorySystem.ViewModels
     public List<string> Errors { get; set; } = new List<string>();
     public List<string> Warnings { get; set; } = new List<string>();
     public BulkVendorPreview? VendorData { get; set; }
+  }
+
+  // ✅ NEW: Vendor creation prompt classes
+  public class VendorCreationPrompt
+  {
+    public string VendorName { get; set; } = string.Empty;
+    public int RowNumber { get; set; }
+    public string PartNumber { get; set; } = string.Empty;
+    public string? VendorPartNumber { get; set; }
+    public bool IsInitialVendor { get; set; } = false;
+    public string PromptMessage { get; set; } = string.Empty;
+    public bool ShouldCreate { get; set; } = true; // Default to true for convenience
+  }
+
+  public class VendorCreationRequest
+  {
+    public string VendorName { get; set; } = string.Empty;
+    public bool ShouldCreate { get; set; } = true;
+    public List<PendingVendorAssignment> RelatedItems { get; set; } = new List<PendingVendorAssignment>();
+  }
+
+  public class PendingVendorAssignment
+  {
+    public int ItemId { get; set; }
+    public string PartNumber { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string? VendorPartNumber { get; set; }
+    public string VendorName { get; set; } = string.Empty;
+    public bool VendorExists { get; set; }
+    public int? FoundVendorId { get; set; }
+    public string? FoundVendorName { get; set; }
+    public bool IsAssigned { get; set; }
+  }
+
+  public class ImportVendorAssignmentViewModel
+  {
+    public List<VendorCreationRequest> NewVendorRequests { get; set; } = new List<VendorCreationRequest>();
+    public List<PendingVendorAssignment> PendingAssignments { get; set; } = new List<PendingVendorAssignment>();
+    public int VendorsCreated { get; set; }
+    public int VendorLinksCreated { get; set; }
+  }
+
+  public class VendorAssignmentResult
+  {
+    public bool Success { get; set; }
+    public int VendorsCreated { get; set; }
+    public int AssignmentsCompleted { get; set; }
+    public List<string> Errors { get; set; } = new List<string>();
   }
 }

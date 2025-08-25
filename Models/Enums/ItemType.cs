@@ -4,31 +4,17 @@ namespace InventorySystem.Models.Enums
 {
   public enum ItemType
   {
-    [Display(Name = "Inventoried", Description = "Physical items with stock tracking")]
+    [Display(Name = "Inventoried", Description = "Raw materials and components with precise quantity tracking")]
     Inventoried = 0,
 
-    [Display(Name = "Non-Inventoried", Description = "Items without stock tracking (firmware, software, etc.)")]
-    NonInventoried = 1,
-
-    [Display(Name = "Service", Description = "Labor, consulting, or service items")]
-    Service = 2,
-
-    [Display(Name = "Virtual", Description = "Licenses, digital assets, or virtual items")]
-    Virtual = 3,
-
-    [Display(Name = "Consumable", Description = "Items used up in operations (office supplies, consumables)")]
+    [Display(Name = "Consumable", Description = "Office supplies, hand tools, PPE, small parts that wear out or get used up")]
     Consumable = 4,
 
-    [Display(Name = "Expense", Description = "Direct expense items (utilities, rent, one-time expenses)")]
-    Expense = 5,
+    [Display(Name = "R&D Materials", Description = "Research and development specific materials and components")]
+    RnDMaterials = 8,
 
-    [Display(Name = "Subscription", Description = "Recurring subscription services (software licenses, cloud services)")]
-    Subscription = 6,
-
-    [Display(Name = "Utility", Description = "Utility expenses (electricity, water, internet)")]
-    Utility = 7,
-
-    [Display(Name = "R&D Materials", Description = "Research and development specific materials")]
-    RnDMaterials = 8
+    // ✅ ADD: Sellable services like calibration, maintenance, consulting
+    [Display(Name = "Service", Description = "Sellable services like calibration, maintenance, consulting, and training that can be sold to customers")]
+    Service = 12
   }
 }

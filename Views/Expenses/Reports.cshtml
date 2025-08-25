@@ -1,5 +1,4 @@
-```razor
-@model InventorySystem.ViewModels.ExpenseReportsViewModel
+﻿@model InventorySystem.ViewModels.ExpenseReportsViewModel
 @{
     ViewData["Title"] = "Expense Reports";
 }
@@ -117,10 +116,88 @@
                     </div>
                 </div>
                 <small>Active categories</small>
-            </div>
+            </div>  
         </div>
     </div>
 </div>
+
+<!-- ✅ MOVED: Recent Expense Transactions - Now Full Width at Top -->
+@if (Model.RecentExpensePayments.Any())
+{
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> Recent Expense Transactions</h5>
+                    <small class="text-muted">Showing latest @Model.RecentExpensePayments.Count() transactions</small>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 12%;">Date</th>
+                                    <th style="width: 25%;">Vendor</th>
+                                    <th style="width: 30%;">Expense</th>
+                                    <th style="width: 15%;">Amount</th>
+                                    <th style="width: 10%;">Method</th>
+                                    <th style="width: 8%;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var payment in Model.RecentExpensePayments)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="fw-bold">@payment.PaymentDate.ToString("MM/dd/yyyy")</span>
+                                            <br>
+                                            <small class="text-muted">@payment.PaymentDate.ToString("dddd")</small>
+                                        </td>
+                                        <td>
+                                            @if (payment.Vendor != null)
+                                            {
+                                                <a href="/Vendors/Details/@payment.Vendor.Id" class="text-decoration-none">
+                                                    <strong>@payment.Vendor.CompanyName</strong>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Unknown Vendor</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <a href="/Expenses/Details/@payment.ExpenseId" class="text-decoration-none">
+                                                <strong>@payment.Expense.ExpenseCode</strong>
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">@payment.Expense.Description</small>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold text-danger">@payment.TotalAmount.ToString("C")</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">@(payment.PaymentMethod ?? "N/A")</span>
+                                        </td>
+                                        <td>
+                                            <a href="/Expenses/Details/@payment.ExpenseId" class="btn btn-sm btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="/Expenses/Index" class="btn btn-outline-primary">
+                            <i class="fas fa-list"></i> View All Expenses
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Expenses by Category and Monthly Trend -->
 <div class="row mb-4">
@@ -208,9 +285,9 @@
     </div>
 </div>
 
-<!-- Top Vendors and Recent Expenses -->
+<!-- ✅ UPDATED: Top Vendors - Now Full Width -->
 <div class="row mb-4">
-    <div class="col-md-6">
+    <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h5><i class="fas fa-building"></i> Top Expense Vendors</h5>
@@ -219,13 +296,14 @@
                 @if (Model.TopVendors.Any())
                 {
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Vendor</th>
-                                    <th>Total</th>
-                                    <th>Transactions</th>
-                                    <th>Average</th>
+                                    <th style="width: 30%;">Vendor</th>
+                                    <th style="width: 20%;">Total Amount</th>
+                                    <th style="width: 15%;">Transactions</th>
+                                    <th style="width: 20%;">Average per Transaction</th>
+                                    <th style="width: 15%;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -234,12 +312,21 @@
                                     <tr>
                                         <td>
                                             <a href="/Vendors/Details/@vendor.VendorId" class="text-decoration-none">
-                                                @vendor.VendorName
+                                                <strong>@vendor.VendorName</strong>
                                             </a>
                                         </td>
-                                        <td>@vendor.TotalAmount.ToString("C")</td>
-                                        <td>@vendor.TransactionCount</td>
+                                        <td>
+                                            <span class="fw-bold text-danger">@vendor.TotalAmount.ToString("C")</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">@vendor.TransactionCount</span>
+                                        </td>
                                         <td>@vendor.AverageAmount.ToString("C")</td>
+                                        <td>
+                                            <a href="/Vendors/Details/@vendor.VendorId" class="btn btn-sm btn-outline-primary" title="View Vendor">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -253,75 +340,93 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-clock"></i> Recent Expense Transactions</h5>
-            </div>
-            <div class="card-body">
-                @if (Model.RecentExpenses.Any())
-                {
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Vendor</th>
-                                    <th>Item</th>
-                                    <th>Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var expense in Model.RecentExpenses)
-                                {
-                                    <tr>
-                                        <td>@expense.PurchaseDate.ToString("MM/dd")</td>
-                                        <td>
-                                            @if (expense.Vendor != null)
-                                            {
-                                                <a href="/Vendors/Details/@expense.Vendor.Id" class="text-decoration-none">
-                                                    @expense.Vendor.CompanyName
-                                                </a>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">Unknown</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            <a href="/Items/Details/@expense.Item.Id" class="text-decoration-none">
-                                                @expense.Item.PartNumber
-                                            </a>
-                                            <br>
-                                            <small class="text-muted">@expense.Item.Description</small>
-                                        </td>
-                                        <td>@expense.TotalCost.ToString("C")</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted text-center">No recent expenses</p>
-                }
-            </div>
-        </div>
-    </div>
 </div>
 
-@if (!Model.ExpensesByCategory.Any() && !Model.RecentExpenses.Any())
+<!-- UPDATED: Link to create expense in Expenses system -->
+@if (!Model.ExpensesByCategory.Any() && !Model.RecentExpensePayments.Any())
 {
     <div class="text-center py-5">
         <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
         <h4 class="text-muted">No Expense Data Available</h4>
         <p class="text-muted">Start recording expenses to see analytics and reports here.</p>
-        <a href="/Items/Create?itemType=Expense" class="btn btn-success">
-            <i class="fas fa-plus"></i> Create Your First Expense Item
+        <a href="/Expenses/Create" class="btn btn-success">
+            <i class="fas fa-plus"></i> Create Your First Expense
         </a>
     </div>
 }
+
+<!-- Document Compliance -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5><i class="fas fa-file-alt"></i> Document Compliance</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h3 class="text-primary">@Model.ExpenseCount</h3>
+                    <small class="text-muted">Total Payments</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h3 class="text-success">@(Model.ExpenseCount - Model.TotalPaymentsNeedingDocuments)</h3>
+                    <small class="text-muted">With Documents</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h3 class="text-danger">@Model.TotalPaymentsNeedingDocuments</h3>
+                    <small class="text-muted">Missing Documents</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h3 class="@(Model.DocumentComplianceRate >= 90 ? "text-success" : Model.DocumentComplianceRate >= 70 ? "text-warning" : "text-danger")">
+                        @Model.DocumentComplianceRate.ToString("F1")%
+                    </h3>
+                    <small class="text-muted">Compliance Rate</small>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.PaymentsWithoutDocuments.Any())
+        {
+            <hr>
+            <h6><i class="fas fa-exclamation-triangle text-warning"></i> Payments Missing Documents</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Expense</th>
+                            <th>Vendor</th>
+                            <th>Amount</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var payment in Model.PaymentsWithoutDocuments.Take(10))
+                        {
+                            <tr>
+                                <td>@payment.PaymentDate.ToString("MM/dd/yyyy")</td>
+                                <td>@payment.Expense.ExpenseCode</td>
+                                <td>@payment.Vendor?.CompanyName</td>
+                                <td>@payment.TotalAmount.ToString("C")</td>
+                                <td>
+                                    <a href="@Url.Action("UploadDocument", new { expensePaymentId = payment.Id })" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-upload"></i> Upload
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
 
 @section Scripts {
     <script>
@@ -331,4 +436,3 @@
         }
     </script>
 }
-```

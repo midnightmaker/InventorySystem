@@ -1,9 +1,8 @@
-﻿// Models/Sale.cs
+﻿// Models/Sale.cs - CLEANED: Removed old ItemType dependencies
 using InventorySystem.Models.Enums;
 using InventorySystem.Services;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 
 namespace InventorySystem.Models
 {
@@ -101,12 +100,12 @@ namespace InventorySystem.Models
 		// Navigation properties
 		public virtual ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
 		public virtual ICollection<CustomerPayment> CustomerPayments { get; set; } = new List<CustomerPayment>();
+		public virtual ICollection<Shipment> Shipments { get; set; } = new List<Shipment>();
 
 		// Computed properties
 		[NotMapped]
 		[Display(Name = "Subtotal")]
 		public decimal SubtotalAmount => SaleItems?.Sum(si => si.TotalPrice) ?? 0;
-
 
 		[NotMapped]
 		[Display(Name = "Total Amount")]
@@ -138,7 +137,8 @@ namespace InventorySystem.Models
 
 		[NotMapped]
 		[Display(Name = "Has Shipping Info")]
-		public bool HasShippingInfo => !string.IsNullOrEmpty(CourierService) && !string.IsNullOrEmpty(TrackingNumber);
+		public bool HasShippingInfo => Shipments.Any(s => 
+            !string.IsNullOrEmpty(s.CourierService) && !string.IsNullOrEmpty(s.TrackingNumber));
 
 		[NotMapped]
 		[Display(Name = "Is Shipped")]
@@ -150,10 +150,15 @@ namespace InventorySystem.Models
 
 		[NotMapped]
 		[Display(Name = "Shipping Summary")]
-		public string ShippingSummary => HasShippingInfo
-				? $"{CourierService} - {TrackingNumber}"
-				: "No shipping information";
-
+		public string ShippingSummary 
+		{
+			get
+			{
+				if (!Shipments.Any()) return "No shipments";
+				if (Shipments.Count == 1) return $"1 shipment: {Shipments.First().TrackingNumber}";
+				return $"{Shipments.Count} shipments";
+			}
+		}
 
 		// Methods
 		public void CalculatePaymentDueDate()
@@ -214,7 +219,8 @@ namespace InventorySystem.Models
 
 			return results;
 		}
-		// ============= NEW ACCOUNTING PROPERTIES =============
+
+		// ============= ACCOUNTING PROPERTIES =============
 
 		/// <summary>
 		/// General Ledger revenue account code for this sale (e.g., "4000" for Product Sales)
@@ -248,6 +254,7 @@ namespace InventorySystem.Models
 
 		/// <summary>
 		/// Gets the default revenue account code based on sale items
+		/// UPDATED: Only considers operational item types
 		/// </summary>
 		[NotMapped]
 		public string DefaultRevenueAccountCode
@@ -256,14 +263,25 @@ namespace InventorySystem.Models
 			{
 				if (SaleItems?.Any() != true) return "4000";
 
-				// Determine revenue account based on what's being sold
-				var hasProducts = SaleItems.Any(si => si.Item?.ItemType == ItemType.Inventoried);
-				var hasServices = SaleItems.Any(si => si.Item?.ItemType == ItemType.Service);
+				// Determine revenue account based on what's being sold (operational items only)
+				var hasInventoryItems = SaleItems.Any(si => si.Item?.ItemType == ItemType.Inventoried);
+				var hasConsumables = SaleItems.Any(si => si.Item?.ItemType == ItemType.Consumable);
+				var hasRnDMaterials = SaleItems.Any(si => si.Item?.ItemType == ItemType.RnDMaterials);
+				var hasFinishedGoods = SaleItems.Any(si => si.FinishedGoodId.HasValue);
 
-				if (hasServices && !hasProducts) return "4100"; // Service Revenue
-				if (hasProducts && !hasServices) return "4000"; // Product Sales
+				// Prioritize finished goods (manufactured products)
+				if (hasFinishedGoods) return "4000"; // Product Sales
 
-				return "4000"; // Default to Product Sales for mixed sales
+				// Then inventory items
+				if (hasInventoryItems) return "4000"; // Product Sales
+
+				// Then consumables (typically sold as supplies)
+				if (hasConsumables) return "4010"; // Supply Sales
+
+				// R&D materials (typically sold for research purposes)
+				if (hasRnDMaterials) return "4020"; // Research Material Sales
+
+				return "4000"; // Default to Product Sales
 			}
 		}
 
@@ -289,15 +307,16 @@ namespace InventorySystem.Models
 
 		/// <summary>
 		/// Gets the revenue account name this sale should be posted to
+		/// UPDATED: Only operational account types
 		/// </summary>
 		public string GetRevenueAccountName()
 		{
 			return (RevenueAccountCode ?? DefaultRevenueAccountCode) switch
 			{
 				"4000" => "Product Sales",
-				"4100" => "Service Revenue",
-				"4200" => "Custom Manufacturing",
-				"4300" => "R&D Services",
+				"4010" => "Supply Sales",
+				"4020" => "Research Material Sales",
+				"4030" => "Custom Manufacturing",
 				_ => "Product Sales"
 			};
 		}
@@ -313,18 +332,22 @@ namespace InventorySystem.Models
 
 		/// <summary>
 		/// Gets the revenue category for reporting
+		/// UPDATED: Only operational categories
 		/// </summary>
 		public string GetRevenueCategory()
 		{
 			if (SaleItems?.Any() != true) return "Other Revenue";
 
-			var hasProducts = SaleItems.Any(si => si.Item?.ItemType == ItemType.Inventoried);
-			var hasServices = SaleItems.Any(si => si.Item?.ItemType == ItemType.Service);
-			var hasVirtual = SaleItems.Any(si => si.Item?.ItemType == ItemType.Virtual);
+			var hasInventoryItems = SaleItems.Any(si => si.Item?.ItemType == ItemType.Inventoried);
+			var hasConsumables = SaleItems.Any(si => si.Item?.ItemType == ItemType.Consumable);
+			var hasRnDMaterials = SaleItems.Any(si => si.Item?.ItemType == ItemType.RnDMaterials);
+			var hasFinishedGoods = SaleItems.Any(si => si.FinishedGoodId.HasValue);
 
-			if (hasServices && !hasProducts) return "Service Revenue";
-			if (hasVirtual && !hasProducts && !hasServices) return "Software/Licensing";
-			if (hasProducts) return "Product Sales";
+			// Prioritize categories
+			if (hasFinishedGoods) return "Manufactured Products";
+			if (hasInventoryItems) return "Inventory Sales";
+			if (hasConsumables) return "Supply Sales";
+			if (hasRnDMaterials) return "Research Materials";
 
 			return "Other Revenue";
 		}
@@ -379,6 +402,7 @@ namespace InventorySystem.Models
 				_ => "Loss"
 			};
 		}
+
 		// Add navigation property for related adjustments
 		public virtual ICollection<CustomerBalanceAdjustment> RelatedAdjustments { get; set; } = new List<CustomerBalanceAdjustment>();
 
@@ -408,7 +432,6 @@ namespace InventorySystem.Models
 				? $"{RelatedAdjustments.Count} adjustment{(RelatedAdjustments.Count > 1 ? "s" : "")} totaling ${TotalAdjustments:N2}"
 				: "No adjustments applied";
 
-
 		[Display(Name = "Discount Amount")]
 		[Column(TypeName = "decimal(18,2)")]
 		public decimal DiscountAmount { get; set; } = 0;
@@ -436,10 +459,75 @@ namespace InventorySystem.Models
 		[Display(Name = "Has Discount")]
 		public bool HasDiscount => DiscountCalculated > 0;
 
-		
-
 		// Helper property
 		[NotMapped]
 		public bool HasJournalEntry => !string.IsNullOrEmpty(JournalEntryNumber);
+
+		[NotMapped]
+		[Display(Name = "Fulfillment Status")]
+		public string FulfillmentStatus
+		{
+			get
+			{
+				if (!SaleItems?.Any() == true) return "No Items";
+				
+				var totalBackorders = SaleItems.Sum(si => si.QuantityBackordered);
+				var hasShipments = !string.IsNullOrEmpty(TrackingNumber) || ShippedDate.HasValue;
+				
+				if (totalBackorders == 0)
+				{
+					return SaleStatus == SaleStatus.Shipped ? "Fully Shipped" : 
+						   SaleStatus == SaleStatus.Delivered ? "Delivered" : "Ready to Ship";
+				}
+				else if (hasShipments)
+				{
+					return "Partially Fulfilled";
+				}
+				else
+				{
+					return "Awaiting Fulfillment";
+				}
+			}
+		}
+
+		[NotMapped]
+		[Display(Name = "Can Ship Additional Items")]
+		public bool CanShipAdditionalItems
+		{
+			get
+			{
+				return (SaleStatus == SaleStatus.Backordered || SaleStatus == SaleStatus.PartiallyShipped) &&
+					   SaleItems?.Any(si => si.QuantityBackordered > 0) == true;
+			}
+		}
+
+		[NotMapped]
+		[Display(Name = "Can Make Adjustments")]
+		public bool CanMakeAdjustments
+		{
+			get
+			{
+				// Allow adjustments on shipped, partially shipped, or delivered sales
+				return SaleStatus == SaleStatus.Shipped || 
+					   SaleStatus == SaleStatus.PartiallyShipped || 
+					   SaleStatus == SaleStatus.Delivered;
+			}
+		}
+
+		[NotMapped]
+		[Display(Name = "Shipment Count")]
+		public int ShipmentCount { get; set; } // Will be populated from Shipments table
+
+		[NotMapped]
+		[Display(Name = "Items Available for Next Shipment")]
+		public List<SaleItem> ItemsAvailableForShipment
+		{
+			get
+			{
+				if (SaleItems == null) return new List<SaleItem>();
+				
+				return SaleItems.Where(si => si.QuantityBackordered > 0 && si.IsAvailableForShipment).ToList();
+			}
+		}
 	}
 }

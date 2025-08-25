@@ -1,27 +1,34 @@
-using InventorySystem.ViewModels;
+﻿using InventorySystem.ViewModels;
 
 namespace InventorySystem.Models
 {
+  // ✅ ENHANCED: Comprehensive BulkUploadResult with vendor assignment support
   public class BulkUploadResult
   {
+    public bool IsSuccess => !Errors.Any();
     public int SuccessfulImports { get; set; }
     public int FailedImports { get; set; }
     public List<string> Errors { get; set; } = new List<string>();
     public List<int> CreatedItemIds { get; set; } = new List<int>();
-
-    // NEW: Add detailed error tracking for individual items
     public List<ItemImportError> DetailedErrors { get; set; } = new List<ItemImportError>();
+    public ImportVendorAssignmentViewModel VendorAssignments { get; set; } = new ImportVendorAssignmentViewModel();
 
-    // NEW: Vendor assignment information
-    public ImportVendorAssignmentViewModel? VendorAssignments { get; set; }
-
-    public bool IsSuccess => FailedImports == 0 && !Errors.Any();
-    public string GetSummary() => IsSuccess
-        ? $"Successfully imported {SuccessfulImports} items"
-        : $"Imported {SuccessfulImports} items with {FailedImports} failures";
+    public string GetSummary()
+    {
+        var summary = $"Import completed: {SuccessfulImports} successful, {FailedImports} failed";
+        if (VendorAssignments.VendorsCreated > 0)
+        {
+            summary += $", {VendorAssignments.VendorsCreated} vendors created";
+        }
+        if (VendorAssignments.VendorLinksCreated > 0)
+        {
+            summary += $", {VendorAssignments.VendorLinksCreated} vendor links created";
+        }
+        return summary;
+    }
   }
 
-  // NEW: Add detailed error information for individual items
+  // Detailed error information for individual items
   public class ItemImportError
   {
     public int RowNumber { get; set; }
@@ -31,7 +38,7 @@ namespace InventorySystem.Models
     public DateTime ErrorTime { get; set; } = DateTime.Now;
   }
 
-  // Add these new classes to the existing file
+  // Vendor upload result classes
   public class BulkVendorUploadResult
   {
     public int SuccessfulImports { get; set; }

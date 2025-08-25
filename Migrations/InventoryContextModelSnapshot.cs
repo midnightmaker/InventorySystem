@@ -1445,7 +1445,7 @@ namespace InventorySystem.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
-                        .HasDefaultValueSql("datetime('now')");
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<DateTime?>("ExpectedDeliveryDate")
                         .HasColumnType("TEXT");
@@ -1689,9 +1689,6 @@ namespace InventorySystem.Migrations
                     b.Property<int?>("FinishedGoodId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("FinishedGoodId1")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int?>("ItemId")
                         .HasColumnType("INTEGER");
 
@@ -1716,8 +1713,6 @@ namespace InventorySystem.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FinishedGoodId");
-
-                    b.HasIndex("FinishedGoodId1");
 
                     b.HasIndex("ItemId");
 
@@ -2291,10 +2286,6 @@ namespace InventorySystem.Migrations
                         .WithMany()
                         .HasForeignKey("FinishedGoodId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("InventorySystem.Models.FinishedGood", null)
-                        .WithMany("SaleItems")
-                        .HasForeignKey("FinishedGoodId1");
 
                     b.HasOne("InventorySystem.Models.Item", "Item")
                         .WithMany()

@@ -1,0 +1,812 @@
+﻿@model Expense
+
+@{
+    ViewData["Title"] = $"Expense Details - {Model.ExpenseCode}";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-money-bill-wave"></i> Expense Details</h2>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="@Url.Action("Index")">Expenses</a></li>
+                <li class="breadcrumb-item active">@Model.ExpenseCode</li>
+            </ol>
+        </nav>
+    </div>
+    <div>
+        <a href="@Url.Action("Edit", new { id = Model.Id })" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="@Url.Action("RecordPayment", new { expenseId = Model.Id })" class="btn btn-success">
+            <i class="fas fa-file-invoice-dollar"></i> Record Payment
+        </a>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Expense Information -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Expense Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-5">Expense Code:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-primary fs-6">@Model.ExpenseCode</span>
+                            </dd>
+
+                            <dt class="col-sm-5">Description:</dt>
+                            <dd class="col-sm-7">@Model.Description</dd>
+
+                            <dt class="col-sm-5">Category:</dt>
+                            <dd class="col-sm-7">@Model.CategoryDisplayName</dd>
+
+                            <dt class="col-sm-5">Tax Category:</dt>
+                            <dd class="col-sm-7">@Model.TaxCategoryDisplayName
+                            </dd>
+
+                            <dt class="col-sm-5">Unit of Measure:</dt>
+                            <dd class="col-sm-7">@Model.UnitOfMeasure</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-5">Default Amount:</dt>
+                            <dd class="col-sm-7">
+                                @if (Model.DefaultAmount.HasValue)
+                                {
+                                    <span class="text-success fw-bold">@Model.DefaultAmount.Value.ToString("C")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Variable Amount</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-5">Recurring:</dt>
+                            <dd class="col-sm-7">
+                                @if (Model.IsRecurring)
+                                {
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-sync"></i> @Model.RecurrenceDescription
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">One-time</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-5">Status:</dt>
+                            <dd class="col-sm-7">
+                                @if (Model.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-5">Requires Approval:</dt>
+                            <dd class="col-sm-7">
+                                @if (Model.RequiresApproval)
+                                {
+                                    <span class="badge bg-warning">Yes</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">No</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-5">Created:</dt>
+                            <dd class="col-sm-7">
+                                <i class="fas fa-calendar text-muted"></i>
+                                @Model.CreatedDate.ToString("MM/dd/yyyy")
+                                @if (!string.IsNullOrEmpty(Model.CreatedBy))
+                                {
+                                    <br><small class="text-muted">by @Model.CreatedBy</small>
+                                }
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.Comments))
+                {
+                    <hr>
+                    <h6><i class="fas fa-comment"></i> Comments</h6>
+                    <p class="text-muted">@Model.Comments</p>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.VendorExpenseCode))
+                {
+                    <hr>
+                    <h6><i class="fas fa-barcode"></i> Vendor Reference</h6>
+                    <p><strong>Vendor Expense Code:</strong> @Model.VendorExpenseCode</p>
+                }
+            </div>
+        </div>
+
+        <!-- Enhanced Payment History with Integrated Documents -->
+        @if (Model.Payments != null && Model.Payments.Any())
+        {
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Payment History & Documents</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleAllDocuments()">
+                        <i class="fas fa-expand-arrows-alt"></i> Toggle All Documents
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 15%;">Date</th>
+                                    <th style="width: 20%;">Vendor</th>
+                                    <th style="width: 12%;">Amount</th>
+                                    <th style="width: 12%;">Method</th>
+                                    <th style="width: 15%;">Reference</th>
+                                    <th style="width: 16%;">Documents</th>
+                                    <th style="width: 10%;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var payment in Model.Payments.OrderByDescending(p => p.PaymentDate))
+                                {
+                                    var hasDocuments = payment.Documents != null && payment.Documents.Any();
+                                    var paymentRowId = $"payment-{payment.Id}";
+                                    var documentsRowId = $"docs-{payment.Id}";
+                                    var toggleButtonId = $"toggle-{payment.Id}";
+                                    
+                                    <!-- Payment Row -->
+                                    <tr id="@paymentRowId" class="payment-row">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                @if (hasDocuments)
+                                                {
+                                                    <button id="@toggleButtonId" class="btn btn-sm btn-link p-0 me-2 document-toggle" 
+                                                            onclick="toggleDocuments('@documentsRowId', this)"
+                                                            title="Show/Hide Documents">
+                                                        <i class="fas fa-chevron-right transition-icon"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <span class="me-3"></span>
+                                                }
+                                                <span>@payment.PaymentDate.ToString("MM/dd/yyyy")</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if (payment.Vendor != null)
+                                            {
+                                                <a href="/Vendors/Details/@payment.Vendor.Id" class="text-decoration-none">
+                                                    @payment.Vendor.CompanyName
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Unknown</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold text-success">@payment.TotalAmount.ToString("C")</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">@(payment.PaymentMethod ?? "N/A")</span>
+                                        </td>
+                                        <td>
+                                            <small>@(payment.PaymentReference ?? "N/A")</small>
+                                        </td>
+                                        <td>
+                                            @if (hasDocuments)
+                                            {
+                                                <div class="d-flex align-items-center">
+                                                    
+                                                    <!-- ✅ FIX: Make this actually clickable -->
+                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none document-view-btn" 
+                                                            onclick="toggleDocuments('@documentsRowId', document.getElementById('@toggleButtonId'))"
+                                                            title="Show/Hide Documents">
+                                                            <span class="badge bg-success me-2">
+                                                              <i class="fas fa-file"></i> @payment.Documents.Count()
+                                                            </span>
+                                                        
+                                                    </button>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i> Missing
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                @if (!hasDocuments)
+                                                {
+                                                    <a href="@Url.Action("UploadDocument", new { expensePaymentId = payment.Id })" 
+                                                       class="btn btn-outline-primary" title="Upload Document">
+                                                        <i class="fas fa-upload"></i>
+                                                    </a>
+                                                }
+                                                @if (payment.JournalEntryNumber != null)
+                                                {
+                                                    <button class="btn btn-outline-info" 
+                                                            title="Journal Entry: @payment.JournalEntryNumber">
+                                                        <i class="fas fa-book"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Documents Row (Initially Hidden) -->
+                                    @if (hasDocuments)
+                                    {
+                                        <tr id="@documentsRowId" class="documents-row" style="display: none;">
+                                            <td colspan="7" class="p-0">
+                                                <div class="document-section bg-light border-top">
+                                                    <div class="p-3">
+                                                        <h6 class="mb-3">
+                                                            <i class="fas fa-paperclip text-primary"></i>
+                                                            Documents for this payment
+                                                            <small class="text-muted">(Click document name or icon to preview)</small>
+                                                        </h6>
+                                                        <div class="row g-3">
+                                                            @foreach (var doc in payment.Documents.OrderByDescending(d => d.UploadedDate))
+                                                            {
+                                                                <div class="col-md-6 col-lg-4">
+                                                                    <div class="card document-card h-100">
+                                                                        <div class="card-body p-3">
+                                                                            <div class="d-flex align-items-start">
+                                                                                @{
+                                                                                    var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
+                                                                                        .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
+                                                                                }
+                                                                                
+                                                                                <!-- ✅ IMPROVED: Clickable icon -->
+                                                                                <div class="document-icon me-3">
+                                                                                    @if (canPreview)
+                                                                                    {
+                                                                                        <button class="btn btn-link p-0 preview-btn" 
+                                                                                                onclick="previewDocument(@doc.Id, '@doc.DocumentName')" 
+                                                                                                title="Click to preview @doc.DocumentName">
+                                                                                            <i class="@doc.FileTypeIcon fa-2x text-primary"></i>
+                                                                                        </button>
+                                                                                    }
+                                                                                    else
+                                                                                    {
+                                                                                        <i class="@doc.FileTypeIcon fa-2x text-secondary" title="Preview not available for this file type"></i>
+                                                                                    }
+                                                                                </div>
+                                                                                
+                                                                                <div class="flex-grow-1">
+                                                                                    <!-- ✅ IMPROVED: Clickable document name -->
+                                                                                    @if (canPreview)
+                                                                                    {
+                                                                                        <button class="btn btn-link p-0 text-start preview-btn w-100" 
+                                                                                                onclick="previewDocument(@doc.Id, '@doc.DocumentName')" 
+                                                                                                title="Click to preview">
+                                                                                            <h6 class="mb-1 text-primary text-start">@doc.DocumentName</h6>
+                                                                                        </button>
+                                                                                    }
+                                                                                    else
+                                                                                    {
+                                                                                        <h6 class="mb-1">@doc.DocumentName</h6>
+                                                                                        <small class="text-muted">(Preview not available)</small>
+                                                                                    }
+                                                                                    
+                                                                                    <div class="mb-2">
+                                                                                        <span class="badge bg-secondary">@doc.DocumentType</span>
+                                                                                        <small class="text-muted">@doc.FileSizeFormatted</small>
+                                                                                    </div>
+                                                                                    @if (!string.IsNullOrEmpty(doc.Description))
+                                                                                    {
+                                                                                        <p class="text-muted small mb-2">@doc.Description</p>
+                                                                                    }
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-calendar-alt"></i>
+                                                                                        @doc.UploadedDate.ToString("MM/dd/yyyy")
+                                                                                    </small>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="card-footer bg-transparent p-2">
+                                                                            <div class="btn-group w-100" role="group">
+                                                                                <a href="@Url.Action("DownloadDocument", new { id = doc.Id })" 
+                                                                                   class="btn btn-sm btn-outline-primary" title="Download">
+                                                                                    <i class="fas fa-download"></i>
+                                                                                </a>
+
+                                                                                <form asp-action="DeleteDocument" method="post" style="display:inline;" class="flex-grow-1">
+                                                                                    <input type="hidden" name="id" value="@doc.Id" />
+                                                                                    <button type="submit" 
+                                                                                            class="btn btn-sm btn-outline-danger w-100"
+                                                                                            onclick="return confirm('Delete this document? This action cannot be undone.')"
+                                                                                            title="Delete">
+                                                                                        <i class="fas fa-trash"></i>
+                                                                                    </button>
+                                                                                </form>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Default Vendor Information -->
+        @if (Model.DefaultVendor != null)
+        {
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-building"></i> Default Vendor</h5>
+                </div>
+                <div class="card-body">
+                    <h6>@Model.DefaultVendor.CompanyName</h6>
+                    @if (!string.IsNullOrEmpty(Model.DefaultVendor.ContactName))
+                    {
+                        <p><strong>Contact:</strong> @Model.DefaultVendor.ContactName</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.DefaultVendor.ContactEmail))
+                    {
+                        <p><strong>Email:</strong> @Model.DefaultVendor.ContactEmail</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.DefaultVendor.ContactPhone))
+                    {
+                        <p><strong>Phone:</strong> @Model.DefaultVendor.ContactPhone</p>
+                    }
+                    <hr>
+                    <a href="/Vendors/Details/@Model.DefaultVendor.Id" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-eye"></i> View Vendor Details
+                    </a>
+                </div>
+            </div>
+        }
+
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-tools"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="@Url.Action("RecordPayment", new { expenseId = Model.Id })" class="btn btn-success">
+                        <i class="fas fa-file-invoice-dollar"></i> Record Payment
+                    </a>
+                    <a href="@Url.Action("Edit", new { id = Model.Id })" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit Expense
+                    </a>
+                    <a href="@Url.Action("Create")" class="btn btn-outline-primary">
+                        <i class="fas fa-plus"></i> Create Similar
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        @if (Model.Payments != null && Model.Payments.Any())
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie"></i> Payment Summary</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-6">Total Paid:</dt>
+                        <dd class="col-6 text-success fw-bold">@Model.Payments.Sum(p => p.TotalAmount).ToString("C")</dd>
+                        
+                        <dt class="col-6">Payments:</dt>
+                        <dd class="col-6">@Model.Payments.Count()</dd>
+                        
+                        <dt class="col-6">Last Payment:</dt>
+                        <dd class="col-6">@Model.Payments.Max(p => p.PaymentDate).ToString("MM/dd/yyyy")</dd>
+                        
+                        <dt class="col-6">Average:</dt>
+                        <dd class="col-6">@(Model.Payments.Count() > 0 ? (Model.Payments.Sum(p => p.TotalAmount) / Model.Payments.Count()).ToString("C") : "N/A")</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Document Compliance -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-file-alt"></i> Document Status</h5>
+                </div>
+                <div class="card-body">
+                    @{
+                        var totalDocuments = Model.Payments.Sum(p => p.Documents?.Count() ?? 0);
+                        var paymentsWithDocuments = Model.Payments.Count(p => p.Documents != null && p.Documents.Any());
+                        var complianceRate = Model.Payments.Count > 0 ? (double)paymentsWithDocuments / Model.Payments.Count * 100 : 0;
+                    }
+                    <dl class="row">
+                        <dt class="col-6">Documents:</dt>
+                        <dd class="col-6">@totalDocuments</dd>
+                        
+                        <dt class="col-6">Documented:</dt>
+                        <dd class="col-6">@paymentsWithDocuments of @Model.Payments.Count</dd>
+                        
+                        <dt class="col-6">Compliance:</dt>
+                        <dd class="col-6">
+                            <span class="@(complianceRate >= 90 ? "text-success" : complianceRate >= 70 ? "text-warning" : "text-danger")">
+                                @complianceRate.ToString("F1")%
+                            </span>
+                        </dd>
+                    </dl>
+                    
+                    @if (paymentsWithDocuments < Model.Payments.Count)
+                    {
+                        <div class="alert alert-warning alert-sm mt-2">
+                            <small>
+                                <i class="fas fa-exclamation-triangle"></i>
+                                @(Model.Payments.Count - paymentsWithDocuments) payment(s) missing documents
+                            </small>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Document/Image Display -->
+        @if (Model.HasImage)
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-file-image"></i> Attached Document</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>File:</strong> @Model.ImageFileName</p>
+                    <img src="data:@Model.ImageContentType;base64,@Convert.ToBase64String(Model.ImageData)" 
+                         class="img-fluid" alt="Expense Document" style="max-height: 300px;" />
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Document Preview Modal -->
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalTitle">Document Preview</h5>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" onclick="zoomOut()">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetZoom()">
+                        <i class="fas fa-compress-arrows-alt"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="zoomIn()">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="previewLoading" class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading document...</p>
+                </div>
+                <iframe id="previewIframe" style="width: 100%; height: 70vh; border: none; display: none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a id="downloadLink" href="#" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentZoom = 1;
+
+        function previewDocument(documentId, documentName) {
+            const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
+            const iframe = document.getElementById('previewIframe');
+            const modalTitle = document.getElementById('previewModalTitle');
+            const downloadLink = document.getElementById('downloadLink');
+            const loading = document.getElementById('previewLoading');
+
+            modalTitle.textContent = `Preview: ${documentName}`;
+            downloadLink.href = `/Expenses/DownloadDocument/${documentId}`;
+
+            // Show loading, hide iframe
+            loading.style.display = 'block';
+            iframe.style.display = 'none';
+
+            // Set iframe source
+            iframe.src = `/Expenses/PreviewDocument/${documentId}`;
+
+            // Show modal
+            modal.show();
+
+            // Handle iframe load
+            iframe.onload = function() {
+                loading.style.display = 'none';
+                iframe.style.display = 'block';
+            };
+
+            // Handle iframe error
+            iframe.onerror = function() {
+                loading.innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h5>Preview Not Available</h5>
+                        <p class="text-muted">This document cannot be previewed in your browser.</p>
+                        <a href="/Expenses/DownloadDocument/${documentId}" class="btn btn-primary">
+                            <i class="fas fa-download"></i> Download Document
+                        </a>
+                    </div>
+                `;
+            };
+        }
+
+        function toggleDocuments(documentsRowId, toggleButton) {
+            const documentsRow = document.getElementById(documentsRowId);
+            const icon = toggleButton.querySelector('i');
+            
+            if (documentsRow.style.display === 'none') {
+                documentsRow.style.display = 'table-row';
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                documentsRow.style.display = 'none';
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
+            }
+        }
+
+        function toggleAllDocuments() {
+            const documentsRows = document.querySelectorAll('.documents-row');
+            const toggleButtons = document.querySelectorAll('.document-toggle');
+            
+            // Check if any are currently visible
+            const anyVisible = Array.from(documentsRows).some(row => row.style.display !== 'none');
+            
+            documentsRows.forEach((row, index) => {
+                const button = toggleButtons[index];
+                const icon = button?.querySelector('i');
+                
+                if (anyVisible) {
+                    // Hide all
+                    row.style.display = 'none';
+                    if (icon) {
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-right');
+                    }
+                } else {
+                    // Show all
+                    row.style.display = 'table-row';
+                    if (icon) {
+                        icon.classList.remove('fa-chevron-right');
+                        icon.classList.add('fa-chevron-down');
+                    }
+                }
+            });
+        }
+
+        function zoomIn() {
+            currentZoom += 0.25;
+            applyZoom();
+        }
+
+        function zoomOut() {
+            if (currentZoom > 0.5) {
+                currentZoom -= 0.25;
+                applyZoom();
+            }
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const iframe = document.getElementById('previewIframe');
+            iframe.style.transform = `scale(${currentZoom})`;
+            iframe.style.transformOrigin = 'top left';
+        }
+
+        // Reset zoom when modal is closed
+        document.getElementById('documentPreviewModal').addEventListener('hidden.bs.modal', function () {
+            currentZoom = 1;
+            applyZoom();
+            document.getElementById('previewIframe').src = '';
+        });
+    </script>
+
+    <style>
+        /* Enhanced styles for integrated document layout */
+        .payment-row {
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .documents-row td {
+            border-top: none !important;
+            border-bottom: 2px solid #dee2e6 !important;
+        }
+
+        .document-section {
+            border-left: 4px solid #0d6efd;
+            margin-left: 0;
+        }
+
+        .document-card {
+            border: 1px solid #e3e6f0;
+            border-radius: 0.35rem;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .document-card:hover {
+            border-color: #0d6efd;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+
+        .document-icon {
+            flex-shrink: 0;
+        }
+
+        .document-toggle {
+            color: #6c757d;
+            border: none;
+            background: none;
+            padding: 0;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .document-toggle:hover {
+            color: #0d6efd;
+        }
+
+        .document-view-btn {
+            border: none !important;
+            color: #0d6efd !important;
+        }
+
+        .document-view-btn:hover {
+            color: #0a58ca !important;
+            text-decoration: underline !important;
+        }
+
+        .transition-icon {
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .alert-sm {
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-group-sm .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            background-color: #f8f9fa;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+
+        /* Add these styles to the existing <style> section */
+        .preview-btn {
+            border: none !important;
+            background: none !important;
+            text-decoration: none !important;
+            color: inherit !important;
+        }
+
+        .preview-btn:hover {
+            background: none !important;
+            border: none !important;
+        }
+
+        .preview-btn:focus {
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        /* Make document icons more interactive */
+        .document-icon .preview-btn:hover i {
+            color: #0a58ca !important;
+            transform: scale(1.1);
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Make document names more interactive */
+        .preview-btn h6:hover {
+            color: #0a58ca !important;
+            text-decoration: underline !important;
+        }
+
+        /* Indicate clickable documents */
+        .document-card:has(.preview-btn) {
+            cursor: pointer;
+        }
+
+        .document-card:has(.preview-btn):hover {
+            border-color: #0d6efd !important;
+            box-shadow: 0 0.25rem 0.5rem rgba(13, 110, 253, 0.15) !important;
+        }
+
+        /* Style non-previewable documents differently */
+        .document-icon i.text-secondary {
+            opacity: 0.6;
+        }
+
+        /* Add a subtle indicator for previewable documents */
+        .preview-btn .fa-2x::after {
+            content: '\f06e'; /* Eye icon */
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            font-size: 0.5em;
+            bottom: -2px;
+            right: -2px;
+            background: white;
+            border-radius: 50%;
+            padding: 2px;
+            color: #198754;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        .preview-btn:hover .fa-2x::after {
+            opacity: 1;
+        }
+
+        /* Responsive adjustments */
+        @@media (max-width: 768px) {
+            .document-card {
+                margin-bottom: 1rem;
+            }
+            
+            .btn-group .btn {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+        }
+    </style>
+}

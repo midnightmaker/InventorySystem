@@ -1,0 +1,602 @@
+@model InventorySystem.ViewModels.CreateAdditionalShipmentViewModel
+@using InventorySystem.Models.Enums
+@using InventorySystem.Helpers
+@{
+    ViewData["Title"] = "Create Additional Shipment";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-shipping-fast"></i> Create Additional Shipment</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("Details", new { id = Model.SaleId })" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Sale
+        </a>
+        <a href="@Url.Action("Backorders")" class="btn btn-outline-info">
+            <i class="fas fa-hourglass-half"></i> View All Backorders
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Sale Information Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Sale Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <dl class="row">
+                            <dt class="col-sm-5">Sale Number:</dt>
+                            <dd class="col-sm-7"><strong>@Model.Sale.SaleNumber</strong></dd>
+                            <dt class="col-sm-5">Customer:</dt>
+                            <dd class="col-sm-7">@Model.Sale.Customer?.CustomerName</dd>
+                            <dt class="col-sm-5">Sale Date:</dt>
+                            <dd class="col-sm-7">@Model.Sale.SaleDate.ToString("MM/dd/yyyy")</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-4">
+                        <dl class="row">
+                            <dt class="col-sm-5">Status:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-@BadgeHelper.GetSaleStatusBadgeColor(Model.Sale.SaleStatus)">
+                                    @Model.Sale.SaleStatus
+                                </span>
+                            </dd>
+                            <dt class="col-sm-5">Total Amount:</dt>
+                            <dd class="col-sm-7"><strong>@Model.Sale.TotalAmount.ToString("C")</strong></dd>
+                            <dt class="col-sm-5">Shipments:</dt>
+                            <dd class="col-sm-7">@Model.Sale.ShipmentCount completed</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Additional Shipment</strong><br>
+                            This will create shipment #@(Model.Sale.ShipmentCount + 1) for this sale.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Available Items for Shipment -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-boxes"></i> Items Available for Shipment</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.AvailableItems?.Any() == true)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Part Number</th>
+                                    <th>Description</th>
+                                    <th class="text-center">Backordered</th>
+                                    <th class="text-center">Available</th>
+                                    <th class="text-center">Ship Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Line Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.AvailableItems.Count; i++)
+                                {
+                                    var item = Model.AvailableItems[i];
+                                    <tr data-item-index="@i">
+                                        <td>
+                                            <strong>@item.ProductPartNumber</strong>
+                                            @if (item.CanFulfillQuantity > 0)
+                                            {
+                                                <br><span class="badge bg-success">Available</span>
+                                            }
+                                            else
+                                            {
+                                                <br><span class="badge bg-warning">No Stock</span>
+                                            }
+                                        </td>
+                                        <td>@item.ProductName</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-warning">@item.QuantityBackordered</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-success">@item.CanFulfillQuantity</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="input-group input-group-sm" style="width: 120px;">
+                                                <input type="number" 
+                                                       class="form-control text-center quantity-input" 
+                                                       min="0" 
+                                                       max="@item.CanFulfillQuantity"
+                                                       value="@item.QuantityToShip"
+                                                       data-sale-item-id="@item.SaleItemId"
+                                                       data-unit-price="@item.UnitPrice"
+                                                       data-row-index="@i" />
+                                                <button type="button" class="btn btn-outline-secondary btn-max" 
+                                                        onclick="setMaxQuantity(@i, @item.CanFulfillQuantity)"
+                                                        title="Set to maximum available">
+                                                    <i class="fas fa-arrows-alt-v"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td class="text-end">@item.UnitPrice.ToString("C")</td>
+                                        <td class="text-end">
+                                            <strong class="line-total" id="lineTotal_@i">$@((item.QuantityToShip * item.UnitPrice).ToString("F2"))</strong>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="6">Shipment Total:</th>
+                                    <th class="text-end">
+                                        <strong id="shipmentTotal">$0.00</strong>
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Instructions:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Enter the quantity you want to ship for each item</li>
+                            <li>You can only ship up to the "Available" quantity</li>
+                            <li>Items with 0 available stock cannot be shipped</li>
+                            <li>Use the <i class="fas fa-arrows-alt-v"></i> button to set maximum available quantity</li>
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Items Available</h5>
+                        <p class="text-muted">There are currently no backordered items available for shipment.</p>
+                        <a href="@Url.Action("Details", new { id = Model.SaleId })" class="btn btn-primary">
+                            <i class="fas fa-arrow-left"></i> Return to Sale
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6><i class="fas fa-calculator"></i> Shipment Summary</h6>
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-7">Total Items Selected:</div>
+                    <div class="col-5 text-end"><strong id="totalItemsCount">0</strong></div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-7">Total Quantity:</div>
+                    <div class="col-5 text-end"><strong id="totalQuantity">0</strong></div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-7"><strong>Shipment Value:</strong></div>
+                    <div class="col-5 text-end"><strong id="shipmentValue" class="text-primary fs-5">$0.00</strong></div>
+                </div>
+                
+                @if (Model.AvailableItems?.Any() == true)
+                {
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary" id="createShipmentBtn" data-bs-toggle="modal" data-bs-target="#additionalShipmentModal">
+                            <i class="fas fa-shipping-fast"></i> Create Shipment
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="selectAllAvailable()">
+                            <i class="fas fa-check-double"></i> Select All Available
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" onclick="clearAllSelections()">
+                            <i class="fas fa-times"></i> Clear All
+                        </button>
+                        <a href="@Url.Action("Details", new { id = Model.SaleId })" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <!-- Backorder Status -->
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-hourglass-half"></i> Backorder Status</h6>
+            </div>
+            <div class="card-body">
+                @if (Model.AvailableItems?.Any() == true)
+                {
+                    var totalBackordered = Model.AvailableItems.Sum(i => i.QuantityBackordered);
+                    var totalAvailable = Model.AvailableItems.Sum(i => i.CanFulfillQuantity);
+                    var availableItems = Model.AvailableItems.Count(i => i.CanFulfillQuantity > 0);
+                    
+                    <div class="row mb-2">
+                        <div class="col-8">Total Backordered:</div>
+                        <div class="col-4 text-end"><span class="badge bg-warning">@totalBackordered</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-8">Total Available:</div>
+                        <div class="col-4 text-end"><span class="badge bg-success">@totalAvailable</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-8">Items Available:</div>
+                        <div class="col-4 text-end"><span class="badge bg-info">@availableItems of @Model.AvailableItems.Count</span></div>
+                    </div>
+                    
+                    @if (totalAvailable < totalBackordered)
+                    {
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <small><strong>Note:</strong> Only @totalAvailable of @totalBackordered backordered units are available for shipment.</small>
+                        </div>
+                    }
+                    else if (totalAvailable >= totalBackordered)
+                    {
+                        <div class="alert alert-success mt-3 mb-0">
+                            <i class="fas fa-check-circle"></i>
+                            <small><strong>Great!</strong> All backordered items are available for shipment.</small>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Shipment Modal -->
+<div class="modal fade" id="additionalShipmentModal" tabindex="-1" aria-labelledby="additionalShipmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="additionalShipmentForm" method="post" action="@Url.Action("CreateAdditionalShipment")">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="SaleId" value="@Model.SaleId" />
+                
+                <!-- Hidden fields for selected items (will be populated by JavaScript) -->
+                <div id="selectedItemsContainer"></div>
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="additionalShipmentModalLabel">
+                        <i class="fas fa-shipping-fast"></i> Create Additional Shipment - Sale @Model.Sale.SaleNumber
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <!-- Selected Items Summary -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Shipment Summary</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong>Items:</strong> <span id="modalTotalItems">0</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Quantity:</strong> <span id="modalTotalQuantity">0</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Value:</strong> <span id="modalTotalValue">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shipping Information Section -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-truck"></i> Shipping Information</h6>
+
+                            <div class="mb-3">
+                                <label for="modalCourierService" class="form-label">Courier Service *</label>
+                                <select class="form-select" id="modalCourierService" name="CourierService" required>
+                                    <option value="">Select courier service...</option>
+                                    <option value="FedEx">FedEx</option>
+                                    <option value="UPS">UPS</option>
+                                    <option value="USPS">USPS</option>
+                                    <option value="DHL">DHL</option>
+                                    <option value="OnTrac">OnTrac</option>
+                                    <option value="Local Delivery">Local Delivery</option>
+                                    <option value="Customer Pickup">Customer Pickup</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="modalTrackingNumber" class="form-label">Tracking Number *</label>
+                                <input type="text" class="form-control" id="modalTrackingNumber" name="TrackingNumber"
+                                       placeholder="Enter tracking number" required />
+                                <div class="form-text">Leave as "N/A" for customer pickup or local delivery</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="modalExpectedDeliveryDate" class="form-label">Expected Delivery Date</label>
+                                <input type="date" class="form-control" id="modalExpectedDeliveryDate" name="ExpectedDeliveryDate"
+                                       min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-box"></i> Package Information</h6>
+
+                            <div class="mb-3">
+                                <label for="modalPackageWeight" class="form-label">Package Weight (lbs)</label>
+                                <input type="number" class="form-control" id="modalPackageWeight" name="PackageWeight"
+                                       step="0.1" min="0" placeholder="0.0" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="modalPackageDimensions" class="form-label">Package Dimensions</label>
+                                <input type="text" class="form-control" id="modalPackageDimensions" name="PackageDimensions"
+                                       placeholder="e.g., 12x8x6 inches" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="modalShippingInstructions" class="form-label">Shipping Instructions</label>
+                                <textarea class="form-control" id="modalShippingInstructions" name="ShippingInstructions"
+                                          rows="3" placeholder="Special delivery instructions..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Summary -->
+                    <div class="alert alert-warning mt-3">
+                        <h6><i class="fas fa-info-circle"></i> This action will:</h6>
+                        <ul class="mb-0">
+                            <li>Create a new shipment record for this sale</li>
+                            <li>Reduce inventory levels for the shipped items</li>
+                            <li>Update backorder quantities</li>
+                            <li>Update sale status if all backorders are fulfilled</li>
+                            <li>Generate a packing slip for the shipment</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-shipping-fast"></i> Create Shipment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Global variables to track selected items
+        let selectedItems = [];
+
+        $(document).ready(function() {
+            // Initialize calculations
+            updateTotals();
+            
+            // Bind quantity change events
+            $('.quantity-input').on('input', function() {
+                updateTotals();
+                validateQuantities();
+            });
+
+            // Auto-populate tracking number based on courier
+            $('#modalCourierService').on('change', function() {
+                var courier = $(this).val();
+                var trackingInput = $('#modalTrackingNumber');
+                
+                if (courier === 'Customer Pickup' || courier === 'Local Delivery') {
+                    trackingInput.val('N/A');
+                    trackingInput.prop('readonly', true);
+                } else {
+                    if (trackingInput.val() === 'N/A') {
+                        trackingInput.val('');
+                    }
+                    trackingInput.prop('readonly', false);
+                }
+            });
+
+            // Form validation
+            $('#additionalShipmentForm').on('submit', function(e) {
+                if (!validateShipment()) {
+                    e.preventDefault();
+                }
+            });
+
+            // Modal show event - populate selected items
+            $('#additionalShipmentModal').on('show.bs.modal', function() {
+                populateSelectedItems();
+                updateModalSummary();
+            });
+        });
+        
+        function setMaxQuantity(index, maxQuantity) {
+            $(`.quantity-input[data-row-index="${index}"]`).val(maxQuantity);
+            updateTotals();
+            validateQuantities();
+        }
+        
+        function selectAllAvailable() {
+            $('.quantity-input').each(function() {
+                var maxQty = parseInt($(this).attr('max'));
+                $(this).val(maxQty);
+            });
+            updateTotals();
+            validateQuantities();
+        }
+        
+        function clearAllSelections() {
+            $('.quantity-input').val(0);
+            updateTotals();
+            validateQuantities();
+        }
+        
+        function updateTotals() {
+            var totalItems = 0;
+            var totalQuantity = 0;
+            var totalValue = 0;
+            
+            $('.quantity-input').each(function() {
+                var quantity = parseInt($(this).val()) || 0;
+                var unitPrice = parseFloat($(this).data('unit-price')) || 0;
+                var rowIndex = $(this).data('row-index');
+                var lineTotal = quantity * unitPrice;
+                
+                if (quantity > 0) {
+                    totalItems++;
+                }
+                totalQuantity += quantity;
+                totalValue += lineTotal;
+                
+                // Update line total
+                $(`#lineTotal_${rowIndex}`).text('$' + lineTotal.toFixed(2));
+            });
+            
+            // Update summary
+            $('#totalItemsCount').text(totalItems);
+            $('#totalQuantity').text(totalQuantity);
+            $('#shipmentTotal').text('$' + totalValue.toFixed(2));
+            $('#shipmentValue').text('$' + totalValue.toFixed(2));
+            
+            // Update button state
+            $('#createShipmentBtn').prop('disabled', totalQuantity === 0);
+        }
+        
+        function validateQuantities() {
+            var isValid = true;
+            
+            $('.quantity-input').each(function() {
+                var quantity = parseInt($(this).val()) || 0;
+                var maxQty = parseInt($(this).attr('max'));
+                var row = $(this).closest('tr');
+                
+                // Remove existing validation classes
+                row.removeClass('table-danger');
+                $(this).removeClass('is-invalid');
+                
+                if (quantity > maxQty) {
+                    row.addClass('table-danger');
+                    $(this).addClass('is-invalid');
+                    isValid = false;
+                }
+            });
+            
+            return isValid;
+        }
+
+        function populateSelectedItems() {
+            selectedItems = [];
+            var container = $('#selectedItemsContainer');
+            container.empty();
+
+            var index = 0;
+            $('.quantity-input').each(function() {
+                var quantity = parseInt($(this).val()) || 0;
+                if (quantity > 0) {
+                    var saleItemId = $(this).data('sale-item-id');
+                    var unitPrice = $(this).data('unit-price');
+                    
+                    selectedItems.push({
+                        saleItemId: saleItemId,
+                        quantityToShip: quantity,
+                        unitPrice: unitPrice
+                    });
+
+                    // Add hidden fields for form submission
+                    container.append(`
+                        <input type="hidden" name="AvailableItems[${index}].SaleItemId" value="${saleItemId}" />
+                        <input type="hidden" name="AvailableItems[${index}].QuantityToShip" value="${quantity}" />
+                        <input type="hidden" name="AvailableItems[${index}].UnitPrice" value="${unitPrice}" />
+                    `);
+                    index++;
+                }
+            });
+        }
+
+        function updateModalSummary() {
+            var totalItems = selectedItems.length;
+            var totalQuantity = selectedItems.reduce((sum, item) => sum + item.quantityToShip, 0);
+            var totalValue = selectedItems.reduce((sum, item) => sum + (item.quantityToShip * item.unitPrice), 0);
+
+            $('#modalTotalItems').text(totalItems);
+            $('#modalTotalQuantity').text(totalQuantity);
+            $('#modalTotalValue').text('$' + totalValue.toFixed(2));
+        }
+        
+        function validateShipment() {
+            var totalQuantity = parseInt($('#totalQuantity').text()) || 0;
+            
+            if (totalQuantity === 0) {
+                alert('Please select at least one item to ship.');
+                return false;
+            }
+            
+            if (!validateQuantities()) {
+                alert('Please correct the quantity errors before submitting.');
+                return false;
+            }
+            
+            var courierService = $('#modalCourierService').val();
+            var trackingNumber = $('#modalTrackingNumber').val();
+            
+            if (!courierService) {
+                alert('Please select a courier service.');
+                $('#modalCourierService').focus();
+                return false;
+            }
+            
+            if (!trackingNumber) {
+                alert('Please enter a tracking number.');
+                $('#modalTrackingNumber').focus();
+                return false;
+            }
+            
+            return true;
+        }
+    </script>
+}
+
+<style>
+    .quantity-input:invalid {
+        border-color: #dc3545;
+    }
+    
+    .btn-max {
+        border-left: none;
+    }
+    
+    .table-danger {
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+    
+    .line-total {
+        font-family: 'Courier New', monospace;
+    }
+    
+    #shipmentValue {
+        font-family: 'Courier New', monospace;
+    }
+</style>

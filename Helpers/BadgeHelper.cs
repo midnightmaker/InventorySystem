@@ -99,10 +99,11 @@ namespace InventorySystem.Helpers
             return status switch
             {
                 SaleStatus.Processing => "primary",
+                SaleStatus.Backordered => "warning",
+                SaleStatus.PartiallyShipped => "info",
                 SaleStatus.Shipped => "success",
                 SaleStatus.Delivered => "info",
                 SaleStatus.Cancelled => "danger",
-                SaleStatus.Backordered => "warning",
                 SaleStatus.Returned => "warning",
                 _ => "secondary"
             };

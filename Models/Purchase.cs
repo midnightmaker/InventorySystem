@@ -6,97 +6,97 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InventorySystem.Models
 {
-  public class Purchase
-  {
-    public int Id { get; set; }
+	public class Purchase
+	{
+		public int Id { get; set; }
 
-    [Required(ErrorMessage = "Please select an item")]
-    public int ItemId { get; set; }
-    public virtual Item Item { get; set; } = null!;
+		[Required(ErrorMessage = "Please select an item")]
+		public int ItemId { get; set; }
+		public virtual Item Item { get; set; } = null!;
 
-    [Required(ErrorMessage = "Please select a vendor")]
-    public int VendorId { get; set; }
-    public virtual Vendor Vendor { get; set; } = null!;
+		[Required(ErrorMessage = "Please select a vendor")]
+		public int VendorId { get; set; }
+		public virtual Vendor Vendor { get; set; } = null!;
 
-    [Required(ErrorMessage = "Purchase date is required")]
-    [Display(Name = "Purchase Date")]
-    public DateTime PurchaseDate { get; set; } = DateTime.Today;
+		[Required(ErrorMessage = "Purchase date is required")]
+		[Display(Name = "Purchase Date")]
+		public DateTime PurchaseDate { get; set; } = DateTime.Today;
 
-    [Required(ErrorMessage = "Quantity is required")]
-    [Display(Name = "Quantity Purchased")]
-    [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
-    public int QuantityPurchased { get; set; }
+		[Required(ErrorMessage = "Quantity is required")]
+		[Display(Name = "Quantity Purchased")]
+		[Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
+		public int QuantityPurchased { get; set; }
 
-    [Required(ErrorMessage = "Cost per unit is required")]
-    [Display(Name = "Cost Per Unit")]
-    [Column(TypeName = "decimal(18,6)")]  // Changed from decimal(18,2) to decimal(18,6)
-    [Range(0.0001, double.MaxValue, ErrorMessage = "Cost per unit must be greater than 0")]
-    public decimal CostPerUnit { get; set; }
+		[Required(ErrorMessage = "Cost per unit is required")]
+		[Display(Name = "Cost Per Unit")]
+		[Column(TypeName = "decimal(18,6)")]  // Changed from decimal(18,2) to decimal(18,6)
+		[Range(0.0001, double.MaxValue, ErrorMessage = "Cost per unit must be greater than 0")]
+		public decimal CostPerUnit { get; set; }
 
-    [NotMapped]
-    [Display(Name = "Total Cost")]
-    public decimal TotalCost => QuantityPurchased * CostPerUnit;
+		[NotMapped]
+		[Display(Name = "Total Cost")]
+		public decimal TotalCost => QuantityPurchased * CostPerUnit;
 
-    [Display(Name = "Remaining Quantity")]
-    public int RemainingQuantity { get; set; }
+		[Display(Name = "Remaining Quantity")]
+		public int RemainingQuantity { get; set; }
 
-    [Display(Name = "Purchase Order Number")]
-    [StringLength(100, ErrorMessage = "PO number cannot exceed 100 characters")]
-    public string? PurchaseOrderNumber { get; set; }
+		[Display(Name = "Purchase Order Number")]
+		[StringLength(100, ErrorMessage = "PO number cannot exceed 100 characters")]
+		public string? PurchaseOrderNumber { get; set; }
 
 		[Display(Name = "Vendor Invoice Number")]
 		[StringLength(100, ErrorMessage = "Invoice number cannot exceed 100 characters")]
 		public string? InvoiceNumber { get; set; }
 
 		[StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
-    public string? Notes { get; set; }
+		public string? Notes { get; set; }
 
-    [Display(Name = "Shipping Cost")]
-    [Column(TypeName = "decimal(18,6)")]
-    [Range(0, double.MaxValue, ErrorMessage = "Shipping cost cannot be negative")]
-    public decimal ShippingCost { get; set; } = 0;
+		[Display(Name = "Shipping Cost")]
+		[Column(TypeName = "decimal(18,6)")]
+		[Range(0, double.MaxValue, ErrorMessage = "Shipping cost cannot be negative")]
+		public decimal ShippingCost { get; set; } = 0;
 
-    [Display(Name = "Tax Amount")]
-    [Column(TypeName = "decimal(18,6)")]
-    [Range(0, double.MaxValue, ErrorMessage = "Tax amount cannot be negative")]
-    public decimal TaxAmount { get; set; } = 0;
+		[Display(Name = "Tax Amount")]
+		[Column(TypeName = "decimal(18,6)")]
+		[Range(0, double.MaxValue, ErrorMessage = "Tax amount cannot be negative")]
+		public decimal TaxAmount { get; set; } = 0;
 
-    // Computed property for total cost including shipping and tax
-    [NotMapped]
-    [Display(Name = "Total Cost Per Unit")]
-    public decimal TotalCostPerUnit => CostPerUnit + (QuantityPurchased > 0 ? (ShippingCost + TaxAmount) / QuantityPurchased : 0);
+		// Computed property for total cost including shipping and tax
+		[NotMapped]
+		[Display(Name = "Total Cost Per Unit")]
+		public decimal TotalCostPerUnit => CostPerUnit + (QuantityPurchased > 0 ? (ShippingCost + TaxAmount) / QuantityPurchased : 0);
 
-    [NotMapped]
-    [Display(Name = "Extended Total")]
-    public decimal ExtendedTotal => (CostPerUnit * QuantityPurchased) + ShippingCost + TaxAmount;
+		[NotMapped]
+		[Display(Name = "Extended Total")]
+		public decimal ExtendedTotal => (CostPerUnit * QuantityPurchased) + ShippingCost + TaxAmount;
 
-    [Display(Name = "Item Version")]
-    public string? ItemVersion { get; set; }
+		[Display(Name = "Item Version")]
+		public string? ItemVersion { get; set; }
 
-    public int? ItemVersionId { get; set; }
-    public virtual Item? ItemVersionReference { get; set; }
+		public int? ItemVersionId { get; set; }
+		public virtual Item? ItemVersionReference { get; set; }
 
-    public DateTime CreatedDate { get; set; } = DateTime.Now;
+		public DateTime CreatedDate { get; set; } = DateTime.Now;
 
-    [Display(Name = "Purchase Order Status")]
-    public PurchaseStatus Status { get; set; } = PurchaseStatus.Pending;
+		[Display(Name = "Purchase Order Status")]
+		public PurchaseStatus Status { get; set; } = PurchaseStatus.Pending;
 
-    [Display(Name = "Expected Delivery Date")]
-    [DataType(DataType.Date)]
-    public DateTime? ExpectedDeliveryDate { get; set; }
+		[Display(Name = "Expected Delivery Date")]
+		[DataType(DataType.Date)]
+		public DateTime? ExpectedDeliveryDate { get; set; }
 
-    [Display(Name = "Actual Delivery Date")]
-    [DataType(DataType.Date)]
-    public DateTime? ActualDeliveryDate { get; set; }
+		[Display(Name = "Actual Delivery Date")]
+		[DataType(DataType.Date)]
+		public DateTime? ActualDeliveryDate { get; set; }
 
-    // NEW: Project association for R&D tracking
-    [Display(Name = "Project")]
-    public int? ProjectId { get; set; }
-    public virtual Project? Project { get; set; }
+		// Project association for R&D tracking
+		[Display(Name = "Project")]
+		public int? ProjectId { get; set; }
+		public virtual Project? Project { get; set; }
 
-    public virtual ICollection<PurchaseDocument> PurchaseDocuments { get; set; } = new List<PurchaseDocument>();
+		public virtual ICollection<PurchaseDocument> PurchaseDocuments { get; set; } = new List<PurchaseDocument>();
 
-		// ============= NEW ACCOUNTING PROPERTIES =============
+		// ============= ACCOUNTING PROPERTIES =============
 
 		/// <summary>
 		/// General Ledger account code for this purchase (e.g., "1200" for Raw Materials Inventory)
@@ -161,12 +161,6 @@ namespace InventorySystem.Models
 				ItemType.Inventoried when Item.MaterialType == MaterialType.Transformed => "Finished Goods Inventory",
 				ItemType.Inventoried when Item.MaterialType == MaterialType.WorkInProcess => "Work in Process Inventory",
 				ItemType.Inventoried => "Raw Materials Inventory",
-				ItemType.NonInventoried => "Raw Materials Used",
-				ItemType.Service => "Direct Labor",
-				ItemType.Expense => "General Operating Expenses",
-				ItemType.Utility => "Utilities",
-				ItemType.Subscription => "Software Subscriptions",
-				ItemType.Virtual => "Software & Licenses",
 				ItemType.Consumable => "Manufacturing Supplies",
 				ItemType.RnDMaterials => "R&D Materials",
 				_ => "General Operating Expenses"
@@ -182,7 +176,7 @@ namespace InventorySystem.Models
 		}
 
 		/// <summary>
-		/// Gets the expense category for reporting
+		/// Gets the expense category for reporting (operational items only)
 		/// </summary>
 		public string GetExpenseCategory()
 		{
@@ -190,14 +184,47 @@ namespace InventorySystem.Models
 
 			return Item?.ItemType switch
 			{
-				ItemType.Utility => "Utilities",
-				ItemType.Subscription => "Software & Subscriptions",
-				ItemType.Service => "Professional Services",
-				ItemType.Consumable => "Supplies",
+				ItemType.Consumable => "Manufacturing Supplies",
 				ItemType.RnDMaterials => "Research & Development",
-				ItemType.Expense => "Operating Expenses",
-				_ => "Other Expenses"
+				_ => "Operational Expenses"
 			};
 		}
+
+		/// <summary>
+		/// Gets a human-readable description of what this purchase is for
+		/// </summary>
+		public string GetPurchaseDescription()
+		{
+			if (Item == null) return "Purchase";
+
+			return Item.ItemType switch
+			{
+				ItemType.Inventoried when Item.MaterialType == MaterialType.RawMaterial => "Raw Material Purchase",
+				ItemType.Inventoried when Item.MaterialType == MaterialType.Transformed => "Finished Good Purchase",
+				ItemType.Inventoried when Item.MaterialType == MaterialType.WorkInProcess => "WIP Item Purchase",
+				ItemType.Inventoried => "Inventory Purchase",
+				ItemType.Consumable => "Consumable Purchase",
+				ItemType.RnDMaterials => "R&D Material Purchase",
+				_ => "Operational Purchase"
+			};
+		}
+
+		/// <summary>
+		/// Determines if this purchase needs shipping/delivery tracking
+		/// </summary>
+		[NotMapped]
+		public bool RequiresShipping => Item?.ItemType == ItemType.Inventoried || Item?.ItemType == ItemType.Consumable;
+
+		/// <summary>
+		/// Gets the badge color for UI display based on item type
+		/// </summary>
+		[NotMapped]
+		public string ItemTypeBadgeColor => Item?.ItemType switch
+		{
+			ItemType.Inventoried => "primary",
+			ItemType.Consumable => "success",
+			ItemType.RnDMaterials => "warning",
+			_ => "secondary"
+		};
 	}
 }

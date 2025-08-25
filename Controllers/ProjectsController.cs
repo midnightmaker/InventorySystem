@@ -1,4 +1,4 @@
-// Controllers/ProjectsController.cs - R&D Project Management
+﻿// Controllers/ProjectsController.cs - R&D Project Management
 using InventorySystem.Data;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Controllers
 {
-    public class ProjectsController : Controller
+    public class ProjectsController : BaseController // ✅ Changed from Controller to BaseController
     {
         private readonly InventoryContext _context;
         private readonly ILogger<ProjectsController> _logger;
@@ -153,16 +153,18 @@ namespace InventorySystem.Controllers
 
                 _logger.LogInformation("Retrieved {ProjectCount} projects for page {Page}", projects.Count, page);
 
-                // Calculate summary statistics
+                // ✅ FIXED: Calculate summary statistics using database queries, then apply computed properties on loaded data
                 var allProjects = await _context.Projects.Include(p => p.Purchases).ToListAsync();
                 var summaryStats = new ProjectSummaryStatistics
                 {
                     TotalProjects = allProjects.Count,
-                    ActiveProjects = allProjects.Count(p => p.IsActive),
+                    // ✅ FIXED: Replace p.IsActive with explicit status check
+                    ActiveProjects = allProjects.Count(p => p.Status == ProjectStatus.Active || p.Status == ProjectStatus.Planning),
                     CompletedProjects = allProjects.Count(p => p.Status == ProjectStatus.Completed),
                     TotalBudget = allProjects.Sum(p => p.Budget),
-                    TotalSpent = allProjects.Sum(p => p.TotalSpent),
-                    ProjectsOverBudget = allProjects.Count(p => p.IsOverBudget)
+                    TotalSpent = allProjects.Sum(p => p.TotalSpent), // This uses computed property after loading
+                    // ✅ FIXED: Replace p.IsOverBudget with computed property after loading data
+                    ProjectsOverBudget = allProjects.Count(p => p.IsOverBudget) // This uses computed property after loading
                 };
                 summaryStats.OverallBudgetUtilization = summaryStats.TotalBudget > 0 
                     ? (summaryStats.TotalSpent / summaryStats.TotalBudget) * 100 
@@ -251,7 +253,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in Projects Index");
-                TempData["ErrorMessage"] = $"Error loading projects: {ex.Message}";
+                SetErrorMessage($"Error loading projects: {ex.Message}"); // ✅ Using BaseController method
 
                 // Set essential ViewBag properties for error state
                 ViewBag.AllowedPageSizes = AllowedPageSizes;
@@ -303,7 +305,7 @@ namespace InventorySystem.Controllers
 
                 if (project == null)
                 {
-                    TempData["ErrorMessage"] = "Project not found.";
+                    SetErrorMessage("Project not found."); // ✅ Using BaseController method
                     return RedirectToAction("Index");
                 }
 
@@ -362,7 +364,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading project details for {ProjectId}", id);
-                TempData["ErrorMessage"] = $"Error loading project details: {ex.Message}";
+                SetErrorMessage($"Error loading project details: {ex.Message}"); // ✅ Using BaseController method
                 return RedirectToAction("Index");
             }
         }
@@ -430,7 +432,7 @@ namespace InventorySystem.Controllers
                 _logger.LogInformation("Created project {ProjectCode} with ID {ProjectId}", 
                     project.ProjectCode, project.Id);
 
-                TempData["SuccessMessage"] = $"Project '{project.ProjectCode} - {project.ProjectName}' created successfully!";
+                SetSuccessMessage($"Project '{project.ProjectCode} - {project.ProjectName}' created successfully!"); // ✅ Using BaseController method
                 return RedirectToAction("Details", new { id = project.Id });
             }
             catch (Exception ex)
@@ -450,7 +452,7 @@ namespace InventorySystem.Controllers
                 var project = await _context.Projects.FindAsync(id);
                 if (project == null)
                 {
-                    TempData["ErrorMessage"] = "Project not found.";
+                    SetErrorMessage("Project not found."); // ✅ Using BaseController method
                     return RedirectToAction("Index");
                 }
 
@@ -479,7 +481,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading project for editing {ProjectId}", id);
-                TempData["ErrorMessage"] = $"Error loading project for editing: {ex.Message}";
+                SetErrorMessage($"Error loading project for editing: {ex.Message}"); // ✅ Using BaseController method
                 return RedirectToAction("Index");
             }
         }
@@ -502,7 +504,7 @@ namespace InventorySystem.Controllers
                 var project = await _context.Projects.FindAsync(id);
                 if (project == null)
                 {
-                    TempData["ErrorMessage"] = "Project not found.";
+                    SetErrorMessage("Project not found."); // ✅ Using BaseController method
                     return RedirectToAction("Index");
                 }
 
@@ -539,7 +541,7 @@ namespace InventorySystem.Controllers
                 _logger.LogInformation("Updated project {ProjectCode} with ID {ProjectId}", 
                     project.ProjectCode, project.Id);
 
-                TempData["SuccessMessage"] = $"Project '{project.ProjectCode} - {project.ProjectName}' updated successfully!";
+                SetSuccessMessage($"Project '{project.ProjectCode} - {project.ProjectName}' updated successfully!"); // ✅ Using BaseController method
                 return RedirectToAction("Details", new { id = project.Id });
             }
             catch (Exception ex)
@@ -591,6 +593,7 @@ namespace InventorySystem.Controllers
                 _logger.LogInformation("Updated project {ProjectCode} status from {OldStatus} to {NewStatus}", 
                     project.ProjectCode, oldStatus, newStatus);
 
+                // Using BaseController method via TempData since this is AJAX
                 TempData["SuccessMessage"] = $"Project status updated from {oldStatus} to {newStatus}";
                 return Json(new { success = true, newStatus = newStatus.ToString() });
             }
@@ -610,9 +613,9 @@ namespace InventorySystem.Controllers
                     .Include(p => p.Purchases)
                     .ToListAsync();
 
-                // Calculate dashboard metrics
-                var activeProjects = projects.Where(p => p.IsActive).ToList();
-                var overBudgetProjects = projects.Where(p => p.IsOverBudget).ToList();
+                // ✅ FIXED: Use database status query instead of IsActive computed property
+                var activeProjects = projects.Where(p => p.Status == ProjectStatus.Active || p.Status == ProjectStatus.Planning).ToList();
+                var overBudgetProjects = projects.Where(p => p.IsOverBudget).ToList(); // ✅ Using computed property after loading data
                 var recentProjects = projects.Where(p => p.CreatedDate >= DateTime.Now.AddDays(-30)).ToList();
 
                 // Monthly spending trend for current year
@@ -640,7 +643,7 @@ namespace InventorySystem.Controllers
                         Type = GetProjectTypeDisplayName(g.Key),
                         Count = g.Count(),
                         TotalBudget = g.Sum(p => p.Budget),
-                        TotalSpent = g.Sum(p => p.TotalSpent)
+                        TotalSpent = g.Sum(p => p.TotalSpent) // ✅ Using computed property after loading data
                     })
                     .ToList();
 
@@ -651,9 +654,9 @@ namespace InventorySystem.Controllers
                         ProjectCode = p.ProjectCode,
                         ProjectName = p.ProjectName,
                         Budget = p.Budget,
-                        Spent = p.TotalSpent,
-                        Utilization = p.BudgetUtilization,
-                        IsOverBudget = p.IsOverBudget
+                        Spent = p.TotalSpent, // ✅ Using computed property after loading data
+                        Utilization = p.BudgetUtilization, // ✅ Using computed property after loading data
+                        IsOverBudget = p.IsOverBudget // ✅ Using computed property after loading data
                     })
                     .OrderByDescending(p => p.Utilization)
                     .Take(10)
@@ -664,7 +667,7 @@ namespace InventorySystem.Controllers
                 ViewBag.OverBudgetProjects = overBudgetProjects.Count;
                 ViewBag.RecentProjects = recentProjects.Count;
                 ViewBag.TotalBudget = projects.Sum(p => p.Budget);
-                ViewBag.TotalSpent = projects.Sum(p => p.TotalSpent);
+                ViewBag.TotalSpent = projects.Sum(p => p.TotalSpent); // ✅ Using computed property after loading data
                 ViewBag.MonthlyTrend = monthlyTrend;
                 ViewBag.TypeDistribution = typeDistribution;
                 ViewBag.BudgetUtilization = budgetUtilization;
@@ -674,7 +677,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading project dashboard");
-                TempData["ErrorMessage"] = $"Error loading dashboard: {ex.Message}";
+                SetErrorMessage($"Error loading dashboard: {ex.Message}"); // ✅ Using BaseController method
                 return View(new List<Project>());
             }
         }
@@ -716,23 +719,23 @@ namespace InventorySystem.Controllers
                     {
                         TotalProjects = projects.Count,
                         TotalBudget = projects.Sum(p => p.Budget),
-                        TotalSpent = projects.Sum(p => p.TotalSpent),
+                        TotalSpent = projects.Sum(p => p.TotalSpent), // ✅ Using computed property after loading data
                         AverageBudget = projects.Any() ? projects.Average(p => p.Budget) : 0,
-                        AverageSpent = projects.Any() ? projects.Average(p => p.TotalSpent) : 0,
-                        OverBudgetCount = projects.Count(p => p.IsOverBudget),
-                        OverBudgetPercentage = projects.Any() ? (projects.Count(p => p.IsOverBudget) * 100.0 / projects.Count) : 0
+                        AverageSpent = projects.Any() ? projects.Average(p => p.TotalSpent) : 0, // ✅ Using computed property after loading data
+                        OverBudgetCount = projects.Count(p => p.IsOverBudget), // ✅ Using computed property after loading data
+                        OverBudgetPercentage = projects.Any() ? (projects.Count(p => p.IsOverBudget) * 100.0 / projects.Count) : 0 // ✅ Using computed property after loading data
                     },
                     ProjectsByStatus = projects.GroupBy(p => p.Status)
-                        .Select(g => new { Status = g.Key.ToString(), Count = g.Count(), TotalSpent = g.Sum(p => p.TotalSpent) })
+                        .Select(g => new { Status = g.Key.ToString(), Count = g.Count(), TotalSpent = g.Sum(p => p.TotalSpent) }) // ✅ Using computed property after loading data
                         .ToList(),
                     ProjectsByType = projects.GroupBy(p => p.ProjectType)
-                        .Select(g => new { Type = GetProjectTypeDisplayName(g.Key), Count = g.Count(), TotalSpent = g.Sum(p => p.TotalSpent) })
+                        .Select(g => new { Type = GetProjectTypeDisplayName(g.Key), Count = g.Count(), TotalSpent = g.Sum(p => p.TotalSpent) }) // ✅ Using computed property after loading data
                         .ToList(),
                     ProjectsByDepartment = projects.GroupBy(p => p.Department ?? "Unassigned")
-                        .Select(g => new { Department = g.Key, Count = g.Count(), TotalSpent = g.Sum(p => p.TotalSpent) })
+                        .Select(g => new { Department = g.Key, Count = g.Count(), TotalSpent = g.Sum(p => p.TotalSpent) }) // ✅ Using computed property after loading data
                         .ToList(),
-                    TopSpendingProjects = projects.OrderByDescending(p => p.TotalSpent).Take(10).ToList(),
-                    OverBudgetProjects = projects.Where(p => p.IsOverBudget).OrderByDescending(p => p.TotalSpent - p.Budget).ToList()
+                    TopSpendingProjects = projects.OrderByDescending(p => p.TotalSpent).Take(10).ToList(), // ✅ Using computed property after loading data
+                    OverBudgetProjects = projects.Where(p => p.IsOverBudget).OrderByDescending(p => p.TotalSpent - p.Budget).ToList() // ✅ Using computed property after loading data
                 };
 
                 ViewBag.StartDate = startDate;
@@ -761,7 +764,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating project reports");
-                TempData["ErrorMessage"] = $"Error generating reports: {ex.Message}";
+                SetErrorMessage($"Error generating reports: {ex.Message}"); // ✅ Using BaseController method
                 
                 // Set safe defaults for error case
                 ViewBag.StartDate = startDate;

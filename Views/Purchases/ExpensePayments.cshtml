@@ -1,359 +1,57 @@
-@model IEnumerable<InventorySystem.Models.Purchase>
-
 @{
-    ViewData["Title"] = "Expense Payments";
-    var totalExpenseAmount = ViewBag.TotalExpenseAmount as decimal? ?? 0;
-    var averageExpenseAmount = ViewBag.AverageExpenseAmount as decimal? ?? 0;
-    
-    // FIXED: Get current query string parameters for pagination and sorting
-    var currentQueryString = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : "";
-    
-    // Helper function to build query string while preserving existing parameters
-    string BuildQueryString(string newParam)
-    {
-        var queryParams = new List<string>();
-        
-        // Add existing parameters except the ones we're replacing
-        if (!string.IsNullOrEmpty(ViewBag.SearchTerm as string))
-            queryParams.Add($"search={Uri.EscapeDataString(ViewBag.SearchTerm)}");
-        if (!string.IsNullOrEmpty(ViewBag.VendorFilter as string))
-            queryParams.Add($"vendorFilter={Uri.EscapeDataString(ViewBag.VendorFilter)}");
-        if (!string.IsNullOrEmpty(ViewBag.ExpenseTypeFilter as string))
-            queryParams.Add($"expenseTypeFilter={Uri.EscapeDataString(ViewBag.ExpenseTypeFilter)}");
-        if (!string.IsNullOrEmpty(ViewBag.StartDate as string))
-            queryParams.Add($"startDate={Uri.EscapeDataString(ViewBag.StartDate)}");
-        if (!string.IsNullOrEmpty(ViewBag.EndDate as string))
-            queryParams.Add($"endDate={Uri.EscapeDataString(ViewBag.EndDate)}");
-        if (ViewBag.PageSize != null && ViewBag.PageSize.ToString() != "25")
-            queryParams.Add($"pageSize={ViewBag.PageSize}");
-        
-        // Add the new parameter
-        if (!string.IsNullOrEmpty(newParam))
-            queryParams.Add(newParam);
-        
-        return queryParams.Any() ? "&" + string.Join("&", queryParams) : "";
-    }
+  ViewData["Title"] = "Business Expenses";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-file-invoice-dollar text-danger"></i> @ViewData["Title"]</h1>
-    <div class="btn-group">
-        <a asp-action="PayExpense" class="btn btn-danger">
-            <i class="fas fa-credit-card"></i> Pay Expense
-        </a>
-        <a asp-controller="Expenses" asp-action="Reports" class="btn btn-outline-info">
-            <i class="fas fa-chart-bar"></i> Expense Reports
-        </a>
+<div class="container-fluid py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card border-success">
+        <div class="card-header bg-success text-white text-center">
+          <h4><i class="fas fa-route"></i> Business Expenses Have Moved</h4>
+        </div>
+        <div class="card-body text-center py-5">
+          <i class="fas fa-file-invoice-dollar fa-4x text-success mb-4"></i>
+          <h3>Redirecting to Business Expenses</h3>
+          <p class="lead">Business expenses are now managed in a dedicated system for better accounting and reporting.</p>
+
+          <div class="row mt-4">
+            <div class="col-md-6">
+              <div class="card bg-light">
+                <div class="card-body">
+                  <h5><i class="fas fa-boxes text-primary"></i> Operational Purchases</h5>
+                  <p>Raw materials, consumables, and R&D materials for production</p>
+                  <a href="/Purchases" class="btn btn-primary">
+                    <i class="fas fa-shopping-cart"></i> View Purchases
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card bg-light">
+                <div class="card-body">
+                  <h5><i class="fas fa-file-invoice-dollar text-success"></i> Business Expenses</h5>
+                  <p>Utilities, software, services, and office expenses</p>
+                  <a href="/Expenses" class="btn btn-success">
+                    <i class="fas fa-credit-card"></i> Manage Expenses
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-success mt-4">
+            <i class="fas fa-check-circle"></i>
+            <strong>Clean Separation:</strong> Operational purchases and business expenses are now properly separated for accurate financial tracking.
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
-@if (TempData["SuccessMessage"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show">
-        @TempData["SuccessMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-@if (TempData["ErrorMessage"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show">
-        @TempData["ErrorMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-<!-- Enhanced Search and Filter Form -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h6 class="mb-0">
-            <i class="fas fa-filter"></i> Filter Expense Payments
-        </h6>
-    </div>
-    <div class="card-body">
-        <form method="get">
-            <div class="row">
-                <div class="col-md-3">
-                    <label class="form-label">Search</label>
-                    <input type="text" name="search" value="@ViewBag.SearchTerm" class="form-control" placeholder="Search expenses..." />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Vendor</label>
-                    <select name="vendorFilter" class="form-select" asp-items="ViewBag.VendorOptions">
-                        <option value="">All Vendors</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Expense Type</label>
-                    <select name="expenseTypeFilter" class="form-select" asp-items="ViewBag.ExpenseTypeOptions">
-                        <option value="">All Types</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Start Date</label>
-                    <input type="date" name="startDate" value="@ViewBag.StartDate" class="form-control" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">End Date</label>
-                    <input type="date" name="endDate" value="@ViewBag.EndDate" class="form-control" />
-                </div>
-                <div class="col-md-1 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Summary Statistics -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-danger text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Total Expenses</h6>
-                        <h4>@totalExpenseAmount.ToString("C")</h4>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-file-invoice-dollar fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Average Payment</h6>
-                        <h4>@averageExpenseAmount.ToString("C")</h4>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-calculator fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Payment Count</h6>
-                        <h4>@ViewBag.TotalCount</h4>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-hashtag fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-dark">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">This Month</h6>
-                        <h4>
-                            @{
-                                var monthlyExpenses = ViewBag.MonthlyExpenses as List<dynamic>;
-                                var currentMonth = DateTime.Now.Month;
-                                var thisMonthExpense = monthlyExpenses?.FirstOrDefault(m => m.Month == currentMonth);
-                                var thisMonthAmount = thisMonthExpense?.TotalAmount ?? 0m;
-                            }
-                            @(((decimal)thisMonthAmount).ToString("C"))
-                        </h4>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-calendar fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Expense Payments Table -->
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h6><i class="fas fa-list"></i> Expense Payments</h6>
-        <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-secondary">@ViewBag.ShowingFrom - @ViewBag.ShowingTo of @ViewBag.TotalCount</span>
-            <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    Sort
-                </button>
-                <ul class="dropdown-menu">
-                    <!-- FIXED: Using helper function to build query strings -->
-                    <li><a class="dropdown-item" href="?sortOrder=date_desc@(BuildQueryString(""))">Newest First</a></li>
-                    <li><a class="dropdown-item" href="?sortOrder=date_asc@(BuildQueryString(""))">Oldest First</a></li>
-                    <li><a class="dropdown-item" href="?sortOrder=amount_desc@(BuildQueryString(""))">Highest Amount</a></li>
-                    <li><a class="dropdown-item" href="?sortOrder=amount_asc@(BuildQueryString(""))">Lowest Amount</a></li>
-                    <li><a class="dropdown-item" href="?sortOrder=vendor_asc@(BuildQueryString(""))">Vendor A-Z</a></li>
-                    <li><a class="dropdown-item" href="?sortOrder=type_asc@(BuildQueryString(""))">Type A-Z</a></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-    <div class="card-body">
-        @if (Model.Any())
-        {
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Expense Item</th>
-                            <th>Type</th>
-                            <th>Vendor</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var payment in Model)
-                        {
-                            <tr>
-                                <td>
-                                    @payment.PurchaseDate.ToString("MM/dd/yyyy")
-                                    @if (payment.PurchaseDate.Date == DateTime.Today)
-                                    {
-                                        <span class="badge bg-primary ms-1">Today</span>
-                                    }
-                                </td>
-                                <td>
-                                    <div>
-                                        <strong>@payment.Item.PartNumber</strong>
-                                    </div>
-                                    <div class="text-muted small">@payment.Item.Description</div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-@(GetExpenseTypeBadgeColor(payment.Item.ItemType))">
-                                        @(GetExpenseTypeDisplayName(payment.Item.ItemType))
-                                    </span>
-                                </td>
-                                <td>
-                                    <a href="/Vendors/Details/@payment.VendorId" target="_blank">
-                                        @payment.Vendor.CompanyName
-                                    </a>
-                                </td>
-                                <td>
-                                    <strong>@payment.ExtendedTotal.ToString("C")</strong>
-                                    @if (payment.TaxAmount > 0 || payment.ShippingCost > 0)
-                                    {
-                                        <div class="text-muted small">
-                                            @if (payment.TaxAmount > 0)
-                                            {
-                                                <span>(Tax: @payment.TaxAmount.ToString("C"))</span>
-                                            }
-                                            @if (payment.ShippingCost > 0)
-                                            {
-                                                <span>(Shipping: @payment.ShippingCost.ToString("C"))</span>
-                                            }
-                                        </div>
-                                    }
-                                </td>
-                                <td>
-                                    <span class="badge bg-@(GetStatusBadgeColor(payment.Status))">
-                                        @payment.Status.ToString()
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="@Url.Action("Details", new { id = payment.Id })" class="btn btn-outline-info" title="View Details">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="@Url.Action("Edit", new { id = payment.Id })" class="btn btn-outline-primary" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- FIXED: Pagination with proper query string handling -->
-            <nav>
-                <ul class="pagination justify-content-center">
-                    @if (ViewBag.HasPreviousPage)
-                    {
-                        <li class="page-item">
-                            <a class="page-link" href="?page=@(ViewBag.CurrentPage - 1)@(BuildQueryString(""))">Previous</a>
-                        </li>
-                    }
-
-                    @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); i++)
-                    {
-                        <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
-                            <a class="page-link" href="?page=@i@(BuildQueryString(""))">@i</a>
-                        </li>
-                    }
-
-                    @if (ViewBag.HasNextPage)
-                    {
-                        <li class="page-item">
-                            <a class="page-link" href="?page=@(ViewBag.CurrentPage + 1)@(BuildQueryString(""))">Next</a>
-                        </li>
-                    }
-                </ul>
-            </nav>
-        }
-        else
-        {
-            <div class="text-center py-5">
-                <i class="fas fa-file-invoice-dollar fa-4x text-muted mb-3"></i>
-                <h5 class="text-muted">No Expense Payments Found</h5>
-                <p class="text-muted">Get started by recording your first expense payment.</p>
-                <a asp-action="PayExpense" class="btn btn-danger">
-                    <i class="fas fa-credit-card"></i> Pay Expense
-                </a>
-            </div>
-        }
-    </div>
-</div>
-
-@functions {
-    private string GetExpenseTypeBadgeColor(InventorySystem.Models.Enums.ItemType itemType)
-    {
-        return itemType switch
-        {
-            InventorySystem.Models.Enums.ItemType.Expense => "danger",
-            InventorySystem.Models.Enums.ItemType.Utility => "warning",
-            InventorySystem.Models.Enums.ItemType.Subscription => "info",
-            InventorySystem.Models.Enums.ItemType.Service => "success",
-            InventorySystem.Models.Enums.ItemType.Virtual => "primary",
-            _ => "secondary"
-        };
-    }
-
-    private string GetExpenseTypeDisplayName(InventorySystem.Models.Enums.ItemType itemType)
-    {
-        return itemType switch
-        {
-            InventorySystem.Models.Enums.ItemType.Expense => "Operating",
-            InventorySystem.Models.Enums.ItemType.Utility => "Utility",
-            InventorySystem.Models.Enums.ItemType.Subscription => "Subscription",
-            InventorySystem.Models.Enums.ItemType.Service => "Service",
-            InventorySystem.Models.Enums.ItemType.Virtual => "Digital",
-            _ => itemType.ToString()
-        };
-    }
-
-    private string GetStatusBadgeColor(InventorySystem.Models.Enums.PurchaseStatus status)
-    {
-        return status switch
-        {
-            InventorySystem.Models.Enums.PurchaseStatus.Paid => "success",
-            InventorySystem.Models.Enums.PurchaseStatus.Pending => "warning",
-            InventorySystem.Models.Enums.PurchaseStatus.Cancelled => "danger",
-            _ => "secondary"
-        };
-    }
-}
+<script>
+  // Auto-redirect to business expenses after 5 seconds
+  setTimeout(function() {
+      window.location.href = '/Expenses';
+  }, 5000);
+</script>

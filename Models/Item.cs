@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using InventorySystem.Models.Enums;
+using InventorySystem.Models.Interfaces;
 
 namespace InventorySystem.Models
 {
-  public class Item
+  public class Item : ISellableEntity
   {
     public int Id { get; set; }
 
@@ -12,7 +13,6 @@ namespace InventorySystem.Models
     [StringLength(100)]
     public string PartNumber { get; set; } = string.Empty;
 
-    
     [StringLength(500)]
     public string Description { get; set; } = string.Empty;
 
@@ -31,15 +31,8 @@ namespace InventorySystem.Models
     public string? VendorPartNumber { get; set; }
 
     // Preferred Vendor relationship via VendorItem
-    [Display(Name = "Preferred Vendor")]
-    public int? PreferredVendorItemId { get; set; }
-    public virtual VendorItem? PreferredVendorItem { get; set; }
-
     [Display(Name = "Sellable")]
     public bool IsSellable { get; set; } = true;
-
-    [Display(Name = "Expense Item")]
-    public bool IsExpense { get; set; } = false;
 
     [Display(Name = "Item Type")]
     public ItemType ItemType { get; set; } = ItemType.Inventoried;
@@ -49,16 +42,17 @@ namespace InventorySystem.Models
     [Display(Name = "Version")]
     public string Version { get; set; } = "A";
 
-    // ? NEW: Serial Number and Model Number Requirements (Default FALSE for Items)
     [Display(Name = "Requires Serial Number")]
-    public bool RequiresSerialNumber { get; set; } = false; // Default FALSE for Items
+    public bool RequiresSerialNumber { get; set; } = false;
 
     [Display(Name = "Requires Model Number")]
-    public bool RequiresModelNumber { get; set; } = false; // Default FALSE for Items
+    public bool RequiresModelNumber { get; set; } = false;
 
-    // Computed properties
+    // UPDATED: Simplified computed properties
     [NotMapped]
-    public bool TrackInventory => !IsExpense && (ItemType == ItemType.Inventoried || ItemType == ItemType.Consumable || ItemType == ItemType.RnDMaterials);
+    public bool TrackInventory => ItemType == ItemType.Inventoried || 
+                                  ItemType == ItemType.Consumable || 
+                                  ItemType == ItemType.RnDMaterials;
 
     [NotMapped]
     public string DisplayPartNumber => $"{PartNumber}-{Version}";
@@ -67,33 +61,19 @@ namespace InventorySystem.Models
     public string ItemTypeDisplayName => ItemType switch
     {
       ItemType.Inventoried => "Inventoried",
-      ItemType.NonInventoried => "Non-Inventoried",
-      ItemType.Service => "Service",
-      ItemType.Virtual => "Virtual",
-      ItemType.Consumable => "Consumable",
-      ItemType.Expense => "Expense",
-      ItemType.Subscription => "Subscription",
-      ItemType.Utility => "Utility",
+      ItemType.Consumable => "Consumable", 
       ItemType.RnDMaterials => "R&D Materials",
+      ItemType.Service => "Service", // ADD THIS LINE
       _ => "Unknown"
     };
 
+    // UPDATED: Simplified business purpose - only operational items
     [NotMapped]
-    public string BusinessPurpose => IsExpense ? "Expense" : (IsSellable ? "Sellable" : "Internal Use");
+    public string BusinessPurpose => IsSellable ? "Sellable" : "Internal Use";
 
     [NotMapped]
     public string FullDisplayName => $"{ItemTypeDisplayName} ({BusinessPurpose})";
 
-    // NEW: Computed property for backward compatibility and display
-    [NotMapped]
-    [Display(Name = "Preferred Vendor")]
-    public string? PreferredVendor => PreferredVendorItem?.Vendor?.CompanyName ?? "TBA";
-
-    [NotMapped]
-    [Display(Name = "Has Preferred Vendor")]
-    public bool HasPreferredVendor => PreferredVendorItem != null;
-
-    // ? NEW: Helper properties for requirements
     [NotMapped]
     [Display(Name = "Serial/Model Requirements")]
     public string RequirementsDisplay
@@ -106,23 +86,39 @@ namespace InventorySystem.Models
         return requirements.Any() ? string.Join(", ", requirements) : "None";
       }
     }
+		
+		[NotMapped]
+		[Display(Name = "Primary Vendor")]
+		public string? PrimaryVendor
+		{
+			get
+			{
+				var primaryVendorItem = VendorItems?.FirstOrDefault(vi => vi.IsPrimary && vi.IsActive);
+				return primaryVendorItem?.Vendor?.CompanyName ?? "TBA";
+			}
+		}
 
-    [NotMapped]
+		[NotMapped]
+		[Display(Name = "Has Primary Vendor")]
+		public bool HasPrimaryVendor
+		{
+			get
+			{
+				return VendorItems?.Any(vi => vi.IsPrimary && vi.IsActive) == true;
+			}
+		}
+		[NotMapped]
     [Display(Name = "Has Requirements")]
     public bool HasRequirements => RequiresSerialNumber || RequiresModelNumber;
 
+    // UPDATED: Simplified requirements by type (only operational types)
     [NotMapped]
     [Display(Name = "Typical Requirements by Type")]
     public string TypicalRequirementsForType => ItemType switch
     {
       ItemType.Inventoried => "Often requires serial numbers for tracking",
-      ItemType.Service => "Rarely requires serial numbers",
-      ItemType.Virtual => "No serial numbers needed",
-      ItemType.Subscription => "May require license keys instead",
       ItemType.Consumable => "Usually no tracking needed",
-      ItemType.Expense => "No tracking needed",
-      ItemType.Utility => "May require meter readings",
-      ItemType.RnDMaterials => "May require batch tracking",
+      ItemType.RnDMaterials => "May require batch/serial tracking",
       _ => "Depends on specific use case"
     };
 
@@ -136,14 +132,13 @@ namespace InventorySystem.Models
 
     // Version Control Properties
     public bool IsCurrentVersion { get; set; } = true;
-    public int? BaseItemId { get; set; } // References the original item
+    public int? BaseItemId { get; set; }
     public virtual Item? BaseItem { get; set; }
     public virtual ICollection<Item> Versions { get; set; } = new List<Item>();
     public string? VersionHistory { get; set; }
     public int? CreatedFromChangeOrderId { get; set; }
     public virtual ChangeOrder? CreatedFromChangeOrder { get; set; }
 
-    // Helper properties
     [NotMapped]
     public string VersionedPartNumber => $"{PartNumber} Rev {Version}";
     [NotMapped]
@@ -168,69 +163,36 @@ namespace InventorySystem.Models
     [Display(Name = "Sale Price")]
     [Column(TypeName = "decimal(18,2)")]
     [Range(0, double.MaxValue, ErrorMessage = "Sale price must be 0 or greater")]
-    public decimal? SalePrice { get; set; }
+    public decimal SalePrice { get; set; }
 
     [Display(Name = "Has Sale Price")]
     [NotMapped]
-    public bool HasSalePrice => SalePrice.HasValue && SalePrice.Value > 0;
+    public bool HasSalePrice => SalePrice > 0;
 
+    // UPDATED: Simplified suggested pricing for operational items only
     [Display(Name = "Suggested Sale Price")]
     [NotMapped]
     public decimal SuggestedSalePrice
     {
         get
         {
-            // If sale price is already set, use it
-            if (HasSalePrice) return SalePrice.Value;
+            if (HasSalePrice) return SalePrice;
 
-            // Try to calculate from latest cost with appropriate markup
-            try
+            var markupFactor = ItemType switch
             {
-                // Use different markup strategies based on item type
-                var markupFactor = ItemType switch
-                {
-                    ItemType.Service => 3.0m,           // 200% markup for services
-                    ItemType.Virtual => 4.0m,           // 300% markup for virtual items
-                    ItemType.Subscription => 2.5m,      // 150% markup for subscriptions
-                    ItemType.Utility => 1.2m,           // 20% markup for utilities
-                    ItemType.Inventoried => 1.5m,       // 50% markup for physical items
-                    ItemType.Consumable => 1.4m,        // 40% markup for consumables
-                    ItemType.RnDMaterials => 1.6m,      // 60% markup for R&D materials
-                    _ => 1.5m                            // Default 50% markup
-                };
+                ItemType.Inventoried => 1.5m,       // 50% markup for physical items
+                ItemType.Consumable => 1.4m,        // 40% markup for consumables
+                ItemType.RnDMaterials => 1.6m,      // 60% markup for R&D materials
+                _ => 1.5m                            // Default 50% markup
+            };
 
-                // For inventory items, try to use cost-based pricing
-                if (TrackInventory)
-                {
-                    // This would need to be calculated via service call in real implementation
-                    // For now, provide a reasonable default
-                    return 10.00m * markupFactor;
-                }
-                else
-                {
-                    // For non-inventory items, use type-based defaults
-                    return ItemType switch
-                    {
-                        ItemType.Service => 75.00m,
-                        ItemType.Virtual => 50.00m,
-                        ItemType.Subscription => 25.00m,
-                        ItemType.Utility => 150.00m,
-                        ItemType.NonInventoried => 30.00m,
-                        _ => 25.00m
-                    };
-                }
+            if (TrackInventory)
+            {
+                return 10.00m * markupFactor; // This would use actual cost in real implementation
             }
-            catch
+            else
             {
-                // Fallback pricing
-                return ItemType switch
-                {
-                    ItemType.Service => 75.00m,
-                    ItemType.Virtual => 50.00m,
-                    ItemType.Subscription => 25.00m,
-                    ItemType.Utility => 150.00m,
-                    _ => 25.00m
-                };
+                return 25.00m; // Default for non-tracked items
             }
         }
     }
@@ -251,7 +213,7 @@ namespace InventorySystem.Models
     [NotMapped]
     public decimal EffectiveYield => YieldFactor ?? 1.0m;
 
-    // ? NEW: Validation method for sale item requirements
+    // Validation method for sale item requirements
     public bool ValidateSaleItemRequirements(string? serialNumber, string? modelNumber)
     {
       if (RequiresSerialNumber && string.IsNullOrWhiteSpace(serialNumber))
@@ -263,18 +225,13 @@ namespace InventorySystem.Models
       return true;
     }
 
-    // ? NEW: Helper method to suggest requirements based on item type
+    // UPDATED: Simplified requirements suggestions for operational items only
     public (bool suggestSerial, bool suggestModel, string reason) GetSuggestedRequirements()
     {
       return ItemType switch
       {
         ItemType.Inventoried => (true, true, "Physical items often need tracking"),
-        ItemType.Service => (false, false, "Services typically don't require serial numbers"),
-        ItemType.Virtual => (false, false, "Virtual items don't need physical tracking"),
-        ItemType.Subscription => (false, true, "Subscriptions may need license/model tracking"),
         ItemType.Consumable => (false, false, "Consumables are typically not tracked individually"),
-        ItemType.Expense => (false, false, "Expense items don't require tracking"),
-        ItemType.Utility => (false, true, "Utilities may need meter or model numbers"),
         ItemType.RnDMaterials => (true, false, "R&D materials often need batch/serial tracking"),
         _ => (false, false, "Requirements depend on specific use case")
       };
@@ -295,5 +252,15 @@ namespace InventorySystem.Models
       UnitOfMeasure.Roll or UnitOfMeasure.Sheet => "Material",
       _ => "Other"
     };
+
+    // ISellableEntity implementation - FIXED: Added missing DisplayName property
+    [NotMapped]
+    public string DisplayName => DisplayPartNumber;
+
+    [NotMapped]
+    public string? Code => PartNumber;
+    
+    [NotMapped]
+    public string EntityType => "Item";
   }
 }

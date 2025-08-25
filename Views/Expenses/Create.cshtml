@@ -1,0 +1,265 @@
+﻿@model CreateExpenseViewModel
+
+@{
+    ViewData["Title"] = "Create Expense Type";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-plus"></i> Create New Expense Type</h2>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="@Url.Action("Index")">Expense Types</a></li>
+                <li class="breadcrumb-item active">Create</li>
+            </ol>
+        </nav>
+        <p class="text-muted mb-0">
+            <i class="fas fa-info-circle"></i> Create a reusable expense template for payment recording with proper chart of accounts integration
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> Expense Type Information</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ExpenseCode" class="form-label"></label>
+                                <input asp-for="ExpenseCode" class="form-control" placeholder="e.g., UTIL-001, OFFICE-001" />
+                                <span asp-validation-for="ExpenseCode" class="text-danger"></span>
+                                <div class="form-text">Unique code to identify this expense type</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Category" class="form-label"></label>
+                                @Html.DropDownListFor(m => m.Category, ViewBag.Categories as SelectList, 
+                                    new { @class = "form-select", id = "categorySelect" })
+                                <span asp-validation-for="Category" class="text-danger"></span>
+                                <div class="form-text">Category determines suggested ledger account</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <input asp-for="Description" class="form-control" 
+                               placeholder="Brief description of this expense type" />
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <!-- ✅ NEW: Ledger Account Selection -->
+                    <div class="mb-3">
+                        <label asp-for="LedgerAccountId" class="form-label">
+                            <i class="fas fa-book"></i> Ledger Account
+                        </label>
+                        @Html.DropDownListFor(m => m.LedgerAccountId, ViewBag.ExpenseAccounts as SelectList, 
+                            "Select ledger account...", new { @class = "form-select", id = "ledgerAccountSelect" })
+                        <span asp-validation-for="LedgerAccountId" class="text-danger"></span>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> All payments for this expense type will be posted to this account.
+                            <span id="suggestedAccountHint" class="text-primary" style="display: none;"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="DefaultAmount" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="DefaultAmount" class="form-control" 
+                                           type="number" step="0.01" placeholder="0.00" />
+                                </div>
+                                <span asp-validation-for="DefaultAmount" class="text-danger"></span>
+                                <div class="form-text">Leave blank for variable amounts</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="DefaultVendorId" class="form-label"></label>
+                                @Html.DropDownListFor(m => m.DefaultVendorId, ViewBag.Vendors as SelectList, 
+                                    "Select a vendor (optional)", new { @class = "form-select" })
+                                <span asp-validation-for="DefaultVendorId" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="UnitOfMeasure" class="form-label"></label>
+                                <select asp-for="UnitOfMeasure" class="form-select">
+                                    <option value="Each">Each</option>
+                                    <option value="Hour">Hour</option>
+                                    <option value="Month">Month</option>
+                                    <option value="Year">Year</option>
+                                    <option value="Kilogram">Kilogram</option>
+                                    <option value="Liter">Liter</option>
+                                </select>
+                                <span asp-validation-for="UnitOfMeasure" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="TaxCategory" class="form-label"></label>
+                                @Html.DropDownListFor(m => m.TaxCategory, ViewBag.TaxCategories as SelectList, 
+                                    new { @class = "form-select" })
+                                <span asp-validation-for="TaxCategory" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <div class="form-check mt-4">
+                                    <input asp-for="IsRecurring" class="form-check-input" type="checkbox" />
+                                    <label asp-for="IsRecurring" class="form-check-label"></label>
+                                </div>
+                                <span asp-validation-for="IsRecurring" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="recurringOptions" style="display: none;">
+                        <label asp-for="RecurringFrequency" class="form-label"></label>
+                        <select asp-for="RecurringFrequency" class="form-select">
+                            <option value="">Select frequency...</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Quarterly">Quarterly</option>
+                            <option value="Annually">Annually</option>
+                        </select>
+                        <span asp-validation-for="RecurringFrequency" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Comments" class="form-label"></label>
+                        <textarea asp-for="Comments" class="form-control" rows="3" 
+                                  placeholder="Additional notes about this expense type..."></textarea>
+                        <span asp-validation-for="Comments" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check"></i> Create Expense Type
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- ✅ UPDATED: Tips with ledger account information -->
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-primary"><i class="fas fa-book"></i> Ledger Accounts</h6>
+                    <p class="small text-muted">Select the appropriate chart of accounts entry. The system suggests accounts based on category, but you can choose any expense account.</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-success"><i class="fas fa-tag"></i> Expense Codes</h6>
+                    <p class="small text-muted">Use descriptive codes like UTIL-ELEC for electricity or OFFICE-PAPER for office paper.</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-info"><i class="fas fa-dollar-sign"></i> Default Amounts</h6>
+                    <p class="small text-muted">Set default amounts for fixed expenses like rent or utilities to speed up data entry.</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-warning"><i class="fas fa-building"></i> Default Vendors</h6>
+                    <p class="small text-muted">Link expense types to default vendors to streamline payment processing.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ NEW: Account mapping information -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-list"></i> Category → Account Mapping</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr><td><strong>Office Supplies:</strong></td><td><small>6100</small></td></tr>
+                            <tr><td><strong>Utilities:</strong></td><td><small>6200</small></td></tr>
+                            <tr><td><strong>Professional Services:</strong></td><td><small>6300</small></td></tr>
+                            <tr><td><strong>Software & Technology:</strong></td><td><small>6400</small></td></tr>
+                            <tr><td><strong>Travel:</strong></td><td><small>6500</small></td></tr>
+                            <tr><td><strong>Equipment:</strong></td><td><small>6600</small></td></tr>
+                            <tr><td><strong>Marketing:</strong></td><td><small>6700</small></td></tr>
+                            <tr><td><strong>Research:</strong></td><td><small>6800</small></td></tr>
+                            <tr><td><strong>Insurance:</strong></td><td><small>6900</small></td></tr>
+                            <tr><td><strong>General Business:</strong></td><td><small>6000</small></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="small text-muted mt-2">These are suggested accounts. You can select any expense account from your chart of accounts.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function() {
+            // ✅ NEW: Category-based account suggestion
+            const accountSuggestions = @Html.Raw(Json.Serialize(ViewBag.AccountSuggestions ?? new Dictionary<string, object>()));
+            
+            function updateSuggestedAccount() {
+                const category = $('#categorySelect').val();
+                const suggestedAccountId = accountSuggestions[category];
+                const suggestedHint = $('#suggestedAccountHint');
+                
+                if (suggestedAccountId) {
+                    // Auto-select the suggested account
+                    $('#ledgerAccountSelect').val(suggestedAccountId);
+                    
+                    // Show helpful hint
+                    const accountText = $('#ledgerAccountSelect option:selected').text();
+                    suggestedHint.text(`Suggested: ${accountText}`).show();
+                } else {
+                    suggestedHint.hide();
+                }
+            }
+
+            // Show/hide recurring options
+            function toggleRecurringOptions() {
+                if ($('#IsRecurring').is(':checked')) {
+                    $('#recurringOptions').show();
+                } else {
+                    $('#recurringOptions').hide();
+                    $('#RecurringFrequency').val('');
+                }
+            }
+
+            // Event handlers
+            $('#categorySelect').change(updateSuggestedAccount);
+            $('#IsRecurring').change(toggleRecurringOptions);
+            
+            // Initial state
+            updateSuggestedAccount();
+            toggleRecurringOptions();
+        });
+    </script>
+}

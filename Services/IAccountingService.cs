@@ -1,6 +1,7 @@
 ﻿// Services/IAccountingService.cs
 using InventorySystem.Models;
 using InventorySystem.Models.Accounting;
+using InventorySystem.Models.Enums;
 using InventorySystem.ViewModels.Accounting;
 
 namespace InventorySystem.Services
@@ -21,6 +22,10 @@ namespace InventorySystem.Services
 		Task<IEnumerable<Account>> GetAccountsByTypeAsync(AccountType accountType);
 		Task<IEnumerable<Account>> SearchAccountsAsync(string searchTerm);
 
+		// ✅ NEW: Expense-specific account methods
+		Task<IEnumerable<Account>> GetExpenseAccountsAsync();
+		Task<Account?> GetSuggestedAccountForExpenseCategoryAsync(ExpenseCategory category);
+
 		// ============= General Ledger Management =============
 		Task<GeneralLedgerEntry> CreateJournalEntryAsync(GeneralLedgerEntry entry);
 		Task<IEnumerable<GeneralLedgerEntry>> CreateJournalEntriesAsync(IEnumerable<GeneralLedgerEntry> entries);
@@ -34,6 +39,7 @@ namespace InventorySystem.Services
 		Task<bool> GenerateJournalEntriesForProductionAsync(Production production);
 		Task<bool> GenerateJournalEntriesForVendorPaymentAsync(VendorPayment payment);
 		Task<bool> GenerateJournalEntriesForCustomerPaymentAsync(CustomerPayment payment);
+		Task<bool> GenerateJournalEntriesForExpensePaymentAsync(ExpensePayment expensePayment);
 
 		// ============= Account Balances =============
 		Task<decimal> GetAccountBalanceAsync(string accountCode, DateTime? asOfDate = null);

@@ -6,6 +6,7 @@ using InventorySystem.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Text;
+using BulkUploadResult = InventorySystem.Models.BulkUploadResult; // ✅ ADD: Explicitly resolve the ambiguity
 
 namespace InventorySystem.Services
 {
@@ -59,28 +60,28 @@ namespace InventorySystem.Services
           Comments = GetValue(values, 2), // Column 3
           MinimumStock = GetIntValue(values, 3), // Column 4
 
-          // NEW PHASE 1 FIELDS
+          // UPDATED: Simplified vendor information
           VendorPartNumber = GetValue(values, 4), // Column 5
           PreferredVendor = GetValue(values, 5), // Column 6 - This will be matched/created
           
-          // NEW: Manufacturer information
+          // Manufacturer information
           Manufacturer = GetValue(values, 6), // Column 7
           ManufacturerPartNumber = GetValue(values, 7), // Column 8
           
           IsSellable = GetBoolValue(values, 8), // Column 9
-          IsExpense = GetBoolValue(values, 9), // Column 10 - NEW: Expense flag
-          ItemType = GetItemTypeValue(values, 10), // Column 11 - Shifted from 10
-          Version = !string.IsNullOrWhiteSpace(GetValue(values, 11)) ? GetValue(values, 11) : "A", // Column 12 - Shifted from 11
+          // REMOVED: IsExpense = GetBoolValue(values, 9), // Column 10 - Removed
+          ItemType = GetItemTypeValue(values, 9), // Column 10 - Shifted from 11 (only operational types)
+          Version = !string.IsNullOrWhiteSpace(GetValue(values, 10)) ? GetValue(values, 10) : "A", // Column 11 - Shifted
           
-          // ADD: Unit of Measure parsing
-          UnitOfMeasure = GetUnitOfMeasureValue(values, 12), // Column 13 - Shifted from 12
+          // Unit of Measure parsing
+          UnitOfMeasure = GetUnitOfMeasureValue(values, 11), // Column 12 - Shifted
 
           // Optional initial purchase columns (shifted)
-          InitialQuantity = GetDecimalValue(values, 13), // Column 14 - Shifted from 13
-          InitialCostPerUnit = GetDecimalValue(values, 14), // Column 15 - Shifted from 14
-          InitialVendor = GetValue(values, 15), // Column 16 - Shifted from 15
-          InitialPurchaseDate = GetDateValue(values, 16), // Column 17 - Shifted from 16
-          InitialPurchaseOrderNumber = GetValue(values, 17) // Column 18 - Shifted from 17
+          InitialQuantity = GetDecimalValue(values, 12), // Column 13 - Shifted
+          InitialCostPerUnit = GetDecimalValue(values, 13), // Column 14 - Shifted
+          InitialVendor = GetValue(values, 14), // Column 15 - Shifted
+          InitialPurchaseDate = GetDateValue(values, 15), // Column 16 - Shifted
+          InitialPurchaseOrderNumber = GetValue(values, 16) // Column 17 - Shifted
         };
 
         items.Add(item);
@@ -139,6 +140,14 @@ namespace InventorySystem.Services
             validationResult.Errors.Add("Minimum Stock cannot be negative");
           }
 
+          // UPDATED: Validate only operational item types
+          if (item.ItemType != ItemType.Inventoried && 
+              item.ItemType != ItemType.Consumable && 
+              item.ItemType != ItemType.RnDMaterials)
+          {
+            validationResult.Errors.Add($"Invalid item type '{item.ItemType}'. Only Inventoried, Consumable, and RnDMaterials are supported.");
+          }
+
           // Check for duplicate part numbers in database
           if (!string.IsNullOrWhiteSpace(item.PartNumber) &&
               existingPartNumbers.Contains(item.PartNumber.ToLower()))
@@ -146,18 +155,8 @@ namespace InventorySystem.Services
             validationResult.Errors.Add($"Part Number '{item.PartNumber}' already exists in the system");
           }
 
-          // NEW: Validate preferred vendor
-          if (!string.IsNullOrWhiteSpace(item.PreferredVendor))
-          {
-            if (existingVendors.ContainsKey(item.PreferredVendor.ToLower()))
-            {
-              validationResult.Warnings.Add($"Preferred vendor '{item.PreferredVendor}' found - will be linked automatically");
-            }
-            else
-            {
-              validationResult.Warnings.Add($"Preferred vendor '{item.PreferredVendor}' not found - will need to be created or item will show 'TBA'");
-            }
-          }
+          // ✅ ENHANCED: Check and create vendor prompts for both preferred and initial vendors
+          CheckAndCreateVendorPrompts(item, validationResult, existingVendors);
 
           // Validate initial purchase data if provided
           ValidateInitialPurchaseData(item, validationResult);
@@ -179,7 +178,65 @@ namespace InventorySystem.Services
       return results;
     }
 
-    public async Task<BulkUploadResult> ImportValidItemsAsync(List<BulkItemPreview> validItems)
+    // ✅ NEW: Helper method to check vendors and create prompts for user confirmation
+    private void CheckAndCreateVendorPrompts(BulkItemPreview item, ItemValidationResult validationResult, Dictionary<string, int> existingVendors)
+    {
+      // Check preferred vendor
+      if (!string.IsNullOrWhiteSpace(item.PreferredVendor))
+      {
+        if (existingVendors.ContainsKey(item.PreferredVendor.ToLower()))
+        {
+          validationResult.InfoMessages.Add($"Preferred vendor '{item.PreferredVendor}' found - will be linked automatically");
+        }
+        else
+        {
+          // Vendor doesn't exist - add prompt for creation
+          var prompt = new VendorCreationPrompt
+          {
+            VendorName = item.PreferredVendor,
+            RowNumber = item.RowNumber,
+            PartNumber = item.PartNumber,
+            VendorPartNumber = item.VendorPartNumber,
+            IsInitialVendor = false,
+            PromptMessage = $"Vendor '{item.PreferredVendor}' not found. Create automatically as preferred vendor for this item?",
+            ShouldCreate = true // Default to creating for user convenience
+          };
+          
+          validationResult.VendorCreationPrompts.Add(prompt);
+          validationResult.Warnings.Add($"Preferred vendor '{item.PreferredVendor}' will be created automatically if confirmed");
+        }
+      }
+
+      // Check initial purchase vendor (if different from preferred vendor)
+      if (!string.IsNullOrWhiteSpace(item.InitialVendor) && 
+          !string.Equals(item.InitialVendor, item.PreferredVendor, StringComparison.OrdinalIgnoreCase))
+      {
+        if (existingVendors.ContainsKey(item.InitialVendor.ToLower()))
+        {
+          validationResult.InfoMessages.Add($"Initial purchase vendor '{item.InitialVendor}' found - will be used for initial purchase");
+        }
+        else
+        {
+          // Initial vendor doesn't exist - add prompt for creation
+          var prompt = new VendorCreationPrompt
+          {
+            VendorName = item.InitialVendor,
+            RowNumber = item.RowNumber,
+            PartNumber = item.PartNumber,
+            VendorPartNumber = null, // Initial vendor doesn't have vendor part number
+            IsInitialVendor = true,
+            PromptMessage = $"Initial purchase vendor '{item.InitialVendor}' not found. Create automatically for initial purchase?",
+            ShouldCreate = true // Default to creating for user convenience
+          };
+          
+          validationResult.VendorCreationPrompts.Add(prompt);
+          validationResult.Warnings.Add($"Initial purchase vendor '{item.InitialVendor}' will be created automatically if confirmed");
+        }
+      }
+    }
+
+    // ✅ ENHANCED: Updated to properly handle vendor creation choices
+    public async Task<BulkUploadResult> ImportValidItemsAsync(List<BulkItemPreview> validItems, Dictionary<string, bool>? vendorCreationChoices = null)
     {
       var result = new BulkUploadResult();
 
@@ -187,7 +244,10 @@ namespace InventorySystem.Services
 
       try
       {
-        // First, create all items without vendor assignments
+        // ✅ ENHANCED: Create vendors first based on user choices
+        var createdVendors = await CreateVendorsBasedOnChoicesAsync(validItems, vendorCreationChoices);
+
+        // Create all items with vendor assignments
         var createdItemsWithVendorRequests = new List<(Item item, string? vendorName, string? vendorPartNumber)>();
 
         foreach (var itemData in validItems)
@@ -203,31 +263,31 @@ namespace InventorySystem.Services
               CurrentStock = 0,
               CreatedDate = DateTime.Now,
 
-              // NEW PHASE 1 PROPERTIES - vendor assignment happens later
+              // UPDATED: Simplified properties - no expense logic
               VendorPartNumber = itemData.VendorPartNumber,
               // PreferredVendorItemId will be set after vendor processing
               IsSellable = itemData.IsSellable,
-              IsExpense = itemData.IsExpense, // NEW: Set expense flag
               ItemType = itemData.ItemType,
               Version = itemData.Version,
               
-              // ADD: Unit of Measure
+              // Unit of Measure
               UnitOfMeasure = itemData.UnitOfMeasure
             };
 
             var createdItem = await _inventoryService.CreateItemAsync(item);
             result.CreatedItemIds.Add(createdItem.Id);
 
-            // Store vendor assignment request for later processing
-            if (!string.IsNullOrWhiteSpace(itemData.PreferredVendor))
+            // ✅ ENHANCED: Only store vendor assignment request if vendor should be created or exists
+            if (!string.IsNullOrWhiteSpace(itemData.PreferredVendor) && 
+                ShouldCreateOrLinkVendor(itemData.PreferredVendor, vendorCreationChoices))
             {
               createdItemsWithVendorRequests.Add((createdItem, itemData.PreferredVendor, itemData.VendorPartNumber));
             }
 
-            // Create initial purchase if data is provided AND item is inventoried
-            if (HasValidInitialPurchaseData(itemData) && itemData.TrackInventory)
+            // ✅ ENHANCED: Create initial purchase with proper vendor handling
+            if (HasValidInitialPurchaseData(itemData))
             {
-              await CreateInitialPurchaseAsync(itemData, createdItem.Id, result);
+              await CreateInitialPurchaseWithVendorHandlingAsync(itemData, createdItem.Id, result, vendorCreationChoices);
             }
 
             result.SuccessfulImports++;
@@ -236,7 +296,6 @@ namespace InventorySystem.Services
           {
             result.FailedImports++;
             
-            // ADD: Capture detailed error information
             var detailedError = new ItemImportError
             {
               RowNumber = itemData.RowNumber,
@@ -246,13 +305,12 @@ namespace InventorySystem.Services
             };
             result.DetailedErrors.Add(detailedError);
             
-            // Keep the simple error format for backward compatibility
             result.Errors.Add($"Row {itemData.RowNumber} - {itemData.PartNumber}: {ex.Message}");
           }
         }
 
         // Process vendor assignments after all items are created
-        var vendorAssignmentResult = await ProcessVendorAssignmentsAsync(createdItemsWithVendorRequests);
+        var vendorAssignmentResult = await ProcessVendorAssignmentsWithChoicesAsync(createdItemsWithVendorRequests, createdVendors);
 
         // Store vendor assignment info in result for later display
         result.VendorAssignments = vendorAssignmentResult;
@@ -266,7 +324,6 @@ namespace InventorySystem.Services
         result.SuccessfulImports = 0;
         result.FailedImports = validItems.Count;
         
-        // ADD: Add detailed errors for all items when transaction fails
         foreach (var itemData in validItems)
         {
           result.DetailedErrors.Add(new ItemImportError
@@ -282,128 +339,147 @@ namespace InventorySystem.Services
       return result;
     }
 
-    // NEW: Process vendor assignments and return info for user review
-    private async Task<ImportVendorAssignmentViewModel> ProcessVendorAssignmentsAsync(
-        List<(Item item, string vendorName, string? vendorPartNumber)> vendorRequests)
+    // ✅ NEW: Helper method to determine if vendor should be created or linked
+    private bool ShouldCreateOrLinkVendor(string vendorName, Dictionary<string, bool>? vendorCreationChoices)
+    {
+      if (vendorCreationChoices == null) return true; // Default behavior - create all vendors
+      
+      return vendorCreationChoices.TryGetValue(vendorName, out bool shouldCreate) ? shouldCreate : false;
+    }
+
+    // ✅ NEW: Create vendors based on user choices before item creation
+    private async Task<Dictionary<string, Vendor>> CreateVendorsBasedOnChoicesAsync(List<BulkItemPreview> validItems, Dictionary<string, bool>? vendorCreationChoices)
+    {
+      var createdVendors = new Dictionary<string, Vendor>();
+      
+      if (vendorCreationChoices == null) return createdVendors;
+
+      // Get all unique vendor names that should be created
+      var vendorsToCreate = new HashSet<string>();
+      
+      foreach (var item in validItems)
+      {
+        // Check preferred vendor
+        if (!string.IsNullOrWhiteSpace(item.PreferredVendor) && 
+            ShouldCreateOrLinkVendor(item.PreferredVendor, vendorCreationChoices))
+        {
+          vendorsToCreate.Add(item.PreferredVendor);
+        }
+        
+        // Check initial vendor
+        if (!string.IsNullOrWhiteSpace(item.InitialVendor) && 
+            ShouldCreateOrLinkVendor(item.InitialVendor, vendorCreationChoices))
+        {
+          vendorsToCreate.Add(item.InitialVendor);
+        }
+      }
+
+      // Get existing vendors to avoid duplicates
+      var existingVendors = await _context.Vendors
+          .Where(v => v.IsActive)
+          .ToDictionaryAsync(v => v.CompanyName.ToLower(), v => v);
+
+      // Create new vendors
+      foreach (var vendorName in vendorsToCreate)
+      {
+        if (!existingVendors.ContainsKey(vendorName.ToLower()))
+        {
+          try
+          {
+            var newVendor = new Vendor
+            {
+              CompanyName = vendorName,
+              IsActive = true,
+              CreatedDate = DateTime.Now,
+              LastUpdated = DateTime.Now,
+              QualityRating = 3,
+              DeliveryRating = 3,
+              ServiceRating = 3,
+              PaymentTerms = "Net 30",
+              Notes = "Created automatically during bulk import"
+            };
+
+            var createdVendor = await _vendorService.CreateVendorAsync(newVendor);
+            createdVendors[vendorName.ToLower()] = createdVendor;
+          }
+          catch (Exception ex)
+          {
+            // Log the error but continue with other vendors
+            // The error will be caught during item processing
+            Console.WriteLine($"Failed to create vendor '{vendorName}': {ex.Message}");
+          }
+        }
+        else
+        {
+          // Vendor already exists, add to our lookup
+          createdVendors[vendorName.ToLower()] = existingVendors[vendorName.ToLower()];
+        }
+      }
+
+      return createdVendors;
+    }
+
+    // ✅ ENHANCED: Process vendor assignments with pre-created vendors
+    private async Task<ImportVendorAssignmentViewModel> ProcessVendorAssignmentsWithChoicesAsync(
+        List<(Item item, string vendorName, string? vendorPartNumber)> vendorRequests,
+        Dictionary<string, Vendor> createdVendors)
     {
       var result = new ImportVendorAssignmentViewModel();
 
       if (!vendorRequests.Any()) return result;
 
-      // Get existing vendors
-      var existingVendors = await _context.Vendors
-          .Where(v => v.IsActive)
-          .ToListAsync();
-
-      var vendorLookup = existingVendors.ToDictionary(v => v.CompanyName.ToLower(), v => v);
-
-      // Group requests by vendor name
-      var vendorGroups = vendorRequests.GroupBy(vr => vr.vendorName.ToLower());
-
-      foreach (var group in vendorGroups)
+      // Process each vendor request
+      foreach (var (item, vendorName, vendorPartNumber) in vendorRequests)
       {
-        var vendorName = group.First().vendorName; // Get original case
-        var relatedItems = group.ToList();
-
-        if (vendorLookup.TryGetValue(group.Key, out var existingVendor))
+        if (createdVendors.TryGetValue(vendorName.ToLower(), out var vendor))
         {
-          // Vendor exists - create assignments immediately
-          foreach (var (item, _, vendorPartNumber) in relatedItems)
-          {
-            await CreateVendorItemAssignmentAsync(item, existingVendor, vendorPartNumber);
+          // Create the vendor-item assignment
+          await CreateVendorItemAssignmentAsync(item, vendor, vendorPartNumber);
 
-            result.PendingAssignments.Add(new PendingVendorAssignment
-            {
-              ItemId = item.Id,
-              PartNumber = item.PartNumber,
-              Description = item.Description,
-              VendorPartNumber = vendorPartNumber,
-              VendorName = vendorName,
-              VendorExists = true,
-              FoundVendorId = existingVendor.Id,
-              FoundVendorName = existingVendor.CompanyName,
-              IsAssigned = true
-            });
-          }
+          result.PendingAssignments.Add(new PendingVendorAssignment
+          {
+            ItemId = item.Id,
+            PartNumber = item.PartNumber,
+            Description = item.Description,
+            VendorPartNumber = vendorPartNumber,
+            VendorName = vendorName,
+            VendorExists = true,
+            FoundVendorId = vendor.Id,
+            FoundVendorName = vendor.CompanyName,
+            IsAssigned = true
+          });
+
+          result.VendorLinksCreated++;
         }
         else
         {
-          // Vendor doesn't exist - add to creation request list
-          var newVendorRequest = new VendorCreationRequest
+          // Vendor was not created (user chose not to create it)
+          result.PendingAssignments.Add(new PendingVendorAssignment
           {
+            ItemId = item.Id,
+            PartNumber = item.PartNumber,
+            Description = item.Description,
+            VendorPartNumber = vendorPartNumber,
             VendorName = vendorName,
-            ShouldCreate = true
-          };
-
-          foreach (var (item, _, vendorPartNumber) in relatedItems)
-          {
-            var pendingAssignment = new PendingVendorAssignment
-            {
-              ItemId = item.Id,
-              PartNumber = item.PartNumber,
-              Description = item.Description,
-              VendorPartNumber = vendorPartNumber,
-              VendorName = vendorName,
-              VendorExists = false,
-              IsAssigned = false
-            };
-
-            newVendorRequest.RelatedItems.Add(pendingAssignment);
-            result.PendingAssignments.Add(pendingAssignment);
-          }
-
-          result.NewVendorRequests.Add(newVendorRequest);
+            VendorExists = false,
+            IsAssigned = false
+          });
         }
       }
 
       return result;
     }
 
-    // NEW: Create vendor-item assignment
-    private async Task CreateVendorItemAssignmentAsync(Item item, Vendor vendor, string? vendorPartNumber)
+    // ✅ ENHANCED: Create initial purchase with proper vendor choice handling
+    private async Task CreateInitialPurchaseWithVendorHandlingAsync(BulkItemPreview itemData, int itemId, BulkUploadResult result, Dictionary<string, bool>? vendorCreationChoices)
     {
-      // Check if VendorItem relationship already exists
-      var existingVendorItem = await _context.VendorItems
-          .FirstOrDefaultAsync(vi => vi.VendorId == vendor.Id && vi.ItemId == item.Id);
-
-      VendorItem vendorItem;
-
-      if (existingVendorItem != null)
+      // Only proceed if the user chose to create the initial vendor (or no choices provided)
+      if (!ShouldCreateOrLinkVendor(itemData.InitialVendor!, vendorCreationChoices))
       {
-        // Update existing relationship
-        existingVendorItem.VendorPartNumber = vendorPartNumber ?? existingVendorItem.VendorPartNumber;
-        existingVendorItem.IsPrimary = true; // Set as primary since it's from import
-        existingVendorItem.LastUpdated = DateTime.Now;
-        vendorItem = existingVendorItem;
-      }
-      else
-      {
-        // Create new relationship
-        vendorItem = new VendorItem
-        {
-          VendorId = vendor.Id,
-          ItemId = item.Id,
-          VendorPartNumber = vendorPartNumber,
-          IsPrimary = true, // Set as primary since it's from import
-          IsActive = true,
-          UnitCost = 0, // Will be updated when purchases are made
-          MinimumOrderQuantity = 1,
-          LeadTimeDays = 0,
-          LastUpdated = DateTime.Now
-        };
-
-        _context.VendorItems.Add(vendorItem);
+        // User chose not to create this vendor, skip initial purchase
+        return;
       }
 
-      await _context.SaveChangesAsync();
-
-      // Update item's preferred vendor reference
-      item.PreferredVendorItemId = vendorItem.Id;
-      await _context.SaveChangesAsync();
-    }
-
-    private async Task CreateInitialPurchaseAsync(BulkItemPreview itemData, int itemId, BulkUploadResult result)
-    {
       // Find or create vendor for initial purchase
       var vendor = await _vendorService.GetVendorByNameAsync(itemData.InitialVendor!);
 
@@ -419,7 +495,8 @@ namespace InventorySystem.Services
           QualityRating = 3,
           DeliveryRating = 3,
           ServiceRating = 3,
-          PaymentTerms = "Net 30"
+          PaymentTerms = "Net 30",
+          Notes = "Created automatically during bulk import for initial purchase"
         };
 
         vendor = await _vendorService.CreateVendorAsync(vendor);
@@ -444,7 +521,7 @@ namespace InventorySystem.Services
       await _purchaseService.CreatePurchaseAsync(purchase);
     }
 
-    // NEW: Complete vendor assignments after user review
+    // Complete vendor assignments after user review
     public async Task<VendorAssignmentResult> CompleteVendorAssignmentsAsync(ImportVendorAssignmentViewModel model)
     {
       var result = new VendorAssignmentResult { Success = true };
@@ -532,7 +609,7 @@ namespace InventorySystem.Services
       return result;
     }
 
-    // NEW: Parse vendor CSV file
+    // Parse vendor CSV file
     public async Task<List<BulkVendorPreview>> ParseVendorCsvFileAsync(IFormFile file, bool skipHeaderRow = true)
     {
       var vendors = new List<BulkVendorPreview>();
@@ -589,7 +666,7 @@ namespace InventorySystem.Services
       return vendors;
     }
 
-    // NEW: Validate vendor CSV file
+    // Validate vendor CSV file
     public async Task<List<VendorValidationResult>> ValidateVendorCsvFileAsync(IFormFile file, bool skipHeaderRow = true)
     {
       var results = new List<VendorValidationResult>();
@@ -726,7 +803,7 @@ namespace InventorySystem.Services
       return results;
     }
 
-    // NEW: Import valid vendors
+    // Import valid vendors
     public async Task<BulkVendorUploadResult> ImportValidVendorsAsync(List<BulkVendorPreview> validVendors)
     {
       var result = new BulkVendorUploadResult();
@@ -810,6 +887,57 @@ namespace InventorySystem.Services
       }
 
       return result;
+    }
+
+    // ✅ FIXED: Create vendor-item assignment with proper primary vendor setting
+    private async Task CreateVendorItemAssignmentAsync(Item item, Vendor vendor, string? vendorPartNumber)
+    {
+      // Check if VendorItem relationship already exists
+      var existingVendorItem = await _context.VendorItems
+          .FirstOrDefaultAsync(vi => vi.VendorId == vendor.Id && vi.ItemId == item.Id);
+
+      VendorItem vendorItem;
+
+      if (existingVendorItem != null)
+      {
+        // Update existing relationship
+        existingVendorItem.VendorPartNumber = vendorPartNumber ?? existingVendorItem.VendorPartNumber;
+        existingVendorItem.IsPrimary = true; // ✅ FIXED: Set as primary since it's from import
+        existingVendorItem.IsActive = true;
+        existingVendorItem.LastUpdated = DateTime.Now;
+        vendorItem = existingVendorItem;
+      }
+      else
+      {
+        // ✅ ENHANCED: Before creating new primary vendor, unset any existing primary vendors for this item
+        var existingPrimaryVendors = await _context.VendorItems
+            .Where(vi => vi.ItemId == item.Id && vi.IsPrimary)
+            .ToListAsync();
+
+        foreach (var existingPrimary in existingPrimaryVendors)
+        {
+          existingPrimary.IsPrimary = false;
+          existingPrimary.LastUpdated = DateTime.Now;
+        }
+
+        // Create new relationship as primary
+        vendorItem = new VendorItem
+        {
+          VendorId = vendor.Id,
+          ItemId = item.Id,
+          VendorPartNumber = vendorPartNumber,
+          IsPrimary = true, // ✅ FIXED: Set as primary since it's the preferred vendor from import
+          IsActive = true,
+          UnitCost = 0, // Will be updated when purchases are made
+          MinimumOrderQuantity = 1,
+          LeadTimeDays = 0,
+          LastUpdated = DateTime.Now
+        };
+
+        _context.VendorItems.Add(vendorItem);
+      }
+
+      await _context.SaveChangesAsync();
     }
 
     // Helper method for boolean values with default
@@ -973,21 +1101,17 @@ namespace InventorySystem.Services
       return value == "true" || value == "yes" || value == "1" || value == "y";
     }
 
+    // UPDATED: GetItemTypeValue - only operational types
     private ItemType GetItemTypeValue(List<string> values, int index)
     {
       var value = GetValue(values, index).ToLower();
       return value switch
       {
         "inventoried" or "0" or "" => ItemType.Inventoried,
-        "non-inventoried" or "noninventoried" or "1" => ItemType.NonInventoried,
-        "service" or "2" => ItemType.Service,
-        "virtual" or "3" => ItemType.Virtual,
         "consumable" or "4" => ItemType.Consumable,
-        "expense" or "5" => ItemType.Expense,
-        "subscription" or "6" => ItemType.Subscription,
-        "utility" or "7" => ItemType.Utility,
         "r&d materials" or "rnd materials" or "rd materials" or "r&d" or "rnd" or "8" => ItemType.RnDMaterials,
-        _ => ItemType.Inventoried
+        // REMOVED: All expense-related ItemType cases
+        _ => ItemType.Inventoried // Default to Inventoried for operational items
       };
     }
 

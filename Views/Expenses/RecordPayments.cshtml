@@ -1,0 +1,404 @@
+@model RecordExpensePaymentsViewModel
+
+@{
+    ViewData["Title"] = "Record Expense Payments";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-file-invoice-dollar"></i> Record Expense Payments</h2>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="@Url.Action("Index")">Expenses</a></li>
+                <li class="breadcrumb-item active">Record Payments</li>
+            </ol>
+        </nav>
+        <p class="text-muted">Record payments that have been made to vendors for expenses</p>
+    </div>
+    <div>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Expenses
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-money-bill-wave"></i> Select Expenses to Record Payments For</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="RecordPayments" method="post" id="paymentForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="vendorFilter" class="form-label">Filter by Vendor</label>
+                                <select id="vendorFilter" class="form-select">
+                                    <option value="">All Vendors</option>
+                                    @foreach (var vendor in Model.AvailableVendors)
+                                    {
+                                        <option value="@vendor.Id">@vendor.CompanyName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="categoryFilter" class="form-label">Filter by Category</label>
+                                <select id="categoryFilter" class="form-select">
+                                    <option value="">All Categories</option>
+                                    @foreach (var category in Model.AvailableCategories)
+                                    {
+                                        <option value="@category">@category</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button type="button" class="btn btn-outline-primary" onclick="selectAll()">
+                                    <i class="fas fa-check-square"></i> Select All
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="clearAll()">
+                                    <i class="fas fa-square"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="expensesTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">
+                                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleAll(this)">
+                                    </th>
+                                    <th>Expense</th>
+                                    <th>Category</th>
+                                    <th>Default Vendor</th>
+                                    <th>Vendor</th>
+                                    <th>Amount</th>
+                                    <th>Notes</th>
+                                    <th>Receipt/Document</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.AvailableExpenses.Count; i++)
+                                {
+                                    var expense = Model.AvailableExpenses[i];
+                                    var isSelected = Model.SelectedExpenses?.Any(s => s.ExpenseId == expense.Id && s.IsSelected) == true;
+                                    var selectedExpense = Model.SelectedExpenses?.FirstOrDefault(s => s.ExpenseId == expense.Id);
+
+                                    <tr data-vendor-id="@expense.DefaultVendorId" data-category="@expense.CategoryDisplayName">
+                                        <td>
+                                            <input type="hidden" name="SelectedExpenses[@i].ExpenseId" value="@expense.Id" />
+                                            <input type="checkbox" 
+                                                   name="SelectedExpenses[@i].IsSelected" 
+                                                   value="true" 
+                                                   @(isSelected ? "checked" : "") 
+                                                   onchange="toggleExpenseRow(this)" 
+                                                   class="expense-checkbox" />
+                                            <input type="hidden" name="SelectedExpenses[@i].IsSelected" value="false" />
+                                        </td>
+                                        <td>
+                                            <strong>@expense.ExpenseCode</strong>
+                                            <br><small class="text-muted">@expense.Description</small>
+                                            @if (expense.IsRecurring)
+                                            {
+                                                <br><small class="text-info"><i class="fas fa-sync"></i> Recurring</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">@expense.CategoryDisplayName</span>
+                                        </td>
+                                        <td>
+                                            @if (expense.DefaultVendor != null)
+                                            {
+                                                @expense.DefaultVendor.CompanyName
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Not set</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <select name="SelectedExpenses[@i].VendorId" 
+                                                    class="form-select form-select-sm vendor-select"
+                                                    @(isSelected ? "" : "disabled")>
+                                                <option value="">-- Select Vendor --</option>
+                                                @foreach (var vendor in Model.AvailableVendors)
+                                                {
+                                                    
+                                                    var isVendorSelected = (selectedExpense?.VendorId ?? expense.DefaultVendorId) == vendor.Id;
+                                                    
+                                                    <option value="@vendor.Id" selected="@isVendorSelected">
+                                                        @vendor.CompanyName
+                                                    </option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" 
+                                                       name="SelectedExpenses[@i].Amount" 
+                                                       class="form-control amount-input"
+                                                       step="0.01" 
+                                                       min="0.01"
+                                                       value="@(selectedExpense?.Amount ?? expense.DefaultAmount ?? 0)"
+                                                       @(isSelected ? "" : "disabled") />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="text" 
+                                                   name="SelectedExpenses[@i].Notes" 
+                                                   class="form-control form-control-sm notes-input"
+                                                   placeholder="Payment notes..."
+                                                   value="@(selectedExpense?.Notes ?? "")"
+                                                   @(isSelected ? "" : "disabled") />
+                                        </td>
+                                        <td>
+                                            <div class="document-upload-section" @(isSelected ? "" : "style=display:none")>
+                                                <div class="mb-1">
+                                                    <input type="file" 
+                                                           name="SelectedExpenses[@i].DocumentFile" 
+                                                           class="form-control form-control-sm document-file"
+                                                           accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.txt"
+                                                           @(isSelected ? "" : "disabled") />
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-6">
+                                                        <input type="text" 
+                                                               name="SelectedExpenses[@i].DocumentName" 
+                                                               class="form-control form-control-sm document-name"
+                                                               placeholder="Document name"
+                                                               @(isSelected ? "" : "disabled") />
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <select name="SelectedExpenses[@i].DocumentType" 
+                                                                class="form-select form-select-sm document-type"
+                                                                @(isSelected ? "" : "disabled")>
+                                                            <option value="Receipt">Receipt</option>
+                                                            <option value="Invoice">Invoice</option>
+                                                            <option value="Bill">Bill</option>
+                                                            <option value="Credit Card Statement">Credit Card Statement</option>
+                                                            <option value="Bank Statement">Bank Statement</option>
+                                                            <option value="Contract">Contract</option>
+                                                            <option value="Other">Other</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+
+                    <!-- Payment Details -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="PaymentDate" class="form-label">Payment Date</label>
+                                <input asp-for="PaymentDate" class="form-control" type="date" />
+                                <span asp-validation-for="PaymentDate" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+                                <select asp-for="PaymentMethod" class="form-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Check">Check</option>
+                                    <option value="Credit Card">Credit Card</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Online Payment">Online Payment</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="PaymentReference" class="form-label">Payment Reference</label>
+                                <input asp-for="PaymentReference" class="form-control" 
+                                       placeholder="Check #, transaction ID, etc." />
+                                <span asp-validation-for="PaymentReference" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <span id="selectedCount" class="text-muted">0 expenses selected</span>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Record Payments
+                            </button>
+                            <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Recording Payments</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-lightbulb"></i> Important</h6>
+                    <p class="mb-2">This form is for <strong>recording payments</strong> that have already been made to vendors, not for making payments.</p>
+                    <p class="mb-0">Upload receipts, invoices, or other supporting documents for each payment.</p>
+                </div>
+
+                <h6><i class="fas fa-file-upload"></i> Document Guidelines</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-check text-success"></i> PDF files preferred</li>
+                    <li><i class="fas fa-check text-success"></i> Images (JPG, PNG, etc.)</li>
+                    <li><i class="fas fa-check text-success"></i> Office documents</li>
+                    <li><i class="fas fa-check text-success"></i> Max file size: 25MB</li>
+                </ul>
+
+                <h6><i class="fas fa-money-bill-wave"></i> Payment Methods</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-money-bill"></i> Cash</li>
+                    <li><i class="fas fa-money-check"></i> Check</li>
+                    <li><i class="fas fa-credit-card"></i> Credit Card</li>
+                    <li class="fas fa-university"></i> Bank Transfer</li>
+                    <li><i class="fas fa-globe"></i> Online Payment</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleExpenseRow(checkbox) {
+            const row = checkbox.closest('tr');
+            const isChecked = checkbox.checked;
+            
+            // Enable/disable all inputs in the row
+            const inputs = row.querySelectorAll('select, input:not([type="checkbox"]):not([type="hidden"])');
+            inputs.forEach(input => {
+                input.disabled = !isChecked;
+            });
+            
+            // Show/hide document upload section
+            const documentSection = row.querySelector('.document-upload-section');
+            if (documentSection) {
+                documentSection.style.display = isChecked ? 'block' : 'none';
+            }
+            
+            updateSelectedCount();
+        }
+
+        function toggleAll(checkbox) {
+            const expenseCheckboxes = document.querySelectorAll('.expense-checkbox');
+            expenseCheckboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+                toggleExpenseRow(cb);
+            });
+        }
+
+        function selectAll() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            selectAllCheckbox.checked = true;
+            toggleAll(selectAllCheckbox);
+        }
+
+        function clearAll() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            selectAllCheckbox.checked = false;
+            toggleAll(selectAllCheckbox);
+        }
+
+        function updateSelectedCount() {
+            const selectedCount = document.querySelectorAll('.expense-checkbox:checked').length;
+            document.getElementById('selectedCount').textContent = `${selectedCount} expense${selectedCount !== 1 ? 's' : ''} selected`;
+        }
+
+        // Auto-populate document name from file name
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('document-file') && e.target.files.length > 0) {
+                const file = e.target.files[0];
+                const row = e.target.closest('tr');
+                const documentNameInput = row.querySelector('.document-name');
+                
+                if (documentNameInput && !documentNameInput.value) {
+                    const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+                    documentNameInput.value = fileName;
+                }
+            }
+        });
+
+        // Filter functionality
+        document.getElementById('vendorFilter').addEventListener('change', filterTable);
+        document.getElementById('categoryFilter').addEventListener('change', filterTable);
+
+        function filterTable() {
+            const vendorFilter = document.getElementById('vendorFilter').value;
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const rows = document.querySelectorAll('#expensesTable tbody tr');
+
+            rows.forEach(row => {
+                const vendorId = row.getAttribute('data-vendor-id');
+                const category = row.getAttribute('data-category');
+                
+                const vendorMatch = !vendorFilter || vendorId === vendorFilter;
+                const categoryMatch = !categoryFilter || category === categoryFilter;
+                
+                row.style.display = vendorMatch && categoryMatch ? '' : 'none';
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSelectedCount();
+            
+            // Initialize row states
+            document.querySelectorAll('.expense-checkbox').forEach(checkbox => {
+                toggleExpenseRow(checkbox);
+            });
+        });
+    </script>
+
+    <style>
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            background-color: #f8f9fa;
+        }
+
+        .document-upload-section {
+            min-width: 200px;
+        }
+
+        .form-control-sm, .form-select-sm {
+            font-size: 0.875rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+
+        .table td {
+            vertical-align: middle;
+        }
+
+        .input-group-sm > .input-group-text {
+            font-size: 0.875rem;
+        }
+    </style>
+}

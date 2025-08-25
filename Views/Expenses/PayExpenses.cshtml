@@ -1,0 +1,305 @@
+@model PayExpensesViewModel
+
+@{
+    ViewData["Title"] = "Pay Expenses";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-credit-card"></i> Pay Expenses</h2>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="@Url.Action("Index")">Expenses</a></li>
+                <li class="breadcrumb-item active">Pay Expenses</li>
+            </ol>
+        </nav>
+    </div>
+    <div>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Expenses
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-money-bill-wave"></i> Select Expenses to Pay</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="ProcessPayments" method="post" id="paymentForm">
+                    <div class="mb-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="vendorFilter" class="form-label">Filter by Vendor</label>
+                                <select id="vendorFilter" class="form-select">
+                                    <option value="">All Vendors</option>
+                                    @foreach (var vendor in Model.AvailableVendors)
+                                    {
+                                        <option value="@vendor.Id">@vendor.CompanyName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="categoryFilter" class="form-label">Filter by Category</label>
+                                <select id="categoryFilter" class="form-select">
+                                    <option value="">All Categories</option>
+                                    @foreach (var category in Model.AvailableCategories)
+                                    {
+                                        <option value="@category">@category</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button type="button" class="btn btn-outline-primary" onclick="selectAll()">
+                                    <i class="fas fa-check-square"></i> Select All
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="clearAll()">
+                                    <i class="fas fa-square"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="50">Pay</th>
+                                    <th>Expense</th>
+                                    <th>Vendor</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenseTableBody">
+                                @for (int i = 0; i < Model.AvailableExpenses.Count; i++)
+                                {
+                                    var expense = Model.AvailableExpenses[i];
+                                    <tr data-vendor-id="@(expense.DefaultVendorId ?? 0)" 
+                                        data-category="@expense.CategoryDisplayName">
+                                        <td>
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input expense-checkbox" 
+                                                       name="SelectedExpenses[@i].IsSelected" value="true" 
+                                                       data-index="@i" onchange="updateTotal()" />
+                                                <input type="hidden" name="SelectedExpenses[@i].IsSelected" value="false" />
+                                                <input type="hidden" name="SelectedExpenses[@i].ExpenseId" value="@expense.Id" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong>@expense.ExpenseCode</strong><br>
+                                            <small class="text-muted">@expense.Description</small>
+                                        </td>
+                                        <td>
+                                            <select name="SelectedExpenses[@i].VendorId" class="form-select form-select-sm">
+                                                <option value="">Select vendor...</option>
+                                                @foreach (var vendor in Model.AvailableVendors)
+                                                {
+                                                    <option value="@vendor.Id" 
+                                                            selected="@(vendor.Id == expense.DefaultVendorId)">
+                                                        @vendor.CompanyName
+                                                    </option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" step="0.01" class="form-control amount-input"
+                                                       name="SelectedExpenses[@i].Amount" 
+                                                       value="@(expense.DefaultAmount ?? 0)"
+                                                       placeholder="0.00" onchange="updateTotal()" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="date" class="form-control form-control-sm"
+                                                   name="SelectedExpenses[@i].DueDate" 
+                                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm"
+                                                   name="SelectedExpenses[@i].Notes" 
+                                                   placeholder="Optional notes..." />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Payment Information</h5>
+                            <div class="mb-3">
+                                <label for="PaymentDate" class="form-label">Payment Date</label>
+                                <input asp-for="PaymentDate" type="date" class="form-control" />
+                                <span asp-validation-for="PaymentDate" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+                                <select asp-for="PaymentMethod" class="form-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Check">Check</option>
+                                    <option value="Credit Card">Credit Card</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Online Payment">Online Payment</option>
+                                </select>
+                                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="PaymentReference" class="form-label">Payment Reference</label>
+                                <input asp-for="PaymentReference" class="form-control" 
+                                       placeholder="Check number, transaction ID, etc." />
+                                <span asp-validation-for="PaymentReference" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5>Payment Summary</h5>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Selected Expenses:</span>
+                                        <span id="selectedCount">0</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-3">
+                                        <strong>Total Amount:</strong>
+                                        <strong id="totalAmount">$0.00</strong>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input type="checkbox" class="form-check-input" id="confirmPayment" />
+                                        <label class="form-check-label" for="confirmPayment">
+                                            I confirm these payment details are correct
+                                        </label>
+                                    </div>
+                                    <button type="submit" class="btn btn-success w-100" id="submitPayment" disabled>
+                                        <i class="fas fa-credit-card"></i> Process Payments
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Payment Instructions</h6>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li>Select the expenses you want to pay</li>
+                    <li>Verify vendor information</li>
+                    <li>Enter payment amounts</li>
+                    <li>Set payment date and method</li>
+                    <li>Review the summary and submit</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-calculator"></i> Quick Stats</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total Expenses:</span>
+                    <span>@Model.AvailableExpenses.Count</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>With Default Amounts:</span>
+                    <span>@Model.AvailableExpenses.Count(e => e.DefaultAmount.HasValue)</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Unique Vendors:</span>
+                    <span>@Model.AvailableVendors.Count</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        function updateTotal() {
+            let selectedCount = 0;
+            let totalAmount = 0;
+
+            $('.expense-checkbox:checked').each(function() {
+                selectedCount++;
+                const index = $(this).data('index');
+                const amount = parseFloat($(`input[name="SelectedExpenses[${index}].Amount"]`).val()) || 0;
+                totalAmount += amount;
+            });
+
+            $('#selectedCount').text(selectedCount);
+            $('#totalAmount').text('$' + totalAmount.toFixed(2));
+
+            // Enable/disable submit button
+            const hasSelections = selectedCount > 0;
+            const isConfirmed = $('#confirmPayment').is(':checked');
+            $('#submitPayment').prop('disabled', !(hasSelections && isConfirmed));
+        }
+
+        function selectAll() {
+            $('.expense-checkbox').prop('checked', true);
+            updateTotal();
+        }
+
+        function clearAll() {
+            $('.expense-checkbox').prop('checked', false);
+            updateTotal();
+        }
+
+        $(document).ready(function() {
+            // Update total when confirmation checkbox changes
+            $('#confirmPayment').change(updateTotal);
+
+            // Filter functionality
+            $('#vendorFilter, #categoryFilter').change(function() {
+                const vendorId = $('#vendorFilter').val();
+                const category = $('#categoryFilter').val();
+
+                $('#expenseTableBody tr').each(function() {
+                    const rowVendorId = $(this).data('vendor-id').toString();
+                    const rowCategory = $(this).data('category');
+
+                    const vendorMatch = !vendorId || rowVendorId === vendorId;
+                    const categoryMatch = !category || rowCategory === category;
+
+                    if (vendorMatch && categoryMatch) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                        $(this).find('.expense-checkbox').prop('checked', false);
+                    }
+                });
+
+                updateTotal();
+            });
+
+            // Initial calculation
+            updateTotal();
+        });
+
+        // Prevent form submission if no expenses selected
+        $('#paymentForm').submit(function(e) {
+            if ($('.expense-checkbox:checked').length === 0) {
+                e.preventDefault();
+                alert('Please select at least one expense to pay.');
+                return false;
+            }
+        });
+    </script>
+}

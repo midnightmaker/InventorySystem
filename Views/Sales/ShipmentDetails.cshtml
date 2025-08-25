@@ -1,0 +1,324 @@
+@model InventorySystem.Models.Shipment
+@using InventorySystem.Models.Enums
+@using InventorySystem.Helpers
+@{
+    ViewData["Title"] = "Shipment Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-shipping-fast"></i> Shipment @Model.PackingSlipNumber</h1>
+    <div class="btn-group">
+        <a href="/Sales/Shipments" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Shipments
+        </a>
+        <a href="/Sales/Details/@Model.SaleId" class="btn btn-outline-primary">
+            <i class="fas fa-shopping-cart"></i> View Sale
+        </a>
+        <a href="/Sales/PackingSlip/@Model.Id" target="_blank" class="btn btn-primary">
+            <i class="fas fa-file-alt"></i> Packing Slip
+        </a>
+        @if (!string.IsNullOrEmpty(Model.TrackingNumber) && Model.TrackingNumber != "N/A")
+        {
+            @if (Model.CourierService == "FedEx")
+            {
+                <a href="https://www.fedex.com/apps/fedextrack/?tracknumbers=@Model.TrackingNumber" 
+                   target="_blank" class="btn btn-info">
+                    <i class="fas fa-external-link-alt"></i> Track Package
+                </a>
+            }
+            else if (Model.CourierService == "UPS")
+            {
+                <a href="https://www.ups.com/track?tracknum=@Model.TrackingNumber" 
+                   target="_blank" class="btn btn-info">
+                    <i class="fas fa-external-link-alt"></i> Track Package
+                </a>
+            }
+            else if (Model.CourierService == "USPS")
+            {
+                <a href="https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=@Model.TrackingNumber" 
+                   target="_blank" class="btn btn-info">
+                    <i class="fas fa-external-link-alt"></i> Track Package
+                </a>
+            }
+        }
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Shipment Information -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Shipment Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-5">Packing Slip:</dt>
+                    <dd class="col-sm-7"><strong>@Model.PackingSlipNumber</strong></dd>
+                    
+                    <dt class="col-sm-5">Ship Date:</dt>
+                    <dd class="col-sm-7">@Model.ShipmentDate.ToString("MM/dd/yyyy h:mm tt")</dd>
+                    
+                    <dt class="col-sm-5">Shipped By:</dt>
+                    <dd class="col-sm-7">@Model.ShippedBy</dd>
+                    
+                    <dt class="col-sm-5">Courier:</dt>
+                    <dd class="col-sm-7">
+                        <span class="badge bg-secondary">@Model.CourierService</span>
+                    </dd>
+                    
+                    <dt class="col-sm-5">Tracking:</dt>
+                    <dd class="col-sm-7">
+                        @if (!string.IsNullOrEmpty(Model.TrackingNumber) && Model.TrackingNumber != "N/A")
+                        {
+                            <strong>@Model.TrackingNumber</strong>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Local Delivery/Pickup</span>
+                        }
+                    </dd>
+                    
+                    @if (Model.ExpectedDeliveryDate.HasValue)
+                    {
+                        <dt class="col-sm-5">Expected Delivery:</dt>
+                        <dd class="col-sm-7">
+                            @Model.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
+                            @{
+                                var isOverdue = DateTime.Now > Model.ExpectedDeliveryDate.Value && Model.Sale.SaleStatus != SaleStatus.Delivered;
+                            }
+                            @if (isOverdue)
+                            {
+                                <span class="badge bg-danger ms-1">Overdue</span>
+                            }
+                        </dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-box"></i> Package Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    @if (Model.PackageWeight.HasValue)
+                    {
+                        <dt class="col-sm-5">Weight:</dt>
+                        <dd class="col-sm-7">@Model.PackageWeight.Value lbs</dd>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(Model.PackageDimensions))
+                    {
+                        <dt class="col-sm-5">Dimensions:</dt>
+                        <dd class="col-sm-7">@Model.PackageDimensions</dd>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(Model.ShippingInstructions))
+                    {
+                        <dt class="col-sm-5">Instructions:</dt>
+                        <dd class="col-sm-7">@Model.ShippingInstructions</dd>
+                    }
+                    
+                    <dt class="col-sm-5">Items Shipped:</dt>
+                    <dd class="col-sm-7">
+                        <span class="badge bg-info">@Model.TotalItemsShipped items</span>
+                    </dd>
+                    
+                    <dt class="col-sm-5">Shipment Value:</dt>
+                    <dd class="col-sm-7">
+                        <strong>@Model.ShipmentItems.Sum(si => si.QuantityShipped * si.SaleItem.UnitPrice).ToString("C")</strong>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sale Information -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Related Sale Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <dl class="row">
+                            <dt class="col-sm-5">Sale Number:</dt>
+                            <dd class="col-sm-7">
+                                <a href="/Sales/Details/@Model.SaleId" class="text-decoration-none">
+                                    <strong>@Model.Sale.SaleNumber</strong>
+                                </a>
+                            </dd>
+                            <dt class="col-sm-5">Customer:</dt>
+                            <dd class="col-sm-7">
+                                <a href="/Customers/Details/@Model.Sale.Customer.Id" class="text-decoration-none">
+                                    @Model.Sale.Customer.CustomerName
+                                </a>
+                            </dd>
+                            <dt class="col-sm-5">Sale Date:</dt>
+                            <dd class="col-sm-7">@Model.Sale.SaleDate.ToString("MM/dd/yyyy")</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-4">
+                        <dl class="row">
+                            <dt class="col-sm-6">Sale Status:</dt>
+                            <dd class="col-sm-6">
+                                <span class="badge bg-@BadgeHelper.GetSaleStatusBadgeColor(Model.Sale.SaleStatus)">
+                                    @Model.Sale.SaleStatus
+                                </span>
+                            </dd>
+                            <dt class="col-sm-6">Payment Status:</dt>
+                            <dd class="col-sm-6">
+                                <span class="badge bg-@BadgeHelper.GetPaymentStatusBadgeColor(Model.Sale.PaymentStatus)">
+                                    @Model.Sale.PaymentStatus
+                                </span>
+                            </dd>
+                            <dt class="col-sm-6">Total Amount:</dt>
+                            <dd class="col-sm-6"><strong>@Model.Sale.TotalAmount.ToString("C")</strong></dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-4">
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer?.CompanyName))
+                        {
+                            <dl class="row">
+                                <dt class="col-sm-4">Company:</dt>
+                                <dd class="col-sm-8">@Model.Sale.Customer.CompanyName</dd>
+                            </dl>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer?.Email))
+                        {
+                            <dl class="row">
+                                <dt class="col-sm-4">Email:</dt>
+                                <dd class="col-sm-8">
+                                    <a href="mailto:@Model.Sale.Customer.Email">@Model.Sale.Customer.Email</a>
+                                </dd>
+                            </dl>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer?.Phone))
+                        {
+                            <dl class="row">
+                                <dt class="col-sm-4">Phone:</dt>
+                                <dd class="col-sm-8">@Model.Sale.Customer.Phone</dd>
+                            </dl>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Shipped Items -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-boxes"></i> Shipped Items</h5>
+    </div>
+    <div class="card-body">
+        @if (Model.ShipmentItems?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Part Number</th>
+                            <th>Description</th>
+                            <th>Type</th>
+                            <th class="text-center">Quantity Shipped</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-end">Line Total</th>
+                            <th>Serial/Model</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var shipmentItem in Model.ShipmentItems)
+                        {
+                            var saleItem = shipmentItem.SaleItem;
+                            <tr>
+                                <td>
+                                    <strong>@saleItem.ProductPartNumber</strong>
+                                </td>
+                                <td>@saleItem.ProductName</td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        @if (saleItem.ItemId.HasValue)
+                                        {
+                                            <text>Item</text>
+                                        }
+                                        else if (saleItem.ServiceTypeId.HasValue)
+                                        {
+                                            <text>Service</text>
+                                        }
+                                        else if (saleItem.FinishedGoodId.HasValue)
+                                        {
+                                            <text>Finished Good</text>
+                                        }
+                                        else
+                                        {
+                                            <text>Unknown</text>
+                                        }
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary">@shipmentItem.QuantityShipped</span>
+                                </td>
+                                <td class="text-end">@saleItem.UnitPrice.ToString("C")</td>
+                                <td class="text-end">
+                                    <strong>@((shipmentItem.QuantityShipped * saleItem.UnitPrice).ToString("C"))</strong>
+                                </td>
+                                <td>
+                                    @if (saleItem.HasSerialModelInfo)
+                                    {
+                                        <small>
+                                            @if (!string.IsNullOrWhiteSpace(saleItem.SerialNumber))
+                                            {
+                                                <div><strong>S/N:</strong> @saleItem.SerialNumber</div>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(saleItem.ModelNumber))
+                                            {
+                                                <div><strong>Model:</strong> @saleItem.ModelNumber</div>
+                                            }
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="5">Total Shipment Value:</th>
+                            <th class="text-end">
+                                <strong>@Model.ShipmentItems.Sum(si => si.QuantityShipped * si.SaleItem.UnitPrice).ToString("C")</strong>
+                            </th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-3">
+                <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                <p class="text-muted">No items found in this shipment.</p>
+            </div>
+        }
+    </div>
+</div>

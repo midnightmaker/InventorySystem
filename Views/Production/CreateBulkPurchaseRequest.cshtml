@@ -180,10 +180,6 @@
                       </span>
                     </td>
                     <td>
-                      <!-- Enhanced vendor selection section for the bulk purchase view -->
-                      <!-- Replace the vendor selection <td> section in your CreateBulkPurchaseRequest.cshtml -->
-
-                    <td>
                       <!-- Vendor Selection Section with Priority Information -->
                       <div class="vendor-selection">
                         <input asp-for="ItemsToPurchase[i].PrimaryVendorId" type="hidden" />
@@ -198,7 +194,7 @@
                           <option value="">-- Select Vendor --</option>
                           @if (ViewBag.Vendors != null)
                           {
-                            @foreach (var vendor in (IEnumerable<InventorySystem.Models.Vendor>)ViewBag.Vendors)
+                            foreach (var vendor in (IEnumerable<InventorySystem.Models.Vendor>)ViewBag.Vendors)
                             {
                               var isSelected = vendor.Id == item.VendorId;
                               var displayText = vendor.CompanyName;
@@ -306,152 +302,6 @@
                       </div>
                     </td>
 
-                    <!-- Enhanced JavaScript for vendor selection -->
-                    <script>
-                      $(document).ready(function() {
-                          // Enhanced vendor quick-select buttons
-                          $('.use-primary-vendor-btn').click(function() {
-                              var vendorId = $(this).data('vendor-id');
-                              var rowIndex = $(this).data('row-index');
-                              var row = $(this).closest('tr');
-
-                              $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
-                              updateRowStyling(rowIndex);
-                              updateValidationStatus();
-
-                              // Visual feedback
-                              showVendorSelectionFeedback($(this), 'Primary vendor selected', 'success');
-                          });
-
-                          $('.use-item-preferred-vendor-btn').click(function() {
-                              var vendorId = $(this).data('vendor-id');
-                              var rowIndex = $(this).data('row-index');
-
-                              $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
-                              updateRowStyling(rowIndex);
-                              updateValidationStatus();
-
-                              // Visual feedback
-                              showVendorSelectionFeedback($(this), 'Preferred vendor selected', 'info');
-                          });
-
-                          $('.use-last-vendor-btn').click(function() {
-                              var vendorId = $(this).data('vendor-id');
-                              var rowIndex = $(this).data('row-index');
-
-                              $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
-                              updateRowStyling(rowIndex);
-                              updateValidationStatus();
-
-                              // Visual feedback
-                              showVendorSelectionFeedback($(this), 'Last vendor selected', 'warning');
-                          });
-
-                          // Enhanced bulk vendor selection actions
-                          $('#usePrimaryVendorsBtn').click(function() {
-                              var count = 0;
-                              $('.use-primary-vendor-btn').each(function() {
-                                  $(this).click();
-                                  count++;
-                              });
-                              if (count > 0) {
-                                  showBulkActionFeedback(`Applied primary vendors to ${count} items`, 'success');
-                              } else {
-                                  showBulkActionFeedback('No primary vendors found', 'warning');
-                              }
-                          });
-
-                          $('#usePreferredVendorsBtn').click(function() {
-                              var count = 0;
-                              $('.use-primary-vendor-btn, .use-item-preferred-vendor-btn').each(function() {
-                                  $(this).click();
-                                  count++;
-                              });
-                              if (count > 0) {
-                                  showBulkActionFeedback(`Applied preferred vendors to ${count} items`, 'success');
-                              } else {
-                                  showBulkActionFeedback('No preferred vendors found', 'warning');
-                              }
-                          });
-
-                          $('#useLastVendorsBtn').click(function() {
-                              var count = 0;
-                              $('.use-last-vendor-btn').each(function() {
-                                  $(this).click();
-                                  count++;
-                              });
-                              if (count > 0) {
-                                  showBulkActionFeedback(`Applied last vendors to ${count} items`, 'success');
-                              } else {
-                                  showBulkActionFeedback('No last vendors found', 'warning');
-                              }
-                          });
-
-                          function showVendorSelectionFeedback(button, message, type) {
-                              var originalHtml = button.html();
-                              var icon = type === 'success' ? 'fa-check' : (type === 'info' ? 'fa-info' : 'fa-clock');
-
-                              button.html(`<i class="fas ${icon}"></i>`);
-                              button.removeClass('btn-outline-success btn-outline-info btn-outline-warning')
-                                    .addClass(`btn-${type}`);
-
-                              setTimeout(function() {
-                                  button.html(originalHtml);
-                                  button.removeClass(`btn-${type}`)
-                                        .addClass(button.hasClass('use-primary-vendor-btn') ? 'btn-outline-success' :
-                                                 button.hasClass('use-item-preferred-vendor-btn') ? 'btn-outline-info' : 'btn-outline-warning');
-                              }, 1000);
-                          }
-
-                          function showBulkActionFeedback(message, type) {
-                              // You can implement a toast notification or temporary alert here
-                              var alertClass = type === 'success' ? 'alert-success' : 'alert-warning';
-                              var alert = $(`<div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;">
-                                  ${message}
-                                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                              </div>`);
-
-                              $('body').append(alert);
-
-                              setTimeout(function() {
-                                  alert.alert('close');
-                              }, 3000);
-                          }
-                      });
-                    </script>
-
-                    <!-- Enhanced CSS for vendor priority styling -->
-                    <style>
-                      .vendor-dropdown option.primary-vendor {
-                        background-color: #d4edda;
-                        font-weight: bold;
-                      }
-
-                      .vendor-dropdown option.preferred-vendor {
-                        background-color: #d1ecf1;
-                      }
-
-                      .vendor-dropdown option.last-vendor {
-                        background-color: #fff3cd;
-                      }
-
-                      .vendor-priority-info {
-                        font-size: 0.75rem;
-                        min-height: 1rem;
-                      }
-
-                      .selection-reason {
-                        font-size: 0.7rem;
-                        max-width: 200px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                      }
-
-                      .vendor-selection .btn-group .btn {
-                        padding: 0.1rem 0.2rem;
-                        font-size: 0.6rem;
-                      }
-                    </style>
                     <td>
                       <input asp-for="ItemsToPurchase[i].Notes"
                              class="form-control form-control-sm"
@@ -572,34 +422,82 @@
         updateTotals();
         updateValidationStatus();
 
-        // Individual vendor quick-select buttons
+        // Enhanced vendor quick-select buttons
+        $('.use-primary-vendor-btn').click(function() {
+            var vendorId = $(this).data('vendor-id');
+            var rowIndex = $(this).data('row-index');
+            var row = $(this).closest('tr');
+
+            $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
+            updateRowStyling(rowIndex);
+            updateValidationStatus();
+
+            // Visual feedback
+            showVendorSelectionFeedback($(this), 'Primary vendor selected', 'success');
+        });
+
+        $('.use-item-preferred-vendor-btn').click(function() {
+            var vendorId = $(this).data('vendor-id');
+            var rowIndex = $(this).data('row-index');
+
+            $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
+            updateRowStyling(rowIndex);
+            updateValidationStatus();
+
+            // Visual feedback
+            showVendorSelectionFeedback($(this), 'Preferred vendor selected', 'info');
+        });
+
         $('.use-last-vendor-btn').click(function() {
             var vendorId = $(this).data('vendor-id');
             var rowIndex = $(this).data('row-index');
+
             $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
             updateRowStyling(rowIndex);
             updateValidationStatus();
+
+            // Visual feedback
+            showVendorSelectionFeedback($(this), 'Last vendor selected', 'warning');
         });
 
-        $('.use-preferred-vendor-btn').click(function() {
-            var vendorId = $(this).data('vendor-id');
-            var rowIndex = $(this).data('row-index');
-            $(`select[name="ItemsToPurchase[${rowIndex}].VendorId"]`).val(vendorId);
-            updateRowStyling(rowIndex);
-            updateValidationStatus();
-        });
-
-        // Bulk vendor selection actions
-        $('#useLastVendorsBtn').click(function() {
-            $('.use-last-vendor-btn').each(function() {
+        // Enhanced bulk vendor selection actions
+        $('#usePrimaryVendorsBtn').click(function() {
+            var count = 0;
+            $('.use-primary-vendor-btn').each(function() {
                 $(this).click();
+                count++;
             });
+            if (count > 0) {
+                showBulkActionFeedback(`Applied primary vendors to ${count} items`, 'success');
+            } else {
+                showBulkActionFeedback('No primary vendors found', 'warning');
+            }
         });
 
         $('#usePreferredVendorsBtn').click(function() {
-            $('.use-preferred-vendor-btn').each(function() {
+            var count = 0;
+            $('.use-primary-vendor-btn, .use-item-preferred-vendor-btn').each(function() {
                 $(this).click();
+                count++;
             });
+            if (count > 0) {
+                showBulkActionFeedback(`Applied preferred vendors to ${count} items`, 'success');
+            } else {
+                showBulkActionFeedback('No preferred vendors found', 'warning');
+            }
+        });
+
+        $('#useLastVendorsBtn').click(function() {
+            var count = 0;
+            $('.use-last-vendor-btn').each(function() {
+                $(this).click();
+                count++;
+            });
+            if (count > 0) {
+                showBulkActionFeedback(`Applied last vendors to ${count} items`, 'success');
+            } else {
+                showBulkActionFeedback('No last vendors found', 'warning');
+            }
         });
 
         $('#clearVendorsBtn').click(function() {
@@ -674,6 +572,37 @@
         $('.vendor-dropdown').each(function(index) {
             updateRowStyling(index);
         });
+
+        function showVendorSelectionFeedback(button, message, type) {
+            var originalHtml = button.html();
+            var icon = type === 'success' ? 'fa-check' : (type === 'info' ? 'fa-info' : 'fa-clock');
+
+            button.html(`<i class="fas ${icon}"></i>`);
+            button.removeClass('btn-outline-success btn-outline-info btn-outline-warning')
+                  .addClass(`btn-${type}`);
+
+            setTimeout(function() {
+                button.html(originalHtml);
+                button.removeClass(`btn-${type}`)
+                      .addClass(button.hasClass('use-primary-vendor-btn') ? 'btn-outline-success' :
+                               button.hasClass('use-item-preferred-vendor-btn') ? 'btn-outline-info' : 'btn-outline-warning');
+            }, 1000);
+        }
+
+        function showBulkActionFeedback(message, type) {
+            // You can implement a toast notification or temporary alert here
+            var alertClass = type === 'success' ? 'alert-success' : 'alert-warning';
+            var alert = $(`<div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`);
+
+            $('body').append(alert);
+
+            setTimeout(function() {
+                alert.alert('close');
+            }, 3000);
+        }
     });
 
     function updateRowTotal(index) {
@@ -784,9 +713,34 @@
 }
 
 <style>
-  .vendor-selection .btn-group .btn {
-    padding: 0.125rem 0.25rem;
+  .vendor-dropdown option.primary-vendor {
+    background-color: #d4edda;
+    font-weight: bold;
+  }
+
+  .vendor-dropdown option.preferred-vendor {
+    background-color: #d1ecf1;
+  }
+
+  .vendor-dropdown option.last-vendor {
+    background-color: #fff3cd;
+  }
+
+  .vendor-priority-info {
+    font-size: 0.75rem;
+    min-height: 1rem;
+  }
+
+  .selection-reason {
     font-size: 0.7rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vendor-selection .btn-group .btn {
+    padding: 0.1rem 0.2rem;
+    font-size: 0.6rem;
   }
 
   .table-responsive {

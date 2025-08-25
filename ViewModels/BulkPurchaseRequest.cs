@@ -46,10 +46,11 @@ namespace InventorySystem.ViewModels
     public int? PrimaryVendorId { get; set; } // Primary vendor from VendorItem relationship
     public string? PrimaryVendorName { get; set; } // Primary vendor name
 
-    public string? ItemPreferredVendorName { get; set; } // From Item.PreferredVendor property
-
     public int? LastVendorId { get; set; } // Last vendor used for this item
     public string? LastVendorName { get; set; } // Last vendor name for display
+
+    // Item preferred vendor name (for display in UI) - ADDED
+    public string? ItemPreferredVendorName { get; set; }
 
     // Selection context for debugging and UI feedback
     public string? SelectionReason { get; set; } // Why this vendor was recommended
@@ -58,15 +59,15 @@ namespace InventorySystem.ViewModels
 
     // Helper properties for UI display
     public bool HasPrimaryVendor => PrimaryVendorId.HasValue;
-    public bool HasItemPreferredVendor => !string.IsNullOrEmpty(ItemPreferredVendorName);
     public bool HasLastVendor => LastVendorId.HasValue;
+    public bool HasItemPreferredVendor => !string.IsNullOrEmpty(ItemPreferredVendorName); // ADDED
 
     public string VendorPriorityDisplay
     {
       get
       {
         if (HasPrimaryVendor) return "Primary Vendor";
-        if (HasItemPreferredVendor) return "Item Preferred";
+        if (HasItemPreferredVendor) return "Item Preferred"; // UPDATED
         if (HasLastVendor) return "Last Used";
         return "No Preference";
       }

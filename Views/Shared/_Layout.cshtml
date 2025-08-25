@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -179,7 +179,7 @@
                 </li>
               </ul>
             </li>
-            <!-- NEW: Expenses Management Dropdown -->
+           <!-- NEW: Expenses Management Dropdown -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-file-invoice-dollar"></i> Expenses
@@ -364,9 +364,10 @@
                     <i class="fas fa-chart-line text-primary"></i> Project Reports
                   </a>
                 </li>
+                <!-- UPDATED: Link to operational purchases for R&D materials -->
                 <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="ExpensePayments">
-                    <i class="fas fa-credit-card text-danger"></i> R&D Expenses
+                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Index" asp-route-itemTypeFilter="RnDMaterials">
+                    <i class="fas fa-flask text-success"></i> R&D Material Purchases
                   </a>
                 </li>
               </ul>
@@ -520,55 +521,70 @@
                 <i class="fas fa-shopping-cart"></i> Purchasing
               </a>
               <ul class="dropdown-menu">
-                <!-- Production Purchase Orders -->
-                <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-industry"></i> Production Purchasing
-                  </h6>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Index">
-                    <i class="fas fa-list"></i> All Purchase Orders
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Create">
-                    <i class="fas fa-plus"></i> New Purchase Order
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="CreateMultiLine">
-                    <i class="fas fa-shopping-cart text-success"></i> Multi-Line Purchase Order
-                  </a>
-                </li>
+                <li><a class="dropdown-item" href="/Purchases"><i class="fas fa-list"></i> All Purchases</a></li>
+                <li><a class="dropdown-item" href="/Purchases/Create"><i class="fas fa-plus"></i> New Purchase</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" href="@Url.Action("OpenPurchaseOrders", "Purchases")">
-                    <i class="fas fa-truck text-primary"></i> Open Purchase Orders
-                    <span class="badge bg-primary ms-1" id="openPOsBadge" style="display: none;">0</span>
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <!-- NEW: Expense Payments Section -->
-                <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-file-invoice-dollar"></i> Expense Payments
-                  </h6>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="PayExpense">
-                    <i class="fas fa-credit-card text-danger"></i> Pay Expense
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="ExpensePayments">
-                    <i class="fas fa-file-invoice text-warning"></i> Expense Payments
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/Vendors"><i class="fas fa-building"></i> Vendors</a></li>
               </ul>
             </li>
 
+            <!-- UPDATED: Expenses Dropdown with clearer terminology -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                <i class="fas fa-file-invoice-dollar"></i> Expenses
+              </a>
+              <ul class="dropdown-menu">
+                <!-- ✅ UPDATED: Clearer terminology to distinguish setup vs transactions -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-cog"></i> Setup & Configuration
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/Expenses/Index">
+                    <i class="fas fa-list"></i> Expense Types
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/Expenses/Create">
+                    <i class="fas fa-plus text-success"></i> Create Expense Type
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Payment Recording & History Section -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-file-invoice-dollar"></i> Payment Activities
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/Expenses/RecordPayments">
+                    <i class="fas fa-file-invoice-dollar text-primary"></i> Record Payments
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Reports & Analytics -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-chart-bar"></i> Reports & Analytics
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/Expenses/Reports">
+                    <i class="fas fa-chart-bar text-info"></i> Expense Reports
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/Expenses/TaxReports">
+                    <i class="fas fa-file-alt text-warning"></i> Tax Reports
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <!-- Sales Dropdown -->
+            <<!-- Update the Sales dropdown section (around line 270) -->
             <!-- Sales Dropdown -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="salesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -588,6 +604,7 @@
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="/CustomerPayments"><i class="fas fa-credit-card text-danger"></i> Customer Payments</a></li>
                 <li><a class="dropdown-item" href="/Sales/Backorders"><i class="fas fa-hourglass-half text-warning"></i> Backorders</a></li>
+                <li><a class="dropdown-item" href="/Sales/Shipments"><i class="fas fa-shipping-fast text-info"></i> Shipments</a></li>
                 <li><a class="dropdown-item" href="/AccountsReceivable"><i class="fas fa-file-invoice-dollar text-success"></i> Accounts Receivable</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="/Sales/Reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
@@ -721,6 +738,13 @@
                 <li>
                   <a class="dropdown-item" asp-controller="Purchases" asp-action="CreateMultiLine">
                     <i class="fas fa-list-ul text-success"></i> Multi-Line Purchase
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <!-- UPDATED: Change to Record Payment terminology -->
+                <li>
+                  <a class="dropdown-item" href="/Expenses/RecordPayments">
+                    <i class="fas fa-file-invoice-dollar text-primary"></i> Record Expense Payment
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
@@ -964,7 +988,7 @@
                 });
                 
                 this.isShowing = true;
-                console.log('? Loading indicator displayed:', message);
+                console.log('🔄 Loading indicator displayed:', message);
             }, delay);
         },
 
@@ -976,14 +1000,14 @@
             // Add protection against hiding too early during navigation
             // unless explicitly forced
             if (!force && this.timeoutId && Date.now() - this.navigationStartTime < 1000) {
-                console.log('??? Protection: Not hiding loading indicator too early during navigation');
+                console.log('🛡️ Protection: Not hiding loading indicator too early during navigation');
                 return;
             }
 
             console.log('LoadingIndicator.hide called, force:', force);
             const overlay = document.getElementById('globalLoadingOverlay');
             if (!overlay) {
-                console.log('? No overlay found, marking as not showing');
+                console.log('⚠️ No overlay found, marking as not showing');
                 this.isShowing = false;
                 return;
             }
@@ -994,7 +1018,7 @@
                 document.body.classList.remove('loading');
                 overlay.style.display = 'none';
                 this.isShowing = false;
-                console.log('? Loading indicator force hidden immediately');
+                console.log('✅ Loading indicator force hidden immediately');
                 return;
             }
             
@@ -1005,13 +1029,13 @@
                 setTimeout(() => {
                     overlay.style.display = 'none';
                     this.isShowing = false;
-                    console.log('? Loading indicator hidden');
+                    console.log('✅ Loading indicator hidden');
                 }, 200);
             }, this.minDisplayTime);
         },
 
         setupNavigationListeners: function() {
-            console.log('?? Setting up navigation listeners...');
+            console.log('🔧 Setting up navigation listeners...');
             
             // Navigation links - using event delegation for better performance
             document.addEventListener('click', (e) => {
@@ -1019,7 +1043,7 @@
                 if (!link) return;
 
                 const href = link.getAttribute('href');
-                console.log('?? Link clicked:', href, 'Element:', link);
+                console.log('🔗 Link clicked:', href, 'Element:', link);
                 
                 if (!href || 
                     href.startsWith('#') || 
@@ -1030,11 +1054,11 @@
                     link.target === '_blank' ||
                     link.hasAttribute('download') ||
                     href === window.location.pathname + window.location.search) {
-                    console.log('?? Skipping link:', href);
+                    console.log('⏭️ Skipping link:', href);
                     return;
                 }
 
-                // Enhanced message detection with specific Details page handling
+                // Enhanced message detection with specific RecordPayments handling
                 let message = 'Loading...';
                 let subtext = 'Please wait';
                 
@@ -1061,6 +1085,9 @@
                     } else if (href.includes('/Purchases/Details/') || href.match(/\/Purchases\/\d+$/)) {
                         message = 'Loading Purchase Order Details...';
                         subtext = 'Retrieving purchase order information';
+                    } else if (href.includes('/Expenses/Details/') || href.match(/\/Expenses\/\d+$/)) {
+                        message = 'Loading Expense Details...';
+                        subtext = 'Retrieving expense information and payment history';
                     } else if (href.includes('/ChangeOrders/Details/') || href.match(/\/ChangeOrders\/\d+$/)) {
                         message = 'Loading Change Order Details...';
                         subtext = 'Retrieving change order specifications';
@@ -1068,6 +1095,34 @@
                         message = 'Loading Details...';
                         subtext = 'Retrieving detailed information';
                     }
+                }
+                // Check for Expenses section specifically
+                else if (href.includes('/Expenses')) {
+                  if (href.includes('/RecordPayments') || href.includes('/RecordPayment')) {
+                      message = 'Loading Payment Recording...';
+                      subtext = 'Preparing expense payment form with document upload';
+                  } else if (href.includes('/Create')) {
+                      message = 'Loading Expense Creator...';
+                      subtext = 'Preparing new expense form';
+                  } else if (href.includes('/Edit/')) {
+                      message = 'Loading Expense Editor...';
+                      subtext = 'Preparing expense for editing';
+                  } else if (href.includes('/Reports')) {
+                      message = 'Loading Expense Reports...';
+                      subtext = 'Generating expense analytics and compliance data';
+                  } else if (href.includes('/IncomeStatement')) {
+                      message = 'Loading Income Statement...';
+                      subtext = 'Generating financial performance report';
+                  } else if (href.includes('/TaxReports')) {
+                      message = 'Loading Tax Reports...';
+                      subtext = 'Generating tax deduction reports';
+                  } else if (href.includes('/UploadDocument')) {
+                      message = 'Loading Document Upload...';
+                      subtext = 'Preparing document upload interface';
+                  } else {
+                      message = 'Loading Expenses...';
+                      subtext = 'Retrieving expense data';
+                  }
                 }
                 // Check for general section navigation
                 else if (href.includes('/Boms')) {
@@ -1178,16 +1233,18 @@
                     subtext = 'Loading page content';
                 }
 
-                console.log(`?? Navigation detected! Showing: "${message}"`);
+                console.log(`🚀 Navigation detected! Showing: "${message}"`);
                 this.show(message, subtext);
             });
 
             // Form submissions
             document.addEventListener('submit', (e) => {
                 const form = e.target;
-                if (form.enctype === 'multipart/form-data') return;
-
-                this.show('Processing...', 'Submitting form data');
+                if (form.enctype === 'multipart/form-data') {
+                    this.show('Uploading...', 'Processing file upload and form data');
+                } else {
+                    this.show('Processing...', 'Submitting form data');
+                }
             });
 
             // Page events - remove beforeunload to prevent early hiding
@@ -1205,6 +1262,7 @@
                 'loading-production': { text: 'Loading Production...', subtext: 'Retrieving production data' },
                 'loading-dashboard': { text: 'Loading Dashboard...', subtext: 'Retrieving dashboard data' },
                 'loading-purchases': { text: 'Loading Purchases...', subtext: 'Retrieving purchase data' },
+                'loading-expenses': { text: 'Loading Expenses...', subtext: 'Retrieving expense data' },
                 
                 // Specific Details pages
                 'loading-item-details': { text: 'Loading Item Details...', subtext: 'Retrieving complete item information' },
@@ -1214,17 +1272,20 @@
                 'loading-production-details': { text: 'Loading Production Details...', subtext: 'Retrieving production status and progress' },
                 'loading-bom-details': { text: 'Loading BOM Details...', subtext: 'Retrieving Bill of Materials structure' },
                 'loading-purchase-details': { text: 'Loading Purchase Order Details...', subtext: 'Retrieving purchase order information' },
+                'loading-expense-details': { text: 'Loading Expense Details...', subtext: 'Retrieving expense information and payment history' },
                 
                 // Specific actions
                 'loading-editor': { text: 'Loading Editor...', subtext: 'Preparing form for editing' },
                 'loading-creator': { text: 'Loading Creator...', subtext: 'Preparing new item form' },
                 'loading-reports': { text: 'Loading Reports...', subtext: 'Generating analytics and reports' },
                 'loading-visualizer': { text: 'Loading Visualizer...', subtext: 'Generating interactive diagrams' },
+                'loading-payment-recording': { text: 'Loading Payment Recording...', subtext: 'Preparing expense payment form with document upload' },
                 
                 // Process operations
                 'generating-report': { text: 'Generating Report...', subtext: 'Processing data and calculations' },
                 'uploading': { text: 'Uploading...', subtext: 'Transferring files to server' },
-                'saving': { text: 'Saving...', subtext: 'Updating database records' }
+                'saving': { text: 'Saving...', subtext: 'Updating database records' },
+                'recording-payment': { text: 'Recording Payment...', subtext: 'Processing payment data and documents' }
             };
 
             const config = messages[operation] || { text: 'Loading...', subtext: 'Please wait' };
@@ -1232,7 +1293,7 @@
         },
 
         test: function() {
-            console.log('?? Testing LoadingIndicator...');
+            console.log('🧪 Testing LoadingIndicator...');
             this.show('Test Loading...', 'This is a test', true);
             setTimeout(() => this.hide(), 3000);
         }
@@ -1241,12 +1302,12 @@
     // Initialize immediately when declared (not waiting for DOMContentLoaded)
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('?? DOM loaded, initializing LoadingIndicator...');
+            console.log('📄 DOM loaded, initializing LoadingIndicator...');
             LoadingIndicator.init();
         });
     } else {
         // DOM is already loaded, initialize immediately
-        console.log('?? DOM already loaded, initializing LoadingIndicator immediately...');
+        console.log('📄 DOM already loaded, initializing LoadingIndicator immediately...');
         LoadingIndicator.init();
     }
 
@@ -1300,7 +1361,7 @@
 
     // System info modal
     function showSystemInfo() {
-        alert('Inventory Management System v2.0\nWith Advanced Workflow Management\n\nFeatures:\n� Real-time WIP Dashboard\n� Kanban Board\n� Production Workflow\n� Quality Control\n� Employee Assignment');
+        alert('Inventory Management System v2.0\nWith Advanced Workflow Management\n\nFeatures:\n• Real-time WIP Dashboard\n• Kanban Board\n• Production Workflow\n• Quality Control\n• Employee Assignment');
     }
 
     // Check for workflow updates every 30 seconds
@@ -1337,35 +1398,37 @@
             checkForValidationErrorsAndCleanup();
         }, 250);
     });
-
     // Enhanced Navigation Setup
     function setupEnhancedNavigation() {
-        console.log('?? Setting up enhanced navigation...');
+        console.log('🔧 Setting up enhanced navigation...');
         
         // Add loading indicators for specific page types
         const navLinks = document.querySelectorAll('.navbar-nav a[href], .dropdown-item[href]');
-        console.log(`?? Found ${navLinks.length} navigation links`);
+        console.log(`🔧 Found ${navLinks.length} navigation links`);
         
         navLinks.forEach((link, index) => {
             const href = link.getAttribute('href');
-            console.log(`?? Setting up link ${index + 1}: ${href}`);
             
             link.addEventListener('click', function(e) {
                 const href = this.getAttribute('href');
                 
                 // Skip if it's not a navigation link
                 if (!href || href.startsWith('#') || href.startsWith('mailto:') || this.target === '_blank') {
-                    console.log('?? Enhanced nav: Skipping link:', href);
+                    console.log('⏭️ Enhanced nav: Skipping link:', href);
                     return;
                 }
 
-                console.log('?? Enhanced navigation click:', href);
+                console.log('🔧 Enhanced navigation click:', href);
 
                 // Determine the operation type for custom loading messages
                 let operation = 'loading';
                 
+                // Check for RecordPayments specifically
+                if (href.includes('/RecordPayments') || href.includes('/RecordPayment')) {
+                    operation = 'loading-payment-recording';
+                }
                 // Check for specific Details pages first
-                if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
+                else if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
                     if (href.includes('/Items/Details/') || href.match(/\/Items\/\d+$/)) {
                         operation = 'loading-item-details';
                     } else if (href.includes('/Vendors/Details/') || href.match(/\/Vendors\/\d+$/)) {
@@ -1380,6 +1443,8 @@
                         operation = 'loading-bom-details';
                     } else if (href.includes('/Purchases/Details/') || href.match(/\/Purchases\/\d+$/)) {
                         operation = 'loading-purchase-details';
+                    } else if (href.includes('/Expenses/Details/') || href.match(/\/Expenses\/\d+$/)) {
+                        operation = 'loading-expense-details';
                     }
                 }
                 // Check for general sections
@@ -1397,16 +1462,18 @@
                     operation = 'loading-production';
                 } else if (href.includes('/Purchases')) {
                     operation = 'loading-purchases';
+                } else if (href.includes('/Expenses')) {
+                    operation = 'loading-expenses';
                 } else if (href.includes('/Home')) {
                     operation = 'loading-dashboard';
                 }
 
                 // Show appropriate loading indicator with immediate mode
                 if (window.LoadingIndicator) {
-                    console.log(`? Enhanced nav: Showing loading for operation: ${operation}`);
+                    console.log(`🚀 Enhanced nav: Showing loading for operation: ${operation}`);
                     window.LoadingIndicator.showForOperation(operation, true); // Always immediate
                 } else {
-                    console.error('? LoadingIndicator not available in enhanced nav!');
+                    console.error('❌ LoadingIndicator not available in enhanced nav!');
                 }
             });
         });

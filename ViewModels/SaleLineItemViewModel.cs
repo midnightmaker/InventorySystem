@@ -7,13 +7,17 @@ namespace InventorySystem.ViewModels
 	{
 		[Required]
 		[Display(Name = "Product Type")]
-		public string ProductType { get; set; } = "Item"; // "Item" or "FinishedGood"
+		public string ProductType { get; set; } = "Item"; // "Item", "FinishedGood", or "ServiceType"
 
 		[Display(Name = "Item")]
 		public int? ItemId { get; set; }
 
 		[Display(Name = "Finished Good")]
 		public int? FinishedGoodId { get; set; }
+
+		// ✅ ADDED: ServiceType support
+		[Display(Name = "Service")]
+		public int? ServiceTypeId { get; set; }
 
 		[Required]
 		[Display(Name = "Quantity")]
@@ -53,15 +57,25 @@ namespace InventorySystem.ViewModels
 		// Computed Properties
 		public decimal LineTotal => Quantity * UnitPrice;
 
-		public int ProductId => ProductType == "Item" ? ItemId ?? 0 : FinishedGoodId ?? 0;
+		// ✅ UPDATED: Include ServiceType in ProductId calculation
+		public int ProductId => ProductType switch
+		{
+			"Item" => ItemId ?? 0,
+			"FinishedGood" => FinishedGoodId ?? 0,
+			"ServiceType" => ServiceTypeId ?? 0,
+			_ => 0
+		};
 
+		// ✅ UPDATED: Include ServiceType in IsSelected check
 		public bool IsSelected => (ProductType == "Item" && ItemId.HasValue) ||
-														 (ProductType == "FinishedGood" && FinishedGoodId.HasValue);
+														 (ProductType == "FinishedGood" && FinishedGoodId.HasValue) ||
+														 (ProductType == "ServiceType" && ServiceTypeId.HasValue);
 
 		public string DisplayName => !string.IsNullOrEmpty(ProductPartNumber) && !string.IsNullOrEmpty(ProductDescription)
 				? $"{ProductPartNumber} - {ProductDescription}"
 				: "Select Product";
 
+		// ✅ UPDATED: ServiceTypes don't track inventory
 		public bool HasSufficientStock => !TracksInventory || Quantity <= AvailableStock;
 
 		public string StockStatus => TracksInventory
@@ -118,7 +132,7 @@ namespace InventorySystem.ViewModels
 				return parts.Any() ? string.Join(" | ", parts) : "";
 			}
 		}
-		// Validation method for individual line item
+		// ✅ UPDATED: Validation method for individual line item including ServiceType
 		public bool IsValid(out List<string> errors)
 		{
 			errors = new List<string>();
@@ -131,6 +145,10 @@ namespace InventorySystem.ViewModels
 			{
 				errors.Add("Finished Good must be selected");
 			}
+			else if (ProductType == "ServiceType" && !ServiceTypeId.HasValue)
+			{
+				errors.Add("Service must be selected");
+			}
 
 			if (Quantity <= 0)
 			{
@@ -142,6 +160,7 @@ namespace InventorySystem.ViewModels
 				errors.Add("Unit price cannot be negative");
 			}
 
+			// Only check stock for items that track inventory (ServiceTypes don't)
 			if (TracksInventory && Quantity > AvailableStock)
 			{
 				errors.Add($"Insufficient stock. Only {AvailableStock} available");
@@ -150,12 +169,13 @@ namespace InventorySystem.ViewModels
 			return errors.Count == 0;
 		}
 
-		// Copy constructor for cloning line items
+		// ✅ UPDATED: Copy constructor for cloning line items including ServiceType
 		public SaleLineItemViewModel(SaleLineItemViewModel source)
 		{
 			ProductType = source.ProductType;
 			ItemId = source.ItemId;
 			FinishedGoodId = source.FinishedGoodId;
+			ServiceTypeId = source.ServiceTypeId; // ✅ ADDED
 			Quantity = source.Quantity;
 			UnitPrice = source.UnitPrice;
 			Notes = source.Notes;
@@ -165,6 +185,10 @@ namespace InventorySystem.ViewModels
 			SuggestedPrice = source.SuggestedPrice;
 			HasSalePrice = source.HasSalePrice;
 			TracksInventory = source.TracksInventory;
+			RequiresSerialNumber = source.RequiresSerialNumber; // ✅ ADDED
+			RequiresModelNumber = source.RequiresModelNumber; // ✅ ADDED
+			SerialNumber = source.SerialNumber; // ✅ ADDED
+			ModelNumber = source.ModelNumber; // ✅ ADDED
 		}
 
 		// Default constructor

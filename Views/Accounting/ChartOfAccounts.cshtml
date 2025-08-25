@@ -120,29 +120,30 @@
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <!-- ✅ FIXED: Added consistent table layout and column widths -->
+        <table class="table table-hover mb-0 accounts-table">
           <thead class="table-light">
             <tr>
-              <th>Code</th>
-              <th>Account Name</th>
-              <th>Description</th>
-              <th class="text-end">Balance</th>
-              <th>Status</th>
-              <th class="text-center">Actions</th>
+              <th class="col-code">Code</th>
+              <th class="col-name">Account Name</th>
+              <th class="col-description">Description</th>
+              <th class="col-balance text-end">Balance</th>
+              <th class="col-status">Status</th>
+              <th class="col-actions text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             @foreach (var account in accounts)
             {
               <tr class="@(!account.IsActive ? "table-secondary" : "")">
-                <td>
+                <td class="col-code">
                   <strong>@account.AccountCode</strong>
                   @if (account.IsSystemAccount)
                   {
                     <span class="badge bg-secondary ms-1" title="System Account">SYS</span>
                   }
                 </td>
-                <td>
+                <td class="col-name">
                   <a href="@Url.Action("AccountDetails", new { id = account.Id })"
                      class="text-decoration-none">
                     @account.AccountName
@@ -150,16 +151,15 @@
                   @if (account.ParentAccountId.HasValue)
                   {
                     <br>
-              
                     <small class="text-muted">
                       <i class="fas fa-arrow-right"></i> Sub-account
                     </small>
                   }
                 </td>
-                <td>
+                <td class="col-description">
                   <small class="text-muted">@account.Description</small>
                 </td>
-                <td class="text-end">
+                <td class="col-balance text-end">
                   @if (account.CurrentBalance != 0)
                   {
                     <span class="@(account.CurrentBalance > 0 ? "text-success" : "text-danger")">
@@ -171,7 +171,7 @@
                     <span class="text-muted">$0.00</span>
                   }
                 </td>
-                <td>
+                <td class="col-status">
                   @if (account.IsActive)
                   {
                     <span class="badge bg-success">Active</span>
@@ -181,7 +181,7 @@
                     <span class="badge bg-secondary">Inactive</span>
                   }
                 </td>
-                <td class="text-center">
+                <td class="col-actions text-center">
                   <div class="btn-group btn-group-sm">
                     <a href="@Url.Action("AccountDetails", new { id = account.Id })"
                        class="btn btn-outline-info" title="View Details">
@@ -230,7 +230,7 @@
   </div>
 }
 
-<!-- Account Summary -->
+<!-- ✅ FIXED: Removed duplicate Account Summary section and fixed column widths -->
 @if (Model.Accounts.Any())
 {
   <div class="card mt-4">
@@ -239,18 +239,44 @@
     </div>
     <div class="card-body">
       <div class="row">
-        @foreach (var group in Model.AccountsByType)
+        @{
+          var accountGroups = Model.AccountsByType.ToList();
+          var totalColumns = accountGroups.Count + 1; // +1 for the Total Accounts column
+          string columnClass = totalColumns switch
+          {
+            <= 2 => "col-6",
+            3 => "col-4",
+            4 => "col-3",
+            5 => "col-sm-6 col-lg-2", // 2 per row on small, 5 per row on large
+            6 => "col-4 col-lg-2",    // 3 per row on medium, 6 per row on large
+            _ => "col-6 col-md-4 col-lg-2" // Responsive for many columns
+          };
+        }
+        
+        @foreach (var group in accountGroups)
         {
-          <div class="col-md">
+          <div class="@columnClass mb-3">
             <div class="text-center">
-              <h4 class="text-primary">@group.Count()</h4>
+              @{
+                var colorClass = group.Key switch
+                {
+                  InventorySystem.Models.Accounting.AccountType.Asset => "text-success",
+                  InventorySystem.Models.Accounting.AccountType.Liability => "text-danger", 
+                  InventorySystem.Models.Accounting.AccountType.Equity => "text-primary",
+                  InventorySystem.Models.Accounting.AccountType.Revenue => "text-info",
+                  InventorySystem.Models.Accounting.AccountType.Expense => "text-warning",
+                  _ => "text-secondary"
+                };
+              }
+              <h4 class="@colorClass">@group.Count()</h4>
               <small class="text-muted">@group.Key</small>
             </div>
           </div>
         }
-        <div class="col-md">
+        
+        <div class="@columnClass mb-3">
           <div class="text-center">
-            <h4 class="text-success">@Model.Accounts.Count</h4>
+            <h4 class="text-dark fw-bold">@Model.Accounts.Count</h4>
             <small class="text-muted">Total Accounts</small>
           </div>
         </div>
@@ -258,6 +284,63 @@
     </div>
   </div>
 }
+
+<!-- ✅ ADDED: CSS to ensure consistent column widths across all account tables -->
+<style>
+  .accounts-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+  }
+  
+  .accounts-table .col-code {
+    width: 12% !important;
+    min-width: 100px;
+  }
+  
+  .accounts-table .col-name {
+    width: 25% !important;
+    min-width: 200px;
+  }
+  
+  .accounts-table .col-description {
+    width: 30% !important;
+    min-width: 200px;
+  }
+  
+  .accounts-table .col-balance {
+    width: 13% !important;
+    min-width: 100px;
+  }
+  
+  .accounts-table .col-status {
+    width: 10% !important;
+    min-width: 80px;
+  }
+  
+  .accounts-table .col-actions {
+    width: 10% !important;
+    min-width: 120px;
+  }
+  
+  /* Ensure consistent cell padding and text wrapping */
+  .accounts-table td {
+    vertical-align: middle;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  /* Ensure long account names don't break layout */
+  .accounts-table .col-name a {
+    display: block;
+    word-break: break-word;
+  }
+  
+  /* Ensure description text wraps properly */
+  .accounts-table .col-description small {
+    display: block;
+    line-height: 1.3;
+  }
+</style>
 
 <script>
   function confirmDelete(accountId, accountName) {

@@ -93,7 +93,12 @@ function performCustomerSearch(query) {
   const url = `/Sales/SearchCustomers?query=${encodeURIComponent(query)}&page=1&pageSize=10`;
 
   fetch(url)
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    })
     .then(data => {
       hideCustomerLoadingSpinner();
 
@@ -114,24 +119,36 @@ function performCustomerSearch(query) {
 function displayCustomerResults(customers, hasMore = false) {
   let html = '';
   customers.forEach((customer, index) => {
+    const displayText = customer.displayText || `${customer.name} - ${customer.company || customer.name}`;
+    const creditLimit = customer.creditLimit || 0;
+    const outstandingBalance = customer.outstandingBalance || 0;
+    
+    let creditBadge = '';
+    if (outstandingBalance > creditLimit && creditLimit > 0) {
+      creditBadge = '<span class="badge bg-danger text-white ms-2">Over Credit</span>';
+    } else if (creditLimit > 0) {
+      creditBadge = '<span class="badge bg-success text-white ms-2">Credit OK</span>';
+    }
+    
     html += `
-            <a href="#" class="dropdown-item customer-result" data-customer-index="${index}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="fw-bold">${escapeHtml(customer.displayText)}</div>
-                        <small class="text-muted">
-                            ${customer.email ? escapeHtml(customer.email) : ''}
-                            ${customer.phone ? ' • ' + escapeHtml(customer.phone) : ''}
-                        </small>
-                    </div>
-                    <div class="text-end">
-                        <small class="badge bg-${customer.outstandingBalance > 0 ? 'warning' : 'success'}">
-                            Balance: $${customer.outstandingBalance.toFixed(2)}
-                        </small>
-                    </div>
-                </div>
-            </a>
-        `;
+      <a href="#" class="dropdown-item customer-result" data-customer-index="${index}">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="flex-grow-1">
+            <div class="fw-bold">${escapeHtml(displayText)}</div>
+            <small class="text-muted">
+              ${customer.email ? escapeHtml(customer.email) : ''}
+              ${customer.phone ? ' • ' + escapeHtml(customer.phone) : ''}
+            </small>
+          </div>
+          <div class="text-end">
+            <small class="badge bg-${outstandingBalance > 0 ? 'warning' : 'success'}">
+              Balance: $${outstandingBalance.toFixed(2)}
+            </small>
+            ${creditBadge}
+          </div>
+        </div>
+      </a>
+    `;
   });
 
   if (hasMore) {

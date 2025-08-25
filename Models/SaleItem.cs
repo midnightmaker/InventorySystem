@@ -6,126 +6,145 @@ namespace InventorySystem.Models
   public class SaleItem
   {
     public int Id { get; set; }
-
+    
+    [Required]
     public int SaleId { get; set; }
     public virtual Sale Sale { get; set; } = null!;
 
-    // Can sell either raw items or finished goods
+    // Item relationship (for physical products)
     public int? ItemId { get; set; }
     public virtual Item? Item { get; set; }
 
+    // ServiceType relationship (for services)
+    public int? ServiceTypeId { get; set; }
+    public virtual ServiceType? ServiceType { get; set; }
+
+    // FinishedGood relationship for manufactured products
     public int? FinishedGoodId { get; set; }
     public virtual FinishedGood? FinishedGood { get; set; }
 
     [Required]
-    [Display(Name = "Quantity Sold")]
     [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
-    public int QuantitySold { get; set; }
-
-    // NEW - Track backorder quantities
-    [Display(Name = "Quantity Backordered")]
-    public int QuantityBackordered { get; set; } = 0;
+    public int Quantity { get; set; } = 1;
 
     [Required]
-    [Display(Name = "Unit Price")]
     [Column(TypeName = "decimal(18,2)")]
     [Range(0.01, double.MaxValue, ErrorMessage = "Unit price must be greater than 0")]
     public decimal UnitPrice { get; set; }
 
-    [Display(Name = "Unit Cost")]
+    public string? Notes { get; set; }
+
     [Column(TypeName = "decimal(18,2)")]
     public decimal UnitCost { get; set; }
 
-    // ✅ NEW: Serial Number and Model Number fields
-    [StringLength(100, ErrorMessage = "Serial number cannot exceed 100 characters")]
-    [Display(Name = "Serial Number")]
+    public int QuantitySold { get; set; }
+    public int QuantityBackordered { get; set; }
     public string? SerialNumber { get; set; }
-
-    [StringLength(100, ErrorMessage = "Model number cannot exceed 100 characters")]
-    [Display(Name = "Model Number")]
     public string? ModelNumber { get; set; }
 
+    // Computed properties using the shared Quantity field
     [NotMapped]
-    [Display(Name = "Total Price")]
-    [Column(TypeName = "decimal(18,2)")]
+    public decimal ExtendedPrice => Quantity * UnitPrice;
+
+    [NotMapped]
     public decimal TotalPrice => QuantitySold * UnitPrice;
 
-    [Display(Name = "Total Cost")]
     [NotMapped]
     public decimal TotalCost => QuantitySold * UnitCost;
 
-    [Display(Name = "Profit")]
     [NotMapped]
     public decimal Profit => TotalPrice - TotalCost;
 
-    [Display(Name = "Profit Margin")]
     [NotMapped]
-    public decimal ProfitMargin => TotalPrice > 0 ? (Profit / TotalPrice) * 100 : 0;
-
-    // NEW - Calculated properties for backorder management
-    [NotMapped]
-    [Display(Name = "Quantity Available")]
-    public int QuantityAvailable => QuantitySold - QuantityBackordered;
+    public string DisplayName => Item?.DisplayPartNumber ?? ServiceType?.DisplayName ?? FinishedGood?.PartNumber ?? "Unknown";
 
     [NotMapped]
-    [Display(Name = "Is Backordered")]
-    public bool IsBackordered => QuantityBackordered > 0;
+    public string EntityType => Item != null ? "Item" : ServiceType != null ? "ServiceType" : FinishedGood != null ? "FinishedGood" : "Unknown";
 
     [NotMapped]
-    [Display(Name = "Backorder Status")]
-    public string BackorderStatus => QuantityBackordered > 0 ? $"{QuantityBackordered} backordered" : "In stock";
-
-    public string? Notes { get; set; }
-
-    // Helper properties
-    [NotMapped]
-    public string ProductName => Item?.Description ?? FinishedGood?.Description ?? "Unknown";
+    public bool IsService => ServiceTypeId.HasValue;
 
     [NotMapped]
-    public string ProductPartNumber => Item?.PartNumber ?? FinishedGood?.PartNumber ?? "Unknown";
-
-    // ✅ NEW: Helper properties for serial/model requirements
-    [NotMapped]
-    [Display(Name = "Requires Serial Number")]
-    public bool RequiresSerialNumber => Item?.RequiresSerialNumber == true || FinishedGood?.RequiresSerialNumber == true;
+    public bool IsItem => ItemId.HasValue;
 
     [NotMapped]
-    [Display(Name = "Requires Model Number")]
-    public bool RequiresModelNumber => Item?.RequiresModelNumber == true || FinishedGood?.RequiresModelNumber == true;
+    public bool IsFinishedGood => FinishedGoodId.HasValue;
 
     [NotMapped]
-    [Display(Name = "Has Serial/Model Info")]
-    public bool HasSerialModelInfo => !string.IsNullOrWhiteSpace(SerialNumber) || !string.IsNullOrWhiteSpace(ModelNumber);
+    public bool HasSerialModelInfo => !string.IsNullOrEmpty(SerialNumber) || !string.IsNullOrEmpty(ModelNumber);
 
     [NotMapped]
-    [Display(Name = "Serial/Model Display")]
-    public string SerialModelDisplay
+    public string ProductName => Item?.Description ?? ServiceType?.ServiceName ?? FinishedGood?.Description ?? "Unknown";
+
+    [NotMapped]
+    public string ProductPartNumber => Item?.PartNumber ?? ServiceType?.ServiceCode ?? FinishedGood?.PartNumber ?? "Unknown";
+
+    // Validation - ensure only one product type is selected
+    public bool IsValid => (ItemId.HasValue && !ServiceTypeId.HasValue && !FinishedGoodId.HasValue) || 
+                          (!ItemId.HasValue && ServiceTypeId.HasValue && !FinishedGoodId.HasValue) ||
+                          (!ItemId.HasValue && !ServiceTypeId.HasValue && FinishedGoodId.HasValue);
+                          
+
+    // Add these properties to the SaleItem class
+
+    [NotMapped]
+    [Display(Name = "Available for Shipment")]
+    public bool IsAvailableForShipment
     {
-      get
-      {
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(SerialNumber)) parts.Add($"S/N: {SerialNumber}");
-        if (!string.IsNullOrWhiteSpace(ModelNumber)) parts.Add($"Model: {ModelNumber}");
-        return parts.Any() ? string.Join(" | ", parts) : "Not Specified";
-      }
+        get
+        {
+            if (QuantityBackordered <= 0) return false;
+            
+            // For Items - check current stock
+            if (ItemId.HasValue && Item != null)
+            {
+                return Item.TrackInventory ? Item.CurrentStock >= QuantityBackordered : true;
+            }
+            
+            // For Finished Goods - check current stock
+            if (FinishedGoodId.HasValue && FinishedGood != null)
+            {
+                return FinishedGood.CurrentStock >= QuantityBackordered;
+            }
+            
+            // Services are always "available"
+            if (ServiceTypeId.HasValue)
+            {
+                return true;
+            }
+            
+            return false;
+        }
     }
 
-    // ✅ NEW: Validation method for requirements
-    public bool ValidateRequirements(out List<string> errors)
+    [NotMapped]
+    [Display(Name = "Available Stock")]
+    public int AvailableStock
     {
-      errors = new List<string>();
+        get
+        {
+            if (ItemId.HasValue && Item != null)
+            {
+                return Item.TrackInventory ? Item.CurrentStock : int.MaxValue;
+            }
+            
+            if (FinishedGoodId.HasValue && FinishedGood != null)
+            {
+                return FinishedGood.CurrentStock;
+            }
+            
+            return int.MaxValue; // Services
+        }
+    }
 
-      if (RequiresSerialNumber && string.IsNullOrWhiteSpace(SerialNumber))
-      {
-        errors.Add($"Serial number is required for {ProductPartNumber}");
-      }
-
-      if (RequiresModelNumber && string.IsNullOrWhiteSpace(ModelNumber))
-      {
-        errors.Add($"Model number is required for {ProductPartNumber}");
-      }
-
-      return !errors.Any();
+    [NotMapped]
+    [Display(Name = "Can Fulfill Quantity")]
+    public int CanFulfillQuantity
+    {
+        get
+        {
+            return Math.Min(QuantityBackordered, AvailableStock);
+        }
     }
   }
 }

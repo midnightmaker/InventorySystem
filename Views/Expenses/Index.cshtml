@@ -1,0 +1,246 @@
+@model IEnumerable<Expense>
+
+@{
+    ViewData["Title"] = "Expense Types";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-cog"></i> Expense Types</h2>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active">Expense Types</li>
+            </ol>
+        </nav>
+        <p class="text-muted mb-0">
+            <i class="fas fa-info-circle"></i> Manage expense categories and default settings for payment recording
+        </p>
+    </div>
+    <div>
+        <a href="@Url.Action("Create")" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add New Expense Type
+        </a>
+        <a href="@Url.Action("RecordPayments")" class="btn btn-primary">
+            <i class="fas fa-credit-card"></i> Record Payments
+        </a>
+        <a href="@Url.Action("Reports")" class="btn btn-info">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+    </div>
+</div>
+
+<!-- Search and Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="@ViewBag.SearchTerm" placeholder="Search by code, description...">
+            </div>
+            <div class="col-md-3">
+                <label for="categoryFilter" class="form-label">Category</label>
+                @Html.DropDownList("categoryFilter", ViewBag.CategoryOptions as SelectList, 
+                    "All Categories", new { @class = "form-select" })
+            </div>
+            <div class="col-md-2">
+                <label for="sortOrder" class="form-label">Sort By</label>
+                <select name="sortOrder" class="form-select">
+                    <option value="code_asc" selected="@(ViewBag.SortOrder == "code_asc")">Code A-Z</option>
+                    <option value="code_desc" selected="@(ViewBag.SortOrder == "code_desc")">Code Z-A</option>
+                    <option value="description_asc" selected="@(ViewBag.SortOrder == "description_asc")">Description A-Z</option>
+                    <option value="description_desc" selected="@(ViewBag.SortOrder == "description_desc")">Description Z-A</option>
+                    <option value="category_asc" selected="@(ViewBag.SortOrder == "category_asc")">Category A-Z</option>
+                    <option value="category_desc" selected="@(ViewBag.SortOrder == "category_desc")">Category Z-A</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Section -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-list"></i> Expense Type List 
+            <span class="badge bg-secondary">@ViewBag.TotalCount total</span>
+        </h5>
+        <div class="text-muted small">
+            Showing @ViewBag.ShowingFrom - @ViewBag.ShowingTo of @ViewBag.TotalCount results
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Default Amount</th>
+                            <th>Default Vendor</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var expense in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@expense.ExpenseCode</strong>
+                                    @if (expense.IsRecurring)
+                                    {
+                                        <br><small class="text-info"><i class="fas fa-sync"></i> Recurring</small>
+                                    }
+                                </td>
+                                <td>
+                                    @expense.Description
+                                    @if (!string.IsNullOrEmpty(expense.Comments))
+                                    {
+                                        <br><small class="text-muted">@expense.Comments</small>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">@expense.CategoryDisplayName</span>
+                                </td>
+                                <td>
+                                    @if (expense.DefaultAmount.HasValue)
+                                    {
+                                        <span class="text-success">@expense.DefaultAmount.Value.ToString("C")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Variable</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (expense.DefaultVendor != null)
+                                    {
+                                        <a href="/Vendors/Details/@expense.DefaultVendor.Id" 
+                                           class="text-decoration-none">@expense.DefaultVendor.CompanyName</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not set</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (expense.IsActive)
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="@Url.Action("Details", new { id = expense.Id })" 
+                                           class="btn btn-outline-info" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="@Url.Action("Edit", new { id = expense.Id })" 
+                                           class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="@Url.Action("RecordPayment", new { expenseId = expense.Id })" 
+                                           class="btn btn-outline-success" title="Record Payment">
+                                            <i class="fas fa-credit-card"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav aria-label="Expense Type pagination" class="mt-3">
+                    <ul class="pagination justify-content-center">
+                        @if (ViewBag.CurrentPage > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" href="@Url.Action("Index", new { 
+                                    page = ViewBag.CurrentPage - 1, 
+                                    search = ViewBag.SearchTerm,
+                                    categoryFilter = ViewBag.CategoryFilter,
+                                    sortOrder = ViewBag.SortOrder
+                                })">Previous</a>
+                            </li>
+                        }
+
+                        @for (int i = Math.Max(1, ViewBag.CurrentPage - 2); i <= Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2); i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link" href="@Url.Action("Index", new { 
+                                    page = i, 
+                                    search = ViewBag.SearchTerm,
+                                    categoryFilter = ViewBag.CategoryFilter,
+                                    sortOrder = ViewBag.SortOrder
+                                })">@i</a>
+                            </li>
+                        }
+
+                        @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" href="@Url.Action("Index", new { 
+                                    page = ViewBag.CurrentPage + 1, 
+                                    search = ViewBag.SearchTerm,
+                                    categoryFilter = ViewBag.CategoryFilter,
+                                    sortOrder = ViewBag.SortOrder
+                                })">Next</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-cog fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">No Expense Types Found</h4>
+                @if (!string.IsNullOrEmpty(ViewBag.SearchTerm as string) || !string.IsNullOrEmpty(ViewBag.CategoryFilter as string))
+                {
+                    <p class="text-muted">Try adjusting your search criteria or <a href="@Url.Action("Index")">view all expense types</a>.</p>
+                }
+                else
+                {
+                    <p class="text-muted">Start by creating your first expense type template.</p>
+                    <a href="@Url.Action("Create")" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Create First Expense Type
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-submit form when dropdowns change
+        $(document).ready(function() {
+            $('#categoryFilter').change(function() {
+                $(this).closest('form').submit();
+            });
+        });
+    </script>
+}

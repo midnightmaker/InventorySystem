@@ -1,4 +1,4 @@
-﻿// ViewModels/CreatePurchaseViewModel.cs - Enhanced with higher precision decimal fields
+﻿// ViewModels/CreatePurchaseViewModel.cs - Enhanced with higher precision decimal fields and R&D project support
 using System;
 using System.ComponentModel.DataAnnotations;
 using InventorySystem.Models.Enums;
@@ -42,6 +42,10 @@ namespace InventorySystem.ViewModels
     [StringLength(100, ErrorMessage = "PO number cannot exceed 100 characters")]
     public string? PurchaseOrderNumber { get; set; }
 
+    [Display(Name = "Vendor Invoice Number")]
+    [StringLength(100, ErrorMessage = "Invoice number cannot exceed 100 characters")]
+    public string? InvoiceNumber { get; set; }
+
     [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
     public string? Notes { get; set; }
 
@@ -56,8 +60,12 @@ namespace InventorySystem.ViewModels
     [DataType(DataType.Date)]
     public DateTime? ActualDeliveryDate { get; set; }
 
+    [Display(Name = "R&D Project")]
+    public int? ProjectId { get; set; }
+
     // Helper properties for display
     public decimal TotalCost => QuantityPurchased * CostPerUnit;
     public decimal TotalPaid => TotalCost + ShippingCost + TaxAmount;
+    public decimal ExtendedTotal => TotalCost + ShippingCost + TaxAmount;
   }
 }

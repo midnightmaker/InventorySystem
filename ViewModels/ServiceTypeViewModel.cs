@@ -1,6 +1,7 @@
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
 using InventorySystem.Services;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
 
 namespace InventorySystem.ViewModels
@@ -17,6 +18,10 @@ namespace InventorySystem.ViewModels
         [Display(Name = "Service Code")]
         [StringLength(20)]
         public string? ServiceCode { get; set; }
+
+        // NEW: Vendor relationship
+        [Display(Name = "Service Provider (Vendor)")]
+        public int? VendorId { get; set; }
 
         [Display(Name = "Service Category")]
         [StringLength(50)]
@@ -48,23 +53,26 @@ namespace InventorySystem.ViewModels
         [Display(Name = "Is Active")]
         public bool IsActive { get; set; } = true;
 
-        // Service item integration options
-        [Display(Name = "Create Service Item")]
+        [Display(Name = "Create Service Item for Sales")]
         public bool CreateServiceItem { get; set; } = true;
 
-        [Display(Name = "Service Item Part Number")]
-        public string? ServiceItemPartNumber { get; set; }
+        // NEW: Vendor options for dropdown
+        public SelectList? VendorOptions { get; set; }
 
-        [Display(Name = "Has Linked Service Item")]
-        public bool HasLinkedServiceItem { get; set; }
+        // NEW: Document properties
+        [Display(Name = "Documents")]
+        public ICollection<ServiceTypeDocument>? Documents { get; set; }
 
-        // Computed properties
-        [Display(Name = "Estimated Cost")]
-        public decimal EstimatedCost => StandardHours * StandardRate;
+        [Display(Name = "Document Upload")]
+        public IFormFile? DocumentFile { get; set; }
 
-        [Display(Name = "Generated Part Number")]
-        public string GeneratedPartNumber => !string.IsNullOrEmpty(ServiceCode) 
-            ? $"SVC-{ServiceCode.ToUpper()}" 
-            : $"SVC-{new string(ServiceName.ToUpper().Where(c => char.IsLetterOrDigit(c)).Take(8).ToArray())}";
+        [Display(Name = "Document Type")]
+        public string? DocumentType { get; set; }
+
+        [Display(Name = "Document Name")]
+        public string? DocumentName { get; set; }
+
+        [Display(Name = "Document Description")]
+        public string? DocumentDescription { get; set; }
     }
 }

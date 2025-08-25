@@ -433,7 +433,6 @@ namespace InventorySystem.Services
       return await _context.FinishedGoods
           .Include(fg => fg.Bom)
           .Include(fg => fg.Productions)
-          .Include(fg => fg.SaleItems)
           .OrderBy(fg => fg.PartNumber)
           .ToListAsync();
     }
@@ -443,7 +442,6 @@ namespace InventorySystem.Services
       return await _context.FinishedGoods
           .Include(fg => fg.Bom)
           .Include(fg => fg.Productions)
-          .Include(fg => fg.SaleItems)
           .FirstOrDefaultAsync(fg => fg.Id == id);
     }
 

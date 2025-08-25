@@ -1,0 +1,285 @@
+@model ExpenseDocumentUploadViewModel
+@{
+    ViewData["Title"] = "Upload Expense Document";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-upload"></i> Upload Expense Document</h2>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="@Url.Action("Index")">Expenses</a></li>
+                <li class="breadcrumb-item"><a href="@Url.Action("Reports")">Reports</a></li>
+                <li class="breadcrumb-item active">Upload Document</li>
+            </ol>
+        </nav>
+    </div>
+    <div>
+        <a href="@Url.Action("Reports")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Reports
+        </a>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <h6><i class="fas fa-info-circle"></i> Uploading document for:</h6>
+    <div class="row">
+        <div class="col-md-6">
+            <strong>Expense:</strong> @Model.ExpenseDetails<br>
+            <strong>Vendor:</strong> @Model.VendorName
+        </div>
+        <div class="col-md-6">
+            <strong>Amount:</strong> @Model.Amount.ToString("C")
+        </div>
+    </div>
+</div>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        <h6><i class="fas fa-exclamation-triangle"></i> Please fix the following errors:</h6>
+        <div asp-validation-summary="All" class="text-danger"></div>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-file-upload"></i> Document Upload</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="UploadDocument" method="post" enctype="multipart/form-data">
+                    @Html.HiddenFor(m => m.ExpensePaymentId)
+                    @Html.HiddenFor(m => m.ExpenseDetails)
+                    @Html.HiddenFor(m => m.VendorName)
+                    @Html.HiddenFor(m => m.Amount)
+
+                    <div class="mb-3">
+                        <label asp-for="DocumentFile" class="form-label">
+                            <i class="fas fa-file"></i> Select File <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="DocumentFile" class="form-control" type="file" 
+                               accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.txt,.zip">
+                        <span asp-validation-for="DocumentFile" class="text-danger"></span>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i>
+                            Supported: PDF, Images (JPG, PNG, GIF, BMP, TIFF), Office docs (Word, Excel), Text files, Archives (Max: 25MB)
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DocumentName" class="form-label">
+                            <i class="fas fa-tag"></i> Document Name <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="DocumentName" class="form-control" 
+                               placeholder="e.g., Receipt for Office Supplies, Utility Bill Invoice, etc.">
+                        <span asp-validation-for="DocumentName" class="text-danger"></span>
+                        <div class="form-text">Give the document a descriptive name for easy identification</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DocumentType" class="form-label">
+                            <i class="fas fa-tags"></i> Document Type <span class="text-danger">*</span>
+                        </label>
+                        <select asp-for="DocumentType" class="form-select">
+                            <option value="">-- Select Document Type --</option>
+                            @foreach (var docType in Model.AvailableDocumentTypes)
+                            {
+                                <option value="@docType">@docType</option>
+                            }
+                        </select>
+                        <span asp-validation-for="DocumentType" class="text-danger"></span>
+                        <div class="form-text">Choose the type that best describes this document</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">
+                            <i class="fas fa-comment"></i> Description
+                        </label>
+                        <textarea asp-for="Description" class="form-control" rows="3" 
+                                  placeholder="Optional additional notes about this document..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <div class="form-text">Optional: Add any additional details about this document</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload"></i> Upload Document
+                            </button>
+                            <a href="@Url.Action("Reports")" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                        <div>
+                            <small class="text-muted">
+                                <i class="fas fa-shield-alt"></i> All uploads are secure and encrypted
+                            </small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Upload Guidelines -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-lightbulb"></i> Upload Guidelines</h5>
+            </div>
+            <div class="card-body">
+                <h6><i class="fas fa-check-circle text-success"></i> Recommended Documents:</h6>
+                <ul class="list-unstyled mb-3">
+                    <li><i class="fas fa-receipt text-primary"></i> Receipts</li>
+                    <li><i class="fas fa-file-invoice text-info"></i> Invoices</li>
+                    <li><i class="fas fa-credit-card text-warning"></i> Credit card statements</li>
+                    <li><i class="fas fa-university text-secondary"></i> Bank statements</li>
+                    <li><i class="fas fa-handshake text-success"></i> Contracts/Agreements</li>
+                </ul>
+
+                <h6><i class="fas fa-info-circle text-info"></i> File Requirements:</h6>
+                <ul class="list-unstyled mb-3">
+                    <li><small><i class="fas fa-file-pdf"></i> PDF files preferred</small></li>
+                    <li><small><i class="fas fa-image"></i> Clear, readable images</small></li>
+                    <li><small><i class="fas fa-weight"></i> Maximum size: 25MB</small></li>
+                    <li><small><i class="fas fa-lock"></i> Files are securely stored</small></li>
+                </ul>
+
+                <div class="alert alert-warning alert-sm">
+                    <small>
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Tax Compliance:</strong> Keep receipts and invoices for all business expenses for tax purposes.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Format Help -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-question-circle"></i> Supported Formats</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-2">
+                        <i class="fas fa-file-pdf fa-2x text-danger"></i>
+                        <br><small>PDF</small>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <i class="fas fa-file-image fa-2x text-info"></i>
+                        <br><small>Images</small>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <i class="fas fa-file-word fa-2x text-primary"></i>
+                        <br><small>Word</small>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <i class="fas fa-file-excel fa-2x text-success"></i>
+                        <br><small>Excel</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Auto-populate document name based on selected file
+            $('#DocumentFile').change(function() {
+                var file = this.files[0];
+                if (file && !$('#DocumentName').val()) {
+                    var fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+                    $('#DocumentName').val(fileName);
+                }
+            });
+
+            // Auto-select document type based on file extension
+            $('#DocumentFile').change(function() {
+                var file = this.files[0];
+                if (file && !$('#DocumentType').val()) {
+                    var extension = file.name.split('.').pop().toLowerCase();
+                    
+                    switch(extension) {
+                        case 'pdf':
+                            if (file.name.toLowerCase().includes('receipt')) {
+                                $('#DocumentType').val('Receipt');
+                            } else if (file.name.toLowerCase().includes('invoice')) {
+                                $('#DocumentType').val('Invoice');
+                            }
+                            break;
+                        case 'jpg':
+                        case 'jpeg':
+                        case 'png':
+                            $('#DocumentType').val('Receipt');
+                            break;
+                    }
+                }
+            });
+
+            // Form validation
+            $('form').submit(function(e) {
+                var documentFile = $('#DocumentFile')[0].files[0];
+                var documentName = $('#DocumentName').val().trim();
+                var documentType = $('#DocumentType').val();
+
+                if (!documentFile) {
+                    alert('Please select a file to upload.');
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (!documentName) {
+                    alert('Please enter a document name.');
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (!documentType) {
+                    alert('Please select a document type.');
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Check file size (25MB = 26214400 bytes)
+                if (documentFile.size > 26214400) {
+                    alert('File size cannot exceed 25MB. Please select a smaller file.');
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Show loading indicator
+                $('button[type="submit"]').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Uploading...');
+            });
+        });
+    </script>
+
+    <style>
+        .alert-sm {
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .card-header h5 {
+            margin: 0;
+        }
+        
+        .form-text {
+            font-size: 0.875em;
+            margin-top: 0.25rem;
+        }
+        
+        .list-unstyled li {
+            padding: 0.25rem 0;
+        }
+        
+        .btn:disabled {
+            cursor: not-allowed;
+        }
+    </style>
+}

@@ -1,0 +1,469 @@
+@model IEnumerable<InventorySystem.ViewModels.ShipmentIndexViewModel>
+@using InventorySystem.Models.Enums
+@{
+    ViewData["Title"] = "Shipments";
+    var searchTerm = ViewBag.SearchTerm as string;
+    var courierFilter = ViewBag.CourierFilter as string;
+    var startDate = ViewBag.StartDate as string;
+    var endDate = ViewBag.EndDate as string;
+    var sortOrder = ViewBag.SortOrder as string ?? "date_desc";
+    var isFiltered = ViewBag.IsFiltered as bool? ?? (!string.IsNullOrEmpty(searchTerm) || !string.IsNullOrEmpty(courierFilter));
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-shipping-fast"></i> Shipments</h1>
+    <div class="btn-group">
+        <a href="/Sales" class="btn btn-outline-secondary">
+            <i class="fas fa-shopping-cart"></i> All Sales
+        </a>
+        <a href="/Sales/Backorders" class="btn btn-outline-warning">
+            <i class="fas fa-hourglass-half"></i> Backorders
+        </a>
+        <a href="/Sales/Reports" class="btn btn-outline-info">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Enhanced Search Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <button class="btn btn-link text-decoration-none p-0 text-start w-100"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#searchCollapse"
+                    aria-expanded="@(isFiltered ? "true" : "false")"
+                    aria-controls="searchCollapse">
+                <i class="fas fa-search"></i> Search & Filter Shipments
+                <i class="fas fa-chevron-@(isFiltered ? "up" : "down") float-end"></i>
+            </button>
+        </h6>
+    </div>
+    <div class="collapse @(isFiltered ? "show" : "")" id="searchCollapse">
+        <div class="card-body">
+            <!-- Search Form -->
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">
+                        <i class="fas fa-search"></i> Search Term
+                    </label>
+                    <input type="text"
+                           class="form-control"
+                           id="search"
+                           name="search"
+                           value="@searchTerm"
+                           placeholder="Packing slip, tracking, sale number, customer...">
+                    <div class="form-text">Search across multiple fields</div>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="courierFilter" class="form-label">
+                        <i class="fas fa-truck"></i> Courier Service
+                    </label>
+                    <select class="form-select" id="courierFilter" name="courierFilter" asp-items="ViewBag.CourierOptions">
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="startDate" class="form-label">
+                        <i class="fas fa-calendar"></i> From Date
+                    </label>
+                    <input type="date" class="form-control" id="startDate" name="startDate" value="@startDate">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="endDate" class="form-label">To Date</label>
+                    <input type="date" class="form-control" id="endDate" name="endDate" value="@endDate">
+                </div>
+
+                <div class="col-md-12">
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="setDateRange('twoWeeks')">
+                            <i class="fas fa-calendar-week"></i> Last 2 Weeks
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="setDateRange('month')">
+                            <i class="fas fa-calendar-alt"></i> Last Month
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="setDateRange('all')">
+                            <i class="fas fa-list"></i> All Time
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Search Results Summary -->
+@if (isFiltered || (!string.IsNullOrEmpty(startDate) && !string.IsNullOrEmpty(endDate)))
+{
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        Found <strong>@(ViewBag.TotalCount ?? Model.Count())</strong> shipment(s)
+        @if (!string.IsNullOrEmpty(searchTerm))
+        {
+            <span>matching "<strong>@searchTerm</strong>"</span>
+        }
+        @if (!string.IsNullOrEmpty(startDate) && !string.IsNullOrEmpty(endDate))
+        {
+            <span>from <strong>@DateTime.Parse(startDate).ToString("MM/dd/yyyy")</strong> to <strong>@DateTime.Parse(endDate).ToString("MM/dd/yyyy")</strong></span>
+        }
+        <a href="@Url.Action("Shipments")" class="btn btn-sm btn-outline-secondary ms-2">
+            <i class="fas fa-times"></i> Clear All Filters
+        </a>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header">
+        <h5>
+            <i class="fas fa-list"></i> Shipment Records
+            <span class="badge bg-primary ms-2">@(ViewBag.TotalCount ?? Model.Count()) records</span>
+        </h5>
+
+        <!-- Sort Options, Page Size, and Pagination Controls -->
+        <div class="d-flex align-items-center gap-3">
+            <!-- Page Size Controls -->
+            @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+            {
+                <div class="btn-group">
+                    <label class="btn btn-outline-secondary btn-sm">
+                        Shipments per page:
+                        <select class="form-select form-select-sm d-inline-block w-auto ms-1"
+                                onchange="changePageSize(this.value)">
+                            @{
+                                var allowedPageSizes = ViewBag.AllowedPageSizes as int[] ?? new int[] { 10, 25, 50, 100 };
+                                var currentPageSize = (int)(ViewBag.PageSize ?? 25);
+                            }
+                            @foreach (var size in allowedPageSizes)
+                            {
+                                <option value="@size" selected="@(size == currentPageSize)">@size</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+            }
+
+            <!-- Sort Options -->
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-sort"></i> Sort
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <a class="dropdown-item @(sortOrder == "date_desc" ? "active" : "")" href="@Url.Action("Shipments", new { search = searchTerm, courierFilter, startDate, endDate, sortOrder = "date_desc" })">
+                            <i class="fas fa-calendar"></i> Date (Newest First)
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item @(sortOrder == "date_asc" ? "active" : "")" href="@Url.Action("Shipments", new { search = searchTerm, courierFilter, startDate, endDate, sortOrder = "date_asc" })">
+                            <i class="fas fa-calendar"></i> Date (Oldest First)
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item @(sortOrder == "customer_asc" ? "active" : "")" href="@Url.Action("Shipments", new { search = searchTerm, courierFilter, startDate, endDate, sortOrder = "customer_asc" })">
+                            <i class="fas fa-user"></i> Customer (A-Z)
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item @(sortOrder == "courier_asc" ? "active" : "")" href="@Url.Action("Shipments", new { search = searchTerm, courierFilter, startDate, endDate, sortOrder = "courier_asc" })">
+                            <i class="fas fa-truck"></i> Courier Service
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item @(sortOrder == "tracking_asc" ? "active" : "")" href="@Url.Action("Shipments", new { search = searchTerm, courierFilter, startDate, endDate, sortOrder = "tracking_asc" })">
+                            <i class="fas fa-barcode"></i> Tracking Number
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Pagination Navigation -->
+            @if ((int)(ViewBag.TotalPages ?? 1) > 1)
+            {
+                <nav aria-label="Shipments pagination">
+                    <ul class="pagination pagination-sm mb-0">
+                        <!-- Previous Page -->
+                        <li class="page-item @((bool)(ViewBag.HasPreviousPage ?? false) ? "" : "disabled")">
+                            <a class="page-link" href="@Url.Action("Shipments", new { search = searchTerm, courierFilter, startDate, endDate, sortOrder, page = (int)(ViewBag.CurrentPage ?? 1) - 1, pageSize = ViewBag.PageSize })">Previous</a>
+                        </li>
+
+                        @{
+                            int currentPage = (int)(ViewBag.CurrentPage ?? 1);
+                            int totalPages = (int)(ViewBag.TotalPages ?? 1);
+                            int startPage = Math.Max(1, currentPage - 2);
+                            int endPage = Math.Min(totalPages, currentPage + 2);
+                        }
+
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(i == currentPage ? "active" : "")">
+                                <a class="page-link" href="@Url.Action("Shipments", new { search = searchTerm, courierFilter, startDate, endDate, sortOrder, page = i, pageSize = ViewBag.PageSize })">@i</a>
+                            </li>
+                        }
+
+                        <!-- Next Page -->
+                        <li class="page-item @((bool)(ViewBag.HasNextPage ?? false) ? "" : "disabled")">
+                            <a class="page-link" href="@Url.Action("Shipments", new { search = searchTerm, courierFilter, startDate, endDate, sortOrder, page = (int)(ViewBag.CurrentPage ?? 1) + 1, pageSize = ViewBag.PageSize })">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        </div>
+        <small class="text-muted">Click on any row to view shipment details</small>
+    </div>
+    <div class="card-body">
+        @if (Model?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Packing Slip</th>
+                            <th>Ship Date</th>
+                            <th>Sale</th>
+                            <th>Customer</th>
+                            <th>Courier</th>
+                            <th>Tracking</th>
+                            <th>Items</th>
+                            <th>Value</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var shipment in Model)
+                        {
+                            <tr class="clickable-row" data-href="/Sales/ShipmentDetails/@shipment.ShipmentId" style="cursor: pointer;">
+                                <td>
+                                    <strong>@shipment.PackingSlipNumber</strong>
+                                    @if (!string.IsNullOrEmpty(shipment.PackageDimensions))
+                                    {
+                                        <br>
+                                        <small class="text-muted">@shipment.PackageDimensions</small>
+                                    }
+                                </td>
+                                <td>
+                                    @shipment.ShipmentDate.ToString("MM/dd/yyyy")
+                                    <br>
+                                    <small class="text-muted">@shipment.ShipmentDate.ToString("h:mm tt")</small>
+                                </td>
+                                <td>
+                                    <a href="/Sales/Details/@shipment.SaleId" class="text-decoration-none" onclick="event.stopPropagation();">
+                                        <strong>@shipment.SaleNumber</strong>
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">Shipped by: @shipment.ShippedBy</small>
+                                </td>
+                                <!-- UPDATED: Customer column with Company name priority for B2B -->
+                                <td>
+                                    @if (!string.IsNullOrEmpty(shipment.CompanyName))
+                                    {
+                                        <strong>@shipment.CompanyName</strong>
+                                        <br>
+                                        <small class="text-muted">@shipment.CustomerName</small>
+                                    }
+                                    else
+                                    {
+                                        <strong>@shipment.CustomerName</strong>
+                                    }
+                                    @if (shipment.PackageWeight.HasValue)
+                                    {
+                                        <br>
+                                        <small class="text-muted">Weight: @shipment.PackageWeight.Value lbs</small>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@shipment.CourierService</span>
+                                    @if (shipment.ExpectedDeliveryDate.HasValue)
+                                    {
+                                        <br>
+                                        <small class="text-muted">
+                                            Expected: @shipment.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
+                                        </small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(shipment.TrackingNumber) && shipment.TrackingNumber != "N/A")
+                                    {
+                                        <strong>@shipment.TrackingNumber</strong>
+                                        @if (shipment.CourierService == "FedEx")
+                                        {
+                                            <br>
+                                            <a href="https://www.fedex.com/apps/fedextrack/?tracknumbers=@shipment.TrackingNumber" 
+                                               target="_blank" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
+                                                <i class="fas fa-external-link-alt"></i> Track
+                                            </a>
+                                        }
+                                        else if (shipment.CourierService == "UPS")
+                                        {
+                                            <br>
+                                            <a href="https://www.ups.com/track?tracknum=@shipment.TrackingNumber" 
+                                               target="_blank" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
+                                                <i class="fas fa-external-link-alt"></i> Track
+                                            </a>
+                                        }
+                                        else if (shipment.CourierService == "USPS")
+                                        {
+                                            <br>
+                                            <a href="https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=@shipment.TrackingNumber" 
+                                               target="_blank" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
+                                                <i class="fas fa-external-link-alt"></i> Track
+                                            </a>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Local/Pickup</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info">@shipment.TotalItemsShipped items</span>
+                                </td>
+                                <td class="text-end">
+                                    <strong>@shipment.ShipmentValue.ToString("C")</strong>
+                                </td>
+                                <td>
+                                    @if (shipment.IsDelivered)
+                                    {
+                                        <span class="badge bg-success">Delivered</span>
+                                        @if (shipment.DeliveredDate.HasValue)
+                                        {
+                                            <br>
+                                            <small class="text-muted">@shipment.DeliveredDate.Value.ToString("MM/dd/yyyy")</small>
+                                        }
+                                    }
+                                    else if (shipment.IsOverdue)
+                                    {
+                                        <span class="badge bg-danger">Overdue</span>
+                                        <br>
+                                        <small class="text-danger">@shipment.DaysInTransit days in transit</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary">In Transit</span>
+                                        <br>
+                                        <small class="text-muted">@shipment.DaysInTransit days in transit</small>
+                                    }
+                                </td>
+                <td>
+                  <div class="btn-group">
+                    <a href="/Sales/ShipmentDetails/@shipment.ShipmentId" class="btn btn-sm btn-info" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/Sales/PackingSlip/@shipment.ShipmentId" target="_blank" class="btn btn-sm btn-primary" title="View Packing Slip" onclick="event.stopPropagation();">
+                      <i class="fas fa-file-alt"></i>
+                    </a>
+                    <a href="/Sales/Details/@shipment.SaleId" class="btn btn-sm btn-secondary" title="View Sale" onclick="event.stopPropagation();">
+                      <i class="fas fa-shopping-cart"></i>
+                    </a>
+                  </div>
+                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning text-center">
+                <i class="fas fa-exclamation-triangle"></i> No shipments found for the selected criteria.
+                <div class="mt-2">
+                    <button type="button" class="btn btn-outline-primary" onclick="setDateRange('all')">
+                        <i class="fas fa-list"></i> Show All Shipments
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function clearAllFilters() {
+            document.getElementById('search').value = '';
+            document.getElementById('courierFilter').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.querySelector('form').submit();
+        }
+
+        function setDateRange(range) {
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            const today = new Date();
+            
+            switch(range) {
+                case 'twoWeeks':
+                    const twoWeeksAgo = new Date();
+                    twoWeeksAgo.setDate(today.getDate() - 14);
+                    startDateInput.value = twoWeeksAgo.toISOString().split('T')[0];
+                    endDateInput.value = today.toISOString().split('T')[0];
+                    break;
+                case 'month':
+                    const monthAgo = new Date();
+                    monthAgo.setMonth(today.getMonth() - 1);
+                    startDateInput.value = monthAgo.toISOString().split('T')[0];
+                    endDateInput.value = today.toISOString().split('T')[0];
+                    break;
+                case 'all':
+                    startDateInput.value = '';
+                    endDateInput.value = '';
+                    break;
+            }
+            
+            document.querySelector('form').submit();
+        }
+
+        function changePageSize(size) {
+            const params = new URLSearchParams(window.location.search);
+            params.set('pageSize', size);
+            params.set('page', 1); // Reset to first page on page size change
+
+            window.location.search = params.toString();
+        }
+
+        
+     // Enable clickable rows
+    document.addEventListener('DOMContentLoaded', function() {
+        const clickableRows = document.querySelectorAll('.clickable-row');
+        clickableRows.forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Don't navigate if clicking on a button or link inside the row
+                if (e.target.closest('a, button')) {
+                    return; // Let the button/link handle its own click
+                }
+
+                const href = this.getAttribute('data-href');
+                if (href) {
+                    window.location.href = href;
+                }
+            });
+        });
+    });   </script>
+}

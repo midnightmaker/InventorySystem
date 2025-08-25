@@ -20,6 +20,14 @@
   </div>
 }
 
+@if (TempData["SuccessMessage"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
 <div class="row">
   <div class="col-lg-8">
     <form asp-action="CreateServiceType" method="post" class="needs-validation" novalidate>
@@ -45,6 +53,21 @@
               <div class="form-text">Optional short code for quick reference</div>
               <span asp-validation-for="ServiceCode" class="text-danger"></span>
             </div>
+          </div>
+
+          <!-- NEW: Vendor Selection Section -->
+          <div class="mb-3">
+            <label asp-for="VendorId" class="form-label">
+              <i class="fas fa-truck"></i> Service Provider (Vendor)
+            </label>
+            <select asp-for="VendorId" asp-items="Model.VendorOptions" class="form-select">
+              <option value="">Select service provider...</option>
+            </select>
+            <div class="form-text">
+              <i class="fas fa-info-circle"></i>
+              Choose the vendor/company that performs this service. This helps track service providers and costs.
+            </div>
+            <span asp-validation-for="VendorId" class="text-danger"></span>
           </div>
 
           <div class="mb-3">
@@ -129,7 +152,6 @@
                 <div class="form-text">Service requires certification document upload</div>
               </div>
 
-              <!-- ✅ NEW: Worksheet requirement checkbox -->
               <div class="form-check mb-3">
                 <input asp-for="WorksheetRequired" class="form-check-input" type="checkbox" />
                 <label asp-for="WorksheetRequired" class="form-check-label">
@@ -149,7 +171,6 @@
                 <div class="form-text">Service type is available for new orders</div>
               </div>
 
-              <!-- ✅ NEW: Requirements warning box -->
               <div class="alert alert-info" id="requirementsWarning" style="display: none;">
                 <i class="fas fa-exclamation-triangle"></i>
                 <strong>Document Requirements:</strong>
@@ -208,6 +229,11 @@
       </div>
       <div class="card-body">
         <div class="mb-3">
+          <h6 class="text-primary"><i class="fas fa-truck"></i> Service Provider</h6>
+          <p class="small text-muted">Select the vendor who performs this service. This links the service to a specific provider for tracking and vendor management.</p>
+        </div>
+
+        <div class="mb-3">
           <h6 class="text-primary"><i class="fas fa-tag"></i> Naming</h6>
           <p class="small text-muted">Use clear, descriptive names that customers will understand. Examples: "Equipment Calibration", "Preventive Maintenance".</p>
         </div>
@@ -227,7 +253,6 @@
           <p class="small text-muted">Enable quality checks for critical services. Certificates and worksheets may be required for compliance or customer documentation.</p>
         </div>
 
-        <!-- ✅ NEW: Document requirements help -->
         <div class="mb-3">
           <h6 class="text-danger"><i class="fas fa-file-alt"></i> Document Requirements</h6>
           <p class="small text-muted">
@@ -256,6 +281,22 @@
   </div>
 </div>
 
+<!-- Add the same document management section to CreateServiceType.cshtml -->
+<!-- Add after the existing form card, but make it work for creation -->
+
+<div class="card mt-4" id="documentsCard" style="display: none;">
+    <div class="card-header">
+        <h5><i class="fas fa-paperclip"></i> Documents</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            Documents can be uploaded after the service type is created.
+            <strong>Save the service type first</strong>, then you can add documents on the edit page.
+        </div>
+    </div>
+</div>
+
 @section Scripts {
   @{
     await Html.RenderPartialAsync("_ValidationScriptsPartial");
@@ -274,6 +315,8 @@
     function updatePreview() {
         const serviceName = document.querySelector('[name="ServiceName"]').value;
         const serviceCode = document.querySelector('[name="ServiceCode"]').value;
+        const vendorId = document.querySelector('[name="VendorId"]').value;
+        const vendorName = vendorId ? document.querySelector(`[name="VendorId"] option[value="${vendorId}"]`).text : '';
         const category = document.querySelector('[name="ServiceCategory"]').value;
         const description = document.querySelector('[name="Description"]').value;
         const hours = document.querySelector('[name="StandardHours"]').value;
@@ -284,10 +327,10 @@
         const isActive = document.querySelector('[name="IsActive"]').checked;
         const createServiceItem = document.querySelector('[name="CreateServiceItem"]').checked;
 
-        // ✅ UPDATE: Update requirements warning
+        // Update requirements warning
         updateRequirementsWarning(qcRequired, certRequired, worksheetRequired);
 
-        // ✅ UPDATE: Update generated part number
+        // Update generated part number
         updateGeneratedPartNumber(serviceName, serviceCode);
 
         if (!serviceName && !hours && !rate) {
@@ -305,7 +348,8 @@
         const previewHtml = `
             <div class="text-center">
                 <h6 class="text-primary">${serviceName || 'Service Name'}</h6>
-                ${serviceCode ? `<div class="small text-muted mb-2">Code: <code>${serviceCode}</code></div>` : ''}
+                ${serviceCode ? `<div class="small text-muted mb-2">Code: ${serviceCode}</div>` : ''}
+                ${vendorName ? `<div class="small text-info mb-2"><i class="fas fa-truck"></i> ${vendorName}</div>` : ''}
                 ${category ? `<span class="badge bg-secondary mb-2">${category}</span>` : ''}
                 ${description ? `<p class="small text-muted">${description}</p>` : ''}
 
@@ -343,7 +387,6 @@
         document.getElementById('servicePreview').innerHTML = previewHtml;
     }
 
-    // ✅ NEW: Update requirements warning
     function updateRequirementsWarning(qc, cert, worksheet) {
         const warningBox = document.getElementById('requirementsWarning');
         const requirementsList = document.getElementById('requirementsList');
@@ -361,7 +404,6 @@
         }
     }
 
-    // ✅ NEW: Update generated part number
     function updateGeneratedPartNumber(serviceName, serviceCode) {
         let partNumber = '';
         
@@ -382,7 +424,7 @@
     // Initialize preview and calculation
     document.addEventListener('DOMContentLoaded', function() {
         // Add event listeners to form fields for real-time preview
-        const formFields = ['ServiceName', 'ServiceCode', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'WorksheetRequired', 'IsActive', 'CreateServiceItem'];
+        const formFields = ['ServiceName', 'ServiceCode', 'VendorId', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'WorksheetRequired', 'IsActive', 'CreateServiceItem'];
 
         formFields.forEach(fieldName => {
             const field = document.querySelector(`[name="${fieldName}"]`);

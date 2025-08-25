@@ -272,6 +272,9 @@ namespace InventorySystem.Services
 				var discountAmount = sale.DiscountCalculated;
 				var netSaleAmount = sale.TotalAmount; // This already includes discount calculation
 
+				// UPDATED: Get proper customer identification for B2B vs B2C
+				var (primaryName, secondaryName) = GetCustomerIdentificationForJournal(sale.Customer);
+
 				// Debit: Accounts Receivable (net amount after discount)
 				var arAccount = await GetAccountByCodeAsync("1100");
 				if (arAccount == null)
@@ -285,14 +288,14 @@ namespace InventorySystem.Services
 					TransactionDate = sale.SaleDate,
 					TransactionNumber = journalNumber,
 					AccountId = arAccount.Id,
-					Description = $"Sale: {sale.Customer?.CustomerName ?? "Unknown Customer"}",
+					Description = $"Sale: {primaryName} - {sale.SaleNumber}",
 					DebitAmount = netSaleAmount,
 					CreditAmount = 0,
 					ReferenceType = "Sale",
 					ReferenceId = sale.Id
 				});
 
-				// ✅ NEW: Debit: Sales Discounts (if discount applied)
+				// NEW: Debit: Sales Discounts (if discount applied)
 				if (sale.HasDiscount && discountAmount > 0)
 				{
 					var discountAccount = await GetAccountByCodeAsync("4910");
@@ -307,7 +310,7 @@ namespace InventorySystem.Services
 						TransactionDate = sale.SaleDate,
 						TransactionNumber = journalNumber,
 						AccountId = discountAccount.Id,
-						Description = $"Sales Discount: {sale.DiscountReason ?? $"{sale.DiscountType} discount"}",
+						Description = $"Sales Discount: {sale.DiscountReason ?? $"{sale.DiscountType} discount"} - {primaryName}",
 						DebitAmount = discountAmount,
 						CreditAmount = 0,
 						ReferenceType = "Sale",
@@ -328,7 +331,7 @@ namespace InventorySystem.Services
 					TransactionDate = sale.SaleDate,
 					TransactionNumber = journalNumber,
 					AccountId = revenueAccount.Id,
-					Description = $"Sale: {sale.SaleNumber}",
+					Description = $"Sale: {sale.SaleNumber} - {primaryName}",
 					DebitAmount = 0,
 					CreditAmount = subtotal, // Gross revenue before discount
 					ReferenceType = "Sale",
@@ -346,7 +349,7 @@ namespace InventorySystem.Services
 							TransactionDate = sale.SaleDate,
 							TransactionNumber = journalNumber,
 							AccountId = shippingAccount.Id,
-							Description = $"Shipping Revenue: {sale.SaleNumber}",
+							Description = $"Shipping Revenue: {sale.SaleNumber} - {primaryName}",
 							DebitAmount = 0,
 							CreditAmount = sale.ShippingCost,
 							ReferenceType = "Sale",
@@ -365,7 +368,7 @@ namespace InventorySystem.Services
 							TransactionDate = sale.SaleDate,
 							TransactionNumber = journalNumber,
 							AccountId = taxPayableAccount.Id,
-							Description = $"Sales Tax: {sale.SaleNumber}",
+							Description = $"Sales Tax: {sale.SaleNumber} - {primaryName}",
 							DebitAmount = 0,
 							CreditAmount = sale.TaxAmount,
 							ReferenceType = "Sale",
@@ -392,7 +395,7 @@ namespace InventorySystem.Services
 								TransactionDate = sale.SaleDate,
 								TransactionNumber = journalNumber,
 								AccountId = cogsAccount.Id,
-								Description = $"COGS for Sale: {sale.SaleNumber}",
+								Description = $"COGS for Sale: {sale.SaleNumber} - {primaryName}",
 								DebitAmount = totalCogs,
 								CreditAmount = 0,
 								ReferenceType = "Sale",
@@ -405,7 +408,7 @@ namespace InventorySystem.Services
 								TransactionDate = sale.SaleDate,
 								TransactionNumber = journalNumber,
 								AccountId = inventoryAccount.Id,
-								Description = $"Inventory reduction for Sale: {sale.SaleNumber}",
+								Description = $"Inventory reduction for Sale: {sale.SaleNumber} - {primaryName}",
 								DebitAmount = 0,
 								CreditAmount = totalCogs,
 								ReferenceType = "Sale",
@@ -421,6 +424,10 @@ namespace InventorySystem.Services
 				sale.IsJournalEntryGenerated = true;
 
 				await _context.SaveChangesAsync();
+
+				_logger.LogInformation("Generated journal entry {JournalNumber} for sale {SaleId} to {PrimaryName}",
+								journalNumber, sale.Id, primaryName);
+
 				return true;
 			}
 			catch (Exception ex)
@@ -429,7 +436,6 @@ namespace InventorySystem.Services
 				return false;
 			}
 		}
-
 		public async Task<bool> GenerateJournalEntriesForProductionAsync(Production production)
 		{
 			// Implementation for production journal entries
@@ -495,6 +501,93 @@ namespace InventorySystem.Services
 			}
 		}
 
+		public async Task<bool> GenerateJournalEntriesForExpensePaymentAsync(ExpensePayment expensePayment)
+		{
+			try
+			{
+				if (expensePayment.IsJournalEntryGenerated) return true;
+
+				var journalNumber = await GenerateNextJournalNumberAsync("JE-EXP");
+				var entries = new List<GeneralLedgerEntry>();
+
+				// Get the expense with its ledger account
+				var expense = await _context.Expenses
+						.Include(e => e.LedgerAccount)
+						.Include(e => e.DefaultVendor)
+						.FirstOrDefaultAsync(e => e.Id == expensePayment.ExpenseId);
+
+				var vendor = await _context.Vendors
+						.FirstOrDefaultAsync(v => v.Id == expensePayment.VendorId);
+
+				if (expense == null)
+				{
+					_logger.LogError("Expense {ExpenseId} not found for payment {PaymentId}",
+							expensePayment.ExpenseId, expensePayment.Id);
+					return false;
+				}
+
+				// Use the expense's configured ledger account
+				if (expense.LedgerAccount == null)
+				{
+					_logger.LogError("Ledger account not found for expense {ExpenseId}", expense.Id);
+					return false;
+				}
+
+				// Debit: Expense's Configured Ledger Account
+				entries.Add(new GeneralLedgerEntry
+				{
+					TransactionDate = expensePayment.PaymentDate,
+					TransactionNumber = journalNumber,
+					AccountId = expense.LedgerAccountId,
+					Description = $"Expense Payment: {expense.Description} - {vendor?.CompanyName ?? "Unknown Vendor"}",
+					DebitAmount = expensePayment.Amount,
+					CreditAmount = 0,
+					ReferenceType = "ExpensePayment",
+					ReferenceId = expensePayment.Id
+				});
+
+				// Credit: Cash Account (based on payment method)
+				var cashAccountCode = GetCashAccountCodeByPaymentMethod(expensePayment.PaymentMethod);
+				var cashAccount = await GetAccountByCodeAsync(cashAccountCode);
+
+				if (cashAccount == null)
+				{
+					_logger.LogError("Cash account {AccountCode} not found for payment method {PaymentMethod}",
+							cashAccountCode, expensePayment.PaymentMethod);
+					return false;
+				}
+
+				entries.Add(new GeneralLedgerEntry
+				{
+					TransactionDate = expensePayment.PaymentDate,
+					TransactionNumber = journalNumber,
+					AccountId = cashAccount.Id,
+					Description = $"Expense Payment: {vendor?.CompanyName ?? "Unknown Vendor"} - {expensePayment.GetPaymentReference()}",
+					DebitAmount = 0,
+					CreditAmount = expensePayment.Amount,
+					ReferenceType = "ExpensePayment",
+					ReferenceId = expensePayment.Id
+				});
+
+				await CreateJournalEntriesAsync(entries);
+
+				// Update expense payment to mark journal entry as generated
+				expensePayment.JournalEntryNumber = journalNumber;
+				expensePayment.IsJournalEntryGenerated = true;
+
+				await _context.SaveChangesAsync();
+
+				_logger.LogInformation("Generated journal entry {JournalNumber} for expense payment {PaymentId} using account {AccountCode}",
+						journalNumber, expensePayment.Id, expense.LedgerAccount.AccountCode);
+
+				return true;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error generating journal entries for expense payment {PaymentId}", expensePayment.Id);
+				return false;
+			}
+		}
 		// ============= Account Balances =============
 
 		public async Task<decimal> GetAccountBalanceAsync(string accountCode, DateTime? asOfDate = null)
@@ -1069,90 +1162,7 @@ namespace InventorySystem.Services
 			return dashboard;
 		}
 
-		public async Task<bool> GenerateJournalEntriesForCustomerPaymentAsync(CustomerPayment payment)
-		{
-			try
-			{
-				if (payment.IsJournalEntryGenerated) return true;
-
-				var journalNumber = await GenerateNextJournalNumberAsync("JE-PMT");
-				var entries = new List<GeneralLedgerEntry>();
-
-				// Get the sale for context
-				var sale = await _context.Sales
-						.Include(s => s.Customer)
-						.FirstOrDefaultAsync(s => s.Id == payment.SaleId);
-
-				if (sale == null)
-				{
-					_logger.LogError("Sale {SaleId} not found for payment {PaymentId}", payment.SaleId, payment.Id);
-					return false;
-				}
-
-				// Determine cash account based on payment method
-				var cashAccountCode = GetCashAccountCodeByPaymentMethod(payment.PaymentMethod);
-				var cashAccount = await GetAccountByCodeAsync(cashAccountCode);
-
-				if (cashAccount == null)
-				{
-					_logger.LogError("Cash account {AccountCode} not found for payment method {PaymentMethod}",
-							cashAccountCode, payment.PaymentMethod);
-					return false;
-				}
-
-				// Debit: Cash/Bank Account
-				entries.Add(new GeneralLedgerEntry
-				{
-					TransactionDate = payment.PaymentDate,
-					TransactionNumber = journalNumber,
-					AccountId = cashAccount.Id,
-					Description = $"Customer payment: {sale.Customer?.CustomerName ?? "Unknown Customer"} - {sale.SaleNumber}",
-					DebitAmount = payment.Amount,
-					CreditAmount = 0,
-					ReferenceType = "CustomerPayment",
-					ReferenceId = payment.Id
-				});
-
-				// Credit: Accounts Receivable
-				var arAccount = await GetAccountByCodeAsync("1100");
-				if (arAccount == null)
-				{
-					_logger.LogError("Accounts Receivable account (1100) not found");
-					return false;
-				}
-
-				entries.Add(new GeneralLedgerEntry
-				{
-					TransactionDate = payment.PaymentDate,
-					TransactionNumber = journalNumber,
-					AccountId = arAccount.Id,
-					Description = $"Payment received: {sale.Customer?.CustomerName ?? "Unknown Customer"} - {sale.SaleNumber}",
-					DebitAmount = 0,
-					CreditAmount = payment.Amount,
-					ReferenceType = "CustomerPayment",
-					ReferenceId = payment.Id
-				});
-
-				await CreateJournalEntriesAsync(entries);
-
-				// Update payment to mark journal entry as generated
-				payment.JournalEntryNumber = journalNumber;
-				payment.IsJournalEntryGenerated = true;
-
-				await _context.SaveChangesAsync();
-
-				_logger.LogInformation("Generated journal entry {JournalNumber} for customer payment {PaymentId}",
-						journalNumber, payment.Id);
-
-				return true;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error generating journal entries for customer payment {PaymentId}", payment.Id);
-				return false;
-			}
-		}
-
+		
 		// Helper method to determine cash account based on payment method
 		private string GetCashAccountCodeByPaymentMethod(string paymentMethod)
 		{
@@ -1333,7 +1343,128 @@ namespace InventorySystem.Services
 			}
 		}
 
+		// Add these methods to the AccountingService class:
 
+		public async Task<bool> GenerateJournalEntriesForCustomerPaymentAsync(CustomerPayment payment)
+		{
+			try
+			{
+				if (payment.IsJournalEntryGenerated) return true;
 
+				var journalNumber = await GenerateNextJournalNumberAsync("JE-PMT");
+				var entries = new List<GeneralLedgerEntry>();
+
+				// Get the sale for context
+				var sale = await _context.Sales
+								.Include(s => s.Customer)
+								.FirstOrDefaultAsync(s => s.Id == payment.SaleId);
+
+				if (sale == null)
+				{
+					_logger.LogError("Sale {SaleId} not found for payment {PaymentId}", payment.SaleId, payment.Id);
+					return false;
+				}
+
+				// Get proper customer identification for B2B vs B2C
+				var (primaryName, secondaryName) = GetCustomerIdentificationForJournal(sale.Customer);
+
+				// Determine cash account based on payment method
+				var cashAccountCode = GetCashAccountCodeByPaymentMethod(payment.PaymentMethod);
+				var cashAccount = await GetAccountByCodeAsync(cashAccountCode);
+
+				if (cashAccount == null)
+				{
+					_logger.LogError("Cash account {AccountCode} not found for payment method {PaymentMethod}",
+									cashAccountCode, payment.PaymentMethod);
+					return false;
+				}
+
+				// Debit: Cash/Bank Account
+				entries.Add(new GeneralLedgerEntry
+				{
+					TransactionDate = payment.PaymentDate,
+					TransactionNumber = journalNumber,
+					AccountId = cashAccount.Id,
+					Description = $"Customer payment: {primaryName} - {sale.SaleNumber}",
+					DebitAmount = payment.Amount,
+					CreditAmount = 0,
+					ReferenceType = "CustomerPayment",
+					ReferenceId = payment.Id
+				});
+
+				// Credit: Accounts Receivable
+				var arAccount = await GetAccountByCodeAsync("1100");
+				if (arAccount == null)
+				{
+					_logger.LogError("Accounts Receivable account (1100) not found");
+					return false;
+				}
+
+				entries.Add(new GeneralLedgerEntry
+				{
+					TransactionDate = payment.PaymentDate,
+					TransactionNumber = journalNumber,
+					AccountId = arAccount.Id,
+					Description = $"Payment received: {primaryName} - {sale.SaleNumber}",
+					DebitAmount = 0,
+					CreditAmount = payment.Amount,
+					ReferenceType = "CustomerPayment",
+					ReferenceId = payment.Id
+				});
+
+				await CreateJournalEntriesAsync(entries);
+
+				// Update payment to mark journal entry as generated
+				payment.JournalEntryNumber = journalNumber;
+				payment.IsJournalEntryGenerated = true;
+
+				await _context.SaveChangesAsync();
+
+				_logger.LogInformation("Generated journal entry {JournalNumber} for customer payment {PaymentId} from {PrimaryName}",
+								journalNumber, payment.Id, primaryName);
+
+				return true;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error generating journal entries for customer payment {PaymentId}", payment.Id);
+				return false;
+			}
+		}
+
+		// Helper method to get proper customer identification for journal entries
+		private (string primaryName, string secondaryName) GetCustomerIdentificationForJournal(Customer? customer)
+		{
+			if (customer == null)
+			{
+				return ("Unknown Customer", "");
+			}
+
+			// For B2B customers (where company name exists), prioritize company name
+			if (!string.IsNullOrWhiteSpace(customer.CompanyName))
+			{
+				// Primary: Company Name, Secondary: Customer Contact Name
+				return (customer.CompanyName, customer.CustomerName);
+			}
+
+			// For B2C customers (no company name), use customer name
+			return (customer.CustomerName, "");
+		}
+
+		// ✅ NEW: Helper method to get expense accounts
+		public async Task<IEnumerable<Account>> GetExpenseAccountsAsync()
+		{
+			return await _context.Accounts
+				.Where(a => a.AccountType == AccountType.Expense && a.IsActive)
+				.OrderBy(a => a.AccountCode)
+				.ToListAsync();
+		}
+
+		// ✅ NEW: Helper method to get suggested account for expense category
+		public async Task<Account?> GetSuggestedAccountForExpenseCategoryAsync(ExpenseCategory category)
+		{
+			var suggestedCode = Expense.GetSuggestedAccountCodeForCategory(category);
+			return await GetAccountByCodeAsync(suggestedCode);
+		}
 	}
 }

@@ -57,7 +57,13 @@
                 {
                   @foreach (var item in allItems.OrderBy(i => i.PartNumber))
                   {
-                    <option value="@item.Id">@item.PartNumber - @item.Description</option>
+                    <option value="@item.Id">
+                      @item.PartNumber - @item.Description
+                      @if (item.ItemType == InventorySystem.Models.Enums.ItemType.Service)
+                      {
+                        <text> [SERVICE]</text>
+                      }
+                    </option>
                   }
                 }
               </select>
@@ -151,7 +157,16 @@
                     <tr>
                       <td>
                         <div>
-                          <strong>@vendorItem.Item.PartNumber</strong>
+                          <!-- NEW: Different styling and links for service items -->
+                          @if (vendorItem.Item.ItemType == InventorySystem.Models.Enums.ItemType.Service)
+                          {
+                            <span class="badge bg-info me-2">SERVICE</span>
+                            <strong>@vendorItem.Item.PartNumber</strong>
+                          }
+                          else
+                          {
+                            <strong>@vendorItem.Item.PartNumber</strong>
+                          }
                           @if (vendorItem.IsPrimary)
                           {
                             <span class="badge bg-warning text-dark ms-1">Primary</span>
@@ -162,7 +177,7 @@
                       <td>
                         @if (!string.IsNullOrEmpty(vendorItem.VendorPartNumber))
                         {
-                          <code>@vendorItem.VendorPartNumber</code>
+                          @vendorItem.VendorPartNumber
                         }
                         else
                         {
@@ -204,6 +219,26 @@
                       </td>
                       <td>
                         <div class="btn-group btn-group-sm" role="group">
+                          <!-- NEW: Different actions based on item type -->
+                          @if (vendorItem.Item.ItemType == InventorySystem.Models.Enums.ItemType.Service)
+                          {
+                            <!-- For service items, link to service type edit if available -->
+                            <a href="@GetServiceEditLink(vendorItem.Item.Id)" 
+                               class="btn btn-outline-primary" 
+                               title="Edit Service Type">
+                              <i class="fas fa-cog"></i>
+                            </a>
+                          }
+                          else
+                          {
+                            <!-- For regular items, link to item details -->
+                            <a href="@Url.Action("Details", "Items", new { id = vendorItem.ItemId })" 
+                               class="btn btn-outline-primary" 
+                               title="View Item Details">
+                              <i class="fas fa-eye"></i>
+                            </a>
+                          }
+                          
                           <button type="button"
                                   class="btn btn-outline-secondary"
                                   data-bs-toggle="modal"
@@ -216,7 +251,7 @@
                                   data-lead-time="@vendorItem.LeadTimeDays"
                                   data-is-primary="@vendorItem.IsPrimary.ToString().ToLower()"
                                   data-notes="@vendorItem.Notes"
-                                  title="Edit">
+                                  title="Edit Vendor Relationship">
                             <i class="fas fa-edit"></i>
                           </button>
                           <form asp-action="RemoveItem" method="post" class="d-inline">
@@ -340,3 +375,12 @@
       });
   });
 </script>
+
+@functions {
+    public string GetServiceEditLink(int itemId)
+    {
+        // For now, since we don't have direct ServiceType ID from the item, 
+        // we'll link to the Services controller to find the service type
+        return Url.Action("EditServiceByItem", "Services", new { itemId = itemId }) ?? "#";
+    }
+}

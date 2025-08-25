@@ -348,43 +348,31 @@ namespace InventorySystem.Services
       return primaryVendorItem?.Vendor;
     }
 
-    public async Task<Vendor?> GetPreferredVendorForItemAsync(int itemId)
-    {
-      // 1. First priority: Primary vendor from VendorItem relationship
-      var primaryVendor = await GetPrimaryVendorForItemAsync(itemId);
-      if (primaryVendor != null)
-      {
-        return primaryVendor;
-      }
+		public async Task<Vendor?> GetPreferredVendorForItemAsync(int itemId)
+		{
+			// SIMPLIFIED: Only use VendorItem.IsPrimary as single source of truth
+			var primaryVendorItem = await _context.VendorItems
+					.Include(vi => vi.Vendor)
+					.Where(vi => vi.ItemId == itemId && vi.IsPrimary && vi.IsActive && vi.Vendor.IsActive)
+					.FirstOrDefaultAsync();
 
-      // 2. Second priority: Item's PreferredVendor property
-      var item = await _context.Items.FindAsync(itemId);
-      if (!string.IsNullOrWhiteSpace(item?.PreferredVendor))
-      {
-        var preferredVendor = await GetVendorByNameAsync(item.PreferredVendor);
-        if (preferredVendor?.IsActive == true)
-        {
-          return preferredVendor;
-        }
-      }
+			if (primaryVendorItem != null)
+			{
+				return primaryVendorItem.Vendor;
+			}
 
-      // 3. Third priority: Last purchase vendor
-      var lastPurchase = await _context.Purchases
-        .Include(p => p.Vendor)
-        .Where(p => p.ItemId == itemId)
-        .OrderByDescending(p => p.PurchaseDate)
-        .ThenByDescending(p => p.CreatedDate)
-        .FirstOrDefaultAsync();
+			// Fallback: Last purchase vendor
+			var lastPurchase = await _context.Purchases
+					.Include(p => p.Vendor)
+					.Where(p => p.ItemId == itemId)
+					.OrderByDescending(p => p.PurchaseDate)
+					.ThenByDescending(p => p.CreatedDate)
+					.FirstOrDefaultAsync();
 
-      if (lastPurchase?.Vendor?.IsActive == true)
-      {
-        return lastPurchase.Vendor;
-      }
+			return lastPurchase?.Vendor?.IsActive == true ? lastPurchase.Vendor : null;
+		}
 
-      return null;
-    }
-
-    public async Task<VendorSelectionInfo> GetVendorSelectionInfoForItemAsync(int itemId)
+		public async Task<VendorSelectionInfo> GetVendorSelectionInfoForItemAsync(int itemId)
     {
       var info = new VendorSelectionInfo
       {
@@ -401,18 +389,7 @@ namespace InventorySystem.Services
       {
         info.PrimaryVendor = primaryVendorItem.Vendor;
         info.PrimaryVendorCost = primaryVendorItem.UnitCost;
-      }
-
-      // Get item's preferred vendor property
-      var item = await _context.Items.FindAsync(itemId);
-      if (!string.IsNullOrWhiteSpace(item?.PreferredVendor))
-      {
-        var preferredVendor = await GetVendorByNameAsync(item.PreferredVendor);
-        if (preferredVendor?.IsActive == true)
-        {
-          info.ItemPreferredVendor = preferredVendor;
-          info.ItemPreferredVendorName = item.PreferredVendor;
-        }
+        info.ItemPreferredVendorName = primaryVendorItem.Vendor.CompanyName; // Set for UI compatibility
       }
 
       // Get last purchase vendor
@@ -430,18 +407,20 @@ namespace InventorySystem.Services
         info.LastPurchaseCost = lastPurchase.CostPerUnit;
       }
 
-      // Determine the recommended vendor based on priority
-      info.RecommendedVendor = info.PrimaryVendor ?? info.ItemPreferredVendor ?? info.LastPurchaseVendor;
+      // If no primary vendor found, try to use item's preferred vendor name from last purchase
+      if (string.IsNullOrEmpty(info.ItemPreferredVendorName) && lastPurchase?.Vendor != null)
+      {
+        info.ItemPreferredVendorName = lastPurchase.Vendor.CompanyName;
+      }
+
+      // Determine the recommended vendor based on priority (simplified)
+      info.RecommendedVendor = info.PrimaryVendor ?? info.LastPurchaseVendor;
       info.RecommendedCost = info.PrimaryVendorCost ?? info.LastPurchaseCost ?? 0;
 
-      // Set selection reason
+      // Set selection reason (simplified)
       if (info.PrimaryVendor != null)
       {
         info.SelectionReason = "Primary vendor (VendorItem relationship)";
-      }
-      else if (info.ItemPreferredVendor != null)
-      {
-        info.SelectionReason = "Item's preferred vendor";
       }
       else if (info.LastPurchaseVendor != null)
       {

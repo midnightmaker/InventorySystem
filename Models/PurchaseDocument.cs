@@ -6,9 +6,17 @@ namespace InventorySystem.Models
     {
         public int Id { get; set; }
         
-        public int PurchaseId { get; set; }
-        public virtual Purchase Purchase { get; set; } = null!;
+        // Existing purchase relationship - PRESERVE
+        public int? PurchaseId { get; set; }
+        public virtual Purchase? Purchase { get; set; } = null!;
         
+        // NEW: Add expense relationships but keep optional
+        public int? ExpenseId { get; set; }
+        public virtual Expense? Expense { get; set; }
+
+        public int? ExpensePaymentId { get; set; }
+        public virtual ExpensePayment? ExpensePayment { get; set; }
+
         [Required]
         [Display(Name = "Document Name")]
         public string DocumentName { get; set; } = string.Empty;

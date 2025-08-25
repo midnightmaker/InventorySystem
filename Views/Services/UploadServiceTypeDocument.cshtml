@@ -1,0 +1,132 @@
+@model InventorySystem.ViewModels.ServiceTypeDocumentUploadViewModel
+@{
+    ViewData["Title"] = "Upload Service Type Document";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-upload"></i> Upload Document</h1>
+        <a href="@Url.Action("EditServiceType", new { id = Model.ServiceTypeId })" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Service Type
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-file-upload"></i> Upload Document for @Model.ServiceTypeName</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="UploadServiceTypeDocument" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <input type="hidden" asp-for="ServiceTypeId" />
+                        
+                        <div class="mb-3">
+                            <label asp-for="DocumentFile" class="form-label">
+                                <i class="fas fa-file"></i> Select File <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="DocumentFile" class="form-control" type="file" required
+                                   accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.dxf,.step,.stp,.iges,.igs,.txt,.rtf,.zip,.rar,.7z">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i> 
+                                Supported formats: PDF, Images, Office Documents, CAD Files, Archives. Max size: 50MB
+                            </div>
+                            <span asp-validation-for="DocumentFile" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="DocumentType" class="form-label">
+                                    <i class="fas fa-tag"></i> Document Type <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="DocumentType" class="form-select" required>
+                                    <option value="General">General</option>
+                                    <option value="Specification">Specification</option>
+                                    <option value="Procedure">Procedure</option>
+                                    <option value="Training Material">Training Material</option>
+                                    <option value="Safety Documentation">Safety Documentation</option>
+                                    <option value="Quality Manual">Quality Manual</option>
+                                    <option value="Certification">Certification</option>
+                                    <option value="Drawing">Drawing</option>
+                                    <option value="Photo">Photo</option>
+                                    <option value="Manual">Manual</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <span asp-validation-for="DocumentType" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="DocumentName" class="form-label">
+                                    <i class="fas fa-edit"></i> Document Name
+                                </label>
+                                <input asp-for="DocumentName" class="form-control" 
+                                       placeholder="Leave blank to use filename">
+                                <div class="form-text">Optional: Custom name for the document</div>
+                                <span asp-validation-for="DocumentName" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">
+                                <i class="fas fa-comment"></i> Description
+                            </label>
+                            <textarea asp-for="Description" class="form-control" rows="3"
+                                      placeholder="Optional description of the document"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="@Url.Action("EditServiceType", new { id = Model.ServiceTypeId })" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload"></i> Upload Document
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-populate document name from file selection
+            const fileInput = document.querySelector('input[type="file"]');
+            const nameInput = document.querySelector('input[name="DocumentName"]');
+            
+            if (fileInput && nameInput) {
+                fileInput.addEventListener('change', function() {
+                    if (this.files && this.files[0] && !nameInput.value) {
+                        const fileName = this.files[0].name;
+                        const nameWithoutExtension = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+                        nameInput.value = nameWithoutExtension;
+                    }
+                });
+            }
+        });
+    </script>
+}

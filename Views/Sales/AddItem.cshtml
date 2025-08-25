@@ -35,39 +35,57 @@
         <div class="card-body">
           <div class="mb-3">
             <label asp-for="ProductType" class="form-label">Product Type *</label>
-            <select asp-for="ProductType" class="form-select" id="productTypeSelect">
-              <option value="Item">Raw Items</option>
+            <select asp-for="ProductType" class="form-select" id="productTypeSelect" onchange="toggleProductSelection()">
+              <option value="Item">Items</option>
               <option value="FinishedGood">Finished Goods</option>
+              <option value="ServiceType">Services</option>
             </select>
             <span asp-validation-for="ProductType" class="text-danger"></span>
           </div>
 
+          <!-- Item Selection -->
           <div class="mb-3" id="itemSelection" style="display: block;">
             <label asp-for="ItemId" class="form-label">Select Item</label>
-            <select asp-for="ItemId" class="form-select" asp-items="ViewBag.Items" id="itemSelect">
+            <select asp-for="ItemId" class="form-select" asp-items="ViewBag.Items" id="itemSelect" onchange="loadProductDetails('Item', this.value)">
               <option value="">-- Select an Item --</option>
             </select>
             <span asp-validation-for="ItemId" class="text-danger"></span>
           </div>
 
+          <!-- Finished Good Selection -->
           <div class="mb-3" id="finishedGoodSelection" style="display: none;">
             <label asp-for="FinishedGoodId" class="form-label">Select Finished Good</label>
-            <select asp-for="FinishedGoodId" class="form-select" asp-items="ViewBag.FinishedGoods" id="finishedGoodSelect">
+            <select asp-for="FinishedGoodId" class="form-select" asp-items="ViewBag.FinishedGoods" id="finishedGoodSelect" onchange="loadProductDetails('FinishedGood', this.value)">
               <option value="">-- Select a Finished Good --</option>
             </select>
             <span asp-validation-for="FinishedGoodId" class="text-danger"></span>
           </div>
 
-          <div id="productInfo" style="display: none;">
+          <!-- ✅ Service Type Selection -->
+          <div class="mb-3" id="serviceTypeSelection" style="display: none;">
+            <label asp-for="ServiceTypeId" class="form-label">Select Service</label>
+            <select asp-for="ServiceTypeId" class="form-select" asp-items="ViewBag.ServiceTypes" id="serviceTypeSelect" onchange="loadProductDetails('ServiceType', this.value)">
+              <option value="">-- Select a Service --</option>
+            </select>
+            <span asp-validation-for="ServiceTypeId" class="text-danger"></span>
+          </div>
+
+          <!-- Product Information Display -->
+          <div class="mb-3" id="productInfo" style="display: none;">
             <div class="alert alert-info">
-              <h6 id="productName"></h6>
+              <h6><i class="fas fa-info-circle"></i> Product Information</h6>
               <div id="productDetails"></div>
-              <!-- ✅ NEW: Requirements display -->
-              <div id="requirementsInfo" style="display: none;" class="mt-2">
-                <small class="text-info">
-                  <i class="fas fa-info-circle"></i>
-                  <strong>Required:</strong> <span id="requirementsText"></span>
-                </small>
+            </div>
+          </div>
+
+          <!-- ✅ NEW: Backorder Warning -->
+          <div class="mb-3" id="backorderWarning" style="display: none;">
+            <div class="alert alert-warning">
+              <h6><i class="fas fa-exclamation-triangle"></i> Insufficient Stock - Backorder Required</h6>
+              <div id="backorderDetails"></div>
+              <div class="mt-2">
+                <strong>Note:</strong> This item will be added to the sale and marked as backordered. 
+                The sale status will be updated to "Backordered" until sufficient stock becomes available.
               </div>
             </div>
           </div>
@@ -76,79 +94,47 @@
             <div class="col-md-6">
               <div class="mb-3">
                 <label asp-for="Quantity" class="form-label">Quantity *</label>
-                <input asp-for="Quantity" class="form-control" id="quantityInput" />
+                <input asp-for="Quantity" class="form-control" type="number" min="1" onchange="calculateTotal(); checkBackorder();" />
                 <span asp-validation-for="Quantity" class="text-danger"></span>
               </div>
             </div>
             <div class="col-md-6">
               <div class="mb-3">
-                <label asp-for="UnitPrice" class="form-label">
-                  Unit Price *
-                  <span id="priceAutoFillIndicator" class="badge bg-success ms-1" style="display: none;">Auto-filled</span>
-                </label>
+                <label asp-for="UnitPrice" class="form-label">Unit Price *</label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
-                  <input asp-for="UnitPrice" class="form-control" step="0.01" id="unitPriceInput" />
-                  <button type="button" class="btn btn-outline-info" id="clearPriceButton" style="display: none;" onclick="clearUnitPrice()" title="Clear price">
-                    <i class="fas fa-times"></i>
+                  <input asp-for="UnitPrice" class="form-control" type="number" step="0.01" min="0.01" onchange="calculateTotal()" />
+                  <button type="button" class="btn btn-outline-secondary" id="suggestedPriceBtn" onclick="useSuggestedPrice()" style="display:none;">
+                    <i class="fas fa-magic"></i> Use Suggested
                   </button>
                 </div>
                 <span asp-validation-for="UnitPrice" class="text-danger"></span>
-                <div class="form-text" id="priceHelp" style="display: none;">
-                  <i class="fas fa-info-circle"></i>
-                  <span id="priceHelpText">Price automatically filled from item settings</span>
-                </div>
               </div>
             </div>
           </div>
 
-          <!-- ✅ NEW: Serial Number and Model Number Section -->
-          <div id="serialModelSection" style="display: none;">
-            <hr>
-            <h6><i class="fas fa-barcode"></i> Product Identification</h6>
-            <div class="row">
-              <div class="col-md-6" id="serialNumberSection" style="display: none;">
-                <div class="mb-3">
-                  <label asp-for="SerialNumber" class="form-label">
-                    Serial Number <span class="text-danger serial-required" style="display: none;">*</span>
-                  </label>
-                  <input asp-for="SerialNumber" class="form-control" id="serialNumberInput"
-                         placeholder="Enter serial number..." />
-                  <span asp-validation-for="SerialNumber" class="text-danger"></span>
-                  <div class="form-text">Unique identifier for this specific unit</div>
-                </div>
-              </div>
-              <div class="col-md-6" id="modelNumberSection" style="display: none;">
-                <div class="mb-3">
-                  <label asp-for="ModelNumber" class="form-label">
-                    Model Number <span class="text-danger model-required" style="display: none;">*</span>
-                  </label>
-                  <input asp-for="ModelNumber" class="form-control" id="modelNumberInput"
-                         placeholder="Enter model number..." />
-                  <span asp-validation-for="ModelNumber" class="text-danger"></span>
-                  <div class="form-text">Product model or version identifier</div>
-                </div>
+          <!-- Serial Number and Model Number (show conditionally) -->
+          <div class="row" id="serialModelSection" style="display: none;">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="SerialNumber" class="form-label">Serial Number</label>
+                <input asp-for="SerialNumber" class="form-control" />
+                <span asp-validation-for="SerialNumber" class="text-danger"></span>
               </div>
             </div>
-
-            <!-- ✅ NEW: Requirements validation alert -->
-            <div id="requirementsAlert" class="alert alert-warning" style="display: none;">
-              <i class="fas fa-exclamation-triangle"></i>
-              <strong>Missing Required Information:</strong>
-              <ul id="requirementsList" class="mb-0 mt-1"></ul>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label asp-for="ModelNumber" class="form-label">Model Number</label>
+                <input asp-for="ModelNumber" class="form-control" />
+                <span asp-validation-for="ModelNumber" class="text-danger"></span>
+              </div>
             </div>
           </div>
 
           <div class="mb-3">
             <label asp-for="Notes" class="form-label">Notes</label>
-            <textarea asp-for="Notes" class="form-control" rows="2"></textarea>
+            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Optional notes for this line item"></textarea>
             <span asp-validation-for="Notes" class="text-danger"></span>
-          </div>
-
-          <div id="availabilityAlert" style="display: none;">
-            <div class="alert" id="stockAlert">
-              <div id="stockMessage"></div>
-            </div>
           </div>
         </div>
       </div>
@@ -157,71 +143,17 @@
     <div class="col-md-4">
       <div class="card">
         <div class="card-header">
-          <h5><i class="fas fa-calculator"></i> Item Summary</h5>
+          <h5><i class="fas fa-calculator"></i> Line Total</h5>
         </div>
         <div class="card-body">
-          <table class="table table-sm">
-            <tr>
-              <td>Quantity:</td>
-              <td class="text-end" id="displayQuantity">1</td>
-            </tr>
-            <tr>
-              <td>Unit Price:</td>
-              <td class="text-end" id="displayUnitPrice">$0.00</td>
-            </tr>
-            <tr class="table-dark">
-              <td><strong>Total Price:</strong></td>
-              <td class="text-end"><strong id="displayTotalPrice">$0.00</strong></td>
-            </tr>
-          </table>
-
-          <!-- ✅ NEW: Serial/Model Info Display -->
-          <div id="serialModelInfo" style="display: none;">
-            <hr>
-            <table class="table table-sm">
-              <tr id="serialRow" style="display: none;">
-                <td>Serial Number:</td>
-                <td class="text-end"><code id="displaySerial">-</code></td>
-              </tr>
-              <tr id="modelRow" style="display: none;">
-                <td>Model Number:</td>
-                <td class="text-end"><code id="displayModel">-</code></td>
-              </tr>
-            </table>
+          <div class="mb-3">
+            <h4 id="lineTotal">$0.00</h4>
+            <small class="text-muted">Quantity × Unit Price</small>
           </div>
-
-          <div id="stockInfo" style="display: none;">
-            <hr>
-            <table class="table table-sm">
-              <tr>
-                <td>Available Stock:</td>
-                <td class="text-end" id="availableStock">0</td>
-              </tr>
-              <tr>
-                <td>Suggested Price:</td>
-                <td class="text-end">
-                  <div class="d-flex align-items-center justify-content-end">
-                    <span id="suggestedPrice" class="me-2">$0.00</span>
-                    <span id="priceSource" class="badge bg-info ms-1" style="display: none;"></span>
-                  </div>
-                  <button type="button" class="btn btn-outline-success btn-sm mt-1" id="setPriceButton" style="display: none;" onclick="setSuggestedPrice()">
-                    <i class="fas fa-tag"></i> Use This Price
-                  </button>
-                </td>
-              </tr>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mt-3">
-        <div class="card-header">
-          <h5><i class="fas fa-save"></i> Actions</h5>
-        </div>
-        <div class="card-body">
+          
           <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-success" id="addItemButton" disabled>
-              <i class="fas fa-plus"></i> Add Item to Sale
+            <button type="submit" class="btn btn-primary" id="addToSaleBtn">
+              <i class="fas fa-plus"></i> Add to Sale
             </button>
             <a href="/Sales/Details/@Model.SaleId" class="btn btn-outline-secondary">
               <i class="fas fa-times"></i> Cancel
@@ -229,544 +161,269 @@
           </div>
         </div>
       </div>
+
+      <!-- Stock Information (for Items and Finished Goods) -->
+      <div class="card mt-3" id="stockInfo" style="display: none;">
+        <div class="card-header">
+          <h6><i class="fas fa-warehouse"></i> Stock Information</h6>
+        </div>
+        <div class="card-body">
+          <div id="stockDetails"></div>
+        </div>
+      </div>
+
+      <!-- Service Information (for Services) -->
+      <div class="card mt-3" id="serviceInfo" style="display: none;">
+        <div class="card-header">
+          <h6><i class="fas fa-cogs"></i> Service Information</h6>
+        </div>
+        <div class="card-body">
+          <div id="serviceDetails"></div>
+        </div>
+      </div>
     </div>
   </div>
 </form>
 
 @section Scripts {
-  <!-- Include the beautiful confirmation dialog -->
-  <script src="~/js/confirmation-dialog.js"></script>
-  
-  <script>
-        // Global variables
-        let currentSuggestedPrice = 0;
-        let currentRequirements = { serial: false, model: false };
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        let currentProduct = null;
+        let suggestedPrice = 0;
 
-        document.addEventListener('DOMContentLoaded', function() {
-          const productTypeSelect = document.getElementById('productTypeSelect');
-          const itemSelect = document.getElementById('itemSelect');
-          const finishedGoodSelect = document.getElementById('finishedGoodSelect');
-          const quantityInput = document.getElementById('quantityInput');
-          const unitPriceInput = document.getElementById('unitPriceInput');
-          const addItemButton = document.getElementById('addItemButton');
+        console.log('AddItem page loaded - JavaScript initialized');
 
-          // ✅ NEW: Serial/Model inputs
-          const serialNumberInput = document.getElementById('serialNumberInput');
-          const modelNumberInput = document.getElementById('modelNumberInput');
-
-          // Event listeners
-          productTypeSelect.addEventListener('change', toggleProductSelection);
-          itemSelect.addEventListener('change', validateForm);
-          finishedGoodSelect.addEventListener('change', validateForm);
-          quantityInput.addEventListener('input', function() {
-            validateForm();
-            updateTotalPrice();
-          });
-          unitPriceInput.addEventListener('input', function() {
-          validateForm();
-          updateTotalPrice();
-        });
-
-          // ✅ NEW: Serial/Model validation listeners
-          serialNumberInput.addEventListener('input', updateSerialModelDisplay);
-          modelNumberInput.addEventListener('input', updateSerialModelDisplay);
-          serialNumberInput.addEventListener('input', updateRequirementsWarning);
-          modelNumberInput.addEventListener('input', updateRequirementsWarning);
-
-          // Initialize
-          toggleProductSelection();
-
-          function toggleProductSelection() {
-            const productType = productTypeSelect.value;
-            const itemSelection = document.getElementById('itemSelection');
-            const finishedGoodSelection = document.getElementById('finishedGoodSelection');
-
+        function toggleProductSelection() {
+            console.log('toggleProductSelection called');
+            const productType = document.getElementById('productTypeSelect').value;
+            console.log('Selected product type:', productType);
+            
+            // Hide all selections
+            document.getElementById('itemSelection').style.display = 'none';
+            document.getElementById('finishedGoodSelection').style.display = 'none';
+            document.getElementById('serviceTypeSelection').style.display = 'none';
+            
+            // Clear selections
+            document.getElementById('itemSelect').value = '';
+            document.getElementById('finishedGoodSelect').value = '';
+            document.getElementById('serviceTypeSelect').value = '';
+            
+            // Show appropriate selection
             if (productType === 'Item') {
-              itemSelection.style.display = 'block';
-              finishedGoodSelection.style.display = 'none';
-              finishedGoodSelect.value = '';
-            } else {
-              itemSelection.style.display = 'none';
-              finishedGoodSelection.style.display = 'block';
-              itemSelect.value = '';
+                document.getElementById('itemSelection').style.display = 'block';
+                console.log('Showing item selection');
+            } else if (productType === 'FinishedGood') {
+                document.getElementById('finishedGoodSelection').style.display = 'block';
+                console.log('Showing finished good selection');
+            } else if (productType === 'ServiceType') {
+                document.getElementById('serviceTypeSelection').style.display = 'block';
+                console.log('Showing service type selection');
             }
-
+            
+            // Clear product info
             clearProductInfo();
-            validateForm();
-          }
+        }
 
-          // ✅ ENHANCED: updateProductInfo with serial/model requirements
-          function updateProductInfo(data) {
-            const productInfo = document.getElementById('productInfo');
-            const productName = document.getElementById('productName');
+        function loadProductDetails(productType, productId) {
+            console.log('loadProductDetails called:', productType, productId);
+            
+            if (!productId) {
+                clearProductInfo();
+                return;
+            }
+
+            // Show loading state
             const productDetails = document.getElementById('productDetails');
+            if (productDetails) {
+                productDetails.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading product information...';
+                document.getElementById('productInfo').style.display = 'block';
+            }
+
+            const url = `/Sales/GetProductInfoForLineItem?productType=${productType}&productId=${productId}`;
+            console.log('Making AJAX call to:', url);
+
+            fetch(url)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    if (data.success) {
+                        displayProductInfo(data.productInfo);
+                        
+                        // Auto-fill suggested price
+                        if (data.productInfo.suggestedPrice) {
+                            suggestedPrice = data.productInfo.suggestedPrice;
+                            document.getElementById('UnitPrice').value = suggestedPrice.toFixed(2);
+                            
+                            // Show suggested price button if available
+                            const suggestedBtn = document.getElementById('suggestedPriceBtn');
+                            if (data.productInfo.hasSalePrice) {
+                                suggestedBtn.style.display = 'block';
+                                suggestedBtn.className = 'btn btn-success';
+                                suggestedBtn.innerHTML = '<i class="fas fa-check"></i> Set Price';
+                            } else {
+                                suggestedBtn.style.display = 'block';
+                                suggestedBtn.className = 'btn btn-outline-info';
+                                suggestedBtn.innerHTML = '<i class="fas fa-magic"></i> Calculated';
+                            }
+                        }
+                        
+                        calculateTotal();
+                        checkBackorder(); // ✅ NEW: Check for backorder after loading product
+                        
+                        // Show/hide serial/model section based on product type
+                        const serialModelSection = document.getElementById('serialModelSection');
+                        if (productType === 'Item' || productType === 'FinishedGood') {
+                            serialModelSection.style.display = 'block';
+                        } else {
+                            serialModelSection.style.display = 'none';
+                        }
+                    } else {
+                        clearProductInfo();
+                        alert('Error loading product information: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error in loadProductDetails:', error);
+                    clearProductInfo();
+                    alert('Error loading product information. Please check the browser console for details.');
+                });
+        }
+
+        function displayProductInfo(productInfo) {
+            console.log('displayProductInfo called with:', productInfo);
+            
+            const productDetails = document.getElementById('productDetails');
+            const productInfoDiv = document.getElementById('productInfo');
             const stockInfo = document.getElementById('stockInfo');
-            const availableStock = document.getElementById('availableStock');
-            const suggestedPrice = document.getElementById('suggestedPrice');
-            const priceSource = document.getElementById('priceSource');
-            const setPriceButton = document.getElementById('setPriceButton');
-            const priceAutoFillIndicator = document.getElementById('priceAutoFillIndicator');
-            const clearPriceButton = document.getElementById('clearPriceButton');
-            const priceHelp = document.getElementById('priceHelp');
-            const priceHelpText = document.getElementById('priceHelpText');
-
-            // SAFETY CHECK: Ensure suggested price is a valid number
-            const safeSuggestedPrice = (data.productInfo && typeof data.productInfo.suggestedPrice === 'number' && !isNaN(data.productInfo.suggestedPrice))
-              ? data.productInfo.suggestedPrice
-              : 25.00; // Default fallback price
-
-            // Store the suggested price for later use
-            currentSuggestedPrice = safeSuggestedPrice;
-
-            // ✅ NEW: Store requirements
-            currentRequirements = {
-              serial: data.productInfo?.requiresSerialNumber || false,
-              model: data.productInfo?.requiresModelNumber || false
-            };
-
-            // SAFETY CHECK: Ensure product name exists
-            const safeProductName = (data.productInfo && data.productInfo.partNumber && data.productInfo.description)
-              ? `${data.productInfo.partNumber} - ${data.productInfo.description}`
-              : 'Selected Product';
-
-            productName.textContent = safeProductName;
-
-            // Different display for inventory vs non-inventory items
-            const tracksInventory = data.productInfo && data.productInfo.tracksInventory;
-            const currentStock = (data.productInfo && typeof data.productInfo.currentStock === 'number')
-              ? data.productInfo.currentStock : 0;
-            const canFulfill = data.stockInfo && data.stockInfo.canFulfill;
-
-            if (tracksInventory) {
-              productDetails.innerHTML = `Current Stock: <span class="badge bg-${canFulfill ? 'success' : 'warning'}">${currentStock}</span>`;
-              availableStock.textContent = currentStock;
+            const serviceInfo = document.getElementById('serviceInfo');
+            
+            let html = `<strong>${productInfo.partNumber || productInfo.serviceCode || 'N/A'}</strong><br>`;
+            html += `${productInfo.description || productInfo.serviceName || 'No description'}<br>`;
+            
+            if (productInfo.tracksInventory !== undefined && productInfo.tracksInventory !== false) {
+                // Item or Finished Good
+                html += `<small class="text-muted">Type: ${productInfo.itemType || 'Physical Product'}</small>`;
+                
+                // Show stock info
+                const stockDetails = document.getElementById('stockDetails');
+                let stockHtml = `<strong>Current Stock:</strong> ${productInfo.currentStock || 0}<br>`;
+                stockHtml += `<strong>Tracks Inventory:</strong> ${productInfo.tracksInventory ? 'Yes' : 'No'}<br>`;
+                if (productInfo.unitOfMeasure) {
+                    stockHtml += `<strong>Unit:</strong> ${productInfo.unitOfMeasure}`;
+                }
+                stockDetails.innerHTML = stockHtml;
+                stockInfo.style.display = 'block';
+                serviceInfo.style.display = 'none';
             } else {
-              productDetails.innerHTML = `<span class="badge bg-info">Service/Virtual Item</span> - No stock tracking required`;
-              availableStock.textContent = 'N/A';
+                // Service
+                html += `<small class="text-muted">Type: Service</small>`;
+                
+                // Show service info
+                const serviceDetails = document.getElementById('serviceDetails');
+                let serviceHtml = `<strong>Standard Hours:</strong> ${productInfo.standardHours || 0}<br>`;
+                serviceHtml += `<strong>Standard Rate:</strong> $${(productInfo.standardRate || 0).toFixed(2)}/hr<br>`;
+                serviceHtml += `<strong>Standard Price:</strong> $${(productInfo.suggestedPrice || 0).toFixed(2)}`;
+                if (productInfo.requiresEquipment) {
+                    serviceHtml += `<br><small class="text-warning"><i class="fas fa-tools"></i> Requires Equipment</small>`;
+                }
+                serviceDetails.innerHTML = serviceHtml;
+                serviceInfo.style.display = 'block';
+                stockInfo.style.display = 'none';
+            }
+            
+            productDetails.innerHTML = html;
+            productInfoDiv.style.display = 'block';
+            currentProduct = productInfo;
+        }
+
+        // ✅ NEW: Check if backorder is needed
+        function checkBackorder() {
+            console.log('checkBackorder called');
+            
+            if (!currentProduct || !currentProduct.tracksInventory) {
+                // No backorder for services or non-inventory items
+                document.getElementById('backorderWarning').style.display = 'none';
+                updateAddButton(false);
+                return;
             }
 
-            suggestedPrice.textContent = '$' + safeSuggestedPrice.toFixed(2);
-
-            // Show price source indicator and button with enhanced styling
-            const hasSalePrice = data.productInfo && data.productInfo.hasSalePrice;
-            if (hasSalePrice) {
-              priceSource.textContent = 'Set Price';
-              priceSource.className = 'badge bg-success ms-1';
-              priceSource.style.display = 'inline';
-              setPriceButton.innerHTML = '<i class="fas fa-tag"></i> Use Set Price';
-              setPriceButton.className = 'btn btn-success btn-sm mt-1';
-              priceHelpText.textContent = 'Price auto-filled from predefined item sale price';
+            const quantity = parseInt(document.getElementById('Quantity').value) || 0;
+            const currentStock = currentProduct.currentStock || 0;
+            
+            if (quantity > currentStock) {
+                // Backorder needed
+                const availableQty = Math.max(0, currentStock);
+                const backorderedQty = quantity - availableQty;
+                
+                const backorderDetails = document.getElementById('backorderDetails');
+                backorderDetails.innerHTML = `
+                    <strong>Requested Quantity:</strong> ${quantity}<br>
+                    <strong>Available Stock:</strong> ${availableQty}<br>
+                    <strong>Will be Backordered:</strong> <span class="text-warning">${backorderedQty}</span>
+                `;
+                
+                document.getElementById('backorderWarning').style.display = 'block';
+                updateAddButton(true);
             } else {
-              priceSource.textContent = 'Calculated';
-              priceSource.className = 'badge bg-info ms-1';
-              priceSource.style.display = 'inline';
-              setPriceButton.innerHTML = '<i class="fas fa-calculator"></i> Use Calculated Price';
-              setPriceButton.className = 'btn btn-outline-primary btn-sm mt-1';
-              priceHelpText.textContent = 'Price auto-calculated based on item cost and type';
+                // Sufficient stock
+                document.getElementById('backorderWarning').style.display = 'none';
+                updateAddButton(false);
             }
+        }
 
-            // Always show the set price button
-            setPriceButton.style.display = 'block';
-
-            productInfo.style.display = 'block';
-            stockInfo.style.display = 'block';
-
-            // ENHANCED: Always auto-fill the suggested price when item is selected
-            unitPriceInput.value = safeSuggestedPrice.toFixed(2);
-
-            // Show visual indicators that price was auto-filled
-            priceAutoFillIndicator.style.display = 'inline';
-            clearPriceButton.style.display = 'block';
-            priceHelp.style.display = 'block';
-
-            // ✅ NEW: Update serial/model requirements
-            updateRequirementsDisplay();
-
-            updateTotalPrice();
-           // Manually trigger validation after auto-filling price
-           // Since we programmatically set the value, the input event doesn't fire
-           // So we need to manually call validateForm to enable the button
-            validateForm();
-          }
-
-          // ✅ NEW: Update requirements display
-          function updateRequirementsDisplay() {
-            const serialModelSection = document.getElementById('serialModelSection');
-            const serialNumberSection = document.getElementById('serialNumberSection');
-            const modelNumberSection = document.getElementById('modelNumberSection');
-            const requirementsInfo = document.getElementById('requirementsInfo');
-            const requirementsText = document.getElementById('requirementsText');
-            const serialRequired = document.querySelectorAll('.serial-required');
-            const modelRequired = document.querySelectorAll('.model-required');
-
-            const hasRequirements = currentRequirements.serial || currentRequirements.model;
-
-            if (hasRequirements) {
-              serialModelSection.style.display = 'block';
-
-              if (currentRequirements.serial) {
-                serialNumberSection.style.display = 'block';
-                serialRequired.forEach(el => el.style.display = 'inline');
-              } else {
-                serialNumberSection.style.display = 'none';
-                serialRequired.forEach(el => el.style.display = 'none');
-              }
-
-              if (currentRequirements.model) {
-                modelNumberSection.style.display = 'block';
-                modelRequired.forEach(el => el.style.display = 'inline');
-              } else {
-                modelNumberSection.style.display = 'none';
-                modelRequired.forEach(el => el.style.display = 'none');
-              }
-
-              // Show requirements info
-              const requirements = [];
-              if (currentRequirements.serial) requirements.push('Serial Number');
-              if (currentRequirements.model) requirements.push('Model Number');
-
-              requirementsText.textContent = requirements.join(', ');
-              requirementsInfo.style.display = 'block';
+        // ✅ NEW: Update the add button based on backorder status
+        function updateAddButton(isBackorder) {
+            const addBtn = document.getElementById('addToSaleBtn');
+            if (isBackorder) {
+                addBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Add with Backorder';
+                addBtn.className = 'btn btn-warning';
             } else {
-              serialModelSection.style.display = 'none';
-              requirementsInfo.style.display = 'none';
+                addBtn.innerHTML = '<i class="fas fa-plus"></i> Add to Sale';
+                addBtn.className = 'btn btn-primary';
             }
+        }
 
-            updateRequirementsWarning();
-          }
-
-          // ✅ UPDATED: Changed from validateRequirements to updateRequirementsWarning
-          function updateRequirementsWarning() {
-            const requirementsAlert = document.getElementById('requirementsAlert');
-            const requirementsList = document.getElementById('requirementsList');
-            const serialInput = document.getElementById('serialNumberInput');
-            const modelInput = document.getElementById('modelNumberInput');
-
-            const missingRequirements = [];
-
-            if (currentRequirements.serial && !serialInput.value.trim()) {
-              missingRequirements.push('<li>Serial Number is recommended for tracking</li>');
-            }
-
-            if (currentRequirements.model && !modelInput.value.trim()) {
-              missingRequirements.push('<li>Model Number is recommended for identification</li>');
-            }
-
-            if (missingRequirements.length > 0) {
-              requirementsList.innerHTML = missingRequirements.join('');
-              requirementsAlert.innerHTML = `
-                <i class="fas fa-info-circle"></i>
-                <strong>Recommended Information:</strong>
-                <ul id="requirementsList" class="mb-0 mt-1">${missingRequirements.join('')}</ul>
-                <small class="text-muted mt-2 d-block">
-                  <i class="fas fa-lightbulb"></i>
-                  You can add this information later by editing the sale item after creation.
-                </small>
-              `;
-              requirementsAlert.className = 'alert alert-info';
-              requirementsAlert.style.display = 'block';
-            } else {
-              requirementsAlert.style.display = 'none';
-            }
-          }
-
-          // ✅ NEW: Update serial/model display
-          function updateSerialModelDisplay() {
-            const serialModelInfo = document.getElementById('serialModelInfo');
-            const serialRow = document.getElementById('serialRow');
-            const modelRow = document.getElementById('modelRow');
-            const displaySerial = document.getElementById('displaySerial');
-            const displayModel = document.getElementById('displayModel');
-            const serialInput = document.getElementById('serialNumberInput');
-            const modelInput = document.getElementById('modelNumberInput');
-
-            const hasSerial = serialInput.value.trim();
-            const hasModel = modelInput.value.trim();
-
-            if (hasSerial || hasModel) {
-              serialModelInfo.style.display = 'block';
-
-              if (hasSerial) {
-                serialRow.style.display = 'table-row';
-                displaySerial.textContent = serialInput.value;
-              } else {
-                serialRow.style.display = 'none';
-              }
-
-              if (hasModel) {
-                modelRow.style.display = 'table-row';
-                displayModel.textContent = modelInput.value;
-              } else {
-                modelRow.style.display = 'none';
-              }
-            } else {
-              serialModelInfo.style.display = 'none';
-            }
-          }
-
-          function updateStockAlert(data) {
-            const availabilityAlert = document.getElementById('availabilityAlert');
-            const stockAlert = document.getElementById('stockAlert');
-            const stockMessage = document.getElementById('stockMessage');
-
-            // SAFETY CHECK: Ensure availability message exists
-            const availabilityMessage = data.availabilityMessage || 'Product availability unknown';
-            const canFulfill = data.stockInfo && data.stockInfo.canFulfill;
-            const tracksInventory = data.productInfo && data.productInfo.tracksInventory;
-
-            if (canFulfill) {
-              stockAlert.className = 'alert alert-success';
-              stockMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${availabilityMessage}`;
-            } else if (tracksInventory) {
-              // Only show backorder warning for inventory-tracked items
-              stockAlert.className = 'alert alert-warning';
-              stockMessage.innerHTML = `<i class="fas fa-info-circle"></i> ${availabilityMessage}`;
-            } else {
-              // For non-inventory items, show success message
-              stockAlert.className = 'alert alert-success';
-              stockMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${availabilityMessage}`;
-            }
-
-            availabilityAlert.style.display = 'block';
-          }
-
-          function clearProductInfo() {
+        function clearProductInfo() {
+            console.log('clearProductInfo called');
             document.getElementById('productInfo').style.display = 'none';
             document.getElementById('stockInfo').style.display = 'none';
-            document.getElementById('availabilityAlert').style.display = 'none';
-            document.getElementById('setPriceButton').style.display = 'none';
-            document.getElementById('priceAutoFillIndicator').style.display = 'none';
-            document.getElementById('clearPriceButton').style.display = 'none';
-            document.getElementById('priceHelp').style.display = 'none';
+            document.getElementById('serviceInfo').style.display = 'none';
+            document.getElementById('backorderWarning').style.display = 'none'; // ✅ NEW
+            document.getElementById('suggestedPriceBtn').style.display = 'none';
+            document.getElementById('UnitPrice').value = '';
+            currentProduct = null;
+            suggestedPrice = 0;
+            calculateTotal();
+            updateAddButton(false); // ✅ NEW
+        }
 
-            // ✅ NEW: Clear serial/model sections
-            document.getElementById('serialModelSection').style.display = 'none';
-            document.getElementById('serialModelInfo').style.display = 'none';
-            document.getElementById('requirementsAlert').style.display = 'none';
-            document.getElementById('serialNumberInput').value = '';
-            document.getElementById('modelNumberInput').value = '';
-
-            // Clear the unit price when no product is selected
-            unitPriceInput.value = '';
-            currentSuggestedPrice = 0;
-            currentRequirements = { serial: false, model: false };
-            updateTotalPrice();
-          }
-
-          // ✅ UPDATED: validateForm simplified - only checks basic requirements
-          function validateForm() {
-            const productType = productTypeSelect.value;
-            const productId = productType === 'Item' ? itemSelect.value : finishedGoodSelect.value;
-            const quantity = parseInt(quantityInput.value) || 0;
-            const unitPrice = parseFloat(unitPriceInput.value) || 0;
-
-            // ✅ SIMPLIFIED: Only check basic requirements (product, quantity, price)
-            const isBasicValid = productId && quantity > 0 && unitPrice > 0;
-
-            if (productId && quantity > 0) {
-                fetch(`/Sales/CheckProductAvailability?productType=${productType}&productId=${productId}&quantity=${quantity}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            updateProductInfo(data);
-                            updateStockAlert(data);
-
-                            // ✅ ENABLE button based on basic validation only - ignore serial/model requirements
-                            addItemButton.disabled = !isBasicValid;
-                        } else {
-                          clearProductInfo();
-                          addItemButton.disabled = true;
-                        }
-                    })
-                    .catch(error => {
-                      clearProductInfo();
-                      addItemButton.disabled = true;
-                    });
-            } else {
-              clearProductInfo();
-              addItemButton.disabled = true;
+        function useSuggestedPrice() {
+            if (suggestedPrice > 0) {
+                document.getElementById('UnitPrice').value = suggestedPrice.toFixed(2);
+                calculateTotal();
             }
-          }
+        }
 
-          // Function to set the suggested price into the unit price field
-          function setSuggestedPrice() {
-            const unitPriceInput = document.getElementById('unitPriceInput');
+        function calculateTotal() {
+            const quantity = parseFloat(document.getElementById('Quantity').value) || 0;
+            const unitPrice = parseFloat(document.getElementById('UnitPrice').value) || 0;
+            const total = quantity * unitPrice;
+            
+            document.getElementById('lineTotal').textContent = '$' + total.toFixed(2);
+        }
 
-            if (currentSuggestedPrice > 0) {
-              unitPriceInput.value = currentSuggestedPrice.toFixed(2);
-              updateTotalPrice();
-
-              // Optional: Show a brief confirmation
-              const button = document.getElementById('setPriceButton');
-              const originalText = button.innerHTML;
-              button.innerHTML = '<i class="fas fa-check"></i> Price Set!';
-
-              setTimeout(() => {
-                button.innerHTML = originalText;
-              }, 1500);
-            }
-          }
-
-          // Make setSuggestedPrice available globally for the onclick handler
-          window.setSuggestedPrice = setSuggestedPrice;
-
-          // ✅ FIXED: Use stopImmediatePropagation to prevent global loading
-          document.querySelector('form').addEventListener('submit', async function(e) {
-            // ✅ CRITICAL: Stop all event propagation immediately
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-
-            const stockAlert = document.getElementById('stockAlert');
-            const serialInput = document.getElementById('serialNumberInput');
-            const modelInput = document.getElementById('modelNumberInput');
-            const quantityInput = document.getElementById('quantityInput');
-
-            try {
-              // Check for missing requirements and show beautiful confirmation
-              const missingRequirements = [];
-              if (currentRequirements.serial && !serialInput.value.trim()) {
-                  missingRequirements.push('Serial Number');
-              }
-              if (currentRequirements.model && !modelInput.value.trim()) {
-                  missingRequirements.push('Model Number');
-              }
-
-              if (missingRequirements.length > 0) {
-                  const confirmed = await confirmDialog.confirm({
-                      title: 'Missing Recommended Information',
-                      message: 'This item recommends the following information:',
-                      details: `
-                          <div class="alert alert-info border-0 mt-2">
-                              <ul class="mb-0">
-                                  ${missingRequirements.map(req => `<li><strong>${req}</strong></li>`).join('')}
-                              </ul>
-                          </div>
-                          <div class="alert alert-light border-info mt-2">
-                              <i class="fas fa-lightbulb text-info"></i>
-                              <strong>Note:</strong> You can add this information later by editing the sale item after creation.
-                          </div>
-                          <p class="mb-0">Do you want to continue adding the item without this information?</p>
-                      `,
-                      confirmText: 'Continue Without Info',
-                      cancelText: 'Go Back and Add Info',
-                      confirmClass: 'btn-warning',
-                      icon: 'fas fa-exclamation-triangle text-warning'
-                  });
-
-                  if (!confirmed) {
-                      return; // User cancelled, don't submit
-                  }
-              }
-
-              // Stock backorder confirmation with beautiful modal
-              if (stockAlert && stockAlert.classList.contains('alert-warning')) {
-                  const quantity = parseInt(quantityInput.value) || 0;
-                  const availableStock = document.getElementById('availableStock').textContent;
-                  
-                  const confirmed = await confirmDialog.confirm({
-                      title: 'Item Will Be Backordered',
-                      message: 'This item will be backordered due to insufficient stock.',
-                      details: `
-                          <div class="row mt-3">
-                              <div class="col-6">
-                                  <div class="card bg-light">
-                                      <div class="card-body text-center py-2">
-                                          <h6 class="card-title text-muted mb-1">Requested</h6>
-                                          <h4 class="text-primary mb-0">${quantity}</h4>
-                                      </div>
-                                  </div>
-                              </div>
-                              <div class="col-6">
-                                  <div class="card bg-light">
-                                      <div class="card-body text-center py-2">
-                                          <h6 class="card-title text-muted mb-1">Available</h6>
-                                          <h4 class="text-success mb-0">${availableStock}</h4>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                          <div class="alert alert-info border-0 mt-3">
-                              <i class="fas fa-info-circle"></i>
-                              <strong>What this means:</strong>
-                              <ul class="mb-0 mt-2">
-                                  <li>Available stock will be allocated immediately</li>
-                                  <li>Remaining quantity will be fulfilled when stock arrives</li>
-                                  <li>Customer will be notified of partial shipment</li>
-                              </ul>
-                          </div>
-                      `,
-                      confirmText: 'Continue with Backorder',
-                      cancelText: 'Cancel',
-                      confirmClass: 'btn-warning',
-                      icon: 'fas fa-clock text-warning'
-                  });
-
-                  if (!confirmed) {
-                      return; // User cancelled, don't submit
-                  }
-              }
-
-              // ✅ Show loading indicator manually for actual submission
-              if (window.LoadingIndicator && window.LoadingIndicator.show) {
-                  window.LoadingIndicator.show('Adding Item...', 'Processing your request');
-              }
-
-              // ✅ Submit form programmatically to bypass all event listeners
-              // Create a new form element to avoid triggering existing listeners
-              const originalForm = this;
-              const newForm = document.createElement('form');
-              newForm.method = originalForm.method;
-              newForm.action = originalForm.action;
-
-              // Copy all form data
-              const formData = new FormData(originalForm);
-              for (let [key, value] of formData.entries()) {
-                  const input = document.createElement('input');
-                  input.type = 'hidden';
-                  input.name = key;
-                  input.value = value;
-                  newForm.appendChild(input);
-              }
-
-              // Add the new form to the document and submit it
-              document.body.appendChild(newForm);
-              newForm.submit();
-              
-            } catch (error) {
-              console.error('Error during form submission:', error);
-              // Hide loading indicator on error
-              if (window.LoadingIndicator && window.LoadingIndicator.hide) {
-                  window.LoadingIndicator.hide();
-              }
-            }
-        }, true); // ✅ Use capture phase to ensure we get the event first
-        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded - initializing page');
+            toggleProductSelection();
+            calculateTotal();
         });
-
-        // Global function to update total price calculation
-        function updateTotalPrice() {
-          const quantityInput = document.getElementById('quantityInput');
-          const unitPriceInput = document.getElementById('unitPriceInput');
-
-          const quantity = parseInt(quantityInput.value) || 0;
-          const unitPrice = parseFloat(unitPriceInput.value) || 0;
-          const totalPrice = quantity * unitPrice;
-
-          document.getElementById('displayQuantity').textContent = quantity;
-          document.getElementById('displayUnitPrice').textContent = '$' + unitPrice.toFixed(2);
-          document.getElementById('displayTotalPrice').textContent = '$' + totalPrice.toFixed(2);
-        }
-
-        // Global function to clear unit price manually
-        function clearUnitPrice() {
-          const unitPriceInput = document.getElementById('unitPriceInput');
-
-          unitPriceInput.value = '';
-          document.getElementById('priceHelp').style.display = 'none';
-          document.getElementById('priceAutoFillIndicator').style.display = 'none';
-          document.getElementById('clearPriceButton').style.display = 'none';
-          updateTotalPrice();
-        }
-  </script>
+    </script>
 }

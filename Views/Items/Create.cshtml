@@ -14,6 +14,9 @@
     <a href="/Items/BulkUpload" class="btn btn-outline-info">
       <i class="fas fa-upload"></i> Bulk Upload
     </a>
+    <a href="/Expenses/Create" class="btn btn-outline-warning">
+      <i class="fas fa-file-invoice-dollar"></i> Create Expense Instead
+    </a>
   </div>
 </div>
 
@@ -50,7 +53,7 @@
                   <i class="fas fa-tag text-primary"></i>
                   Part Number <span class="text-danger">*</span>
                 </label>
-                <input asp-for="PartNumber" class="form-control" required placeholder="e.g., R-001, CAP-100" />
+                <input asp-for="PartNumber" class="form-control" required placeholder="e.g., R-001, COMP-100, TOOL-SCREW-001" />
                 <span asp-validation-for="PartNumber" class="text-danger"></span>
               </div>
             </div>
@@ -81,7 +84,7 @@
               <i class="fas fa-comment text-muted"></i>
               Comments
             </label>
-            <textarea asp-for="Comments" class="form-control" rows="3" placeholder="Component specifications for optical, mechanical, or electronic parts"></textarea>
+            <textarea asp-for="Comments" class="form-control" rows="3" placeholder="Component specifications, tool details, or material properties"></textarea>
             <span asp-validation-for="Comments" class="text-danger"></span>
           </div>
         </div>
@@ -101,18 +104,16 @@
                   Item Type <span class="text-danger">*</span>
                 </label>
                 <select asp-for="ItemType" class="form-select" id="itemTypeSelect">
-                  <option value="0">Inventoried - Physical items with stock tracking</option>
-                  <option value="1">Non-Inventoried - Firmware, software, documentation</option>
-                  <option value="2">Service - Labor, consulting, services</option>
-                  <option value="3">Virtual - Licenses, digital assets</option>
-                  <option value="4">Consumable - Items used up in operations (office supplies, consumables)</option>
-                  <option value="5">Expense - Direct expense items (utilities, rent, one-time expenses)</option>
-                  <option value="6">Subscription - Recurring subscription services (software licenses, cloud services)</option>
-                  <option value="7">Utility - Utility expenses (electricity, water, internet)</option>
-                  <option value="8">R&D Materials - Research and development specific materials</option>
+                  <option value="0">Inventoried - Raw materials and components with precise quantity tracking</option>
+                  <option value="4">Consumable - Office supplies, hand tools, PPE, small parts that wear out or get used up</option>
+                  <option value="8">R&D Materials - Research and development specific materials and components</option>
                 </select>
                 <span asp-validation-for="ItemType" class="text-danger"></span>
-                <div class="form-text">Determines how this item is tracked and managed.</div>
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i>
+                  All item types are operational assets. For business expenses like utilities or services, 
+                  <a href="/Expenses/Create" class="text-decoration-none">create an Expense instead</a>.
+                </div>
               </div>
             </div>
             <div class="col-md-6">
@@ -134,7 +135,7 @@
             </div>
           </div>
 
-          <!-- NEW: Material Type Section -->
+          <!-- Material Type Section -->
           <div class="row" id="materialTypeRow">
             <div class="col-md-6">
               <div class="mb-3">
@@ -149,7 +150,7 @@
                   <option value="3">Work in Process - Partially completed items</option>
                 </select>
                 <span asp-validation-for="MaterialType" class="text-danger"></span>
-                <div class="form-text">Determines material handling and production workflows. Only applies to physical materials.</div>
+                <div class="form-text">Determines material handling and production workflows. Applies to all operational items.</div>
               </div>
             </div>
             <div class="col-md-6">
@@ -159,21 +160,12 @@
                   <i class="fas fa-dollar-sign text-success"></i>
                   This item can be sold to customers
                 </label>
-                <div class="form-text">Uncheck for raw materials, components, or internal-use items.</div>
-              </div>
-              
-              <div class="form-check mt-2">
-                <input asp-for="IsExpense" class="form-check-input" type="checkbox" />
-                <label asp-for="IsExpense" class="form-check-label">
-                  <i class="fas fa-file-invoice-dollar text-danger"></i>
-                  This is an expense item
-                </label>
-                <div class="form-text">Check for items you purchase as business expenses.</div>
+                <div class="form-text">Uncheck for raw materials, components, tools, or internal-use items.</div>
               </div>
             </div>
           </div>
 
-          <!-- Stock Management (only for Inventoried items) -->
+          <!-- Stock Management -->
           <div class="row" id="stockManagement">
             <div class="col-md-6">
               <div class="mb-3">
@@ -183,7 +175,7 @@
                 </label>
                 <input asp-for="MinimumStock" class="form-control" type="number" min="0" />
                 <span asp-validation-for="MinimumStock" class="text-danger"></span>
-                <div class="form-text">Alert threshold for low stock warnings.</div>
+                <div class="form-text">Alert threshold for reorder notifications.</div>
               </div>
             </div>
           </div>
@@ -218,11 +210,10 @@
                     <i class="fas fa-lightbulb"></i>
                     <strong>Suggested Pricing:</strong>
                     <ul class="mt-2 mb-0 ps-3">
-                      <li><strong>Service Items:</strong> $50-150/hour</li>
-                      <li><strong>Virtual Items:</strong> $25-100 per license</li>
-                      <li><strong>Subscriptions:</strong> $15-50/month</li>
-                      <li><strong>Utilities:</strong> Based on usage/cost</li>
-                      <li><strong>Physical Items:</strong> Cost + 50% markup</li>
+                      <li><strong>Raw Materials:</strong> Cost + 10-20% markup</li>
+                      <li><strong>Components:</strong> Cost + 30-50% markup</li>
+                      <li><strong>Tools/Consumables:</strong> Cost + 25-40% markup</li>
+                      <li><strong>R&D Materials:</strong> Cost + 50-75% markup</li>
                     </ul>
                   </small>
                 </div>
@@ -232,7 +223,7 @@
         </div>
       </div>
 
-      <!-- NEW: Manufacturing BOM Section for Transformed Materials -->
+      <!-- Manufacturing BOM Section for Transformed Materials -->
       <div class="card mt-3" id="manufacturingBomCard" style="display: none;">
         <div class="card-header">
           <h5><i class="fas fa-industry text-success"></i> Manufacturing BOM Configuration</h5>
@@ -368,11 +359,11 @@
                   <i class="fas fa-industry text-primary"></i>
                   Manufacturer <span class="text-muted">(Optional)</span>
                 </label>
-                <input asp-for="Manufacturer" class="form-control" placeholder="e.g., Texas Instruments, Vishay, etc." />
+                <input asp-for="Manufacturer" class="form-control" placeholder="e.g., Stanley, DeWalt, 3M, Texas Instruments, etc." />
                 <span asp-validation-for="Manufacturer" class="text-danger"></span>
                 <div class="form-text">
                   <i class="fas fa-info-circle"></i>
-                  The actual manufacturer of the component
+                  The actual manufacturer of the component or tool
                 </div>
               </div>
             </div>
@@ -394,7 +385,7 @@
         </div>
       </div>
 
-      <!-- Initial Purchase Card (only for Inventoried items) -->
+      <!-- Initial Purchase Card -->
       <div class="card mt-3" id="initialPurchaseCard">
         <div class="card-header">
           <h5>
@@ -526,24 +517,55 @@
 
   <!-- Right Column - Help and Quick Info -->
   <div class="col-md-4">
+    <!-- What Should I Create Info -->
+    <div class="card mb-3">
+      <div class="card-header bg-info text-white">
+        <h6><i class="fas fa-question-circle"></i> What Should I Create?</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <h6 class="text-success">
+            <i class="fas fa-box"></i> Create an Item for:
+          </h6>
+          <ul class="list-unstyled ps-3">
+            <li class="mb-1"><i class="fas fa-check text-success"></i> Raw materials and components</li>
+            <li class="mb-1"><i class="fas fa-check text-success"></i> Hand tools and equipment</li>
+            <li class="mb-1"><i class="fas fa-check text-success"></i> Office supplies and consumables</li>
+            <li class="mb-1"><i class="fas fa-check text-success"></i> Research materials</li>
+            <li class="mb-1"><i class="fas fa-check text-success"></i> Production supplies</li>
+          </ul>
+        </div>
+        
+        <div class="mb-3">
+          <h6 class="text-warning">
+            <i class="fas fa-file-invoice-dollar"></i> Create an Expense for:
+          </h6>
+          <ul class="list-unstyled ps-3">
+            <li class="mb-1"><i class="fas fa-times text-warning"></i> Utilities (electricity, water)</li>
+            <li class="mb-1"><i class="fas fa-times text-warning"></i> Software subscriptions</li>
+            <li class="mb-1"><i class="fas fa-times text-warning"></i> Professional services</li>
+            <li class="mb-1"><i class="fas fa-times text-warning"></i> Insurance and rent</li>
+          </ul>
+          <a href="/Expenses/Create" class="btn btn-warning btn-sm">
+            <i class="fas fa-file-invoice-dollar"></i> Create Expense
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- Material Type Guide -->
     <div class="card" id="materialTypeGuide">
       <div class="card-header">
         <h6><i class="fas fa-industry"></i> Material Type Guide</h6>
       </div>
       <div class="card-body">
-        <div class="alert alert-info mb-3">
-          <i class="fas fa-info-circle"></i>
-          <strong>Note:</strong> Material Type only applies to physical materials (Inventoried, Consumable, R&D Materials). 
-          Services, Utilities, Expenses, and Subscriptions don't use Material Type classification.
-        </div>
         <div class="list-group list-group-flush">
           <div class="list-group-item border-0 px-0">
             <div class="d-flex align-items-center">
               <span class="badge bg-secondary me-2">STD</span>
               <div>
                 <strong>Standard</strong>
-                <small class="text-muted d-block">Regular inventory items</small>
+                <small class="text-muted d-block">Regular inventory items, tools, components</small>
               </div>
             </div>
           </div>
@@ -625,7 +647,7 @@
               <span class="badge bg-primary me-2">INV</span>
               <div>
                 <strong>Inventoried</strong>
-                <small class="text-muted d-block">Physical items with stock tracking</small>
+                <small class="text-muted d-block">Raw materials and components - precise tracking</small>
               </div>
             </div>
           </div>
@@ -634,7 +656,7 @@
               <span class="badge bg-secondary me-2">CON</span>
               <div>
                 <strong>Consumable</strong>
-                <small class="text-muted d-block">Items used up in operations (office supplies, consumables)</small>
+                <small class="text-muted d-block">Office supplies, hand tools, PPE, small parts</small>
               </div>
             </div>
           </div>
@@ -647,60 +669,15 @@
               </div>
             </div>
           </div>
-          <div class="list-group-item border-0 px-0">
-            <div class="d-flex align-items-center">
-              <span class="badge bg-info me-2">NON</span>
-              <div>
-                <strong>Non-Inventoried</strong>
-                <small class="text-muted d-block">Software, firmware, documentation</small>
-              </div>
-            </div>
-          </div>
-          <div class="list-group-item border-0 px-0">
-            <div class="d-flex align-items-center">
-              <span class="badge bg-warning me-2">SRV</span>
-              <div>
-                <strong>Service</strong>
-                <small class="text-muted d-block">Labor, consulting, services</small>
-              </div>
-            </div>
-          </div>
-          <div class="list-group-item border-0 px-0">
-            <div class="d-flex align-items-center">
-              <span class="badge bg-dark me-2">SUB</span>
-              <div>
-                <strong>Subscription</strong>
-                <small class="text-muted d-block">Recurring services (software licenses, cloud)</small>
-              </div>
-            </div>
-          </div>
-          <div class="list-group-item border-0 px-0">
-            <div class="d-flex align-items-center">
-              <span class="badge bg-danger me-2">EXP</span>
-              <div>
-                <strong>Expense</strong>
-                <small class="text-muted d-block">Direct expenses (one-time costs)</small>
-              </div>
-            </div>
-          </div>
-          <div class="list-group-item border-0 px-0">
-            <div class="d-flex align-items-center">
-              <span class="badge bg-light text-dark me-2">UTI</span>
-              <div>
-                <strong>Utility</strong>
-                <small class="text-muted d-block">Utility expenses (electricity, water, internet)</small>
-              </div>
-            </div>
-          </div>
-          <div class="list-group-item border-0 px-0">
-            <div class="d-flex align-items-center">
-              <span class="badge bg-warning me-2">VIR</span>
-              <div>
-                <strong>Virtual</strong>
-                <small class="text-muted d-block">Digital assets, licenses</small>
-              </div>
-            </div>
-          </div>
+        </div>
+        
+        <div class="alert alert-light mt-3">
+          <small class="text-muted">
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> All item types represent operational assets used in your business. 
+            For business expenses like utilities or services, use the 
+            <a href="/Expenses/Create" class="text-decoration-none">Expense system</a> instead.
+          </small>
         </div>
       </div>
     </div>
@@ -724,15 +701,6 @@
       const hasInitialPurchaseCheckbox = document.getElementById('hasInitialPurchaseCheckbox');
       const initialPurchaseSection = document.getElementById('initialPurchaseSection');
 
-      // Debug: Check if all elements are found
-      console.log('Element check:');
-      console.log('itemTypeSelect:', !!itemTypeSelect);
-      console.log('materialTypeSelect:', !!materialTypeSelect);
-      console.log('materialTypeRow:', !!materialTypeRow);
-      console.log('materialTypeGuide:', !!materialTypeGuide);
-      console.log('stockManagement:', !!stockManagement);
-      console.log('initialPurchaseCard:', !!initialPurchaseCard);
-
       // Get all initial purchase fields
       const initialPurchaseFields = document.querySelectorAll('#initialPurchaseSection input, #initialPurchaseSection select');
 
@@ -745,38 +713,14 @@
 
       function updateFormBasedOnItemType() {
         const itemType = parseInt(itemTypeSelect.value);
-        // Updated to include Consumable (4) and R&D Materials (8) as inventory-tracked
+        // All three item types now support stock tracking
         const isInventoried = itemType === 0 || itemType === 4 || itemType === 8; // Inventoried, Consumable, R&D Materials
         
-        // NEW: Determine if MaterialType should be shown based on ItemType
-        const isMaterialItem = itemType === 0 || itemType === 4 || itemType === 8; // Only show MaterialType for Inventoried, Consumable, R&D Materials
+        console.log('ItemType changed to:', itemType, 'isInventoried:', isInventoried);
         
-        console.log('ItemType changed to:', itemType, 'isMaterialItem:', isMaterialItem, 'isInventoried:', isInventoried);
-        
-        if (isMaterialItem) {
-          if (materialTypeRow) {
-            materialTypeRow.style.display = 'block';
-            console.log('Showing MaterialType row');
-          }
-          if (materialTypeGuide) {
-            materialTypeGuide.style.display = 'block';
-            console.log('Showing MaterialType guide');
-          }
-        } else {
-          if (materialTypeRow) {
-            materialTypeRow.style.display = 'none';
-            console.log('Hiding MaterialType row');
-          }
-          if (materialTypeGuide) {
-            materialTypeGuide.style.display = 'none';
-            console.log('Hiding MaterialType guide');
-          }
-          // Reset MaterialType to Standard for non-material items
-          if (materialTypeSelect) {
-            materialTypeSelect.value = '0';
-            console.log('Reset MaterialType to Standard');
-          }
-        }
+        // All operational items show material type
+        materialTypeRow.style.display = 'block';
+        materialTypeGuide.style.display = 'block';
 
         if (isInventoried) {
           stockManagement.style.display = 'block';
@@ -800,8 +744,7 @@
         const materialType = parseInt(materialTypeSelect.value);
         const itemType = parseInt(itemTypeSelect.value);
         const isTransformed = materialType === 2; // Transformed = 2
-        // Updated to include Consumable (4) and R&D Materials (8) as inventory-tracked
-        const isInventoried = itemType === 0 || itemType === 4 || itemType === 8; // Inventoried, Consumable, R&D Materials
+        const isInventoried = itemType === 0 || itemType === 4 || itemType === 8; // All item types
 
         if (isTransformed && isInventoried) {
           manufacturingBomCard.style.display = 'block';
@@ -983,7 +926,7 @@
 
         const itemType = parseInt(itemTypeSelect.value);
         const materialType = parseInt(materialTypeSelect.value);
-        const isInventoried = itemType === 0;
+        const isInventoried = itemType === 0 || itemType === 4 || itemType === 8;
         const isTransformed = materialType === 2;
         const hasInitialPurchase = hasInitialPurchaseCheckbox.checked;
 
@@ -1016,9 +959,7 @@
         }
 
         // Validate initial purchase
-        // Updated to include Consumable (4) and R&D Materials (8) as inventory-tracked
-        const isInventoriedForPurchase = itemType === 0 || itemType === 4 || itemType === 8; // Inventoried, Consumable, R&D Materials
-        if (isInventoriedForPurchase && hasInitialPurchase) {
+        if (isInventoried && hasInitialPurchase) {
           const vendor = document.querySelector('input[name="InitialVendor"]').value.trim();
           const quantity = document.querySelector('input[name="InitialQuantity"]').value;
           const cost = document.querySelector('input[name="InitialCostPerUnit"]').value;

@@ -1,7 +1,6 @@
 @model InventorySystem.Models.Item
 @using InventorySystem.Helpers
 @using InventorySystem.Models.Enums
-@using System.IO
 @{
   ViewData["Title"] = "Edit Item";
 }
@@ -47,7 +46,6 @@
       @Html.HiddenFor(model => model.BaseItemId)
       @Html.HiddenFor(model => model.Version)
       @Html.HiddenFor(model => model.CreatedFromChangeOrderId)
-      @Html.HiddenFor(model => model.IsExpense) <!-- ? ADD THIS -->
 
       <!-- Basic Information Card -->
       <div class="card">
@@ -112,18 +110,12 @@
                   Item Type <span class="text-danger">*</span>
                 </label>
                 <select asp-for="ItemType" class="form-select" id="itemTypeSelect">
-                  <option value="0">Inventoried - Physical items with stock tracking</option>
-                  <option value="1">Non-Inventoried - Firmware, software, documentation</option>
-                  <option value="2">Service - Labor, consulting, services</option>
-                  <option value="3">Virtual - Licenses, digital assets</option>
-                  <option value="4">Consumable - Office supplies, consumables</option>
-                  <option value="5">Expense - Direct expense items (utilities, rent)</option>
-                  <option value="6">Subscription - Recurring subscription services</option>
-                  <option value="7">Utility - Utility expenses (electricity, water, internet)</option>
-                  <option value="8">R&D Materials - Research and development materials</option>
+                  <option value="0">Inventoried - Raw materials, components with precise quantity tracking</option>
+                  <option value="4">Consumable - Office supplies, hand tools, PPE, small parts</option>
+                  <option value="8">R&D Materials - Research and development specific materials</option>
                 </select>
                 <span asp-validation-for="ItemType" class="text-danger"></span>
-                <div class="form-text">Determines how this item is tracked and managed.</div>
+                <div class="form-text">Determines how this item is tracked and managed in operations.</div>
               </div>
             </div>
             <div class="col-md-6">
@@ -228,7 +220,7 @@
                     {
                       <span class="text-success">
                         <i class="fas fa-check-circle"></i>
-                        <strong>Sale Price Set:</strong> @Model.SalePrice.Value.ToString("C")
+                        <strong>Sale Price Set:</strong> @Model.SalePrice.ToString("F2")
                       </span>
                     }
                     else
@@ -259,7 +251,7 @@
               <div class="mb-3">
                 <label for="preferredVendorId" class="form-label">
                   <i class="fas fa-star text-warning"></i>
-                  Preferred Vendor
+                  Primary Vendor
                 </label>
                 <div class="input-group">
                   <select name="preferredVendorId" id="preferredVendorId" class="form-select" asp-items="ViewBag.PreferredVendorId">
@@ -274,12 +266,12 @@
                   Select the primary supplier for this item. This vendor will be automatically selected in bulk purchase requests.
                 </div>
 
-                <!-- Current Preferred Vendor Display -->
-                @if (!string.IsNullOrEmpty(Model.PreferredVendor))
+                <!-- Current Primary Vendor Display -->
+                @if (!string.IsNullOrEmpty(Model.PrimaryVendor))
                 {
                   <div class="mt-2">
                     <small class="text-muted">
-                      <strong>Current:</strong> @Model.PreferredVendor
+                      <strong>Current:</strong> @Model.PrimaryVendor
                       @if (ViewBag.CurrentPreferredVendorId == null)
                       {
                         <span class="badge bg-warning text-dark">Vendor not found in active vendors</span>
@@ -740,26 +732,22 @@
     const stockManagement = document.getElementById('stockManagement');
     const pricingSection = document.getElementById('pricingSection');
 
-    // ? FIX: Use the IsExpense flag directly from the model
-    const isExpenseItem = @Model.IsExpense.ToString().ToLower();
-
     function updateFormBasedOnItemType() {
       const itemType = parseInt(itemTypeSelect.value);
       const isInventoried = itemType === 0; // Inventoried = 0
 
-      if (isInventoried) {
+      if (isInventoried) 
+      {
         stockManagement.style.display = 'block';
         pricingSection.style.display = 'block';
-      } else {
+      } 
+      else 
+      {
         stockManagement.style.display = 'none';
-
-        // ? FIX: Use IsExpense flag instead of inferring from ItemType
-        if (isExpenseItem) {
-          pricingSection.style.display = 'none'; // Hide pricing for expense items
-        } else {
-          pricingSection.style.display = 'block';
-        }
       }
+
+      pricingSection.style.display = 'block';
+      
     }
 
     // Initial setup

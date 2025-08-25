@@ -1,4 +1,4 @@
-﻿// Controllers/SalesController.cs - Clean version focused on CustomerPayment integration
+﻿// Controllers/SalesController.cs - FIXED: Use CustomerPaymentService for payment calculations
 using InventorySystem.Data;
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
@@ -10,15 +10,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-
 namespace InventorySystem.Controllers
 {
-	public class SalesController : Controller
+	public class SalesController : BaseController // ✅ Changed from Controller to BaseController
 	{
 		private readonly ISalesService _salesService;
 		private readonly IInventoryService _inventoryService;
 		private readonly IProductionService _productionService;
 		private readonly ICustomerService _customerService;
+		private readonly IPurchaseService _purchaseService;
+		private readonly ICompanyInfoService _companyInfoService;
 		private readonly ILogger<SalesController> _logger;
 		private readonly InventoryContext _context;
 
@@ -26,7 +27,9 @@ namespace InventorySystem.Controllers
 				ISalesService salesService,
 				IInventoryService inventoryService,
 				IProductionService productionService,
+				IPurchaseService purchaseService,
 				ICustomerService customerService,
+				ICompanyInfoService companyInfoService,
 				ILogger<SalesController> logger,
 				InventoryContext context)
 		{
@@ -34,7 +37,9 @@ namespace InventorySystem.Controllers
 			_inventoryService = inventoryService;
 			_productionService = productionService;
 			_customerService = customerService;
+			_companyInfoService = companyInfoService;
 			_logger = logger;
+			_purchaseService = purchaseService;
 			_context = context;
 		}
 
@@ -179,12 +184,10 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error in Sales Index");
-				TempData["ErrorMessage"] = $"Error loading sales: {ex.Message}";
+				SetErrorMessage($"Error loading sales: {ex.Message}"); // ✅ Using BaseController method
 				return View(new List<Sale>());
 			}
 		}
-
-		// Add these methods to your SalesController.cs
 
 		// GET: Sales/Edit/5
 		[HttpGet]
@@ -195,20 +198,20 @@ namespace InventorySystem.Controllers
 				var sale = await _salesService.GetSaleByIdAsync(id);
 				if (sale == null)
 				{
-					TempData["ErrorMessage"] = "Sale not found.";
+					SetErrorMessage("Sale not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index");
 				}
 
 				// Check if sale can be edited
 				if (sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered)
 				{
-					TempData["ErrorMessage"] = "Cannot edit a sale that has been shipped or delivered.";
+					SetErrorMessage("Cannot edit a sale that has been shipped or delivered."); // ✅ Using BaseController method
 					return RedirectToAction("Details", new { id });
 				}
 
 				if (sale.SaleStatus == SaleStatus.Cancelled)
 				{
-					TempData["ErrorMessage"] = "Cannot edit a cancelled sale.";
+					SetErrorMessage("Cannot edit a cancelled sale."); // ✅ Using BaseController method
 					return RedirectToAction("Details", new { id });
 				}
 
@@ -230,7 +233,7 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error loading sale for edit: {SaleId}", id);
-				TempData["ErrorMessage"] = $"Error loading sale: {ex.Message}";
+				SetErrorMessage($"Error loading sale: {ex.Message}"); // ✅ Using BaseController method
 				return RedirectToAction("Index");
 			}
 		}
@@ -256,19 +259,19 @@ namespace InventorySystem.Controllers
 				var existingSale = await _salesService.GetSaleByIdAsync(id);
 				if (existingSale == null)
 				{
-					TempData["ErrorMessage"] = "Sale not found.";
+					SetErrorMessage("Sale not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index");
 				}
 
 				if (existingSale.SaleStatus == SaleStatus.Shipped || existingSale.SaleStatus == SaleStatus.Delivered)
 				{
-					TempData["ErrorMessage"] = "Cannot edit a sale that has been shipped or delivered.";
+					SetErrorMessage("Cannot edit a sale that has been shipped or delivered."); // ✅ Using BaseController method
 					return RedirectToAction("Details", new { id });
 				}
 
 				if (existingSale.SaleStatus == SaleStatus.Cancelled)
 				{
-					TempData["ErrorMessage"] = "Cannot edit a cancelled sale.";
+					SetErrorMessage("Cannot edit a cancelled sale."); // ✅ Using BaseController method
 					return RedirectToAction("Details", new { id });
 				}
 
@@ -299,7 +302,7 @@ namespace InventorySystem.Controllers
 				// Update the sale
 				await _salesService.UpdateSaleAsync(sale);
 
-				TempData["SuccessMessage"] = $"Sale {sale.SaleNumber} updated successfully!";
+				SetSuccessMessage($"Sale {sale.SaleNumber} updated successfully!"); // ✅ Using BaseController method
 				return RedirectToAction("Details", new { id = sale.Id });
 			}
 			catch (Exception ex)
@@ -342,37 +345,38 @@ namespace InventorySystem.Controllers
 				var sale = await _salesService.GetSaleByIdAsync(saleId);
 				if (sale == null)
 				{
-					TempData["ErrorMessage"] = "Sale not found.";
+					SetErrorMessage("Sale not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index");
 				}
 
 				if (sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered)
 				{
-					TempData["ErrorMessage"] = "Cannot remove items from a sale that has been shipped or delivered.";
+					SetErrorMessage("Cannot remove items from a sale that has been shipped or delivered."); // ✅ Using BaseController method
 					return RedirectToAction("Details", new { id = saleId });
 				}
 
 				if (sale.SaleStatus == SaleStatus.Cancelled)
 				{
-					TempData["ErrorMessage"] = "Cannot remove items from a cancelled sale.";
+					SetErrorMessage("Cannot remove items from a cancelled sale."); // ✅ Using BaseController method
 					return RedirectToAction("Details", new { id = saleId });
 				}
 
 				// Remove the sale item
 				await _salesService.DeleteSaleItemAsync(saleItemId);
 
-				TempData["SuccessMessage"] = "Item removed from sale successfully!";
+				SetSuccessMessage("Item removed from sale successfully!"); // ✅ Using BaseController method
 				return RedirectToAction("Details", new { id = saleId });
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error removing sale item: {SaleItemId} from sale: {SaleId}", saleItemId, saleId);
-				TempData["ErrorMessage"] = $"Error removing item: {ex.Message}";
+				SetErrorMessage($"Error removing item: {ex.Message}"); // ✅ Using BaseController method
 				return RedirectToAction("Details", new { id = saleId });
 			}
 		}
 
 		// Sale Details and associated service orders if they exist
+		// Update the Details method in SalesController.cs to include shipments
 		public async Task<IActionResult> Details(int id)
 		{
 			var sale = await _salesService.GetSaleByIdAsync(id);
@@ -380,16 +384,32 @@ namespace InventorySystem.Controllers
 
 			// Load related service orders for this sale
 			var serviceOrders = await _context.ServiceOrders
-					.Where(so => so.SaleId == id)
-					.Include(so => so.ServiceType)
-					.Include(so => so.Customer)
-					.ToListAsync();
+							.Where(so => so.SaleId == id)
+							.Include(so => so.ServiceType)
+							.Include(so => so.Customer)
+							.ToListAsync();
 
-			// Create a ViewModel that includes both sale and service orders
+			// NEW: Load all shipments for this sale with complete related data
+			var shipments = await _context.Shipments
+							.Where(s => s.SaleId == id)
+							.Include(s => s.ShipmentItems)
+									.ThenInclude(si => si.SaleItem)
+											.ThenInclude(saleItem => saleItem.Item)
+							.Include(s => s.ShipmentItems)
+									.ThenInclude(si => si.SaleItem)
+											.ThenInclude(saleItem => saleItem.FinishedGood)
+							.Include(s => s.ShipmentItems)
+									.ThenInclude(si => si.SaleItem)
+											.ThenInclude(saleItem => saleItem.ServiceType)
+							.OrderBy(s => s.ShipmentDate)
+							.ToListAsync();
+
+			// Create a ViewModel that includes sale, service orders, and shipments
 			var viewModel = new SaleDetailsViewModel
 			{
 				Sale = sale,
-				ServiceOrders = serviceOrders
+				ServiceOrders = serviceOrders,
+				Shipments = shipments // NEW: Include shipments
 			};
 
 			return View(viewModel);
@@ -434,7 +454,7 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error loading create sale form");
-				TempData["ErrorMessage"] = $"Error loading create form: {ex.Message}";
+				SetErrorMessage($"Error loading create form: {ex.Message}"); // ✅ Using BaseController method
 				return RedirectToAction("Index");
 			}
 		}
@@ -484,13 +504,13 @@ namespace InventorySystem.Controllers
 				sale.CreatedDate = DateTime.Now;
 				var createdSale = await _salesService.CreateSaleAsync(sale);
 
-				TempData["SuccessMessage"] = $"Sale {createdSale.SaleNumber} created successfully!";
+				SetSuccessMessage($"Sale {createdSale.SaleNumber} created successfully!"); // ✅ Using BaseController method
 				return RedirectToAction("Details", new { id = createdSale.Id });
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error creating sale for customer {CustomerId}", sale.CustomerId);
-				TempData["ErrorMessage"] = $"Error creating sale: {ex.Message}";
+				SetErrorMessage($"Error creating sale: {ex.Message}"); // ✅ Using BaseController method
 
 				try
 				{
@@ -515,12 +535,7 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-
-	
 		// Invoice Report - View invoice for a sale
-		[HttpGet]
-		// Replace the existing InvoiceReport method in SalesController.cs with this enhanced version
-
 		[HttpGet]
 		public async Task<IActionResult> InvoiceReport(int saleId)
 		{
@@ -529,11 +544,14 @@ namespace InventorySystem.Controllers
 				var sale = await _salesService.GetSaleByIdAsync(saleId);
 				if (sale == null)
 				{
-					TempData["ErrorMessage"] = "Sale not found.";
+					SetErrorMessage("Sale not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index");
 				}
 
-				// ✅ NEW: Get invoice recipient information based on customer AP settings
+				// Get CustomerPaymentService from DI container
+				var paymentService = HttpContext.RequestServices.GetRequiredService<ICustomerPaymentService>();
+
+				// Get invoice recipient information based on customer AP settings
 				var (recipientName, recipientEmail, billingAddress, companyName, contactName) = GetInvoiceRecipientInfo(sale.Customer);
 
 				var customer = new CustomerInfo
@@ -546,10 +564,10 @@ namespace InventorySystem.Controllers
 					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
 				};
 
-				// ✅ Calculate adjustments (NOT including discounts - those are part of the sale)
+				// Calculate adjustments (NOT including discounts - those are part of the sale)
 				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
 
-				// ✅ NEW: Determine if this is a proforma invoice
+				// Determine if this is a proforma invoice
 				var isProforma = sale.SaleStatus != SaleStatus.Shipped && sale.SaleStatus != SaleStatus.Delivered;
 
 				var viewModel = new InvoiceReportViewModel
@@ -564,13 +582,16 @@ namespace InventorySystem.Controllers
 					Customer = customer,
 					LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
 					{
-						ItemId = si.ItemId ?? si.FinishedGoodId ?? 0,
+						ItemId = si.ItemId ?? si.FinishedGoodId ?? si.ServiceTypeId ?? 0,
 						PartNumber = si.ProductPartNumber,
 						Description = si.ProductName,
 						Quantity = si.QuantitySold,
 						UnitPrice = si.UnitPrice,
 						Notes = si.Notes ?? string.Empty,
-						ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
+						// ✅ FIXED: Properly determine ProductType including ServiceType
+						ProductType = si.ItemId.HasValue ? "Item" :
+									 si.ServiceTypeId.HasValue ? "Service" :
+									 "FinishedGood",
 						QuantityBackordered = si.QuantityBackordered,
 						SerialNumber = si.SerialNumber,
 						ModelNumber = si.ModelNumber
@@ -586,27 +607,18 @@ namespace InventorySystem.Controllers
 					OrderNumber = sale.OrderNumber ?? string.Empty,
 					TotalShipping = sale.ShippingCost,
 					TotalTax = sale.TaxAmount,
-
-					// ✅ NEW: Add discount information to invoice
 					TotalDiscount = sale.DiscountCalculated,
 					DiscountReason = sale.DiscountReason,
 					HasDiscount = sale.HasDiscount,
-
-					// Keep adjustments separate (for post-sale issues)
 					TotalAdjustments = totalAdjustments,
-					OriginalAmount = sale.TotalAmount, // This now includes the discount calculation
-
-					// ✅ NEW: Proforma invoice properties
+					OriginalAmount = sale.TotalAmount,
 					IsProforma = isProforma,
 					InvoiceTitle = isProforma ? "Proforma Invoice" : "Invoice",
-
-					// ✅ NEW: B2B Invoice Properties
 					IsDirectedToAP = sale.Customer?.DirectInvoicesToAP ?? false,
 					APContactName = sale.Customer?.AccountsPayableContactName,
 					RequiresPO = sale.Customer?.RequiresPurchaseOrder ?? false,
-
-					// Calculate amount paid using CustomerPaymentService (only for actual invoices)
-					AmountPaid = isProforma ? 0 : await GetTotalPaymentsBySaleAsync(sale.Id)
+					// FIXED: Calculate amount paid using CustomerPaymentService
+					AmountPaid = await paymentService.GetTotalPaymentsBySaleAsync(sale.Id)
 				};
 
 				ViewBag.SaleId = saleId;
@@ -614,12 +626,12 @@ namespace InventorySystem.Controllers
 			}
 			catch (Exception ex)
 			{
-				TempData["ErrorMessage"] = $"Error generating invoice: {ex.Message}";
+				SetErrorMessage($"Error generating invoice: {ex.Message}"); // ✅ Using BaseController method
 				return RedirectToAction("Index");
 			}
 		}
 
-		// ✅ NEW: Helper method to get invoice recipient information based on customer AP settings
+		// Helper method to get invoice recipient information based on customer AP settings
 		private (string recipientName, string recipientEmail, string billingAddress, string companyName, string contactName) GetInvoiceRecipientInfo(Customer customer)
 		{
 			if (customer == null)
@@ -657,9 +669,6 @@ namespace InventorySystem.Controllers
 
 		// Invoice Report Print - Print-friendly version of invoice
 		[HttpGet]
-		// Replace the existing InvoiceReportPrint method with this enhanced version
-
-		[HttpGet]
 		public async Task<IActionResult> InvoiceReportPrint(int saleId)
 		{
 			try
@@ -667,13 +676,16 @@ namespace InventorySystem.Controllers
 				var sale = await _salesService.GetSaleByIdAsync(saleId);
 				if (sale == null)
 				{
-					TempData["ErrorMessage"] = "Sale not found.";
+					SetErrorMessage("Sale not found."); // ✅ Using BaseController method
 					return RedirectToAction("Index");
 				}
 
+				// Get CustomerPaymentService from DI container
+				var paymentService = HttpContext.RequestServices.GetRequiredService<ICustomerPaymentService>();
+
 				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
 
-				// ✅ NEW: Get invoice recipient information based on customer AP settings
+				// Get invoice recipient information based on customer AP settings
 				var (recipientName, recipientEmail, billingAddress, companyName, contactName) = GetInvoiceRecipientInfo(sale.Customer);
 
 				var customer = new CustomerInfo
@@ -700,13 +712,16 @@ namespace InventorySystem.Controllers
 					OriginalAmount = sale.TotalAmount,
 					LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
 					{
-						ItemId = si.ItemId ?? si.FinishedGoodId ?? 0,
+						ItemId = si.ItemId ?? si.FinishedGoodId ?? si.ServiceTypeId ?? 0,
 						PartNumber = si.ProductPartNumber,
 						Description = si.ProductName,
 						Quantity = si.QuantitySold,
 						UnitPrice = si.UnitPrice,
 						Notes = si.Notes ?? string.Empty,
-						ProductType = si.ItemId.HasValue ? "Item" : "FinishedGood",
+						// ✅ FIXED: Properly determine ProductType including ServiceType
+						ProductType = si.ItemId.HasValue ? "Item" :
+									 si.ServiceTypeId.HasValue ? "Service" :
+									 "FinishedGood",
 						QuantityBackordered = si.QuantityBackordered,
 						SerialNumber = si.SerialNumber,
 						ModelNumber = si.ModelNumber
@@ -725,21 +740,19 @@ namespace InventorySystem.Controllers
 					TotalDiscount = sale.DiscountCalculated,
 					DiscountReason = sale.DiscountReason,
 					HasDiscount = sale.HasDiscount,
-
-					// ✅ NEW: B2B Invoice Properties
+					// NEW: B2B Invoice Properties
 					IsDirectedToAP = sale.Customer?.DirectInvoicesToAP ?? false,
 					APContactName = sale.Customer?.AccountsPayableContactName,
 					RequiresPO = sale.Customer?.RequiresPurchaseOrder ?? false,
-
-					// Calculate amount paid using CustomerPaymentService
-					AmountPaid = await GetTotalPaymentsBySaleAsync(sale.Id)
+					// FIXED: Calculate amount paid using CustomerPaymentService
+					AmountPaid = await paymentService.GetTotalPaymentsBySaleAsync(sale.Id)
 				};
 
 				return View(viewModel);
 			}
 			catch (Exception ex)
 			{
-				TempData["ErrorMessage"] = $"Error generating printable invoice: {ex.Message}";
+				SetErrorMessage($"Error generating printable invoice: {ex.Message}"); // ✅ Using BaseController method
 				return RedirectToAction("Index");
 			}
 		}
@@ -758,6 +771,7 @@ namespace InventorySystem.Controllers
 		}
 
 		// Record Payment - POST
+		// Update the RecordPayment method to show proper customer identification in success message:
 		[HttpPost]
 		[ValidateAntiForgeryToken]
 		public async Task<IActionResult> RecordPayment(int saleId, decimal paymentAmount, string paymentMethod, DateTime paymentDate, string? paymentNotes)
@@ -765,13 +779,13 @@ namespace InventorySystem.Controllers
 			try
 			{
 				_logger.LogInformation("Recording payment for Sale ID: {SaleId}, Amount: {PaymentAmount}, Method: {PaymentMethod}, Date: {PaymentDate}",
-						saleId, paymentAmount, paymentMethod, paymentDate);
+								saleId, paymentAmount, paymentMethod, paymentDate);
 
 				// Get the sale
 				var sale = await _salesService.GetSaleByIdAsync(saleId);
 				if (sale == null)
 				{
-					TempData["ErrorMessage"] = "Sale not found.";
+					SetErrorMessage("Sale not found.");
 					return RedirectToAction("Index");
 				}
 
@@ -781,14 +795,14 @@ namespace InventorySystem.Controllers
 				// Validate payment amount
 				if (paymentAmount <= 0)
 				{
-					TempData["ErrorMessage"] = "Payment amount must be greater than zero.";
+					SetErrorMessage("Payment amount must be greater than zero.");
 					return RedirectToAction("Details", new { id = saleId });
 				}
 
 				// Validate payment method
 				if (string.IsNullOrWhiteSpace(paymentMethod))
 				{
-					TempData["ErrorMessage"] = "Payment method is required.";
+					SetErrorMessage("Payment method is required.");
 					return RedirectToAction("Details", new { id = saleId });
 				}
 
@@ -796,19 +810,19 @@ namespace InventorySystem.Controllers
 				if (!await paymentService.ValidatePaymentAmountAsync(saleId, paymentAmount))
 				{
 					var remainingBalance = await paymentService.GetRemainingBalanceAsync(saleId);
-					TempData["ErrorMessage"] = $"Payment amount ${paymentAmount:F2} exceeds remaining balance of ${remainingBalance:F2}.";
+					SetErrorMessage($"Payment amount ${paymentAmount:F2} exceeds remaining balance of ${remainingBalance:F2}.");
 					return RedirectToAction("Details", new { id = saleId });
 				}
 
-				// Record the payment using the proper service
+				// Record the payment using the proper service (which now includes journal entry generation)
 				var payment = await paymentService.RecordPaymentAsync(
-						saleId: saleId,
-						amount: paymentAmount,
-						paymentMethod: paymentMethod,
-						paymentDate: paymentDate,
-						paymentReference: null,
-						notes: paymentNotes,
-						createdBy: User.Identity?.Name ?? "System"
+								saleId: saleId,
+								amount: paymentAmount,
+								paymentMethod: paymentMethod,
+								paymentDate: paymentDate,
+								paymentReference: null,
+								notes: paymentNotes,
+								createdBy: User.Identity?.Name ?? "System"
 				);
 
 				// Get updated totals for success message
@@ -816,11 +830,15 @@ namespace InventorySystem.Controllers
 				var remainingBalanceAfter = await paymentService.GetRemainingBalanceAsync(saleId);
 				var isFullyPaid = await paymentService.IsSaleFullyPaidAsync(saleId);
 
-				var successMessage = isFullyPaid
-						? $"Payment of ${paymentAmount:F2} recorded successfully! Sale is now fully paid (total payments: ${totalPayments:F2})."
-						: $"Partial payment of ${paymentAmount:F2} recorded successfully. Total paid: ${totalPayments:F2}. Remaining balance: ${remainingBalanceAfter:F2}";
+				// UPDATED: Get proper customer identification for success message
+				var customerDisplayName = GetCustomerDisplayName(sale.Customer);
 
-				TempData["SuccessMessage"] = successMessage;
+				// Enhanced success message that mentions journal entry
+				var successMessage = isFullyPaid
+								? $"Payment of ${paymentAmount:F2} recorded successfully for {customerDisplayName}! Sale is now fully paid (total payments: ${totalPayments:F2}). Journal entry {payment.JournalEntryNumber ?? "pending"} created."
+								: $"Partial payment of ${paymentAmount:F2} recorded successfully for {customerDisplayName}. Total paid: ${totalPayments:F2}. Remaining balance: ${remainingBalanceAfter:F2}. Journal entry {payment.JournalEntryNumber ?? "pending"} created.";
+
+				SetSuccessMessage(successMessage);
 
 				// Return to sale details page
 				return RedirectToAction("Details", new { id = saleId });
@@ -828,210 +846,390 @@ namespace InventorySystem.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error recording payment for Sale ID: {SaleId}", saleId);
-				TempData["ErrorMessage"] = $"Error recording payment: {ex.Message}";
+				SetErrorMessage($"Error recording payment: {ex.Message}");
 				return RedirectToAction("Details", new { id = saleId });
 			}
 		}
 
-		// POST: Sales/ProcessServiceOrdersFromSale
+		// NEW: Helper method to get customer display name for UI messages
+		private string GetCustomerDisplayName(Customer? customer)
+		{
+			if (customer == null)
+			{
+				return "Unknown Customer";
+			}
+
+			// For B2B customers, prioritize company name with contact name as additional info
+			if (!string.IsNullOrWhiteSpace(customer.CompanyName))
+			{
+				return $"{customer.CompanyName} ({customer.CustomerName})";
+			}
+
+			// For B2C customers, just use customer name
+			return customer.CustomerName;
+		}
+
+		// POST: Sales/ProcessSaleWithShipping
 		[HttpPost]
 		[ValidateAntiForgeryToken]
-		public async Task<IActionResult> ProcessServiceOrdersFromSale(CreateServiceOrdersFromSaleViewModel model)
+		public async Task<IActionResult> ProcessSaleWithShipping(ProcessSaleViewModel model)
 		{
 			try
 			{
-				// ✅ ADD: Debug logging
-				_logger.LogInformation("Processing service orders from sale - SaleId: {SaleId}, CustomerId: {CustomerId}, ServiceOrdersCount: {Count}", 
-					model.SaleId, model.CustomerId, model.ServiceOrdersToCreate?.Count ?? 0);
+				_logger.LogInformation("Processing sale with shipping - SaleId: {SaleId}, Courier: {Courier}, Tracking: {Tracking}",
+						model.SaleId, model.CourierService, model.TrackingNumber);
 
-				// ✅ IMPROVED: Better validation with detailed error messages
-				if (model.ServiceOrdersToCreate?.Any() != true)
+				// Validate the model
+				if (!ModelState.IsValid)
 				{
-					_logger.LogWarning("No service orders to create - ServiceOrdersToCreate is null or empty");
-					TempData["ErrorMessage"] = "No service orders selected for creation.";
-					return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+					SetErrorMessage("Please fill in all required shipping information.");
+					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
-				if (model.CustomerId <= 0)
+				// Get the sale
+				var sale = await _salesService.GetSaleByIdAsync(model.SaleId);
+				if (sale == null)
 				{
-					_logger.LogWarning("Invalid CustomerId: {CustomerId}", model.CustomerId);
-					TempData["ErrorMessage"] = "Invalid customer ID provided.";
-					return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+					SetErrorMessage("Sale not found.");
+					return RedirectToAction("Index");
 				}
 
-				// Validate service orders
-				var createdServiceOrders = new List<ServiceOrder>();
-				var serviceOrderService = HttpContext.RequestServices.GetRequiredService<IServiceOrderService>();
-
-				foreach (var serviceItem in model.ServiceOrdersToCreate.Where(s => s.CreateServiceOrder))
+				// Check if sale can be processed
+				if (sale.SaleStatus != SaleStatus.Processing && sale.SaleStatus != SaleStatus.Backordered)
 				{
-					try
+					SetErrorMessage($"Cannot process sale with status '{sale.SaleStatus}'. Only 'Processing' or 'Backordered' sales can be shipped.");
+					return RedirectToAction("Details", new { id = model.SaleId });
+				}
+
+				// Check if sale has backorders
+				bool hasBackorders = sale.SaleItems.Any(si => si.QuantityBackordered > 0);
+
+				using var transaction = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					// Process inventory reduction for items being shipped
+					if (hasBackorders)
 					{
-						// ✅ ADD: Validate ServiceType exists before creating service order
-						var serviceType = await _context.ServiceTypes.FindAsync(serviceItem.ServiceTypeId);
-						if (serviceType == null)
-						{
-							_logger.LogWarning("ServiceType with ID {ServiceTypeId} not found", serviceItem.ServiceTypeId);
-							TempData["ErrorMessage"] = $"Service type with ID {serviceItem.ServiceTypeId} not found.";
-							return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
-						}
-
-						// ✅ ADD: Validate PromisedDate is provided
-						if (!serviceItem.PromisedDate.HasValue)
-						{
-							TempData["ErrorMessage"] = $"Promised date is required for service type '{serviceType.ServiceName}'.";
-							return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
-						}
-
-						var serviceOrder = new ServiceOrder
-						{
-							CustomerId = model.CustomerId,
-							ServiceTypeId = serviceItem.ServiceTypeId,
-							SaleId = model.SaleId,
-							RequestDate = model.RequestDate,
-							PromisedDate = serviceItem.PromisedDate.Value, // ✅ Use .Value since we validated it exists
-							Priority = serviceItem.Priority,
-							CustomerRequest = serviceItem.CustomerRequest,
-							ServiceNotes = serviceItem.ServiceNotes,
-							AssignedTechnician = serviceItem.AssignedTechnician,
-							EquipmentDetails = serviceItem.EquipmentDetails,
-							SerialNumber = serviceItem.SerialNumber,
-							ModelNumber = serviceItem.ModelNumber,
-							CreatedBy = User.Identity?.Name ?? "System",
-							// ✅ ADD: Set required fields that might be missing
-							Status = ServiceOrderStatus.Requested,
-							CreatedDate = DateTime.Now,
-							IsBillable = true,
-							HourlyRate = serviceType.StandardRate,
-							EstimatedHours = serviceType.StandardHours,
-							EstimatedCost = serviceType.StandardHours * serviceType.StandardRate
-						};
-
-						_logger.LogInformation("Creating service order for customer {CustomerId}, service type {ServiceTypeId}, sale {SaleId}", 
-							model.CustomerId, serviceItem.ServiceTypeId, model.SaleId);
-
-						var created = await serviceOrderService.CreateServiceOrderAsync(serviceOrder);
-						createdServiceOrders.Add(created);
-
-						_logger.LogInformation("Successfully created service order {ServiceOrderNumber}", created.ServiceOrderNumber);
+						await ProcessSaleWithBackorders(sale);
 					}
-					catch (Exception ex)
+					else
 					{
-						_logger.LogError(ex, "Error creating individual service order for ServiceTypeId {ServiceTypeId}", serviceItem.ServiceTypeId);
-						TempData["ErrorMessage"] = $"Error creating service order for service type ID {serviceItem.ServiceTypeId}: {ex.Message}";
-						return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
+						// Normal processing - use existing service method
+						var processed = await _salesService.ProcessSaleAsync(model.SaleId);
+						if (!processed)
+						{
+							SetErrorMessage("Failed to process sale. Please check inventory levels.");
+							return RedirectToAction("Details", new { id = model.SaleId });
+						}
 					}
+
+					// Create shipment record with unique packing slip number
+					var shipment = new Shipment
+					{
+						SaleId = model.SaleId,
+						PackingSlipNumber = await GeneratePackingSlipNumberAsync(sale.SaleNumber),
+						ShipmentDate = DateTime.Now,
+						CourierService = model.CourierService,
+						TrackingNumber = model.TrackingNumber,
+						ExpectedDeliveryDate = model.ExpectedDeliveryDate,
+						PackageWeight = model.PackageWeight,
+						PackageDimensions = model.PackageDimensions,
+						ShippingInstructions = model.ShippingInstructions,
+						ShippedBy = User.Identity?.Name ?? "System"
+					};
+
+					// Add items to this shipment (only quantities that can be shipped)
+					foreach (var saleItem in sale.SaleItems)
+					{
+						var quantityToShip = saleItem.QuantitySold - saleItem.QuantityBackordered;
+						if (quantityToShip > 0)
+						{
+							shipment.ShipmentItems.Add(new ShipmentItem
+							{
+								SaleItemId = saleItem.Id,
+								QuantityShipped = quantityToShip
+							});
+						}
+					}
+
+					// Only create shipment if there are items to ship
+					if (shipment.ShipmentItems.Any())
+					{
+						_context.Shipments.Add(shipment);
+						await _context.SaveChangesAsync(); // Save to get shipment ID
+					}
+					else
+					{
+						SetErrorMessage("No items available to ship.");
+						return RedirectToAction("Details", new { id = model.SaleId });
+					}
+
+					// Update sale shipping information (for backward compatibility)
+					sale.CourierService = model.CourierService;
+					sale.TrackingNumber = model.TrackingNumber;
+					sale.ExpectedDeliveryDate = model.ExpectedDeliveryDate;
+					sale.PackageWeight = model.PackageWeight;
+					sale.PackageDimensions = model.PackageDimensions;
+					sale.ShippingInstructions = model.ShippingInstructions;
+					sale.ShippedDate = DateTime.Now;
+					sale.ShippedBy = User.Identity?.Name ?? "System";
+
+					// Update sale status based on backorder situation
+					if (hasBackorders)
+					{
+						sale.SaleStatus = SaleStatus.Backordered; // Partial shipment
+						_logger.LogInformation("Sale {SaleNumber} marked as Backordered due to partial shipment", sale.SaleNumber);
+					}
+					else
+					{
+						sale.SaleStatus = SaleStatus.Shipped; // Complete shipment
+						_logger.LogInformation("Sale {SaleNumber} marked as Shipped - complete fulfillment", sale.SaleNumber);
+					}
+
+					await _context.SaveChangesAsync();
+					await transaction.CommitAsync();
+
+					// Send email notification if requested
+					if (model.EmailCustomer)
+					{
+						// TODO: Implement email notification
+						_logger.LogInformation("Email notification requested for sale {SaleId}", model.SaleId);
+					}
+
+					var successMessage = hasBackorders
+							? $"Sale {sale.SaleNumber} partially shipped with backorders. Packing Slip: {shipment.PackingSlipNumber}, Tracking: {model.TrackingNumber}"
+							: $"Sale {sale.SaleNumber} shipped successfully. Packing Slip: {shipment.PackingSlipNumber}, Tracking: {model.TrackingNumber}";
+
+					SetSuccessMessage(successMessage);
+
+					// Redirect based on whether packing slip was requested
+					if (model.GeneratePackingSlip)
+					{
+						if (model.PrintPackingSlip)
+						{
+							TempData["AutoPrintPackingSlip"] = true;
+						}
+						return RedirectToAction("PackingSlip", new { shipmentId = shipment.Id });
+					}
+
+					return RedirectToAction("Details", new { id = model.SaleId });
 				}
-
-				var message = createdServiceOrders.Count switch
+				catch (Exception ex)
 				{
-					0 => "No service orders were created.",
-					1 => $"Service order {createdServiceOrders[0].ServiceOrderNumber} created successfully!",
-					_ => $"{createdServiceOrders.Count} service orders created successfully!"
-				};
-
-				TempData["SuccessMessage"] = message;
-				TempData["CreatedServiceOrders"] = string.Join(", ", createdServiceOrders.Select(so => so.ServiceOrderNumber));
-
+					await transaction.RollbackAsync();
+					_logger.LogError(ex, "Error in transaction during sale processing: {SaleId}", model.SaleId);
+					throw;
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error processing sale with shipping: {SaleId}", model.SaleId);
+				SetErrorMessage($"Error processing sale: {ex.Message}");
 				return RedirectToAction("Details", new { id = model.SaleId });
 			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error creating service orders from sale {SaleId}", model.SaleId);
-				TempData["ErrorMessage"] = $"Error creating service orders: {ex.Message}";
-				return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = model.SaleId });
-			}
 		}
-		// Helper method to get total payments for a sale using the CustomerPaymentService
-		private async Task<decimal> GetTotalPaymentsBySaleAsync(int saleId)
+
+		// Generate unique packing slip numbers for each shipment
+		private async Task<string> GeneratePackingSlipNumberAsync(string saleNumber)
+		{
+			var existingCount = await _context.Shipments
+				.CountAsync(s => s.PackingSlipNumber.StartsWith($"PS-{saleNumber}"));
+
+			return existingCount == 0
+				? $"PS-{saleNumber}"
+				: $"PS-{saleNumber}-{existingCount + 1:D2}";
+		}
+
+		// GET: Sales/PackingSlip/{shipmentId}
+		[HttpGet]
+		public async Task<IActionResult> PackingSlip(int id)
 		{
 			try
 			{
-				var paymentService = HttpContext.RequestServices.GetRequiredService<ICustomerPaymentService>();
-				return await paymentService.GetTotalPaymentsBySaleAsync(saleId);
+				// Load shipment with all related data
+				var shipment = await _context.Shipments
+						.Include(s => s.Sale)
+								.ThenInclude(s => s.Customer)
+						.Include(s => s.ShipmentItems)
+								.ThenInclude(si => si.SaleItem)
+										.ThenInclude(saleItem => saleItem.Item)
+						.Include(s => s.ShipmentItems)
+								.ThenInclude(si => si.SaleItem)
+										.ThenInclude(saleItem => saleItem.FinishedGood)
+						.Include(s => s.ShipmentItems)
+								.ThenInclude(si => si.SaleItem)
+										.ThenInclude(saleItem => saleItem.ServiceType)
+						.FirstOrDefaultAsync(s => s.Id == id);
+
+				if (shipment == null)
+				{
+					SetErrorMessage("Shipment not found.");
+					return RedirectToAction("Index");
+				}
+
+				// Create packing slip items from shipment items
+				var packingSlipItems = new List<PackingSlipItem>();
+
+				foreach (var shipmentItem in shipment.ShipmentItems)
+				{
+					var saleItem = shipmentItem.SaleItem;
+
+					var packingSlipItem = new PackingSlipItem
+					{
+						PartNumber = saleItem.ProductPartNumber ?? "N/A",
+						Description = saleItem.ProductName ?? "N/A",
+						Quantity = saleItem.QuantitySold, // Total quantity ordered
+						UnitOfMeasure = await GetItemUnitOfMeasureAsync(saleItem),
+						Weight = await GetItemWeightAsync(saleItem),
+						Notes = saleItem.Notes,
+						IsBackordered = saleItem.QuantityBackordered > 0,
+						QuantityBackordered = saleItem.QuantityBackordered,
+						QuantityShipped = shipmentItem.QuantityShipped // Actual quantity in this shipment
+					};
+
+					packingSlipItems.Add(packingSlipItem);
+				}
+
+				var viewModel = new PackingSlipViewModel
+				{
+					Sale = shipment.Sale,
+					Items = packingSlipItems,
+					GeneratedDate = shipment.ShipmentDate,
+					GeneratedBy = shipment.ShippedBy ?? "System",
+					PackingSlipNumber = shipment.PackingSlipNumber,
+					CompanyInfo = await GetCompanyInfo(),
+					Shipment = shipment
+				};
+
+				// If auto-print was requested
+				if (TempData["AutoPrintPackingSlip"] != null)
+				{
+					ViewBag.AutoPrint = true;
+				}
+
+				return View(viewModel);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogWarning(ex, "Error getting total payments for sale {SaleId}, falling back to notes parsing", saleId);
-
-				// Fallback to notes parsing for backward compatibility
-				var sale = await _salesService.GetSaleByIdAsync(saleId);
-				return ExtractAmountPaidFromNotes(sale?.Notes);
+				_logger.LogError(ex, "Error generating packing slip for shipment: {ShipmentId}", id);
+				SetErrorMessage($"Error generating packing slip: {ex.Message}");
+				return RedirectToAction("Index");
 			}
 		}
 
-		// Legacy helper method to extract payment amount from notes (kept for backward compatibility)
-		private decimal ExtractAmountPaidFromNotes(string? notes)
+
+
+		// Helper method to process sales with backorders
+		private async Task ProcessSaleWithBackorders(Sale sale)
 		{
-			if (string.IsNullOrWhiteSpace(notes))
-				return 0;
+			_logger.LogInformation("Processing sale {SaleId} with backorders", sale.Id);
 
-			decimal totalPaid = 0;
-			var lines = notes.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-			foreach (var line in lines)
+			foreach (var saleItem in sale.SaleItems)
 			{
-				if (line.Contains("Payment recorded: $", StringComparison.OrdinalIgnoreCase))
-				{
-					try
-					{
-						var startIndex = line.IndexOf("$", StringComparison.OrdinalIgnoreCase) + 1;
-						var endIndex = line.IndexOf(" via", startIndex, StringComparison.OrdinalIgnoreCase);
+				// Only ship available quantities, leave backorders
+				var shippedQuantity = saleItem.QuantitySold - saleItem.QuantityBackordered;
 
-						if (startIndex > 0 && endIndex > startIndex)
+				if (shippedQuantity > 0)
+				{
+					if (saleItem.ItemId.HasValue)
+					{
+						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+						if (item != null && item.TrackInventory)
 						{
-							var amountStr = line.Substring(startIndex, endIndex - startIndex);
-							if (decimal.TryParse(amountStr, out decimal amount))
-							{
-								totalPaid += amount;
-							}
+							// Only reduce stock for shipped quantity
+							item.CurrentStock -= shippedQuantity;
+
+							// Process FIFO consumption for shipped quantity
+							await _purchaseService.ProcessInventoryConsumptionAsync(
+									saleItem.ItemId.Value,
+									shippedQuantity);
 						}
 					}
-					catch (Exception ex)
+					else if (saleItem.FinishedGoodId.HasValue)
 					{
-						_logger.LogWarning(ex, "Error parsing payment amount from note line: {Line}", line);
+						var finishedGood = await _context.FinishedGoods
+								.FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
+						if (finishedGood != null)
+						{
+							finishedGood.CurrentStock -= shippedQuantity;
+						}
 					}
+					// ServiceType items don't require inventory reduction
 				}
 			}
-
-			return totalPaid;
 		}
 
-		// Helper method to get company information
-		private async Task<InventorySystem.Models.CompanyInfo> GetCompanyInfo()
+		// Helper method to get item unit of measure
+		private async Task<string> GetItemUnitOfMeasureAsync(SaleItem saleItem)
 		{
 			try
 			{
-				var companyInfoService = HttpContext.RequestServices.GetRequiredService<ICompanyInfoService>();
-				var dbCompanyInfo = await companyInfoService.GetCompanyInfoAsync();
-
-				return new InventorySystem.Models.CompanyInfo
+				if (saleItem.ItemId.HasValue)
 				{
-					CompanyName = dbCompanyInfo.CompanyName,
-					Address = dbCompanyInfo.Address,
-					City = dbCompanyInfo.City,
-					State = dbCompanyInfo.State,
-					ZipCode = dbCompanyInfo.ZipCode,
-					Phone = dbCompanyInfo.Phone,
-					Email = dbCompanyInfo.Email,
-					Website = dbCompanyInfo.Website,
-					LogoData = dbCompanyInfo.LogoData,
-					LogoContentType = dbCompanyInfo.LogoContentType,
-					LogoFileName = dbCompanyInfo.LogoFileName
-				};
+					var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+					return item?.UnitOfMeasure.ToString() ?? "Each";
+				}
+				else if (saleItem.FinishedGoodId.HasValue)
+				{
+					return "Each";
+				}
+				else if (saleItem.ServiceTypeId.HasValue)
+				{
+					return "Hours";
+				}
+
+				return "Each";
 			}
 			catch
 			{
-				return new InventorySystem.Models.CompanyInfo
+				return "Each";
+			}
+		}
+
+		// Helper method to get item weight (if available)
+		private async Task<decimal?> GetItemWeightAsync(SaleItem saleItem)
+		{
+			try
+			{
+				// This would typically come from the item or finished good record
+				// For now, return null (weight will be hidden if null)
+				// You could extend this to look up actual weight from inventory
+
+				if (saleItem.ItemId.HasValue)
 				{
-					CompanyName = "Your Inventory Management Company",
-					Address = "123 Business Drive",
+					// var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
+					// return item?.Weight;
+				}
+
+				return null;
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		// Then simplify the GetCompanyInfo method:
+		private async Task<CompanyInfo> GetCompanyInfo()
+		{
+			try
+			{
+				return await _companyInfoService.GetCompanyInfoAsync();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error retrieving company info");
+
+				// Return default company info if service fails
+				return new CompanyInfo
+				{
+					CompanyName = "Your Company Name",
+					Address = "123 Business Street",
 					City = "Business City",
-					State = "NC",
-					ZipCode = "27101",
-					Phone = "(336) 555-0123",
-					Email = "sales@yourcompany.com",
-					Website = "www.yourcompany.com",
+					State = "ST",
+					ZipCode = "12345",
+					Phone = "(555) 123-4567",
+					Email = "info@yourcompany.com"
 				};
 			}
 		}
@@ -1045,51 +1243,30 @@ namespace InventorySystem.Controllers
 				var sale = await _salesService.GetSaleByIdAsync(saleId);
 				if (sale == null)
 				{
-					TempData["ErrorMessage"] = "Sale not found.";
+					SetErrorMessage("Sale not found.");
 					return RedirectToAction("Index");
 				}
 
-				// Check if sale allows item modifications
-				if (sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered)
+				// Check if sale can be modified
+				if (sale.SaleStatus != SaleStatus.Processing && sale.SaleStatus != SaleStatus.Backordered)
 				{
-					TempData["ErrorMessage"] = "Cannot add items to a sale that has been shipped or delivered.";
+					SetErrorMessage($"Cannot add items to sale with status '{sale.SaleStatus}'. Only 'Processing' or 'Backordered' sales can have items added.");
 					return RedirectToAction("Details", new { id = saleId });
 				}
 
-				if (sale.SaleStatus == SaleStatus.Cancelled)
-				{
-					TempData["ErrorMessage"] = "Cannot add items to a cancelled sale.";
-					return RedirectToAction("Details", new { id = saleId });
-				}
-
+				// Create the view model
 				var viewModel = new AddSaleItemViewModel
 				{
-					SaleId = saleId
+					SaleId = saleId,
+					ProductType = "Item", // Default to Item
+					Quantity = 1,
+					UnitPrice = 0
 				};
 
-				// Load items and finished goods for dropdown
-				var allItems = await _inventoryService.GetAllItemsAsync();
-				ViewBag.Items = allItems
-						.Select(i => new SelectListItem
-						{
-							Value = i.Id.ToString(),
-							Text = $"{i.PartNumber} - {i.Description} (Stock: {i.CurrentStock})"
-						})
-						.OrderBy(i => i.Text)
-						.ToList();
+				// Load dropdown data
+				await LoadAddItemDropdowns();
 
-				var finishedGoods = await _context.FinishedGoods
-						.OrderBy(fg => fg.PartNumber)
-						.ToListAsync();
-
-				ViewBag.FinishedGoods = finishedGoods
-						.Select(fg => new SelectListItem
-						{
-							Value = fg.Id.ToString(),
-							Text = $"{fg.PartNumber} - {fg.Description} (Stock: {fg.CurrentStock})"
-						})
-						.ToList();
-
+				// Set ViewBag data for display
 				ViewBag.SaleNumber = sale.SaleNumber;
 				ViewBag.CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer";
 
@@ -1097,1836 +1274,229 @@ namespace InventorySystem.Controllers
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error loading add item form for sale {SaleId}", saleId);
-				TempData["ErrorMessage"] = $"Error loading form: {ex.Message}";
-				return RedirectToAction("Details", new { id = saleId });
-			}
-		}
-		// GET: Sales/EditSaleItem/5
-		[HttpGet]
-		public async Task<IActionResult> EditSaleItem(int id)
-		{
-			try
-			{
-				var saleItem = await _context.SaleItems
-						.Include(si => si.Sale)
-						.Include(si => si.Item)
-						.Include(si => si.FinishedGood)
-						.FirstOrDefaultAsync(si => si.Id == id);
-
-				if (saleItem == null)
-				{
-					TempData["ErrorMessage"] = "Sale item not found.";
-					return RedirectToAction("Index");
-				}
-
-				// Check if sale allows modifications
-				if (saleItem.Sale.SaleStatus == SaleStatus.Shipped || saleItem.Sale.SaleStatus == SaleStatus.Delivered)
-				{
-					TempData["ErrorMessage"] = "Cannot edit items in a sale that has been shipped or delivered.";
-					return RedirectToAction("Details", new { id = saleItem.SaleId });
-				}
-
-				var viewModel = new EditSaleItemViewModel
-				{
-					Id = saleItem.Id,
-					SaleId = saleItem.SaleId,
-					ProductType = saleItem.ItemId.HasValue ? "Item" : "FinishedGood",
-					ItemId = saleItem.ItemId,
-					FinishedGoodId = saleItem.FinishedGoodId,
-					Quantity = saleItem.QuantitySold,
-					UnitPrice = saleItem.UnitPrice,
-					Notes = saleItem.Notes,
-					SerialNumber = saleItem.SerialNumber,
-					ModelNumber = saleItem.ModelNumber,
-					// Product info for display
-					ProductPartNumber = saleItem.ProductPartNumber,
-					ProductName = saleItem.ProductName
-				};
-
-				// Check requirements
-				if (saleItem.ItemId.HasValue && saleItem.Item != null)
-				{
-					viewModel.RequiresSerialNumber = saleItem.Item.RequiresSerialNumber;
-					viewModel.RequiresModelNumber = saleItem.Item.RequiresModelNumber;
-				}
-				else if (saleItem.FinishedGoodId.HasValue && saleItem.FinishedGood != null)
-				{
-					viewModel.RequiresSerialNumber = saleItem.FinishedGood.RequiresSerialNumber;
-					viewModel.RequiresModelNumber = saleItem.FinishedGood.RequiresModelNumber;
-				}
-
-				ViewBag.SaleNumber = saleItem.Sale.SaleNumber;
-				ViewBag.CustomerName = saleItem.Sale.Customer?.CustomerName ?? "Unknown Customer";
-
-				return View(viewModel);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error loading sale item for edit: {SaleItemId}", id);
-				TempData["ErrorMessage"] = $"Error loading sale item: {ex.Message}";
+				_logger.LogError(ex, "Error loading add item form for sale: {SaleId}", saleId);
+				SetErrorMessage($"Error loading add item form: {ex.Message}");
 				return RedirectToAction("Index");
 			}
 		}
 
-		// POST: Sales/EditSaleItem
+		// POST: Sales/AddItem
 		[HttpPost]
 		[ValidateAntiForgeryToken]
-		public async Task<IActionResult> EditSaleItem(EditSaleItemViewModel model)
+		public async Task<IActionResult> AddItem(AddSaleItemViewModel model)
 		{
-			if (!ModelState.IsValid)
-			{
-				ViewBag.SaleNumber = "Unknown";
-				ViewBag.CustomerName = "Unknown Customer";
-				return View(model);
-			}
-
 			try
 			{
-				var saleItem = await _context.SaleItems
-						.Include(si => si.Sale)
-						.Include(si => si.Item)
-						.Include(si => si.FinishedGood)
-						.FirstOrDefaultAsync(si => si.Id == model.Id);
+				// Remove navigation properties from model validation
+				ModelState.Remove("Sale");
 
-				if (saleItem == null)
+				// Validate the basic model
+				if (!ModelState.IsValid)
 				{
-					TempData["ErrorMessage"] = "Sale item not found.";
+					await LoadAddItemDropdowns();
+					var sale = await _salesService.GetSaleByIdAsync(model.SaleId);
+					ViewBag.SaleNumber = sale?.SaleNumber ?? "Unknown";
+					ViewBag.CustomerName = sale?.Customer?.CustomerName ?? "Unknown Customer";
+					return View(model);
+				}
+
+				// Verify sale exists and can be modified
+				var existingSale = await _salesService.GetSaleByIdAsync(model.SaleId);
+				if (existingSale == null)
+				{
+					SetErrorMessage("Sale not found.");
 					return RedirectToAction("Index");
 				}
 
-				// Check if sale allows modifications
-				if (saleItem.Sale.SaleStatus == SaleStatus.Shipped || saleItem.Sale.SaleStatus == SaleStatus.Delivered)
+				if (existingSale.SaleStatus != SaleStatus.Processing && existingSale.SaleStatus != SaleStatus.Backordered)
 				{
-					TempData["ErrorMessage"] = "Cannot edit items in a sale that has been shipped or delivered.";
-					return RedirectToAction("Details", new { id = saleItem.SaleId });
+					SetErrorMessage($"Cannot add items to sale with status '{existingSale.SaleStatus}'. Only 'Processing' or 'Backordered' sales can have items added.");
+					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
-				// Update the sale item
-				saleItem.QuantitySold = model.Quantity;
-				saleItem.UnitPrice = model.UnitPrice;
-				saleItem.Notes = model.Notes;
-				saleItem.SerialNumber = model.SerialNumber;
-				saleItem.ModelNumber = model.ModelNumber;
+				// Validate product selection
+				if (model.ProductType == "Item" && (!model.ItemId.HasValue || model.ItemId.Value <= 0))
+				{
+					ModelState.AddModelError(nameof(model.ItemId), "Please select an item.");
+				}
+				else if (model.ProductType == "FinishedGood" && (!model.FinishedGoodId.HasValue || model.FinishedGoodId.Value <= 0))
+				{
+					ModelState.AddModelError(nameof(model.FinishedGoodId), "Please select a finished good.");
+				}
+				else if (model.ProductType == "ServiceType" && (!model.ServiceTypeId.HasValue || model.ServiceTypeId.Value <= 0))
+				{
+					ModelState.AddModelError(nameof(model.ServiceTypeId), "Please select a service.");
+				}
 
-				_context.SaleItems.Update(saleItem);
-				await _context.SaveChangesAsync();
+				// Validate quantity and price
+				if (model.Quantity <= 0)
+				{
+					ModelState.AddModelError(nameof(model.Quantity), "Quantity must be greater than zero.");
+				}
 
-				TempData["SuccessMessage"] = "Sale item updated successfully!";
-				return RedirectToAction("Details", new { id = saleItem.SaleId });
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error updating sale item: {SaleItemId}", model.Id);
-				TempData["ErrorMessage"] = $"Error updating sale item: {ex.Message}";
+				if (model.UnitPrice < 0)
+				{
+					ModelState.AddModelError(nameof(model.UnitPrice), "Unit price cannot be negative.");
+				}
 
-				ViewBag.SaleNumber = "Unknown";
-				ViewBag.CustomerName = "Unknown Customer";
-				return View(model);
-			}
-		}
-		// POST: Sales/AddItem
-		[HttpPost]
-		public async Task<IActionResult> AddItem(AddSaleItemViewModel model)
-		{
-			if (!ModelState.IsValid)
-			{
-				// Reload dropdowns and return to view
-				await LoadAddItemDropdowns(model);
-				return View(model);
-			}
+				// Check for validation errors
+				if (!ModelState.IsValid)
+				{
+					await LoadAddItemDropdowns();
+					ViewBag.SaleNumber = existingSale.SaleNumber;
+					ViewBag.CustomerName = existingSale.Customer?.CustomerName ?? "Unknown Customer";
+					return View(model);
+				}
 
-			try
-			{
-				// ✅ UPDATED: Change validation from blocking to warning only
-				var requirementsWarnings = new List<string>();
+				// Get product name for success message
+				string productName = "Product";
 
 				if (model.ProductType == "Item" && model.ItemId.HasValue)
 				{
-					var item = await _context.Items.FindAsync(model.ItemId.Value);
-					if (item != null && !item.ValidateSaleItemRequirements(model.SerialNumber, model.ModelNumber))
-					{
-						if (item.RequiresSerialNumber && string.IsNullOrWhiteSpace(model.SerialNumber))
-							requirementsWarnings.Add($"Serial number is recommended for {item.PartNumber}");
-						if (item.RequiresModelNumber && string.IsNullOrWhiteSpace(model.ModelNumber))
-							requirementsWarnings.Add($"Model number is recommended for {item.PartNumber}");
-					}
+					var item = await _inventoryService.GetItemByIdAsync(model.ItemId.Value);
+					productName = item?.PartNumber ?? "Item";
 				}
 				else if (model.ProductType == "FinishedGood" && model.FinishedGoodId.HasValue)
 				{
 					var finishedGood = await _context.FinishedGoods.FindAsync(model.FinishedGoodId.Value);
-					if (finishedGood != null && !finishedGood.ValidateSaleItemRequirements(model.SerialNumber, model.ModelNumber))
-					{
-						if (finishedGood.RequiresSerialNumber && string.IsNullOrWhiteSpace(model.SerialNumber))
-							requirementsWarnings.Add($"Serial number is recommended for {finishedGood.PartNumber}");
-						if (finishedGood.RequiresModelNumber && string.IsNullOrWhiteSpace(model.ModelNumber))
-							requirementsWarnings.Add($"Model number is recommended for {finishedGood.PartNumber}");
-					}
+					productName = finishedGood?.PartNumber ?? "Finished Good";
+				}
+				else if (model.ProductType == "ServiceType" && model.ServiceTypeId.HasValue)
+				{
+					var serviceType = await _context.ServiceTypes.FindAsync(model.ServiceTypeId.Value);
+					productName = serviceType?.ServiceName ?? "Service";
 				}
 
-				// ✅ UPDATED: Show warnings as informational message instead of blocking
-				if (requirementsWarnings.Any())
-				{
-					TempData["InfoMessage"] = "Item added successfully! Note: " + string.Join(", ", requirementsWarnings) + ". You can edit the sale item to add this information later.";
-				}
-				else
-				{
-					TempData["SuccessMessage"] = "Item added to sale successfully!";
-				}
-
-				// Create the sale item (same as before)
+				// Create the sale item
 				var saleItem = new SaleItem
 				{
 					SaleId = model.SaleId,
-					ItemId = model.ItemId,
-					FinishedGoodId = model.FinishedGoodId,
+					Quantity = model.Quantity,
 					QuantitySold = model.Quantity,
 					UnitPrice = model.UnitPrice,
 					Notes = model.Notes,
-					// ✅ Set serial/model numbers (even if empty)
 					SerialNumber = model.SerialNumber,
 					ModelNumber = model.ModelNumber
 				};
 
-				// Set unit cost based on product type
-				if (model.ItemId.HasValue)
+				// Set the appropriate product reference
+				if (model.ProductType == "Item" && model.ItemId.HasValue)
 				{
-					var item = await _context.Items.FindAsync(model.ItemId.Value);
-					saleItem.UnitCost = 0; // Implement your cost logic
+					saleItem.ItemId = model.ItemId.Value;
 				}
-				else if (model.FinishedGoodId.HasValue)
+				else if (model.ProductType == "FinishedGood" && model.FinishedGoodId.HasValue)
 				{
-					var finishedGood = await _context.FinishedGoods.FindAsync(model.FinishedGoodId.Value);
-					saleItem.UnitCost = finishedGood?.UnitCost ?? 0;
+					saleItem.FinishedGoodId = model.FinishedGoodId.Value;
+				}
+				else if (model.ProductType == "ServiceType" && model.ServiceTypeId.HasValue)
+				{
+					saleItem.ServiceTypeId = model.ServiceTypeId.Value;
 				}
 
-				_context.SaleItems.Add(saleItem);
-				await _context.SaveChangesAsync();
+				// Add the sale item - SalesService will calculate backorder quantities
+				var addedSaleItem = await _salesService.AddSaleItemAsync(saleItem);
 
+				// Generate appropriate success message based on backorder status
+				string successMessage;
+				if (addedSaleItem.QuantityBackordered > 0)
+				{
+					// Item was added with backorder
+					var availableQty = addedSaleItem.QuantitySold - addedSaleItem.QuantityBackordered;
+					successMessage = $"{productName} added to sale with backorder! " +
+							 $"Available: {availableQty}, Backordered: {addedSaleItem.QuantityBackordered}, " +
+							 $"Total: ${(model.Quantity * model.UnitPrice):F2}";
+
+					// Set sale status to backordered if needed
+					if (existingSale.SaleStatus == SaleStatus.Processing)
+					{
+						successMessage += " Sale status updated to Backordered.";
+					}
+				}
+				else
+				{
+					// Normal addition without backorder
+					successMessage = $"{productName} added to sale successfully! " +
+							 $"Quantity: {model.Quantity}, Total: ${(model.Quantity * model.UnitPrice):F2}";
+				}
+
+				SetSuccessMessage(successMessage);
 				return RedirectToAction("Details", new { id = model.SaleId });
 			}
 			catch (Exception ex)
 			{
-				TempData["ErrorMessage"] = "Error adding item: " + ex.Message;
-				await LoadAddItemDropdowns(model);
+				_logger.LogError(ex, "Error adding item to sale: {SaleId}", model.SaleId);
+				SetErrorMessage($"Error adding item to sale: {ex.Message}");
+
+				// Reload view with error
+				try
+				{
+					await LoadAddItemDropdowns();
+					var sale = await _salesService.GetSaleByIdAsync(model.SaleId);
+					ViewBag.SaleNumber = sale?.SaleNumber ?? "Unknown";
+					ViewBag.CustomerName = sale?.Customer?.CustomerName ?? "Unknown Customer";
+				}
+				catch
+				{
+					// If we can't load the data, redirect to sale details
+					return RedirectToAction("Details", new { id = model.SaleId });
+				}
+
 				return View(model);
 			}
 		}
 
 		// Helper method to load dropdowns for AddItem view
-		private async Task LoadAddItemDropdowns(AddSaleItemViewModel model)
+		private async Task LoadAddItemDropdowns()
 		{
 			try
 			{
+				// Load sellable items
 				var allItems = await _inventoryService.GetAllItemsAsync();
 				ViewBag.Items = allItems
-						.Select(i => new SelectListItem
-						{
-							Value = i.Id.ToString(),
-							Text = $"{i.PartNumber} - {i.Description} (Stock: {i.CurrentStock})"
-						})
-						.OrderBy(i => i.Text)
-						.ToList();
-
-				var finishedGoods = await _context.FinishedGoods
-						.OrderBy(fg => fg.PartNumber)
-						.ToListAsync();
-
-				ViewBag.FinishedGoods = finishedGoods
-						.Select(fg => new SelectListItem
-						{
-							Value = fg.Id.ToString(),
-							Text = $"{fg.PartNumber} - {fg.Description} (Stock: {fg.CurrentStock})"
-						})
-						.ToList();
-
-				var sale = await _salesService.GetSaleByIdAsync(model.SaleId);
-				if (sale != null)
-				{
-					ViewBag.SaleNumber = sale.SaleNumber;
-					ViewBag.CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer";
-				}
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error loading dropdown data for AddItem view");
-				ViewBag.Items = new List<SelectListItem>();
-				ViewBag.FinishedGoods = new List<SelectListItem>();
-			}
-		}
-
-		// GET: Sales/SearchCustomers - AJAX endpoint for customer search
-		[HttpGet]
-		public async Task<IActionResult> SearchCustomers(string query, int page = 1, int pageSize = 10)
-		{
-			try
-			{
-				_logger.LogInformation("Customer search requested - Query: {Query}, Page: {Page}, PageSize: {PageSize}",
-						query, page, pageSize);
-
-				if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
-				{
-					return Json(new
+					.Where(i => i.IsSellable)
+					.Select(i => new SelectListItem
 					{
-						success = false,
-						message = "Search term must be at least 2 characters",
-						customers = new List<object>(),
-						hasMore = false
-					});
-				}
-
-				// Get customers with search filtering
-				var allCustomers = await _customerService.GetAllCustomersAsync();
-				var activeCustomers = allCustomers.Where(c => c.IsActive);
-
-				// Apply search filter
-				var searchTerm = query.Trim().ToLower();
-				var filteredCustomers = activeCustomers.Where(c =>
-						c.CustomerName.ToLower().Contains(searchTerm) ||
-						(c.CompanyName != null && c.CompanyName.ToLower().Contains(searchTerm)) ||
-						(c.Email != null && c.Email.ToLower().Contains(searchTerm)) ||
-						(c.Phone != null && c.Phone.ToLower().Contains(searchTerm))
-				);
-
-				// Apply pagination
-				var totalCount = filteredCustomers.Count();
-				var customers = filteredCustomers
-						.Skip((page - 1) * pageSize)
-						.Take(pageSize)
-						.Select(c => new
-						{
-							id = c.Id,
-							customerName = c.CustomerName,
-							companyName = c.CompanyName,
-							email = c.Email,
-							phone = c.Phone,
-							customerType = c.CustomerType.ToString(),
-							creditLimit = c.CreditLimit,
-							outstandingBalance = c.OutstandingBalance,
-							isActive = c.IsActive,
-							displayText = !string.IsNullOrEmpty(c.CompanyName)
-										? $"{c.CustomerName} ({c.CompanyName})"
-										: c.CustomerName,
-							searchMatchInfo = GetCustomerSearchMatchInfo(c, searchTerm)
-						})
-						.ToList();
-
-				var hasMore = totalCount > (page * pageSize);
-
-				_logger.LogInformation("Customer search completed - Found {TotalCount} customers, returning {ReturnedCount}",
-						totalCount, customers.Count);
-
-				return Json(new
-				{
-					success = true,
-					customers = customers,
-					hasMore = hasMore,
-					totalCount = totalCount,
-					debug = new
-					{
-						originalQuery = query,
-						searchTerm = searchTerm,
-						activeCustomersCount = activeCustomers.Count(),
-						filteredCount = totalCount
-					}
-				});
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error searching customers with query: {Query}", query);
-				return Json(new
-				{
-					success = false,
-					message = "Error searching customers",
-					customers = new List<object>(),
-					hasMore = false,
-					error = ex.Message
-				});
-			}
-		}
-
-		// GET: Sales/GetCustomerDetails/5 - AJAX endpoint for customer details
-		[HttpGet]
-		public async Task<IActionResult> GetCustomerDetails(int id)
-		{
-			try
-			{
-				var customer = await _customerService.GetCustomerByIdAsync(id);
-				if (customer == null)
-				{
-					return Json(new { success = false, message = "Customer not found" });
-				}
-
-				// Get customer analytics
-				var analytics = await _customerService.GetCustomerAnalyticsAsync(id);
-
-				return Json(new
-				{
-					success = true,
-					data = new
-					{
-						customerId = customer.Id,
-						customerName = customer.CustomerName,
-						companyName = customer.CompanyName,
-						email = customer.Email,
-						phone = customer.Phone,
-						customerType = customer.CustomerType.ToString(),
-						creditLimit = customer.CreditLimit,
-						outstandingBalance = customer.OutstandingBalance,
-						isActive = customer.IsActive,
-						isTaxExempt = customer.IsTaxExempt,
-						defaultPaymentTerms = (int)customer.DefaultPaymentTerms,
-						fullBillingAddress = customer.FullBillingAddress,
-						fullShippingAddress = customer.FullShippingAddress,
-						totalSales = analytics?.TotalSales ?? 0,
-						salesCount = analytics?.TotalOrders ?? 0
-					}
-				});
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error getting customer details for ID: {CustomerId}", id);
-				return Json(new { success = false, message = "Error loading customer details" });
-			}
-		}
-
-		// Helper method to get search match information for highlighting
-		private string GetCustomerSearchMatchInfo(Customer customer, string searchTerm)
-		{
-			var matches = new List<string>();
-
-			if (customer.CustomerName.ToLower().Contains(searchTerm))
-				matches.Add("Name");
-			if (customer.CompanyName != null && customer.CompanyName.ToLower().Contains(searchTerm))
-				matches.Add("Company");
-			if (customer.Email != null && customer.Email.ToLower().Contains(searchTerm))
-				matches.Add("Email");
-			if (customer.Phone != null && customer.Phone.ToLower().Contains(searchTerm))
-				matches.Add("Phone");
-
-			return matches.Any() ? string.Join(", ", matches) : "";
-		}
-
-		// GET: Sales/CheckProductAvailability - AJAX endpoint for product availability checking
-		[HttpGet]
-		public async Task<IActionResult> CheckProductAvailability(string productType, int productId, int quantity)
-		{
-			try
-			{
-				if (productType == "Item")
-				{
-					var item = await _context.Items.FindAsync(productId);
-					if (item == null)
-						return Json(new { success = false, message = "Item not found" });
-
-					var productInfo = new
-					{
-						partNumber = item.PartNumber,
-						description = item.Description,
-						currentStock = item.CurrentStock,
-						suggestedPrice = item.SalePrice ?? item.SuggestedSalePrice,
-						hasSalePrice = item.HasSalePrice,
-						tracksInventory = item.TrackInventory,
-						// ✅ NEW: Include requirements
-						requiresSerialNumber = item.RequiresSerialNumber,
-						requiresModelNumber = item.RequiresModelNumber
-					};
-
-					var stockInfo = new
-					{
-						canFulfill = !item.TrackInventory || item.CurrentStock >= quantity
-					};
-
-					var availabilityMessage = !item.TrackInventory
-							? "Service/Virtual item - No stock tracking required"
-							: item.CurrentStock >= quantity
-									? $"✓ {quantity} units available (Stock: {item.CurrentStock})"
-									: $"⚠ Only {item.CurrentStock} units in stock. {quantity - item.CurrentStock} will be backordered.";
-
-					return Json(new
-					{
-						success = true,
-						productInfo,
-						stockInfo,
-						availabilityMessage
-					});
-				}
-				else if (productType == "FinishedGood")
-				{
-					var finishedGood = await _context.FinishedGoods.FindAsync(productId);
-					if (finishedGood == null)
-						return Json(new { success = false, message = "Finished good not found" });
-
-					var productInfo = new
-					{
-						partNumber = finishedGood.PartNumber,
-						description = finishedGood.Description,
-						currentStock = finishedGood.CurrentStock,
-						suggestedPrice = finishedGood.SellingPrice,
-						hasSalePrice = finishedGood.SellingPrice > 0,
-						tracksInventory = true, // Finished goods always track inventory
-																		// ✅ NEW: Include requirements
-						requiresSerialNumber = finishedGood.RequiresSerialNumber,
-						requiresModelNumber = finishedGood.RequiresModelNumber
-					};
-
-					var stockInfo = new
-					{
-						canFulfill = finishedGood.CurrentStock >= quantity
-					};
-
-					var availabilityMessage = finishedGood.CurrentStock >= quantity
-							? $"✓ {quantity} units available (Stock: {finishedGood.CurrentStock})"
-							: $"⚠ Only {finishedGood.CurrentStock} units in stock. {quantity - finishedGood.CurrentStock} will be backordered.";
-
-					return Json(new
-					{
-						success = true,
-						productInfo,
-						stockInfo,
-						availabilityMessage
-					});
-				}
-
-				return Json(new { success = false, message = "Invalid product type" });
-			}
-			catch (Exception ex)
-			{
-				return Json(new { success = false, message = "Error checking availability: " + ex.Message });
-			}
-		}
-
-		// Helper method to check item availability
-		private async Task<IActionResult> CheckItemAvailability(int itemId, int quantity)
-		{
-			try
-			{
-				var item = await _inventoryService.GetItemByIdAsync(itemId);
-				if (item == null)
-				{
-					return Json(new
-					{
-						success = false,
-						message = "Item not found",
-						availabilityMessage = "Selected item not found."
-					});
-				}
-
-				// Try to get average cost from inventory service, fallback to 0
-				decimal averageCost = 0;
-				try
-				{
-					averageCost = await _inventoryService.GetAverageCostAsync(itemId);
-				}
-				catch
-				{
-					// If we can't get average cost, use default based on item type
-					averageCost = item.ItemType switch
-					{
-						ItemType.Service => 0,
-						ItemType.Virtual => 0,
-						ItemType.Subscription => 0,
-						_ => 10.00m // Default cost for physical items
-					};
-				}
-
-				// Ensure all prices are valid numbers (never null)
-				var salePrice = item.SalePrice ?? 0m;
-				var suggestedPrice = item.SuggestedSalePrice;
-
-				// Additional safety check to ensure suggested price is never null or invalid
-				if (suggestedPrice <= 0)
-				{
-					suggestedPrice = salePrice > 0 ? salePrice : 25.00m; // Fallback price
-				}
-
-				var response = new
-				{
-					success = true,
-					productInfo = new
-					{
-						partNumber = item.PartNumber ?? "",
-						description = item.Description ?? "",
-						currentStock = item.CurrentStock,
-						unitCost = Math.Max(0, averageCost), // Ensure non-negative
-						salePrice = Math.Max(0, salePrice), // Ensure non-negative
-						suggestedPrice = Math.Max(0, suggestedPrice), // Ensure non-negative and not null
-						tracksInventory = item.TrackInventory,
-						itemType = item.ItemType.ToString(),
-						productType = "Item",
-						hasSalePrice = item.SalePrice.HasValue && item.SalePrice.Value > 0
-					},
-					stockInfo = new
-					{
-						available = item.TrackInventory ? item.CurrentStock : int.MaxValue,
-						requested = quantity,
-						canFulfill = !item.TrackInventory || item.CurrentStock >= quantity,
-						backorderQuantity = item.TrackInventory && item.CurrentStock < quantity
-										? quantity - item.CurrentStock : 0,
-						tracksInventory = item.TrackInventory
-					},
-					availabilityMessage = GetItemAvailabilityMessage(item, quantity),
-					stockLevel = GetStockLevel(item, quantity)
-				};
-
-				_logger.LogInformation("Item availability check completed - Item: {PartNumber}, Available: {Available}, Requested: {Requested}",
-						item.PartNumber, item.TrackInventory ? item.CurrentStock : "?", quantity);
-
-				return Json(response);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error checking item availability for ID: {ItemId}", itemId);
-				return Json(new
-				{
-					success = false,
-					message = "Error checking item availability",
-					availabilityMessage = "Unable to verify item availability."
-				});
-			}
-		}
-
-		// Helper method to check finished good availability
-		private async Task<IActionResult> CheckFinishedGoodAvailability(int finishedGoodId, int quantity)
-		{
-			try
-			{
-				var finishedGood = await _context.FinishedGoods
-						.FirstOrDefaultAsync(fg => fg.Id == finishedGoodId);
-
-				if (finishedGood == null)
-				{
-					return Json(new
-					{
-						success = false,
-						message = "Finished good not found",
-						availabilityMessage = "Selected finished good not found."
-					});
-				}
-
-				// Ensure all prices are valid numbers (never null)
-				var sellingPrice = Math.Max(0, finishedGood.SellingPrice);
-				var unitCost = Math.Max(0, finishedGood.UnitCost);
-				var suggestedPrice = sellingPrice > 0 ? sellingPrice : unitCost * 1.3m;
-
-				// Additional safety check
-				if (suggestedPrice <= 0)
-				{
-					suggestedPrice = 25.00m; // Fallback price
-				}
-
-				var response = new
-				{
-					success = true,
-					productInfo = new
-					{
-						partNumber = finishedGood.PartNumber ?? "",
-						description = finishedGood.Description ?? "",
-						currentStock = finishedGood.CurrentStock,
-						unitCost = unitCost,
-						salePrice = sellingPrice,
-						suggestedPrice = Math.Max(0, suggestedPrice), // Ensure non-negative and not null
-						tracksInventory = true, // Finished goods always track inventory
-						itemType = "FinishedGood",
-						productType = "FinishedGood",
-						hasSalePrice = finishedGood.SellingPrice > 0
-					},
-					stockInfo = new
-					{
-						available = finishedGood.CurrentStock,
-						requested = quantity,
-						canFulfill = finishedGood.CurrentStock >= quantity,
-						backorderQuantity = finishedGood.CurrentStock < quantity
-										? quantity - finishedGood.CurrentStock : 0,
-						tracksInventory = true
-					},
-					availabilityMessage = GetFinishedGoodAvailabilityMessage(finishedGood, quantity),
-					stockLevel = GetFinishedGoodStockLevel(finishedGood, quantity)
-				};
-
-				_logger.LogInformation("Finished good availability check completed - Product: {PartNumber}, Available: {Available}, Requested: {Requested}",
-						finishedGood.PartNumber, finishedGood.CurrentStock, quantity);
-
-				return Json(response);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error checking finished good availability for ID: {FinishedGoodId}", finishedGoodId);
-				return Json(new
-				{
-					success = false,
-					message = "Error checking finished good availability",
-					availabilityMessage = "Unable to verify finished good availability."
-				});
-			}
-		}
-
-		// Helper method to get item availability message
-		private string GetItemAvailabilityMessage(Item item, int quantity)
-		{
-			if (!item.TrackInventory)
-			{
-				return $"? {item.ItemType} item - No inventory tracking required. Available for sale.";
-			}
-
-			if (item.CurrentStock >= quantity)
-			{
-				return $"? In Stock: {item.CurrentStock} available, requesting {quantity}";
-			}
-			else if (item.CurrentStock > 0)
-			{
-				var shortage = quantity - item.CurrentStock;
-				return $"?? Partial Stock: {item.CurrentStock} available, {shortage} will be backordered";
-			}
-			else
-			{
-				return $"? Out of Stock: {quantity} will be backordered";
-			}
-		}
-
-		// Helper method to get finished good availability message
-		private string GetFinishedGoodAvailabilityMessage(FinishedGood finishedGood, int quantity)
-		{
-			if (finishedGood.CurrentStock >= quantity)
-			{
-				return $"? In Stock: {finishedGood.CurrentStock} available, requesting {quantity}";
-			}
-			else if (finishedGood.CurrentStock > 0)
-			{
-				var shortage = quantity - finishedGood.CurrentStock;
-				return $"?? Partial Stock: {finishedGood.CurrentStock} available, {shortage} will be backordered";
-			}
-			else
-			{
-				return $"? Out of Stock: {quantity} will be backordered";
-			}
-		}
-
-		// Helper method to get stock level indicator for items
-		private string GetStockLevel(Item item, int quantity)
-		{
-			if (!item.TrackInventory)
-			{
-				return "available"; // Non-inventory items are always available
-			}
-
-			if (item.CurrentStock >= quantity)
-			{
-				return item.CurrentStock >= quantity * 2 ? "high" : "adequate";
-			}
-			else if (item.CurrentStock > 0)
-			{
-				return "low";
-			}
-			else
-			{
-				return "out";
-			}
-		}
-
-		// Helper method to get stock level indicator for finished goods
-		private string GetFinishedGoodStockLevel(FinishedGood finishedGood, int quantity)
-		{
-			if (finishedGood.CurrentStock >= quantity)
-			{
-				return finishedGood.CurrentStock >= quantity * 2 ? "high" : "adequate";
-			}
-			else if (finishedGood.CurrentStock > 0)
-			{
-				return "low";
-			}
-			else
-			{
-				return "out";
-			}
-		}
-
-		// GET: Sales/GetSaleInventoryInfo - AJAX endpoint to get inventory impact information
-		[HttpGet]
-		public async Task<IActionResult> GetSaleInventoryInfo(int saleId)
-		{
-			try
-			{
-				_logger.LogInformation("Getting inventory info for sale {SaleId}", saleId);
-
-				var sale = await _salesService.GetSaleByIdAsync(saleId);
-				if (sale == null)
-				{
-					return Json(new { success = false, message = "Sale not found" });
-				}
-
-				if (!sale.SaleItems?.Any() == true)
-				{
-					return Json(new { success = false, message = "Sale has no items" });
-				}
-
-				var inventoryItems = new List<object>();
-				var nonInventoryItems = new List<object>();
-
-				foreach (var saleItem in sale.SaleItems)
-				{
-					if (saleItem.ItemId.HasValue)
-					{
-						// Check if this is an inventory-tracked item
-						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-						if (item != null)
-						{
-							var itemInfo = new
-							{
-								partNumber = item.PartNumber,
-								description = item.Description,
-								quantity = saleItem.QuantitySold,
-								itemType = item.ItemType.ToString(),
-								currentStock = item.CurrentStock
-							};
-
-							if (item.TrackInventory)
-							{
-								inventoryItems.Add(itemInfo);
-							}
-							else
-							{
-								nonInventoryItems.Add(itemInfo);
-							}
-						}
-					}
-					else if (saleItem.FinishedGoodId.HasValue)
-					{
-						// Finished goods always track inventory
-						var finishedGood = await _context.FinishedGoods
-								.FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
-
-						if (finishedGood != null)
-						{
-							inventoryItems.Add(new
-							{
-								partNumber = finishedGood.PartNumber,
-								description = finishedGood.Description,
-								quantity = saleItem.QuantitySold,
-								itemType = "FinishedGood",
-								currentStock = finishedGood.CurrentStock
-							});
-						}
-					}
-				}
-
-				return Json(new
-				{
-					success = true,
-					inventoryItems = inventoryItems,
-					nonInventoryItems = nonInventoryItems,
-					totalItems = sale.SaleItems.Count(),
-					inventoryItemsCount = inventoryItems.Count,
-					nonInventoryItemsCount = nonInventoryItems.Count
-				});
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error getting inventory info for sale {SaleId}", saleId);
-				return Json(new { success = false, message = "Error getting inventory information" });
-			}
-		}
-
-		// POST: Sales/ProcessSale - Process and ship a sale
-		[HttpPost]
-		[ValidateAntiForgeryToken]
-		public async Task<IActionResult> ProcessSale(int id)
-		{
-			try
-			{
-				_logger.LogInformation("Processing sale {SaleId}", id);
-
-				// Get the sale with items
-				var sale = await _salesService.GetSaleByIdAsync(id);
-				if (sale == null)
-				{
-					TempData["ErrorMessage"] = "Sale not found.";
-					return RedirectToAction("Index");
-				}
-
-				// Validate sale can be processed
-				if (sale.SaleStatus != SaleStatus.Processing)
-				{
-					TempData["ErrorMessage"] = "Only sales with Processing status can be shipped.";
-					return RedirectToAction("Details", new { id });
-				}
-
-				if (!sale.SaleItems?.Any() == true)
-				{
-					TempData["ErrorMessage"] = "Cannot process a sale with no items.";
-					return RedirectToAction("Details", new { id });
-				}
-
-				// Check if any items track inventory (will affect stock)
-				var inventoryItems = new List<SaleItem>();
-				var nonInventoryItems = new List<SaleItem>();
-
-				foreach (var saleItem in sale.SaleItems)
-				{
-					if (saleItem.ItemId.HasValue)
-					{
-						// Check if this is an inventory-tracked item
-						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-						if (item != null && item.TrackInventory)
-						{
-							inventoryItems.Add(saleItem);
-						}
-						else
-						{
-							nonInventoryItems.Add(saleItem);
-						}
-					}
-					else if (saleItem.FinishedGoodId.HasValue)
-					{
-						// Finished goods always track inventory
-						inventoryItems.Add(saleItem);
-					}
-				}
-
-				// Process inventory reductions for inventory-tracked items
-				if (inventoryItems.Any())
-				{
-					foreach (var saleItem in inventoryItems)
-					{
-						if (saleItem.ItemId.HasValue)
-						{
-							// Reduce item inventory
-							var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-							if (item != null)
-							{
-								var quantityToReduce = Math.Min(saleItem.QuantitySold, item.CurrentStock);
-								if (quantityToReduce > 0)
-								{
-									// Create inventory adjustment record
-									var adjustment = new InventoryAdjustment
-									{
-										ItemId = item.Id,
-										AdjustmentType = "Sale",
-										QuantityAdjusted = -quantityToReduce,
-										AdjustmentDate = DateTime.Now,
-										Reason = $"Sale {sale.SaleNumber} - Item shipped to customer",
-										AdjustedBy = User.Identity?.Name ?? "System",
-										ReferenceNumber = sale.SaleNumber
-									};
-
-									_context.InventoryAdjustments.Add(adjustment);
-
-									// Also reduce the item's current stock
-									item.CurrentStock -= quantityToReduce;
-									await _context.SaveChangesAsync();
-									_logger.LogInformation("Reduced inventory for item {ItemId} by {Quantity} units",
-											item.Id, quantityToReduce);
-								}
-							}
-						}
-						else if (saleItem.FinishedGoodId.HasValue)
-						{
-							// Reduce finished good inventory
-							var finishedGood = await _context.FinishedGoods
-									.FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
-
-							if (finishedGood != null)
-							{
-								var quantityToReduce = Math.Min(saleItem.QuantitySold, finishedGood.CurrentStock);
-								if (quantityToReduce > 0)
-								{
-									finishedGood.CurrentStock -= quantityToReduce;
-									await _context.SaveChangesAsync();
-									_logger.LogInformation("Reduced finished good {FinishedGoodId} inventory by {Quantity} units",
-											finishedGood.Id, quantityToReduce);
-								}
-							}
-						}
-					}
-				}
-
-				// Update sale status to Shipped
-				sale.SaleStatus = SaleStatus.Shipped;
-				var updatedSale = await _salesService.UpdateSaleAsync(sale);
-
-				_logger.LogInformation("Sale {SaleId} processed and marked as shipped", id);
-
-				// Create success message based on item types
-				string successMessage;
-				if (inventoryItems.Any() && nonInventoryItems.Any())
-				{
-					successMessage = $"Sale {sale.SaleNumber} processed successfully! Inventory reduced for {inventoryItems.Count} physical items. {nonInventoryItems.Count} service/virtual items processed without inventory impact.";
-				}
-				else if (inventoryItems.Any())
-				{
-					successMessage = $"Sale {sale.SaleNumber} processed successfully! Inventory has been reduced for all items.";
-				}
-				else
-				{
-					successMessage = $"Sale {sale.SaleNumber} processed successfully! No inventory adjustments needed (all items are services/virtual).";
-				}
-
-				TempData["SuccessMessage"] = successMessage;
-
-				// Return to sale details page
-				return RedirectToAction("Details", new { id = sale.Id });
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error processing sale {SaleId}", id);
-				TempData["ErrorMessage"] = $"Error processing sale: {ex.Message}";
-				return RedirectToAction("Details", new { id });
-			}
-		}
-		// ✅ NEW: Helper method to validate service orders for shipping
-		private async Task<ServiceOrderValidationResult> ValidateServiceOrdersForShipping(int saleId, List<SaleItem> serviceItems)
-		{
-			var result = new ServiceOrderValidationResult();
-
-			try
-			{
-				// Get existing service orders for this sale
-				var existingServiceOrders = await _context.ServiceOrders
-						.Where(so => so.SaleId == saleId)
-						.Include(so => so.ServiceType)
-						.ToListAsync();
-
-				foreach (var saleItem in serviceItems)
-				{
-					if (saleItem.ItemId.HasValue)
-					{
-						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-						if (item?.ItemType == ItemType.Service)
-						{
-							// Find corresponding service type
-							var serviceType = await _context.ServiceTypes
-									.FirstOrDefaultAsync(st => st.ServiceItemId == item.Id);
-
-							if (serviceType != null)
-							{
-								// Check if service order exists for this service type
-								var relatedServiceOrder = existingServiceOrders
-										.FirstOrDefault(so => so.ServiceTypeId == serviceType.Id);
-
-								if (relatedServiceOrder == null)
-								{
-									// No service order created yet
-									result.CanShip = false;
-									result.MissingServiceOrders.Add(new MissingServiceOrderInfo
-									{
-										ServiceTypeName = serviceType.ServiceName,
-										ItemName = item.Description,
-										ServiceTypeId = serviceType.Id,
-										ItemId = item.Id
-									});
-								}
-								else if (!IsServiceOrderReadyForShipment(relatedServiceOrder))
-								{
-									// Service order exists but not complete
-									result.CanShip = false;
-									result.IncompleteServiceOrders.Add(relatedServiceOrder);
-								}
-								// If service order exists and can ship, no action needed
-							}
-							else
-							{
-								// Service item but no corresponding service type found
-								_logger.LogWarning("Service item {ItemId} ({ItemDescription}) has no corresponding service type",
-										item.Id, item.Description);
-
-								result.CanShip = false;
-								result.MissingServiceOrders.Add(new MissingServiceOrderInfo
-								{
-									ServiceTypeName = "Unknown Service Type",
-									ItemName = item.Description,
-									ServiceTypeId = 0,
-									ItemId = item.Id
-								});
-							}
-						}
-					}
-				}
-
-				return result;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error validating service orders for shipping - Sale {SaleId}", saleId);
-				result.CanShip = false;
-				return result;
-			}
-		}
-
-		// ✅ NEW: Helper method to check if a service order is ready for shipment
-		private static bool IsServiceOrderReadyForShipment(ServiceOrder serviceOrder)
-		{
-			// Service must be completed
-			if (serviceOrder.Status != ServiceOrderStatus.Completed)
-				return false;
-
-			// Quality control check (if required)
-			if (serviceOrder.QcRequired && !serviceOrder.QcCompleted)
-				return false;
-
-			// Certificate check (if required)
-			if (serviceOrder.CertificateRequired && !serviceOrder.CertificateGenerated)
-				return false;
-
-			// Worksheet check (if required)
-			if (serviceOrder.WorksheetRequired && !serviceOrder.WorksheetUploaded)
-				return false;
-
-			return true;
-		}
-		// POST: Sales/ProcessSaleWithShipping - Enhanced process and ship with courier information
-		[HttpPost]
-		[ValidateAntiForgeryToken]
-		public async Task<IActionResult> ProcessSaleWithShipping(ProcessSaleViewModel model)
-		{
-			try
-			{
-				_logger.LogInformation("Processing sale with shipping {SaleId}", model.SaleId);
-				ModelState.Remove("GeneratePackingSlip");
-				ModelState.Remove("EmailCustomer");
-				ModelState.Remove("PrintPackingSlip");
-				
-				// Get the sale with items
-				var sale = await _salesService.GetSaleByIdAsync(model.SaleId);
-				if (sale == null)
-				{
-					TempData["ErrorMessage"] = "Sale not found.";
-					return RedirectToAction("Index");
-				}
-
-				// Validate sale can be processed
-				if (sale.SaleStatus != SaleStatus.Processing)
-				{
-					TempData["ErrorMessage"] = "Only sales with Processing status can be shipped.";
-					return RedirectToAction("Details", new { id = model.SaleId });
-				}
-
-				if (!sale.SaleItems?.Any() == true)
-				{
-					TempData["ErrorMessage"] = "Cannot process a sale with no items.";
-					return RedirectToAction("Details", new { id = model.SaleId });
-				}
-
-				// ✅ NEW: Check for service items and validate service orders completion
-				var serviceItems = new List<SaleItem>();
-				var nonServiceItems = new List<SaleItem>();
-
-				foreach (var saleItem in sale.SaleItems)
-				{
-					if (saleItem.ItemId.HasValue)
-					{
-						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-						if (item?.ItemType == ItemType.Service)
-						{
-							serviceItems.Add(saleItem);
-						}
-						else
-						{
-							nonServiceItems.Add(saleItem);
-						}
-					}
-					else
-					{
-						nonServiceItems.Add(saleItem);
-					}
-				}
-
-				// ✅ NEW: If there are service items, validate service orders
-				if (serviceItems.Any())
-				{
-					var serviceOrderValidation = await ValidateServiceOrdersForShipping(sale.Id, serviceItems);
-					if (!serviceOrderValidation.CanShip)
-					{
-						if (serviceOrderValidation.MissingServiceOrders.Any())
-						{
-							// Show beautiful UI prompt for creating service orders
-							TempData["ServiceOrderPrompt"] = true;
-							TempData["MissingServiceOrders"] = JsonSerializer.Serialize(serviceOrderValidation.MissingServiceOrders);
-							TempData["ErrorMessage"] = $"Cannot pack and ship this sale. Service orders must be created for {serviceOrderValidation.MissingServiceOrders.Count} service item(s).";
-							TempData["ServiceOrderCreationUrl"] = Url.Action("CreateServiceOrdersFromSale", new { saleId = sale.Id });
-							return RedirectToAction("Details", new { id = model.SaleId });
-						}
-						else
-						{
-							// Service orders exist but are not complete - show toast
-							var incompleteOrders = string.Join(", ", serviceOrderValidation.IncompleteServiceOrders.Select(so => so.ServiceOrderNumber));
-							TempData["ToastMessage"] = $"Cannot pack and ship until service orders are complete: {incompleteOrders}. Would you like to check their status?";
-							TempData["ToastType"] = "warning";
-							TempData["ServiceOrderLinks"] = JsonSerializer.Serialize(serviceOrderValidation.IncompleteServiceOrders.Select(so => new 
-							{
-								Number = so.ServiceOrderNumber,
-								Url = Url.Action("Details", "Services", new { id = so.Id }),
-								Status = so.Status.ToString()
-							}));
-							return RedirectToAction("Details", new { id = model.SaleId });
-						}
-					}
-				}
-
-				// Validate model
-				if (!ModelState.IsValid)
-				{
-					TempData["ErrorMessage"] = "Please fill in all required shipping information.";
-					return RedirectToAction("Details", new { id = model.SaleId });
-				}
-
-				// Check if any items track inventory (will affect stock)
-				var inventoryItems = new List<SaleItem>();
-
-				foreach (var saleItem in sale.SaleItems)
-				{
-					if (saleItem.ItemId.HasValue)
-					{
-						// Check if this is an inventory-tracked item
-						var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-						if (item != null && item.TrackInventory)
-						{
-							inventoryItems.Add(saleItem);
-						}
-					}
-					else if (saleItem.FinishedGoodId.HasValue)
-					{
-						// Finished goods always track inventory
-						inventoryItems.Add(saleItem);
-					}
-				}
-
-				// Process inventory reductions for inventory-tracked items
-				if (inventoryItems.Any())
-				{
-					foreach (var saleItem in inventoryItems)
-					{
-						if (saleItem.ItemId.HasValue)
-						{
-							// Reduce item inventory
-							var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-							if (item != null)
-							{
-								var quantityToReduce = Math.Min(saleItem.QuantitySold, item.CurrentStock);
-								if (quantityToReduce > 0)
-								{
-									// Create inventory adjustment record
-									var adjustment = new InventoryAdjustment
-									{
-										ItemId = item.Id,
-										AdjustmentType = "Sale",
-										QuantityAdjusted = -quantityToReduce,
-										AdjustmentDate = DateTime.Now,
-										Reason = $"Sale {sale.SaleNumber} - Item shipped via {model.CourierService}",
-										AdjustedBy = User.Identity?.Name ?? "System",
-										ReferenceNumber = sale.SaleNumber
-									};
-
-									_context.InventoryAdjustments.Add(adjustment);
-
-									// Also reduce the item's current stock
-									item.CurrentStock -= quantityToReduce;
-									await _context.SaveChangesAsync();
-									_logger.LogInformation("Reduced inventory for item {ItemId} by {Quantity} units",
-											item.Id, quantityToReduce);
-								}
-							}
-						}
-						else if (saleItem.FinishedGoodId.HasValue)
-						{
-							// Reduce finished good inventory
-							var finishedGood = await _context.FinishedGoods
-									.FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
-
-							if (finishedGood != null)
-							{
-								var quantityToReduce = Math.Min(saleItem.QuantitySold, finishedGood.CurrentStock);
-								if (quantityToReduce > 0)
-								{
-									finishedGood.CurrentStock -= quantityToReduce;
-									await _context.SaveChangesAsync();
-									_logger.LogInformation("Reduced finished good {FinishedGoodId} inventory by {Quantity} units",
-											finishedGood.Id, quantityToReduce);
-								}
-							}
-						}
-					}
-				}
-
-				// Update sale with shipping information
-				sale.SaleStatus = SaleStatus.Shipped;
-				sale.CourierService = model.CourierService;
-				sale.TrackingNumber = model.TrackingNumber;
-				sale.ShippedDate = DateTime.Now;
-				sale.ExpectedDeliveryDate = model.ExpectedDeliveryDate;
-				sale.PackageWeight = model.PackageWeight;
-				sale.PackageDimensions = model.PackageDimensions;
-				sale.ShippingInstructions = model.ShippingInstructions;
-				sale.ShippedBy = User.Identity?.Name ?? "System";
-
-				var updatedSale = await _salesService.UpdateSaleAsync(sale);
-
-				_logger.LogInformation("Sale {SaleId} processed and marked as shipped via {CourierService} with tracking {TrackingNumber}", 
-					model.SaleId, model.CourierService, model.TrackingNumber);
-
-				// Generate packing slip if requested
-				string packingSlipInfo = "";
-				if (model.GeneratePackingSlip)
-				{
-					var packingSlipUrl = Url.Action("PackingSlip", new { saleId = model.SaleId });
-					packingSlipInfo = $" Packing slip available at: {packingSlipUrl}";
-
-					if (model.PrintPackingSlip)
-					{
-						// Add JavaScript to auto-open packing slip for printing
-						TempData["AutoPrintPackingSlip"] = packingSlipUrl;
-					}
-				}
-
-				// Send email notification if requested
-				if (model.EmailCustomer && !string.IsNullOrEmpty(sale.Customer?.Email))
-				{
-					try
-					{
-						await SendShippingNotificationEmailAsync(sale, model);
-						packingSlipInfo += " Shipping notification sent to customer.";
-					}
-					catch (Exception ex)
-					{
-						_logger.LogWarning(ex, "Failed to send shipping notification for sale {SaleId}", model.SaleId);
-						packingSlipInfo += " (Email notification failed)";
-					}
-				}
-
-				// Create success message based on item types
-				string successMessage;
-				var totalItemCount = sale.SaleItems.Count();
-				var serviceItemCount = serviceItems.Count;
-				var physicalItemCount = totalItemCount - serviceItemCount;
-
-				if (serviceItemCount > 0 && physicalItemCount > 0)
-				{
-					successMessage = $"Sale {sale.SaleNumber} shipped successfully via {model.CourierService}! " +
-								   $"Tracking: {model.TrackingNumber}. " +
-								   $"Processed {physicalItemCount} physical item(s) and {serviceItemCount} service item(s).{packingSlipInfo}";
-				}
-				else if (serviceItemCount > 0)
-				{
-					successMessage = $"Sale {sale.SaleNumber} processed successfully! " +
-								   $"All {serviceItemCount} service item(s) completed. No physical shipping required.{packingSlipInfo}";
-				}
-				else
-				{
-					successMessage = $"Sale {sale.SaleNumber} shipped successfully via {model.CourierService}! " +
-								   $"Tracking: {model.TrackingNumber}. " +
-								   $"All {physicalItemCount} item(s) processed.{packingSlipInfo}";
-				}
-
-				TempData["SuccessMessage"] = successMessage;
-
-				return RedirectToAction("Details", new { id = model.SaleId });
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error processing sale with shipping {SaleId}", model.SaleId);
-				TempData["ErrorMessage"] = $"Error processing sale: {ex.Message}";
-				return RedirectToAction("Details", new { id = model.SaleId });
-			}
-		}
-
-		// ✅ NEW: Packing Slip generation
-		[HttpGet]
-		public async Task<IActionResult> PackingSlip(int saleId)
-		{
-			try
-			{
-				var sale = await _salesService.GetSaleByIdAsync(saleId);
-				if (sale == null)
-				{
-					TempData["ErrorMessage"] = "Sale not found.";
-					return RedirectToAction("Index");
-				}
-
-				var packingSlipNumber = $"PS-{sale.SaleNumber}";
-
-				var viewModel = new PackingSlipViewModel
-				{
-					Sale = sale,
-					PackingSlipNumber = packingSlipNumber,
-					GeneratedDate = DateTime.Now,
-					GeneratedBy = User.Identity?.Name ?? "System",
-					CompanyInfo = await GetCompanyInfo(),
-					Items = sale.SaleItems.Select(si => new PackingSlipItem
-					{
-						PartNumber = si.ProductPartNumber,
-						Description = si.ProductName,
-						Quantity = si.QuantitySold,
-						QuantityBackordered = si.QuantityBackordered,
-						Notes = si.Notes,
-						IsBackordered = si.QuantityBackordered > 0,
-						UnitOfMeasure = "Each" // Could be enhanced to get from product
-					}).ToList()
-				};
-
-				return View(viewModel);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error generating packing slip for sale {SaleId}", saleId);
-				TempData["ErrorMessage"] = $"Error generating packing slip: {ex.Message}";
-				return RedirectToAction("Details", new { id = saleId });
-			}
-		}
-
-		// ✅ NEW: Helper method to send shipping notification email
-		private async Task SendShippingNotificationEmailAsync(Sale sale, ProcessSaleViewModel shippingInfo)
-		{
-			// This would integrate with your email service
-			// For now, just log the action
-			_logger.LogInformation("Sending shipping notification for sale {SaleNumber} to {CustomerEmail} - Courier: {Courier}, Tracking: {Tracking}",
-				sale.SaleNumber, sale.Customer?.Email, shippingInfo.CourierService, shippingInfo.TrackingNumber);
-			
-			// TODO: Implement actual email sending
-			// await _emailService.SendShippingNotificationAsync(sale, shippingInfo);
-		}
-		// Controllers/SalesController.cs - Enhanced Methods (add these to existing controller)
-
-		// GET: Sales/CreateEnhanced
-		[HttpGet]
-		public async Task<IActionResult> CreateEnhanced(int? customerId = null)
-		{
-			try
-			{
-				var viewModel = new EnhancedCreateSaleViewModel();
-
-				if (customerId.HasValue)
-				{
-					viewModel.CustomerId = customerId.Value;
-
-					// Pre-populate customer info if available
-					var customer = await _customerService.GetCustomerByIdAsync(customerId.Value);
-					if (customer != null)
-					{
-						viewModel.ShippingAddress = customer.FullShippingAddress;
-						viewModel.Terms = customer.DefaultPaymentTerms;
-
-						// Calculate due date based on payment terms
-						viewModel.PaymentDueDate = viewModel.Terms switch
-						{
-							PaymentTerms.COD => viewModel.SaleDate,
-							PaymentTerms.Net10 => viewModel.SaleDate.AddDays(10),
-							PaymentTerms.Net15 => viewModel.SaleDate.AddDays(15),
-							PaymentTerms.Net30 => viewModel.SaleDate.AddDays(30),
-							PaymentTerms.Net60 => viewModel.SaleDate.AddDays(60),
-							
-							_ => viewModel.SaleDate.AddDays(30)
-						};
-					}
-				}
-				else
-				{
-					viewModel.PaymentDueDate = viewModel.SaleDate.AddDays(30); // Default Net30
-				}
-
-				await LoadDropdownsForEnhancedCreate(viewModel);
-				return View(viewModel);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error loading enhanced create sale form");
-				TempData["ErrorMessage"] = $"Error loading form: {ex.Message}";
-				return RedirectToAction("Index");
-			}
-		}
-
-		
-		// POST: Sales/CreateEnhanced
-		[HttpPost]
-		[ValidateAntiForgeryToken]
-		public async Task<IActionResult> CreateEnhanced(EnhancedCreateSaleViewModel viewModel)
-		{
-			try
-			{
-				// Remove navigation property validation errors
-				ModelState.Remove("Customer");
-
-				// Remove DiscountPercentage validation since may be null in MOdelState dictionary
-				ModelState.Remove(nameof(viewModel.DiscountPercentage));
-
-				// Ensure DiscountPercentage has a valid value
-				if (viewModel.DiscountPercentage < 0 || viewModel.DiscountPercentage > 100)
-				{
-					viewModel.DiscountPercentage = 0;
-				}
-
-				//// Generate sale number if needed
-				//if (string.IsNullOrEmpty(viewModel.SaleNumber))
-				//{
-				//	viewModel.SaleNumber = await _salesService.GenerateSaleNumberAsync();
-				//}
-
-				// FILTER OUT INCOMPLETE LINE ITEMS BEFORE VALIDATION
-				var originalLineItems = viewModel.LineItems.ToList();
-
-				// Filter out incomplete line items (no product selected, zero quantity, or zero price)
-				viewModel.LineItems = viewModel.LineItems.Where(li =>
-						li.IsSelected && // Has a product selected
-						li.Quantity > 0 && // Has a quantity greater than 0
-						li.UnitPrice > 0   // Has a unit price greater than 0
-				).ToList();
-
-				// CLEAR MODELSTATE ERRORS FOR ALL LINE ITEMS
-				var lineItemKeys = ModelState.Keys.Where(key => key.StartsWith("LineItems[")).ToList();
-				foreach (var key in lineItemKeys)
-				{
-					ModelState.Remove(key);
-				}
-
-				// Log filtering results for debugging
-				_logger.LogInformation("Enhanced sale creation - Original line items: {OriginalCount}, Valid line items: {ValidCount}",
-						originalLineItems.Count, viewModel.LineItems.Count);
-
-				// Check if we have any valid line items after filtering
-				if (!viewModel.LineItems.Any())
-				{
-					ModelState.AddModelError("LineItems", "At least one complete line item is required (with product, quantity > 0, and price > 0).");
-				}
-
-				// MANUALLY VALIDATE THE FILTERED LINE ITEMS
-				for (int i = 0; i < viewModel.LineItems.Count; i++)
-				{
-					var lineItem = viewModel.LineItems[i];
-
-					// Validate product selection
-					if (lineItem.ProductType == "Item" && !lineItem.ItemId.HasValue)
-					{
-						ModelState.AddModelError($"LineItems[{i}].ItemId", "Item must be selected");
-					}
-					else if (lineItem.ProductType == "FinishedGood" && !lineItem.FinishedGoodId.HasValue)
-					{
-						ModelState.AddModelError($"LineItems[{i}].FinishedGoodId", "Finished Good must be selected");
-					}
-
-					// Validate quantity
-					if (lineItem.Quantity <= 0)
-					{
-						ModelState.AddModelError($"LineItems[{i}].Quantity", "Quantity must be greater than 0");
-					}
-
-					// Validate unit price
-					if (lineItem.UnitPrice < 0)
-					{
-						ModelState.AddModelError($"LineItems[{i}].UnitPrice", "Unit price cannot be negative");
-					}
-				}
-
-				// FIRST VALIDATION CHECK: Basic line item validation
-				if (!ModelState.IsValid)
-				{
-					viewModel.LineItems = originalLineItems;
-					await LoadDropdownsForEnhancedCreate(viewModel);
-					return View(viewModel);
-				}
-
-				// Validate line items have sufficient stock (only for the valid line items)
-				foreach (var lineItem in viewModel.LineItems)
-				{
-					var stockCheck = await ValidateLineItemStock(lineItem);
-					if (!stockCheck.IsValid)
-					{
-						ModelState.AddModelError("", stockCheck.ErrorMessage);
-					}
-				}
-
-				// SECOND VALIDATION CHECK: Stock validation
-				if (!ModelState.IsValid)
-				{
-					viewModel.LineItems = originalLineItems;
-					await LoadDropdownsForEnhancedCreate(viewModel);
-					return View(viewModel);
-				}
-
-				// FINAL SAFETY CHECK BEFORE PROCEEDING
-				if (!ModelState.IsValid)
-				{
-					_logger.LogWarning("Final validation check failed for enhanced sale creation");
-					viewModel.LineItems = originalLineItems;
-					await LoadDropdownsForEnhancedCreate(viewModel);
-					return View(viewModel);
-				}
-
-				// CREATE THE SALE WITH DISCOUNT INFORMATION
-				var sale = new Sale
-				{
-					CustomerId = viewModel.CustomerId.Value,
-					SaleDate = viewModel.SaleDate,
-					OrderNumber = viewModel.OrderNumber,
-					PaymentStatus = viewModel.PaymentStatus,
-					SaleStatus = viewModel.SaleStatus,
-					Terms = viewModel.Terms,
-					PaymentDueDate = viewModel.PaymentDueDate,
-					ShippingAddress = viewModel.ShippingAddress,
-					Notes = viewModel.Notes,
-					PaymentMethod = viewModel.PaymentMethod,
-					ShippingCost = viewModel.ShippingCost,
-					TaxAmount = viewModel.TaxAmount,
-					// ✅ FIXED: Add discount information directly to the sale
-					DiscountAmount = viewModel.DiscountAmount,
-					DiscountPercentage = viewModel.DiscountPercentage,
-					DiscountType = viewModel.DiscountType,
-					DiscountReason = viewModel.DiscountReason,
-					SaleNumber = await _salesService.GenerateSaleNumberAsync(),
-					CreatedDate = DateTime.Now
-				};
-
-				var createdSale = await _salesService.CreateSaleAsync(sale);
-
-				// Add line items (only the valid ones)
-				var addedItems = new List<SaleItem>();
-				foreach (var lineItem in viewModel.LineItems)
-				{
-					var saleItem = new SaleItem
-					{
-						SaleId = createdSale.Id,
-						QuantitySold = lineItem.Quantity,
-						UnitPrice = lineItem.UnitPrice,
-						Notes = lineItem.Notes
-					};
-
-					if (lineItem.ProductType == "Item" && lineItem.ItemId.HasValue)
-					{
-						saleItem.ItemId = lineItem.ItemId.Value;
-					}
-					else if (lineItem.ProductType == "FinishedGood" && lineItem.FinishedGoodId.HasValue)
-					{
-						saleItem.FinishedGoodId = lineItem.FinishedGoodId.Value;
-					}
-
-					var addedItem = await _salesService.AddSaleItemAsync(saleItem);
-					addedItems.Add(addedItem);
-				}
-
-				var serviceItems = await DetectServiceItemsInSale(createdSale.Id);
-				if (serviceItems.Any())
-				{
-					// Store service creation context in TempData for next page
-					TempData["ServiceCreationRequired"] = true;
-					TempData["ServiceItems"] = JsonSerializer.Serialize(serviceItems);
-					TempData["SaleId"] = createdSale.Id;
-
-					// Redirect to service order creation workflow instead of Details
-					return RedirectToAction("CreateServiceOrdersFromSale", new { saleId = createdSale.Id });
-				}
-
-				// Generate success message with summary
-				var successMessage = $"Sale {createdSale.SaleNumber} created successfully!";
-				successMessage += $" {viewModel.LineItemCount} item(s), Subtotal: {viewModel.SubtotalAmount:C}";
-
-				if (viewModel.HasDiscount)
-				{
-					successMessage += $", Discount: {viewModel.DiscountCalculated:C}";
-				}
-
-				successMessage += $", Total: {viewModel.TotalAmount:C}";
-
-				TempData["SuccessMessage"] = successMessage;
-				return RedirectToAction("Details", new { id = createdSale.Id });
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error creating enhanced sale for customer {CustomerId}", viewModel.CustomerId);
-				TempData["ErrorMessage"] = $"Error creating sale: {ex.Message}";
-				await LoadDropdownsForEnhancedCreate(viewModel);
-				return View(viewModel);
-			}
-		}
-		// Helper method to detect service items in a sale
-		private async Task<List<ServiceItemForCreation>> DetectServiceItemsInSale(int saleId)
-		{
-			var sale = await _salesService.GetSaleByIdAsync(saleId);
-			var serviceItems = new List<ServiceItemForCreation>();
-
-			foreach (var saleItem in sale.SaleItems)
-			{
-				if (saleItem.ItemId.HasValue)
-				{
-					var item = await _inventoryService.GetItemByIdAsync(saleItem.ItemId.Value);
-					if (item?.ItemType == ItemType.Service)
-					{
-						// Find linked service type via ServiceItem relationship
-						var serviceType = await _context.ServiceTypes
-								.FirstOrDefaultAsync(st => st.ServiceItemId == item.Id);
-
-						if (serviceType != null)
-						{
-							serviceItems.Add(new ServiceItemForCreation
-							{
-								SaleItemId = saleItem.Id,
-								ServiceTypeId = serviceType.Id,
-								ServiceTypeName = serviceType.ServiceName,
-								ItemName = item.Description,
-								Quantity = saleItem.QuantitySold,
-								UnitPrice = saleItem.UnitPrice,
-								Notes = saleItem.Notes
-							});
-						}
-					}
-				}
-			}
-
-			return serviceItems;
-		}
-		// GET: Sales/CreateServiceOrdersFromSale
-		[HttpGet]
-		public async Task<IActionResult> CreateServiceOrdersFromSale(int saleId)
-		{
-			try
-			{
-				var sale = await _salesService.GetSaleByIdAsync(saleId);
-				if (sale == null)
-				{
-					TempData["ErrorMessage"] = "Sale not found.";
-					return RedirectToAction("Index");
-				}
-
-				var serviceItems = await DetectServiceItemsInSale(saleId);
-				if (!serviceItems.Any())
-				{
-					// No service items, go directly to sale details
-					return RedirectToAction("Details", new { id = saleId });
-				}
-
-				// Check for existing service orders
-				var existingServiceOrders = await _context.ServiceOrders
-						.Where(so => so.SaleId == saleId)
-						.Include(so => so.ServiceType)
-						.ToListAsync();
-
-
-				var viewModel = new CreateServiceOrdersFromSaleViewModel
-				{
-					SaleId = saleId,
-					Sale = sale,
-					ServiceItems = serviceItems,
-					ExistingServiceOrders = existingServiceOrders,
-					// ✅ FIX: Pre-populate common fields properly
-					CustomerId = sale.CustomerId,
-					CustomerName = sale.Customer?.CustomerName ?? "Unknown",
-					RequestDate = sale.SaleDate,
-					DefaultPromisedDate = sale.SaleDate.AddDays(7), // Default 1 week
-					SaleReference = $"From Sale {sale.SaleNumber}",
-					// ✅ FIX: Initialize ServiceOrdersToCreate collection
-					ServiceOrdersToCreate = serviceItems.Select(si => new ServiceOrderCreationItem
-					{
-						ServiceTypeId = si.ServiceTypeId,
-						CreateServiceOrder = !existingServiceOrders.Any(so => so.ServiceTypeId == si.ServiceTypeId),
-						PromisedDate = sale.SaleDate.AddDays(7),
-						Priority = ServicePriority.Normal,
-						CustomerRequest = $"From Sale {sale.SaleNumber} - {si.Notes}",
-						ServiceNotes = "",
-						AssignedTechnician = "",
-						EquipmentDetails = "",
-						SerialNumber = "",
-						ModelNumber = ""
-					}).ToList()
-				};
-
-				return View(viewModel);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error loading service creation workflow for sale {SaleId}", saleId);
-				TempData["ErrorMessage"] = "Error loading service creation workflow";
-				return RedirectToAction("Details", new { id = saleId });
-			}
-		}
-		// Helper method to load dropdowns for enhanced create
-		private async Task LoadDropdownsForEnhancedCreate(EnhancedCreateSaleViewModel viewModel)
-		{
-			try
-			{
-				// Load customers
-				var customers = await _customerService.GetAllCustomersAsync();
-				ViewBag.Customers = customers
-						.Where(c => c.IsActive)
-						.Select(c => new SelectListItem
-						{
-							Value = c.Id.ToString(),
-							Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
-							Selected = c.Id == viewModel.CustomerId
-						})
-						.OrderBy(c => c.Text)
-						.ToList();
-
-				// Load items
-				var allItems = await _inventoryService.GetAllItemsAsync();
-				ViewBag.Items = allItems
-						.Where(i => i.IsSellable)
-						.Select(i => new SelectListItem
-						{
-							Value = i.Id.ToString(),
-							Text = $"{i.PartNumber} - {i.Description} (Stock: {i.CurrentStock})",
-							Group = new SelectListGroup { Name = i.TrackInventory ? "Inventory Items" : "Service Items" }
-						})
-						.OrderBy(i => i.Text)
-						.ToList();
+						Value = i.Id.ToString(),
+						Text = $"{i.PartNumber} - {i.Description} (Stock: {i.CurrentStock})"
+					})
+					.OrderBy(i => i.Text)
+					.ToList();
 
 				// Load finished goods
 				var finishedGoods = await _context.FinishedGoods
-						.OrderBy(fg => fg.PartNumber)
-						.ToListAsync();
+					.Where(fg => fg.CurrentStock >= 0)
+					.OrderBy(fg => fg.PartNumber)
+					.ToListAsync();
 
 				ViewBag.FinishedGoods = finishedGoods
-						.Select(fg => new SelectListItem
+					.Select(fg => new SelectListItem
+					{
+						Value = fg.Id.ToString(),
+						Text = $"{fg.PartNumber} - {fg.Description} (Stock: {fg.CurrentStock})"
+					})
+					.ToList();
+
+				// Load service types
+				var serviceTypes = await _context.ServiceTypes
+						.Where(st => st.IsActive)
+						.OrderBy(st => st.ServiceName)
+						.ToListAsync();
+
+				ViewBag.ServiceTypes = serviceTypes
+						.Where(st => st.IsSellable)
+						.Select(st => new SelectListItem
 						{
-							Value = fg.Id.ToString(),
-							Text = $"{fg.PartNumber} - {fg.Description} (Stock: {fg.CurrentStock})"
+							Value = st.Id.ToString(),
+							Text = $"{st.ServiceName} - ${st.StandardPrice:F2}"
 						})
 						.ToList();
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error loading dropdowns for enhanced create");
-				ViewBag.Customers = new List<SelectListItem>();
+				_logger.LogError(ex, "Error loading dropdowns for add item");
 				ViewBag.Items = new List<SelectListItem>();
 				ViewBag.FinishedGoods = new List<SelectListItem>();
-			}
-		}
-
-		// Helper method to validate line item stock
-		private async Task<(bool IsValid, string ErrorMessage)> ValidateLineItemStock(SaleLineItemViewModel lineItem)
-		{
-			try
-			{
-				if (lineItem.ProductType == "Item" && lineItem.ItemId.HasValue)
-				{
-					var item = await _inventoryService.GetItemByIdAsync(lineItem.ItemId.Value);
-					if (item == null)
-					{
-						return (false, $"Item with ID {lineItem.ItemId.Value} not found");
-					}
-
-					if (item.TrackInventory && lineItem.Quantity > item.CurrentStock)
-					{
-						return (false, $"Insufficient stock for {item.PartNumber}. Available: {item.CurrentStock}, Requested: {lineItem.Quantity}");
-					}
-				}
-				else if (lineItem.ProductType == "FinishedGood" && lineItem.FinishedGoodId.HasValue)
-				{
-					var finishedGood = await _context.FinishedGoods
-							.FirstOrDefaultAsync(fg => fg.Id == lineItem.FinishedGoodId.Value);
-
-					if (finishedGood == null)
-					{
-						return (false, $"Finished Good with ID {lineItem.FinishedGoodId.Value} not found");
-					}
-
-					if (lineItem.Quantity > finishedGood.CurrentStock)
-					{
-						return (false, $"Insufficient stock for {finishedGood.PartNumber}. Available: {finishedGood.CurrentStock}, Requested: {lineItem.Quantity}");
-					}
-				}
-
-				return (true, "");
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error validating line item stock");
-				return (false, "Error validating stock availability");
+				ViewBag.ServiceTypes = new List<SelectListItem>();
 			}
 		}
 
@@ -2955,7 +1525,8 @@ namespace InventorySystem.Controllers
 							tracksInventory = item.TrackInventory,
 							suggestedPrice = item.SuggestedSalePrice,
 							hasSalePrice = item.HasSalePrice,
-							unitOfMeasure = item.UnitOfMeasure
+							unitOfMeasure = item.UnitOfMeasure.ToString(),
+							itemType = item.ItemType.ToString()
 						}
 					});
 				}
@@ -2982,11 +1553,44 @@ namespace InventorySystem.Controllers
 							currentStock = finishedGood.CurrentStock,
 							unitCost = finishedGood.UnitCost,
 							salePrice = finishedGood.SellingPrice,
-							suggestedPrice = Math.Max(0, suggestedPrice), // Ensure non-negative and not null
-							tracksInventory = true, // Finished goods always track inventory
+							suggestedPrice = Math.Max(0, suggestedPrice),
+							tracksInventory = true,
 							itemType = "FinishedGood",
 							productType = "FinishedGood",
 							hasSalePrice = finishedGood.SellingPrice > 0
+						}
+					});
+				}
+				else if (productType == "ServiceType")
+				{
+					var serviceType = await _context.ServiceTypes
+							.FirstOrDefaultAsync(st => st.Id == productId);
+
+					if (serviceType == null)
+					{
+						return Json(new { success = false, message = "Service not found" });
+					}
+
+					return Json(new
+					{
+						success = true,
+						productInfo = new
+						{
+							serviceCode = serviceType.ServiceCode,
+							partNumber = serviceType.ServiceCode, // For compatibility
+							description = serviceType.Description,
+							serviceName = serviceType.ServiceName,
+							standardHours = serviceType.StandardHours,
+							standardRate = serviceType.StandardRate,
+							suggestedPrice = serviceType.StandardPrice,
+							hasSalePrice = true, // Services always have a standard price
+							tracksInventory = false, // Services don't track inventory
+							itemType = "Service",
+							productType = "ServiceType",
+							requiresEquipment = serviceType.RequiresEquipment,
+							qcRequired = serviceType.QcRequired,
+							certificateRequired = serviceType.CertificateRequired,
+							worksheetRequired = serviceType.WorksheetRequired
 						}
 					});
 				}
@@ -3018,7 +1622,7 @@ namespace InventorySystem.Controllers
 							tracksInventory = i.TrackInventory,
 							suggestedPrice = i.SuggestedSalePrice,
 							hasSalePrice = i.HasSalePrice,
-							unitOfMeasure = i.UnitOfMeasure,
+							unitOfMeasure = i.UnitOfMeasure.ToString(),
 							itemType = i.ItemType.ToString()
 						})
 						.OrderBy(i => i.partNumber)
@@ -3040,7 +1644,7 @@ namespace InventorySystem.Controllers
 			try
 			{
 				var finishedGoods = await _context.FinishedGoods
-						.Where(fg => fg.CurrentStock >= 0) // Include all, even out of stock for visibility
+						.Where(fg => fg.CurrentStock >= 0)
 						.OrderBy(fg => fg.PartNumber)
 						.ToListAsync();
 
@@ -3067,8 +1671,6 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		
-
 		// API endpoint for updating payment due date based on terms
 		[HttpGet]
 		public JsonResult CalculatePaymentDueDate(DateTime saleDate, PaymentTerms terms)
@@ -3091,6 +1693,689 @@ namespace InventorySystem.Controllers
 			{
 				_logger.LogError(ex, "Error calculating payment due date");
 				return Json(new { success = false, message = "Error calculating due date" });
+			}
+		}
+
+		// GET: Sales/Backorders
+		[HttpGet]
+		public async Task<IActionResult> Backorders()
+		{
+			try
+			{
+				_logger.LogInformation("Loading backorders page");
+
+				// Get all sales with backorders
+				var backorderedSales = await _context.Sales
+					.Include(s => s.Customer)
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.Item)
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.ServiceType)
+					.Where(s => s.SaleStatus == SaleStatus.Backordered &&
+								 s.SaleItems.Any(si => si.QuantityBackordered > 0))
+					.OrderBy(s => s.SaleDate) // FIFO order - oldest sales first
+					.ToListAsync();
+
+				_logger.LogInformation("Found {BackorderCount} sales with backorders", backorderedSales.Count);
+
+				return View(backorderedSales);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading backorders");
+				SetErrorMessage($"Error loading backorders: {ex.Message}");
+				return View(new List<Sale>());
+			}
+		}
+
+		// GET: Sales/BackorderDetails/{id}
+		[HttpGet]
+		public async Task<IActionResult> BackorderDetails(int id)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(id);
+				if (sale == null)
+				{
+					SetErrorMessage("Sale not found.");
+					return RedirectToAction("Backorders");
+				}
+
+				if (sale.SaleStatus != SaleStatus.Backordered)
+				{
+					SetErrorMessage("Sale is not in backordered status.");
+					return RedirectToAction("Details", new { id });
+				}
+
+				var backorderedItems = sale.SaleItems.Where(si => si.QuantityBackordered > 0).ToList();
+
+				ViewBag.BackorderedItems = backorderedItems;
+				ViewBag.BackorderValue = backorderedItems.Sum(si => si.QuantityBackordered * si.UnitPrice);
+
+				return View(sale);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading backorder details for sale: {SaleId}", id);
+				SetErrorMessage($"Error loading backorder details: {ex.Message}");
+				return RedirectToAction("Backorders");
+			}
+		}
+
+		// API endpoint for getting backorder summary data
+		[HttpGet]
+		public async Task<JsonResult> GetBackorderSummary()
+		{
+			try
+			{
+				var backorderedSales = await _context.Sales
+						.Include(s => s.SaleItems)
+						.Where(s => s.SaleStatus == SaleStatus.Backordered &&
+											 s.SaleItems.Any(si => si.QuantityBackordered > 0))
+						.ToListAsync();
+
+				var summary = new
+				{
+					totalBackorderedSales = backorderedSales.Count,
+					totalBackorderedItems = backorderedSales.SelectMany(s => s.SaleItems).Count(si => si.QuantityBackordered > 0),
+					totalUnitsBackordered = backorderedSales.SelectMany(s => s.SaleItems).Sum(si => si.QuantityBackordered),
+					totalBackorderValue = backorderedSales.SelectMany(s => s.SaleItems)
+								.Where(si => si.QuantityBackordered > 0)
+								.Sum(si => si.QuantityBackordered * si.UnitPrice),
+					oldestBackorder = backorderedSales.OrderBy(s => s.SaleDate).FirstOrDefault()?.SaleDate,
+					avgDaysBackordered = backorderedSales.Any()
+								? backorderedSales.Average(s => (DateTime.Now - s.SaleDate).Days)
+								: 0
+				};
+
+				return Json(new { success = true, data = summary });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting backorder summary");
+				return Json(new { success = false, message = "Error retrieving backorder summary" });
+			}
+		}
+
+		// POST: Sales/FulfillBackorder
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> FulfillBackorder(int saleItemId, int quantityToFulfill)
+		{
+			try
+			{
+				var saleItem = await _context.SaleItems
+						.Include(si => si.Sale)
+						.FirstOrDefaultAsync(si => si.Id == saleItemId);
+
+				if (saleItem == null)
+				{
+					SetErrorMessage("Sale item not found.");
+					return RedirectToAction("Backorders");
+				}
+
+				if (quantityToFulfill <= 0 || quantityToFulfill > saleItem.QuantityBackordered)
+				{
+					SetErrorMessage("Invalid quantity to fulfill.");
+					return RedirectToAction("Backorders");
+				}
+
+				// Update backorder quantity
+				saleItem.QuantityBackordered -= quantityToFulfill;
+
+				// Check if sale should be updated to processing status
+				var sale = saleItem.Sale;
+				var hasRemainingBackorders = await _context.SaleItems
+						.Where(si => si.SaleId == sale.Id && si.QuantityBackordered > 0)
+						.AnyAsync();
+
+				if (!hasRemainingBackorders)
+				{
+					sale.SaleStatus = SaleStatus.Processing;
+					_logger.LogInformation("Sale {SaleNumber} status updated from Backordered to Processing - all backorders fulfilled", sale.SaleNumber);
+				}
+
+				await _context.SaveChangesAsync();
+
+				SetSuccessMessage($"Backorder fulfilled: {quantityToFulfill} units of {saleItem.ProductPartNumber}");
+				return RedirectToAction("Backorders");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error fulfilling backorder for sale item: {SaleItemId}", saleItemId);
+				SetErrorMessage($"Error fulfilling backorder: {ex.Message}");
+				return RedirectToAction("Backorders");
+			}
+		}
+
+
+		// Add these methods to the SalesController class
+
+		// GET: Sales/AvailableBackorders - Show items available for shipment
+		[HttpGet]
+		public async Task<IActionResult> AvailableBackorders()
+		{
+			try
+			{
+				var availableBackorders = await _context.SaleItems
+						.Include(si => si.Sale)
+								.ThenInclude(s => s.Customer)
+						.Include(si => si.Item)
+						.Include(si => si.FinishedGood)
+						.Include(si => si.ServiceType)
+						.Where(si => si.QuantityBackordered > 0)
+						.ToListAsync();
+
+				// Filter to only items that are actually available
+				var availableItems = availableBackorders
+						.Where(si => si.IsAvailableForShipment)
+						.GroupBy(si => si.SaleId)
+						.Select(g => new
+						{
+							Sale = g.First().Sale,
+							AvailableItems = g.ToList(),
+							TotalAvailableValue = g.Sum(si => si.CanFulfillQuantity * si.UnitPrice)
+						})
+						.OrderBy(x => x.Sale.SaleDate)
+						.ToList();
+
+				ViewBag.TotalAvailableSales = availableItems.Count;
+				ViewBag.TotalAvailableValue = availableItems.Sum(x => x.TotalAvailableValue);
+
+				return View(availableItems);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading available backorders");
+				SetErrorMessage($"Error loading available backorders: {ex.Message}");
+				return View(new List<object>());
+			}
+		}
+
+		// GET: Sales/CreateAdditionalShipment/{saleId}
+		[HttpGet]
+		public async Task<IActionResult> CreateAdditionalShipment(int saleId)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(saleId);
+				if (sale == null)
+				{
+					SetErrorMessage("Sale not found.");
+					return RedirectToAction("Index");
+				}
+
+				if (!sale.CanShipAdditionalItems)
+				{
+					SetErrorMessage("This sale does not have items available for additional shipment.");
+					return RedirectToAction("Details", new { id = saleId });
+				}
+
+				var availableItems = sale.SaleItems
+						.Where(si => si.QuantityBackordered > 0 && si.IsAvailableForShipment)
+						.ToList();
+
+				if (!availableItems.Any())
+				{
+					SetErrorMessage("No items are currently available for shipment.");
+					return RedirectToAction("Details", new { id = saleId });
+				}
+
+				var viewModel = new CreateAdditionalShipmentViewModel
+				{
+					SaleId = saleId,
+					Sale = sale,
+					AvailableItems = availableItems.Select(si => new ShippableItemViewModel
+					{
+						SaleItemId = si.Id,
+						ProductName = si.ProductName,
+						ProductPartNumber = si.ProductPartNumber,
+						QuantityBackordered = si.QuantityBackordered,
+						CanFulfillQuantity = si.CanFulfillQuantity,
+						QuantityToShip = si.CanFulfillQuantity, // Default to max available
+						UnitPrice = si.UnitPrice
+					}).ToList()
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading additional shipment form for sale: {SaleId}", saleId);
+				SetErrorMessage($"Error loading shipment form: {ex.Message}");
+				return RedirectToAction("Details", new { id = saleId });
+			}
+		}
+
+		// POST: Sales/CreateAdditionalShipment
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreateAdditionalShipment(CreateAdditionalShipmentViewModel model)
+		{
+			try
+			{
+				_logger.LogInformation("Creating additional shipment for Sale ID: {SaleId}", model.SaleId);
+
+				// Basic validation
+				if (string.IsNullOrEmpty(model.CourierService))
+				{
+					SetErrorMessage("Courier service is required.");
+					return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
+				}
+
+				if (string.IsNullOrEmpty(model.TrackingNumber))
+				{
+					SetErrorMessage("Tracking number is required.");
+					return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
+				}
+
+				// Get sale with all necessary includes
+				var sale = await _context.Sales
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.Item)
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.ServiceType)
+					.Include(s => s.Customer)
+					.FirstOrDefaultAsync(s => s.Id == model.SaleId);
+
+				if (sale == null)
+				{
+					SetErrorMessage("Sale not found.");
+					return RedirectToAction("Index");
+				}
+
+				// Validate items to ship
+				var itemsToShip = model.AvailableItems?.Where(item => item.QuantityToShip > 0).ToList();
+				if (itemsToShip == null || !itemsToShip.Any())
+				{
+					SetErrorMessage("No items selected for shipment.");
+					return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
+				}
+
+				_logger.LogInformation("Processing {ItemCount} items for additional shipment", itemsToShip.Count);
+
+				using var transaction = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					// Create new shipment record
+					var shipment = new Shipment
+					{
+						SaleId = model.SaleId,
+						PackingSlipNumber = await GeneratePackingSlipNumberAsync(sale.SaleNumber),
+						ShipmentDate = DateTime.Now,
+						CourierService = model.CourierService,
+						TrackingNumber = model.TrackingNumber,
+						ExpectedDeliveryDate = model.ExpectedDeliveryDate,
+						PackageWeight = model.PackageWeight,
+						PackageDimensions = model.PackageDimensions,
+						ShippingInstructions = model.ShippingInstructions,
+						ShippedBy = User.Identity?.Name ?? "System"
+					};
+
+					_context.Shipments.Add(shipment);
+					await _context.SaveChangesAsync(); // Save to get shipment ID
+
+					// Process each item being shipped
+					int totalItemsProcessed = 0;
+					int totalQuantityShipped = 0;
+
+					foreach (var item in itemsToShip)
+					{
+						var saleItem = sale.SaleItems.FirstOrDefault(si => si.Id == item.SaleItemId);
+						if (saleItem == null)
+						{
+							_logger.LogWarning("Sale item {SaleItemId} not found", item.SaleItemId);
+							continue;
+						}
+
+						// Validate quantity
+						var maxCanShip = Math.Min(saleItem.QuantityBackordered, saleItem.CanFulfillQuantity);
+						var quantityToShip = Math.Min(item.QuantityToShip, maxCanShip);
+
+						if (quantityToShip <= 0)
+						{
+							_logger.LogWarning("Invalid quantity to ship for item {SaleItemId}: {Quantity}", item.SaleItemId, item.QuantityToShip);
+							continue;
+						}
+
+						_logger.LogInformation("Processing item {ProductName}: shipping {Quantity} units", saleItem.ProductName, quantityToShip);
+
+						// Reduce backorder quantity
+						saleItem.QuantityBackordered -= quantityToShip;
+
+						// Reduce inventory if applicable
+						if (saleItem.ItemId.HasValue && saleItem.Item != null)
+						{
+							if (saleItem.Item.TrackInventory)
+							{
+								saleItem.Item.CurrentStock -= quantityToShip;
+								await _purchaseService.ProcessInventoryConsumptionAsync(saleItem.ItemId.Value, quantityToShip);
+							}
+						}
+						else if (saleItem.FinishedGoodId.HasValue && saleItem.FinishedGood != null)
+						{
+							saleItem.FinishedGood.CurrentStock -= quantityToShip;
+						}
+						// ServiceType items don't require inventory reduction
+
+						// Add to shipment
+						shipment.ShipmentItems.Add(new ShipmentItem
+						{
+							SaleItemId = saleItem.Id,
+							QuantityShipped = quantityToShip
+						});
+
+						totalItemsProcessed++;
+						totalQuantityShipped += quantityToShip;
+					}
+
+					if (totalItemsProcessed == 0)
+					{
+						await transaction.RollbackAsync();
+						SetErrorMessage("No valid items could be processed for shipment.");
+						return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
+					}
+
+					// Update sale status
+					var remainingBackorders = sale.SaleItems.Sum(si => si.QuantityBackordered);
+					if (remainingBackorders == 0)
+					{
+						sale.SaleStatus = SaleStatus.Shipped;
+						_logger.LogInformation("Sale {SaleNumber} fully shipped - no remaining backorders", sale.SaleNumber);
+					}
+					else
+					{
+						sale.SaleStatus = SaleStatus.PartiallyShipped;
+						_logger.LogInformation("Sale {SaleNumber} partially shipped - {RemainingBackorders} units still backordered", 
+							sale.SaleNumber, remainingBackorders);
+					}
+
+					await _context.SaveChangesAsync();
+					await transaction.CommitAsync();
+
+					var successMessage = remainingBackorders == 0
+						? $"Shipment created successfully! Sale is now fully shipped. Shipped {totalQuantityShipped} units across {totalItemsProcessed} items. Tracking: {model.TrackingNumber}"
+						: $"Additional shipment created successfully! Shipped {totalQuantityShipped} units across {totalItemsProcessed} items. {remainingBackorders} units remain backordered. Tracking: {model.TrackingNumber}";
+
+					SetSuccessMessage(successMessage);
+
+					// Redirect to packing slip
+					return RedirectToAction("PackingSlip", new { shipmentId = shipment.Id });
+				}
+				catch (Exception ex)
+				{
+					await transaction.RollbackAsync();
+					_logger.LogError(ex, "Error in transaction during additional shipment creation for Sale ID: {SaleId}", model.SaleId);
+					SetErrorMessage($"Error creating shipment: {ex.Message}");
+					return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating additional shipment for Sale ID: {SaleId}", model.SaleId);
+				SetErrorMessage($"Error creating additional shipment: {ex.Message}");
+				return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
+			}
+		}
+
+		// API endpoint to check item availability for backorders
+		[HttpGet]
+		public async Task<JsonResult> CheckBackorderAvailability(int saleId)
+		{
+			try
+			{
+				var sale = await _context.Sales
+						.Include(s => s.SaleItems)
+								.ThenInclude(si => si.Item)
+						.Include(s => s.SaleItems)
+								.ThenInclude(si => si.FinishedGood)
+						.FirstOrDefaultAsync(s => s.Id == saleId);
+
+				if (sale == null)
+				{
+					return Json(new { success = false, message = "Sale not found" });
+				}
+
+				var backorderedItems = sale.SaleItems
+						.Where(si => si.QuantityBackordered > 0)
+						.Select(si => new
+						{
+							saleItemId = si.Id,
+							productName = si.ProductName,
+							partNumber = si.ProductPartNumber,
+							quantityBackordered = si.QuantityBackordered,
+							availableStock = si.AvailableStock,
+							canFulfillQuantity = si.CanFulfillQuantity,
+							isAvailable = si.IsAvailableForShipment
+						})
+						.ToList();
+
+				var summary = new
+				{
+					totalBackordered = backorderedItems.Sum(i => i.quantityBackordered),
+					totalAvailable = backorderedItems.Sum(i => i.canFulfillQuantity),
+					itemsAvailable = backorderedItems.Count(i => i.isAvailable),
+					totalItems = backorderedItems.Count
+				};
+
+				return Json(new
+				{
+					success = true,
+					items = backorderedItems,
+					summary = summary,
+					hasAvailableItems = summary.itemsAvailable > 0
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error checking backorder availability for sale: {SaleId}", saleId);
+				return Json(new { success = false, message = "Error checking availability" });
+			}
+		}
+
+		// Updated method to allow adjustments on partially shipped sales
+		private bool CanMakeAdjustments(Sale sale)
+		{
+			return sale.SaleStatus == SaleStatus.Shipped ||
+						 sale.SaleStatus == SaleStatus.PartiallyShipped ||
+						 sale.SaleStatus == SaleStatus.Delivered;
+		}
+
+		// GET: Sales/Shipments
+		[HttpGet]
+		public async Task<IActionResult> Shipments(
+				string search,
+				string courierFilter,
+				DateTime? startDate,
+				DateTime? endDate,
+				string sortOrder = "date_desc",
+				int page = 1,
+				int pageSize = 25)
+		{
+			try
+			{
+				// Pagination constants
+				const int DefaultPageSize = 25;
+				int[] AllowedPageSizes = { 10, 25, 50, 100 };
+
+				// Validate and constrain pagination parameters
+				page = Math.Max(1, page);
+				pageSize = AllowedPageSizes.Contains(pageSize) ? pageSize : DefaultPageSize;
+
+				// Default to last 2 weeks if no date range specified
+				if (!startDate.HasValue && !endDate.HasValue)
+				{
+					startDate = DateTime.Today.AddDays(-14);
+					endDate = DateTime.Today;
+				}
+
+				// Get shipments query
+				var query = _context.Shipments
+						.Include(s => s.Sale)
+								.ThenInclude(sale => sale.Customer)
+						.Include(s => s.ShipmentItems)
+								.ThenInclude(si => si.SaleItem)
+						.AsQueryable();
+
+				// Apply search filter
+				if (!string.IsNullOrWhiteSpace(search))
+				{
+					var searchTermLower = search.Trim().ToLower();
+					query = query.Where(s =>
+							s.PackingSlipNumber.ToLower().Contains(searchTermLower) ||
+							s.TrackingNumber.ToLower().Contains(searchTermLower) ||
+							s.Sale.SaleNumber.ToLower().Contains(searchTermLower) ||
+							(s.Sale.Customer != null && s.Sale.Customer.CustomerName.ToLower().Contains(searchTermLower)) ||
+							(s.CourierService != null && s.CourierService.ToLower().Contains(searchTermLower)));
+				}
+
+				// Apply courier filter
+				if (!string.IsNullOrWhiteSpace(courierFilter))
+				{
+					query = query.Where(s => s.CourierService == courierFilter);
+				}
+
+				// Apply date range filter
+				if (startDate.HasValue)
+				{
+					query = query.Where(s => s.ShipmentDate >= startDate.Value);
+				}
+
+				if (endDate.HasValue)
+				{
+					var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
+					query = query.Where(s => s.ShipmentDate <= endOfDay);
+				}
+
+				// Apply sorting
+				query = sortOrder switch
+				{
+					"date_asc" => query.OrderBy(s => s.ShipmentDate),
+					"date_desc" => query.OrderByDescending(s => s.ShipmentDate),
+					"customer_asc" => query.OrderBy(s => s.Sale.Customer != null ? s.Sale.Customer.CustomerName : ""),
+					"customer_desc" => query.OrderByDescending(s => s.Sale.Customer != null ? s.Sale.Customer.CustomerName : ""),
+					"courier_asc" => query.OrderBy(s => s.CourierService),
+					"courier_desc" => query.OrderByDescending(s => s.CourierService),
+					"tracking_asc" => query.OrderBy(s => s.TrackingNumber),
+					"tracking_desc" => query.OrderByDescending(s => s.TrackingNumber),
+					_ => query.OrderByDescending(s => s.ShipmentDate)
+				};
+
+				// Get total count for pagination
+				var totalCount = await query.CountAsync();
+
+				// Calculate pagination values
+				var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+				var skip = (page - 1) * pageSize;
+
+				// Get paginated results and transform to ViewModel
+				var shipments = await query.Skip(skip).Take(pageSize)
+						.Select(s => new ShipmentIndexViewModel
+						{
+							ShipmentId = s.Id,
+							PackingSlipNumber = s.PackingSlipNumber,
+							ShipmentDate = s.ShipmentDate,
+							SaleNumber = s.Sale.SaleNumber,
+							SaleId = s.SaleId,
+							CustomerName = s.Sale.Customer != null ? s.Sale.Customer.CustomerName : "Unknown",
+							CompanyName = s.Sale.Customer != null ? s.Sale.Customer.CompanyName : null, 
+							CourierService = s.CourierService ?? "",
+							TrackingNumber = s.TrackingNumber ?? "",
+							ExpectedDeliveryDate = s.ExpectedDeliveryDate,
+							PackageWeight = s.PackageWeight,
+							PackageDimensions = s.PackageDimensions,
+							ShippedBy = s.ShippedBy ?? "",
+							TotalItemsShipped = s.ShipmentItems.Sum(si => si.QuantityShipped),
+							ShipmentValue = s.ShipmentItems.Sum(si => si.QuantityShipped * si.SaleItem.UnitPrice),
+							IsDelivered = s.Sale.SaleStatus == SaleStatus.Delivered,
+							DeliveredDate = s.Sale.SaleStatus == SaleStatus.Delivered ? s.Sale.ShippedDate : null
+						})
+						.ToListAsync();
+
+				// Get filter options for dropdowns
+				var allCouriers = await _context.Shipments
+						.Where(s => !string.IsNullOrEmpty(s.CourierService))
+						.Select(s => s.CourierService)
+						.Distinct()
+						.OrderBy(c => c)
+						.ToListAsync();
+
+				// Prepare ViewBag data
+				ViewBag.SearchTerm = search;
+				ViewBag.CourierFilter = courierFilter;
+				ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
+				ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
+				ViewBag.SortOrder = sortOrder;
+
+				// Pagination data
+				ViewBag.CurrentPage = page;
+				ViewBag.PageSize = pageSize;
+				ViewBag.TotalPages = totalPages;
+				ViewBag.TotalCount = totalCount;
+				ViewBag.HasPreviousPage = page > 1;
+				ViewBag.HasNextPage = page < totalPages;
+				ViewBag.ShowingFrom = totalCount > 0 ? skip + 1 : 0;
+				ViewBag.ShowingTo = Math.Min(skip + pageSize, totalCount);
+				ViewBag.AllowedPageSizes = AllowedPageSizes;
+
+				// Dropdown data
+				ViewBag.CourierOptions = allCouriers.Select(c => new SelectListItem
+				{
+					Value = c,
+					Text = c,
+					Selected = c == courierFilter
+				}).ToList();
+
+				// Add "All" option at the beginning
+				ViewBag.CourierOptions.Insert(0, new SelectListItem { Value = "", Text = "All Couriers" });
+
+				return View(shipments);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error in Shipments Index");
+				SetErrorMessage($"Error loading shipments: {ex.Message}");
+				return View(new List<ShipmentIndexViewModel>());
+			}
+		}
+
+		// GET: Sales/ShipmentDetails/{id}
+		[HttpGet]
+		public async Task<IActionResult> ShipmentDetails(int id)
+		{
+			try
+			{
+				var shipment = await _context.Shipments
+						.Include(s => s.Sale)
+								.ThenInclude(sale => sale.Customer)
+						.Include(s => s.ShipmentItems)
+								.ThenInclude(si => si.SaleItem)
+										.ThenInclude(saleItem => saleItem.Item)
+						.Include(s => s.ShipmentItems)
+								.ThenInclude(si => si.SaleItem)
+										.ThenInclude(saleItem => saleItem.FinishedGood)
+						.Include(s => s.ShipmentItems)
+								.ThenInclude(si => si.SaleItem)
+										.ThenInclude(saleItem => saleItem.ServiceType)
+						.FirstOrDefaultAsync(s => s.Id == id);
+
+				if (shipment == null)
+				{
+					SetErrorMessage("Shipment not found.");
+					return RedirectToAction("Index");
+				}
+
+				return View(shipment);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading shipment details: {ShipmentId}", id);
+				SetErrorMessage($"Error loading shipment details: {ex.Message}");
+				return RedirectToAction("Shipments");
 			}
 		}
 

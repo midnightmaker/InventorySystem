@@ -319,86 +319,96 @@ namespace InventorySystem.Models
   }
 
   // Supporting Models
-  public class ServiceType
-  {
-    public int Id { get; set; }
+  //public class ServiceType
+  //{
+  //  public int Id { get; set; }
 
-    [Required]
-    [Display(Name = "Service Name")]
-    [StringLength(100)]
-    public string ServiceName { get; set; } = string.Empty;
+  //  [Required]
+  //  [Display(Name = "Service Name")]
+  //  [StringLength(100)]
+  //  public string ServiceName { get; set; } = string.Empty;
 
-    [Display(Name = "Service Category")]
-    [StringLength(50)]
-    public string? ServiceCategory { get; set; }
+  //  // NEW: Vendor relationship
+  //  [Display(Name = "Service Provider (Vendor)")]
+  //  public int? VendorId { get; set; }
+  //  public virtual Vendor? Vendor { get; set; }
 
-    [Display(Name = "Description")]
-    [StringLength(500)]
-    public string? Description { get; set; }
+  //  [Display(Name = "Service Category")]
+  //  [StringLength(50)]
+  //  public string? ServiceCategory { get; set; }
 
-    [Display(Name = "Standard Hours")]
-    [Range(0, 100)]
-    public decimal StandardHours { get; set; }
+  //  [Display(Name = "Description")]
+  //  [StringLength(500)]
+  //  public string? Description { get; set; }
 
-    [Display(Name = "Standard Rate")]
-    [Column(TypeName = "decimal(18,2)")]
-    public decimal StandardRate { get; set; }
+  //  [Display(Name = "Standard Hours")]
+  //  [Range(0, 100)]
+  //  public decimal StandardHours { get; set; }
 
-    [Display(Name = "Requires Equipment")]
-    public bool RequiresEquipment { get; set; }
+  //  [Display(Name = "Standard Rate")]
+  //  [Column(TypeName = "decimal(18,2)")]
+  //  public decimal StandardRate { get; set; }
 
-    [Display(Name = "Required Equipment")]
-    [StringLength(200)]
-    public string? RequiredEquipment { get; set; }
+  //  [Display(Name = "Requires Equipment")]
+  //  public bool RequiresEquipment { get; set; }
 
-    [Display(Name = "Skill Level Required")]
-    [StringLength(100)]
-    public string? SkillLevel { get; set; }
+  //  [Display(Name = "Required Equipment")]
+  //  [StringLength(200)]
+  //  public string? RequiredEquipment { get; set; }
 
-    [Display(Name = "Quality Check Required")]
-    public bool QcRequired { get; set; }
+  //  [Display(Name = "Skill Level Required")]
+  //  [StringLength(100)]
+  //  public string? SkillLevel { get; set; }
 
-    [Display(Name = "Certificate Required")]
-    public bool CertificateRequired { get; set; }
+  //  [Display(Name = "Quality Check Required")]
+  //  public bool QcRequired { get; set; }
 
-    // ? NEW: Worksheet requirement field
-    [Display(Name = "Worksheet Required")]
-    public bool WorksheetRequired { get; set; }
+  //  [Display(Name = "Certificate Required")]
+  //  public bool CertificateRequired { get; set; }
 
-    [Display(Name = "Is Active")]
-    public bool IsActive { get; set; } = true;
+  //  // ? NEW: Worksheet requirement field
+  //  [Display(Name = "Worksheet Required")]
+  //  public bool WorksheetRequired { get; set; }
 
-    [Display(Name = "Service Code")]
-    [StringLength(20)]
-    public string? ServiceCode { get; set; }
+  //  [Display(Name = "Is Active")]
+  //  public bool IsActive { get; set; } = true;
 
-    // NEW: Link to corresponding service item
-    [Display(Name = "Service Item")]
-    public int? ServiceItemId { get; set; }
-    public virtual Item? ServiceItem { get; set; }
+  //  [Display(Name = "Service Code")]
+  //  [StringLength(20)]
+  //  public string? ServiceCode { get; set; }
 
-    // Navigation
-    public virtual ICollection<ServiceOrder> ServiceOrders { get; set; } = new List<ServiceOrder>();
+  //  // NEW: Link to corresponding service item
+  //  [Display(Name = "Service Item")]
+  //  public int? ServiceItemId { get; set; }
+  //  public virtual Item? ServiceItem { get; set; }
 
-    [NotMapped]
-    [Display(Name = "Display Name")]
-    public string DisplayName => !string.IsNullOrEmpty(ServiceCode)
-        ? $"{ServiceCode} - {ServiceName}"
-        : ServiceName;
+  //  // Navigation
+  //  public virtual ICollection<ServiceOrder> ServiceOrders { get; set; } = new List<ServiceOrder>();
 
-    // NEW: Computed properties for service item integration
-    [NotMapped]
-    [Display(Name = "Standard Price")]
-    public decimal StandardPrice => StandardHours * StandardRate;
+  //  [NotMapped]
+  //  [Display(Name = "Display Name")]
+  //  public string DisplayName => !string.IsNullOrEmpty(ServiceCode)
+  //      ? $"{ServiceCode} - {ServiceName}"
+  //      : ServiceName;
 
-    [NotMapped]
-    [Display(Name = "Has Service Item")]
-    public bool HasServiceItem => ServiceItemId.HasValue;
+  //  // NEW: Computed properties for service item integration
+  //  [NotMapped]
+  //  [Display(Name = "Standard Price")]
+  //  public decimal StandardPrice => StandardHours * StandardRate;
 
-    [NotMapped]
-    [Display(Name = "Service Item Part Number")]
-    public string? ServiceItemPartNumber => ServiceItem?.PartNumber;
-  }
+  //  [NotMapped]
+  //  [Display(Name = "Has Service Item")]
+  //  public bool HasServiceItem => ServiceItemId.HasValue;
+
+  //  [NotMapped]
+  //  [Display(Name = "Service Item Part Number")]
+  //  public string? ServiceItemPartNumber => ServiceItem?.PartNumber;
+
+  //  // NEW: Vendor display name
+  //  [NotMapped]
+  //  [Display(Name = "Vendor Name")]
+  //  public string? VendorName => Vendor?.CompanyName;
+  //}
 
   public class ServiceTimeLog
   {

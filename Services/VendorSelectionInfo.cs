@@ -6,6 +6,7 @@ namespace InventorySystem.Services
   /// <summary>
   /// Contains comprehensive vendor selection information for an item
   /// Used to determine the best vendor based on priority rules
+  /// UPDATED: Simplified to use only VendorItem.IsPrimary system
   /// </summary>
   public class VendorSelectionInfo
   {
@@ -15,11 +16,10 @@ namespace InventorySystem.Services
     public Vendor? PrimaryVendor { get; set; }
     public decimal? PrimaryVendorCost { get; set; }
 
-    // Preferred vendor from Item property (second priority)
-    public Vendor? ItemPreferredVendor { get; set; }
+    // Item preferred vendor name (for compatibility with existing UI)
     public string? ItemPreferredVendorName { get; set; }
 
-    // Last purchase vendor (third priority)
+    // Last purchase vendor (fallback priority)
     public Vendor? LastPurchaseVendor { get; set; }
     public DateTime? LastPurchaseDate { get; set; }
     public decimal? LastPurchaseCost { get; set; }
@@ -31,8 +31,8 @@ namespace InventorySystem.Services
 
     // Helper properties
     public bool HasPrimaryVendor => PrimaryVendor != null;
-    public bool HasItemPreferredVendor => ItemPreferredVendor != null;
     public bool HasLastPurchaseVendor => LastPurchaseVendor != null;
     public bool HasRecommendation => RecommendedVendor != null;
+    public bool HasItemPreferredVendor => !string.IsNullOrEmpty(ItemPreferredVendorName);
   }
 }

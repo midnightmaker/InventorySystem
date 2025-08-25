@@ -17,29 +17,6 @@
     {
       <div class="alert alert-danger">
         <i class="fas fa-exclamation-triangle"></i> @Model.ErrorMessage
-        @if (TempData["ImportErrors"] != null)
-        {
-          <div class="mt-2">
-            <a asp-action="ViewImportErrors" class="btn btn-sm btn-outline-danger">
-              <i class="fas fa-list"></i> View Error Details
-            </a>
-          </div>
-        }
-      </div>
-    }
-
-    @if (TempData["WarningMessage"] != null)
-    {
-      <div class="alert alert-warning">
-        <i class="fas fa-exclamation-triangle"></i> @TempData["WarningMessage"]
-        @if (TempData["ImportErrors"] != null)
-        {
-          <div class="mt-2">
-            <a asp-action="ViewImportErrors" class="btn btn-sm btn-outline-warning">
-              <i class="fas fa-list"></i> View Error Details
-            </a>
-          </div>
-        }
       </div>
     }
 
@@ -85,199 +62,109 @@
       </div>
     </div>
 
-    <!-- CSV Format Instructions -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5><i class="fas fa-info-circle"></i> CSV File Format</h5>
-      </div>
-      <div class="card-body">
-        <p>Your CSV file should have the following column structure:</p>
-        <div class="table-responsive">
-          <table class="table table-striped table-sm">
-            <thead class="table-dark">
-              <tr>
-                <th>Column</th>
-                <th>Field Name</th>
-                <th>Required</th>
-                <th>Description</th>
-                <th>Example</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>A</strong></td>
-                <td>Part Number</td>
-                <td><span class="badge bg-danger">Required</span></td>
-                <td>Unique identifier for the item</td>
-                <td>PUMP-001</td>
-              </tr>
-              <tr>
-                <td><strong>B</strong></td>
-                <td>Description</td>
-                <td><span class="badge bg-danger">Required</span></td>
-                <td>Item description</td>
-                <td>Water Pump 12V</td>
-              </tr>
-              <tr>
-                <td><strong>C</strong></td>
-                <td>Comments</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Additional notes</td>
-                <td>Used in main assembly</td>
-              </tr>
-              <tr>
-                <td><strong>D</strong></td>
-                <td>Minimum Stock</td>
-                <td><span class="badge bg-warning">Optional</span></td>
-                <td>Minimum stock level (0 for non-inventoried)</td>
-                <td>10</td>
-              </tr>
-              <tr class="table-info">
-                <td colspan="5"><strong>Vendor Information</strong></td>
-              </tr>
-              <tr>
-                <td><strong>E</strong></td>
-                <td>Vendor Part Number</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Distributor's part number</td>
-                <td>595-TPS54331DR</td>
-              </tr>
-              <tr>
-                <td><strong>F</strong></td>
-                <td>Preferred Vendor</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Primary supplier/distributor name</td>
-                <td>Mouser Electronics</td>
-              </tr>
-              <tr class="table-success">
-                <td colspan="5"><strong>Manufacturer Information (NEW)</strong></td>
-              </tr>
-              <tr>
-                <td><strong>G</strong></td>
-                <td>Manufacturer</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Component manufacturer name</td>
-                <td>Texas Instruments</td>
-              </tr>
-              <tr>
-                <td><strong>H</strong></td>
-                <td>Manufacturer Part Number</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Original manufacturer's part number</td>
-                <td>TPS54331DR</td>
-              </tr>
-              <tr class="table-info">
-                <td colspan="5"><strong>Item Properties</strong></td>
-              </tr>
-              <tr>
-                <td><strong>I</strong></td>
-                <td>Sellable</td>
-                <td><span class="badge bg-warning">Optional</span></td>
-                <td>Can be sold (true/false, default: true)</td>
-                <td>true</td>
-              </tr>
-              <tr>
-                <td><strong>J</strong></td>
-                <td>Expense Item</td>
-                <td><span class="badge bg-warning">Optional</span></td>
-                <td>Is this an expense item (true/false, default: false)</td>
-                <td>false</td>
-              </tr>
-              <tr>
-                <td><strong>K</strong></td>
-                <td>Item Type</td>
-                <td><span class="badge bg-warning">Optional</span></td>
-                <td>Inventoried, Non-Inventoried, Service, Virtual, Consumable, Expense, Subscription, Utility, R&D Materials</td>
-                <td>Inventoried</td>
-              </tr>
-              <tr>
-                <td><strong>L</strong></td>
-                <td>Version</td>
-                <td><span class="badge bg-warning">Optional</span></td>
-                <td>Item revision (default: A)</td>
-                <td>A</td>
-              </tr>
-              <tr class="table-warning">
-                <td colspan="5"><strong>Initial Purchase Data (Optional - Only for Inventoried/Trackable Items)</strong></td>
-              </tr>
-              <tr>
-                <td><strong>M</strong></td>
-                <td>Initial Quantity</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Starting inventory quantity</td>
-                <td>25</td>
-              </tr>
-              <tr>
-                <td><strong>N</strong></td>
-                <td>Initial Cost Per Unit</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Cost per unit for initial purchase</td>
-                <td>15.50</td>
-              </tr>
-              <tr>
-                <td><strong>O</strong></td>
-                <td>Initial Vendor</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Vendor for initial purchase</td>
-                <td>Mouser Electronics</td>
-              </tr>
-              <tr>
-                <td><strong>P</strong></td>
-                <td>Initial Purchase Date</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Date of initial purchase</td>
-                <td>2025-01-15</td>
-              </tr>
-              <tr>
-                <td><strong>Q</strong></td>
-                <td>Initial PO Number</td>
-                <td><span class="badge bg-secondary">Optional</span></td>
-                <td>Purchase order number</td>
-                <td>PO-2025-001</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+    @if (Model.HasValidationResults)
+    {
+      <!-- ✅ FIXED: Properly declare allVendorPrompts at the view level -->
+      
+        var allVendorPrompts = Model.ValidationResults!
+            .SelectMany(vr => vr.VendorCreationPrompts)
+            .GroupBy(vcp => vcp.VendorName.ToLower())
+            .Select(g => g.First())
+            .ToList();
 
-        <div class="alert alert-info mt-3">
-          <i class="fas fa-lightbulb"></i>
-          <strong>Distribution Channel Example:</strong>
-          <div class="row mt-2">
-            <div class="col-md-6">
-              <small>
-                <strong>Vendor:</strong> Mouser Electronics<br>
-                <strong>Vendor P/N:</strong> 595-TPS54331DR
-              </small>
+      @if (allVendorPrompts.Any())
+      {
+        <div class="card mb-4 border-warning">
+          <div class="card-header bg-warning text-dark">
+            <h5><i class="fas fa-handshake"></i> Step 2: Vendor Creation Confirmation</h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Missing Vendors Found:</strong> The following vendors were referenced in your CSV but don't exist in the system. 
+              Select which ones you'd like to create automatically.
             </div>
-            <div class="col-md-6">
-              <small>
-                <strong>Manufacturer:</strong> Texas Instruments<br>
-                <strong>MFG P/N:</strong> TPS54331DR
-              </small>
+
+            <form id="vendorCreationForm" asp-action="ProcessBulkUploadWithVendorChoices" method="post">
+              <input type="hidden" name="uploadSessionId" value="@Model.UploadSessionId" />
+              
+              <div class="row">
+                @foreach (var vendorPrompt in allVendorPrompts)
+                {
+                  var relatedItems = Model.ValidationResults!
+                      .Where(vr => vr.VendorCreationPrompts.Any(vcp => vcp.VendorName.Equals(vendorPrompt.VendorName, StringComparison.OrdinalIgnoreCase)))
+                      .ToList();
+
+                  <div class="col-md-6 mb-3">
+                    <div class="card border-info">
+                      <div class="card-header bg-light">
+                        <div class="form-check">
+                          <input type="checkbox" 
+                                 name="vendorCreationChoices[@vendorPrompt.VendorName]" 
+                                 value="true" 
+                                 class="form-check-input vendor-creation-checkbox" 
+                                 id="vendor-@vendorPrompt.VendorName.Replace(" ", "-")" 
+                                 checked />
+                          <input type="hidden" name="vendorCreationChoices[@vendorPrompt.VendorName]" value="false" />
+                          <label class="form-check-label fw-bold" for="vendor-@vendorPrompt.VendorName.Replace(" ", "-")">
+                            <i class="fas fa-building text-info"></i> @vendorPrompt.VendorName
+                          </label>
+                        </div>
+                      </div>
+                      <div class="card-body">
+                        <p class="text-muted small mb-2">
+                          @vendorPrompt.PromptMessage
+                        </p>
+                        <h6 class="mb-2">Will be linked to:</h6>
+                        <div class="vendor-items-list">
+                          @foreach (var item in relatedItems.Take(3))
+                          {
+                            <div class="small text-muted">
+                              <i class="fas fa-link"></i> @item.PartNumber - @item.Description
+                            </div>
+                          }
+                          @if (relatedItems.Count > 3)
+                          {
+                            <div class="small text-muted">
+                              <i class="fas fa-ellipsis-h"></i> and @(relatedItems.Count - 3) more items...
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mt-4">
+                <div>
+                  <button type="button" class="btn btn-outline-success" onclick="selectAllVendors(true)">
+                    <i class="fas fa-check-square"></i> Select All
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary ms-2" onclick="selectAllVendors(false)">
+                    <i class="fas fa-square"></i> Deselect All
+                  </button>
+                </div>
+                <div>
+                  <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-upload"></i> Proceed with Import
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <div class="alert alert-warning mt-3">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Note:</strong> Unchecked vendors will not be created, and items referencing them will show "TBA" (To Be Assigned) for their vendor information.
             </div>
           </div>
         </div>
-
-        <div class="alert alert-secondary mt-3">
-          <i class="fas fa-info-circle"></i>
-          <strong>Tips:</strong>
-          <ul class="mb-0 mt-2">
-            <li>Manufacturer fields help with component traceability and alternative sourcing</li>
-            <li>If you include initial purchase data (columns L-P), make sure to include at least Quantity, Cost Per Unit, and Vendor</li>
-            <li>Part numbers must be unique - duplicates will be rejected</li>
-            <li>Empty rows will be skipped automatically</li>
-            <li>Download our <a href="#" id="downloadTemplate">CSV template</a> to get started</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    @if (Model.HasValidationResults)
-    {
-      <!-- Step 2: Validation Results -->
+      }
+      
+      <!-- Step 3: Validation Results -->
       <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h5><i class="fas fa-check-circle"></i> Step 2: Validation Results</h5>
+          <h5><i class="fas fa-check-circle"></i> Step @(allVendorPrompts.Any() ? "3" : "2"): Validation Results</h5>
           <div>
             <span class="badge bg-success fs-6 me-2">@Model.ValidItemsCount Valid</span>
             @if (Model.InvalidItemsCount > 0)
@@ -329,7 +216,7 @@
               <p class="mb-0">@Model.ValidItemsCount items are ready to be imported into the system.</p>
             </div>
 
-            <!-- Preview of valid items -->
+            <!-- ✅ ENHANCED: Show vendor information and info messages -->
             <h6>Items to Import:</h6>
             <div class="table-responsive">
               <table class="table table-sm table-striped">
@@ -338,12 +225,10 @@
                     <th>Row</th>
                     <th>Part Number</th>
                     <th>Description</th>
-                    <th>Type & Purpose</th>
+                    <th>Type</th>
                     <th>Vendor Info</th>
-                    <th>Manufacturer Info</th>
-                    <th>Min Stock</th>
                     <th>Initial Purchase</th>
-                    <th>Warnings</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -354,56 +239,40 @@
                       <td><strong>@valid.ItemData!.PartNumber</strong></td>
                       <td>@valid.ItemData.Description</td>
                       <td>
-                        <span class="badge bg-@(valid.ItemData.IsExpense ? "danger" : "primary")">
-                          @valid.ItemData.ItemTypeDisplayName
+                        <span class="badge bg-primary">
+                          @valid.ItemData.ItemType
                         </span>
-                        <br>
-                        <small class="text-muted">@valid.ItemData.BusinessPurpose</small>
                       </td>
                       <td>
-                        @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor) || !string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
+                        @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor))
                         {
-                          <small>
-                            @if (!string.IsNullOrEmpty(valid.ItemData.PreferredVendor))
-                            {
-                              <strong>@valid.ItemData.PreferredVendor</strong><br>
-                            }
-                            @if (!string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
-                            {
-                              <span class="text-muted">P/N: @valid.ItemData.VendorPartNumber</span>
-                            }
-                          </small>
+                          @if (valid.VendorCreationPrompts.Any(vcp => vcp.VendorName == valid.ItemData.PreferredVendor))
+                          {
+                            <span class="badge bg-warning text-dark">
+                              <i class="fas fa-plus"></i> @valid.ItemData.PreferredVendor (New)
+                            </span>
+                          }
+                          else
+                          {
+                            <span class="badge bg-success">
+                              <i class="fas fa-check"></i> @valid.ItemData.PreferredVendor
+                            </span>
+                          }
+                          @if (!string.IsNullOrEmpty(valid.ItemData.VendorPartNumber))
+                          {
+                            <br><small class="text-muted">P/N: @valid.ItemData.VendorPartNumber</small>
+                          }
                         }
                         else
                         {
-                          <span class="text-muted">Not specified</span>
+                          <span class="text-muted">No vendor</span>
                         }
                       </td>
-                      <td>
-                        @if (!string.IsNullOrEmpty(valid.ItemData.Manufacturer) || !string.IsNullOrEmpty(valid.ItemData.ManufacturerPartNumber))
-                        {
-                          <small>
-                            @if (!string.IsNullOrEmpty(valid.ItemData.Manufacturer))
-                            {
-                              <strong>@valid.ItemData.Manufacturer</strong><br>
-                            }
-                            @if (!string.IsNullOrEmpty(valid.ItemData.ManufacturerPartNumber))
-                            {
-                              <span class="text-muted">MFG P/N: @valid.ItemData.ManufacturerPartNumber</span>
-                            }
-                          </small>
-                        }
-                        else
-                        {
-                          <span class="text-muted">Not specified</span>
-                        }
-                      </td>
-                      <td>@valid.ItemData.MinimumStock</td>
                       <td>
                         @if (valid.ItemData.InitialQuantity.HasValue && valid.ItemData.InitialCostPerUnit.HasValue && !string.IsNullOrEmpty(valid.ItemData.InitialVendor))
                         {
-                          <span class="badge bg-success">
-                            @valid.ItemData.InitialQuantity&nbsp;&nbsp;$@valid.ItemData.InitialCostPerUnit.Value.ToString("F2")
+                          <span class="badge bg-info">
+                            @valid.ItemData.InitialQuantity × $@valid.ItemData.InitialCostPerUnit.Value.ToString("F2")
                           </span>
                         }
                         else
@@ -412,6 +281,13 @@
                         }
                       </td>
                       <td>
+                        @if (valid.InfoMessages != null)
+                        {
+                          @foreach (var info in valid.InfoMessages)
+                          {
+                            <span class="badge bg-info me-1">@info</span>
+                          }
+                        }
                         @foreach (var warning in valid.Warnings)
                         {
                           <span class="badge bg-warning text-dark me-1">@warning</span>
@@ -423,31 +299,202 @@
               </table>
             </div>
 
-            <!-- Import Button - Session-Based Form (FIXED) -->
-            <form asp-action="ProcessBulkUpload" method="post" style="display: inline;">
-                <!-- Only pass the session ID - no large data collections -->
-                <input type="hidden" name="uploadSessionId" value="@Model.UploadSessionId" />
-                <!-- Remove any other hidden fields that might contain large data -->
-                
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-success btn-lg">
-                            <i class="fas fa-upload"></i> Import @Model.ValidItemsCount Items
-                        </button>
-                        <a asp-action="BulkUpload" class="btn btn-secondary btn-lg ms-2">
-                            <i class="fas fa-arrow-left"></i> Back to Upload
-                        </a>
-                    </div>
-                </div>
-            </form>
+            @if (!allVendorPrompts.Any())
+            {
+              <!-- Simple Import Button (no vendor confirmations needed) -->
+              <form asp-action="ProcessBulkUpload" method="post" style="display: inline;">
+                  <input type="hidden" name="uploadSessionId" value="@Model.UploadSessionId" />
+                  
+                  <div class="row mt-4">
+                      <div class="col-12">
+                          <button type="submit" class="btn btn-success btn-lg">
+                              <i class="fas fa-upload"></i> Import @Model.ValidItemsCount Items
+                          </button>
+                          <a asp-action="BulkUpload" class="btn btn-secondary btn-lg ms-2">
+                              <i class="fas fa-arrow-left"></i> Back to Upload
+                          </a>
+                      </div>
+                  </div>
+              </form>
+            }
           }
         </div>
       </div>
     }
+
+    <!-- CSV Format Instructions (collapsed by default when validation results are shown) -->
+    <div class="card mb-4 @(Model.HasValidationResults ? "collapse" : "")">
+      <div class="card-header">
+        <h5>
+          <button class="btn btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#csvFormatInstructions">
+            <i class="fas fa-info-circle"></i> CSV File Format Instructions
+          </button>
+        </h5>
+      </div>
+      <div class="collapse @(Model.HasValidationResults ? "" : "show")" id="csvFormatInstructions">
+        <div class="card-body">
+          <p>Your CSV file should have the following column structure:</p>
+          <div class="table-responsive">
+            <table class="table table-striped table-sm">
+              <thead class="table-dark">
+                <tr>
+                  <th>Column</th>
+                  <th>Field Name</th>
+                  <th>Required</th>
+                  <th>Description</th>
+                  <th>Example</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>A</strong></td>
+                  <td>Part Number</td>
+                  <td><span class="badge bg-danger">Required</span></td>
+                  <td>Unique identifier for the item</td>
+                  <td>PUMP-001</td>
+                </tr>
+                <tr>
+                  <td><strong>B</strong></td>
+                  <td>Description</td>
+                  <td><span class="badge bg-danger">Required</span></td>
+                  <td>Item description</td>
+                  <td>Water Pump 12V</td>
+                </tr>
+                <tr>
+                  <td><strong>C</strong></td>
+                  <td>Comments</td>
+                  <td><span class="badge bg-secondary">Optional</span></td>
+                  <td>Additional notes</td>
+                  <td>Used in main assembly</td>
+                </tr>
+                <tr>
+                  <td><strong>D</strong></td>
+                  <td>Minimum Stock</td>
+                  <td><span class="badge bg-warning">Optional</span></td>
+                  <td>Minimum stock level</td>
+                  <td>10</td>
+                </tr>
+                <tr>
+                  <td><strong>E</strong></td>
+                  <td>Vendor Part Number</td>
+                  <td><span class="badge bg-secondary">Optional</span></td>
+                  <td>Distributor's part number</td>
+                  <td>595-TPS54331DR</td>
+                </tr>
+                <tr>
+                  <td><strong>F</strong></td>
+                  <td>Preferred Vendor</td>
+                  <td><span class="badge bg-info">Auto-Create</span></td>
+                  <td>Primary supplier name (will be created if missing)</td>
+                  <td>Mouser Electronics</td>
+                </tr>
+                <tr>
+                  <td><strong>G</strong></td>
+                  <td>Manufacturer</td>
+                  <td><span class="badge bg-secondary">Optional</span></td>
+                  <td>Component manufacturer name</td>
+                  <td>Texas Instruments</td>
+                </tr>
+                <tr>
+                  <td><strong>H</strong></td>
+                  <td>Manufacturer Part Number</td>
+                  <td><span class="badge bg-secondary">Optional</span></td>
+                  <td>Original manufacturer's part number</td>
+                  <td>TPS54331DR</td>
+                </tr>
+                <tr>
+                  <td><strong>I</strong></td>
+                  <td>Sellable</td>
+                  <td><span class="badge bg-warning">Optional</span></td>
+                  <td>Can be sold (true/false, default: true)</td>
+                  <td>true</td>
+                </tr>
+                <tr>
+                  <td><strong>J</strong></td>
+                  <td>Item Type</td>
+                  <td><span class="badge bg-warning">Optional</span></td>
+                  <td>Inventoried, Consumable, RnDMaterials</td>
+                  <td>Inventoried</td>
+                </tr>
+                <tr>
+                  <td><strong>K</strong></td>
+                  <td>Version</td>
+                  <td><span class="badge bg-warning">Optional</span></td>
+                  <td>Item revision (default: A)</td>
+                  <td>A</td>
+                </tr>
+                <tr>
+                  <td><strong>L</strong></td>
+                  <td>Unit of Measure</td>
+                  <td><span class="badge bg-warning">Optional</span></td>
+                  <td>Each, Gram, Liter, etc. (default: Each)</td>
+                  <td>Each</td>
+                </tr>
+                <!-- Initial Purchase columns -->
+                <tr class="table-info">
+                  <td colspan="5"><strong>Initial Purchase Data (Optional)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>M</strong></td>
+                  <td>Initial Quantity</td>
+                  <td><span class="badge bg-secondary">Optional</span></td>
+                  <td>Starting inventory quantity</td>
+                  <td>25</td>
+                </tr>
+                <tr>
+                  <td><strong>N</strong></td>
+                  <td>Initial Cost Per Unit</td>
+                  <td><span class="badge bg-secondary">Optional</span></td>
+                  <td>Cost per unit for initial purchase</td>
+                  <td>15.50</td>
+                </tr>
+                <tr>
+                  <td><strong>O</strong></td>
+                  <td>Initial Vendor</td>
+                  <td><span class="badge bg-info">Auto-Create</span></td>
+                  <td>Vendor for initial purchase (will be created if missing)</td>
+                  <td>Mouser Electronics</td>
+                </tr>
+                <tr>
+                  <td><strong>P</strong></td>
+                  <td>Initial Purchase Date</td>
+                  <td><span class="badge bg-secondary">Optional</span></td>
+                  <td>Date of initial purchase</td>
+                  <td>2025-01-15</td>
+                </tr>
+                <tr>
+                  <td><strong>Q</strong></td>
+                  <td>Initial PO Number</td>
+                  <td><span class="badge bg-secondary">Optional</span></td>
+                  <td>Purchase order number</td>
+                  <td>PO-2025-001</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="alert alert-info mt-3">
+            <i class="fas fa-magic"></i>
+            <strong>✨ New Feature - Automatic Vendor Creation:</strong>
+            When you specify vendor names that don't exist in the system, you'll be prompted to create them automatically during the import process!
+          </div>
+
+          <div class="alert alert-secondary mt-3">
+            <i class="fas fa-info-circle"></i>
+            <strong>Tips:</strong>
+            <ul class="mb-0 mt-2">
+              <li>Download our <a href="#" id="downloadTemplate">CSV template</a> to get started</li>
+              <li>Part numbers must be unique - duplicates will be rejected</li>
+              <li>Empty rows will be skipped automatically</li>
+              <li>If you include initial purchase data, make sure to include at least Quantity, Cost Per Unit, and Vendor</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Move JavaScript directly into the view instead of using sections -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // CSV template download functionality
@@ -485,38 +532,41 @@
         }
     });
 
-      function downloadCsvTemplate() {
-      // Updated CSV template with manufacturer fields and IsExpense
-      const templateData = [
-          ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Manufacturer', 'Manufacturer Part Number', 'Sellable', 'Expense Item', 'Item Type', 'Version', 'Unit of Measure', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
-          ['IC-001', 'DC-DC Converter 12V to 3.3V', 'Used in power supply circuit', '25', '595-TPS54331DR', 'Mouser Electronics', 'Texas Instruments', 'TPS54331DR', 'true', 'false', 'Inventoried', 'A', 'EA', '50', '2.85', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
-          ['RES-001', '10K Ohm Resistor 1%', '0603 package size', '100', '71-CRCW060310K0FKEA', 'Mouser Electronics', 'Vishay', 'CRCW060310K0FKEA', 'true', 'false', 'Inventoried', 'A', 'EA', '200', '0.12', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
-          ['CERT-001', 'Product Certification Service', 'Per unit certification', '0', '', 'Certification Corp', '', '', 'true', 'false', 'Service', 'A', 'EA', '', '', '', '', ''],
-          ['CONSULT-001', 'Engineering Consulting', 'External engineering consultation', '0', '', 'Tech Consultants Inc', '', '', 'false', 'true', 'Service', 'A', 'HR', '', '', '', '', ''],
-          ['UTIL-001', 'Monthly Internet Service', 'Business fiber internet', '0', '', 'ISP Provider', '', '', 'false', 'true', 'Utility', 'A', 'MO', '', '', '', '', ''],
-          ['SUB-001', 'Software License', 'Design software subscription', '0', '', 'Software Co', '', '', 'false', 'true', 'Subscription', 'A', 'MO', '', '', '', '', ''],
-          ['FW-001', 'Main Controller Firmware', 'Version 2.1.3', '0', '', '', '', '', 'false', 'false', 'Non-Inventoried', 'A', '', '', '', '', '']
-      ];
+    // ✅ NEW: Vendor selection functions
+    function selectAllVendors(selectAll) {
+        const checkboxes = document.querySelectorAll('.vendor-creation-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll;
+        });
+    }
 
-      // Convert to CSV format for download
-      const csvContent = templateData.map(row =>
-          row.map(cell => `"${cell}"`).join(',')
-      ).join('\n');
+    function downloadCsvTemplate() {
+        // Updated CSV template
+        const templateData = [
+            ['Part Number', 'Description', 'Comments', 'Minimum Stock', 'Vendor Part Number', 'Preferred Vendor', 'Manufacturer', 'Manufacturer Part Number', 'Sellable', 'Item Type', 'Version', 'Unit of Measure', 'Initial Quantity', 'Initial Cost Per Unit', 'Initial Vendor', 'Initial Purchase Date', 'Initial PO Number'],
+            ['IC-001', 'DC-DC Converter 12V to 3.3V', 'Used in power supply circuit', '25', '595-TPS54331DR', 'Mouser Electronics', 'Texas Instruments', 'TPS54331DR', 'true', 'Inventoried', 'A', 'Each', '50', '2.85', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+            ['RES-001', '10K Ohm Resistor 1%', '0603 package size', '100', '71-CRCW060310K0FKEA', 'Mouser Electronics', 'Vishay', 'CRCW060310K0FKEA', 'true', 'Inventoried', 'A', 'Each', '200', '0.12', 'Mouser Electronics', '2025-01-15', 'PO-2025-001'],
+            ['CAP-001', '100uF Electrolytic Capacitor', '16V rated', '50', '647-UVZ1C101MDD', 'Mouser Electronics', 'Nichicon', 'UVZ1C101MDD', 'true', 'Inventoried', 'A', 'Each', '', '', '', '', '']
+        ];
 
-      // Create and trigger download
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'bulk_upload_template_with_expense_flag.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-  }
+        // Convert to CSV format for download
+        const csvContent = templateData.map(row =>
+            row.map(cell => `"${cell}"`).join(',')
+        ).join('\n');
+
+        // Create and trigger download
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'bulk_upload_template_with_auto_vendor_creation.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
 </script>
 
-<!-- Move CSS directly into the view instead of using sections -->
 <style>
   .table th {
     vertical-align: middle;
@@ -541,5 +591,14 @@
 
   .form-text {
     font-size: 0.875rem;
+  }
+
+  .vendor-items-list {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .border-warning {
+    border-color: #ffc107 !important;
   }
 </style>

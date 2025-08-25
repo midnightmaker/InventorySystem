@@ -1,4 +1,4 @@
-﻿// Services/SalesService.cs
+﻿// Services/SalesService.cs - FIXED: Added ServiceType includes for proper navigation property loading
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Data;
 using InventorySystem.Models;
@@ -10,7 +10,6 @@ namespace InventorySystem.Services
   {
     private readonly InventoryContext _context;
     private readonly IInventoryService _inventoryService;
-    
     private readonly IPurchaseService _purchaseService;
     private readonly IBackorderFulfillmentService _backorderService;
     private readonly ILogger<SalesService> _logger;
@@ -18,7 +17,6 @@ namespace InventorySystem.Services
     public SalesService(
         InventoryContext context,
         IInventoryService inventoryService,
-        IProductionService productionService,
         IPurchaseService purchaseService,
         IBackorderFulfillmentService backorderService,
         ILogger<SalesService> logger
@@ -31,7 +29,6 @@ namespace InventorySystem.Services
       _purchaseService = purchaseService;
     }
 
-    
 		public async Task<Sale?> GetSaleByIdAsync(int id)
 		{
 			return await _context.Sales
@@ -39,13 +36,13 @@ namespace InventorySystem.Services
 							.ThenInclude(si => si.Item)
 					.Include(s => s.SaleItems)
 							.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.ServiceType) // ✅ ADDED: Include ServiceType navigation
 					.Include(s => s.Customer)
-							.ThenInclude(c => c.BalanceAdjustments) // ✅ Include customer adjustments
-					.Include(s => s.RelatedAdjustments) // ✅ Include sale-specific adjustments
+							.ThenInclude(c => c.BalanceAdjustments)
+					.Include(s => s.RelatedAdjustments)
 					.FirstOrDefaultAsync(s => s.Id == id);
 		}
-
-		// Also update other methods that load sales to include adjustments:
 
 		public async Task<IEnumerable<Sale>> GetAllSalesAsync()
 		{
@@ -54,8 +51,10 @@ namespace InventorySystem.Services
 							.ThenInclude(si => si.Item)
 					.Include(s => s.SaleItems)
 							.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.ServiceType) // ✅ ADDED: Include ServiceType navigation
 					.Include(s => s.Customer)
-					.Include(s => s.RelatedAdjustments) // ✅ Add this
+					.Include(s => s.RelatedAdjustments)
 					.OrderByDescending(s => s.SaleDate)
 					.ToListAsync();
 		}
@@ -67,8 +66,10 @@ namespace InventorySystem.Services
 							.ThenInclude(si => si.Item)
 					.Include(s => s.SaleItems)
 							.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.SaleItems)
+							.ThenInclude(si => si.ServiceType) // ✅ ADDED: Include ServiceType navigation
 					.Include(s => s.Customer)
-					.Include(s => s.RelatedAdjustments) // ✅ Add this
+					.Include(s => s.RelatedAdjustments)
 					.Where(s => s.CustomerId == customerId)
 					.OrderByDescending(s => s.SaleDate)
 					.ToListAsync();
@@ -86,12 +87,10 @@ namespace InventorySystem.Services
       return sale;
     }
 
-    // ALTERNATIVE: More robust update method using fresh entity loading
     public async Task<Sale> UpdateSaleAsync(Sale sale)
     {
         try
         {
-            // Load the current entity from database to ensure we have the latest state
             var existingEntity = await _context.Sales
                 .FirstOrDefaultAsync(s => s.Id == sale.Id);
             
@@ -113,12 +112,6 @@ namespace InventorySystem.Services
             existingEntity.Notes = sale.Notes;
             existingEntity.OrderNumber = sale.OrderNumber;
 
-            // Do NOT update these protected fields:
-            // - SaleNumber (reference integrity)
-            // - CreatedDate (audit trail)
-            // - CustomerId (business rule - use transfer function if needed)
-            // - Id (primary key)
-
             await _context.SaveChangesAsync();
             return existingEntity;
         }
@@ -136,9 +129,7 @@ namespace InventorySystem.Services
 
       if (sale != null)
       {
-        // Cascading delete for sale items
         _context.SaleItems.RemoveRange(sale.SaleItems);
-
         _context.Sales.Remove(sale);
         await _context.SaveChangesAsync();
       }
@@ -172,10 +163,6 @@ namespace InventorySystem.Services
     {
       _context.SaleItems.Update(saleItem);
       await _context.SaveChangesAsync();
-
-      // No need to manually update sale totals - they're computed properties
-      // The Sale.TotalAmount and Sale.SubtotalAmount will update automatically
-
       return saleItem;
     }
 
@@ -190,7 +177,6 @@ namespace InventorySystem.Services
         throw new InvalidOperationException("Sale item not found.");
       }
 
-      // SECURITY: Check if sale allows modifications
       if (!CanModifySaleItems(saleItem.Sale.SaleStatus))
       {
         throw new InvalidOperationException($"Cannot remove items from a sale with status '{saleItem.Sale.SaleStatus}'. Only sales with 'Processing' or 'Backordered' status can be modified.");
@@ -198,8 +184,6 @@ namespace InventorySystem.Services
 
       _context.SaleItems.Remove(saleItem);
       await _context.SaveChangesAsync();
-
-      // No need to manually update sale totals - they're computed properties
     }
 
     public async Task<bool> ProcessSaleAsync(int saleId)
@@ -229,11 +213,10 @@ namespace InventorySystem.Services
                   saleItem.ItemId.Value,
                   saleItem.QuantitySold);
             }
-            // Non-inventory items (Service, Virtual, etc.) don't affect stock
+            // Non-inventory items don't affect stock
           }
           else if (saleItem.FinishedGoodId.HasValue)
           {
-            // Access finished goods directly from context
             // Finished goods always track inventory
             var finishedGood = await _context.FinishedGoods
                 .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
@@ -258,27 +241,25 @@ namespace InventorySystem.Services
       }
     }
 
-    // REMOVED: UpdateSaleTotalsAsync method - no longer needed since totals are computed properties
-
     // Statistics methods
     public async Task<decimal> GetTotalSalesValueAsync()
     {
       var sales = await _context.Sales
-          .Include(s => s.SaleItems) // ADDED: Include SaleItems for computed properties
+          .Include(s => s.SaleItems)
           .Where(s => s.SaleStatus != SaleStatus.Cancelled)
           .ToListAsync();
-      return sales.Sum(s => s.TotalAmount); // This works because TotalAmount is computed
+      return sales.Sum(s => s.TotalAmount);
     }
 
     public async Task<decimal> GetTotalSalesValueByMonthAsync(int year, int month)
     {
       var sales = await _context.Sales
-          .Include(s => s.SaleItems) // ADDED: Include SaleItems for computed properties
+          .Include(s => s.SaleItems)
           .Where(s => s.SaleDate.Year == year &&
                      s.SaleDate.Month == month &&
                      s.SaleStatus != SaleStatus.Cancelled)
           .ToListAsync();
-      return sales.Sum(s => s.TotalAmount); // This works because TotalAmount is computed
+      return sales.Sum(s => s.TotalAmount);
     }
 
     public async Task<decimal> GetTotalProfitAsync()
@@ -307,7 +288,6 @@ namespace InventorySystem.Services
           .CountAsync(s => s.SaleStatus != SaleStatus.Cancelled);
     }
 
-    
     public async Task<IEnumerable<Sale>> GetCustomerSalesAsync(int customerId)
     {
         return await GetSalesByCustomerAsync(customerId);
@@ -316,8 +296,9 @@ namespace InventorySystem.Services
     public async Task<IEnumerable<Sale>> GetSalesByStatusAsync(SaleStatus status)
     {
       return await _context.Sales
-          .Include(s => s.Customer) // ADDED: Include Customer
+          .Include(s => s.Customer)
           .Include(s => s.SaleItems)
+							.ThenInclude(si => si.ServiceType) // ✅ ADDED: Include ServiceType navigation
           .Where(s => s.SaleStatus == status)
           .OrderByDescending(s => s.SaleDate)
           .ToListAsync();
@@ -325,7 +306,6 @@ namespace InventorySystem.Services
 
     public async Task<SaleItem> AddSaleItemAsync(SaleItem saleItem)
     {
-      // SECURITY: Check if sale allows modifications
       var sale = await _context.Sales.FindAsync(saleItem.SaleId);
       if (sale == null)
       {
@@ -337,7 +317,7 @@ namespace InventorySystem.Services
         throw new InvalidOperationException($"Cannot add items to a sale with status '{sale.SaleStatus}'. Only sales with 'Processing' or 'Backordered' status can be modified.");
       }
 
-      // Enhanced logic to handle backorders - but only for inventory-tracked items
+      // Enhanced logic to handle backorders - only for inventory-tracked items
       int availableQuantity = 0;
       bool tracksInventory = false;
 
@@ -350,7 +330,6 @@ namespace InventorySystem.Services
           
           if (tracksInventory)
           {
-            // Only check stock for inventory-tracked items
             availableQuantity = item.CurrentStock;
           }
           
@@ -361,14 +340,8 @@ namespace InventorySystem.Services
           }
           catch
           {
-            // For non-inventory items, set minimal cost
-            saleItem.UnitCost = item.ItemType switch
-            {
-              ItemType.Service => saleItem.UnitPrice * 0.3m, // 30% cost ratio for services
-              ItemType.Virtual => saleItem.UnitPrice * 0.1m, // 10% cost ratio for virtual items
-              ItemType.Subscription => saleItem.UnitPrice * 0.2m, // 20% cost ratio for subscriptions
-              _ => 0 // No cost for other non-inventory items
-            };
+            // For non-inventory items, set default minimal cost
+            saleItem.UnitCost = 0;
           }
         }
       }
@@ -378,12 +351,22 @@ namespace InventorySystem.Services
             .FirstOrDefaultAsync(fg => fg.Id == saleItem.FinishedGoodId.Value);
         if (finishedGood != null)
         {
-          // Finished goods always track inventory
           tracksInventory = true;
           availableQuantity = finishedGood.CurrentStock;
           saleItem.UnitCost = finishedGood.UnitCost;
         }
       }
+			else if (saleItem.ServiceTypeId.HasValue)
+			{
+				// ✅ ADDED: Handle ServiceType items - they don't track inventory
+				var serviceType = await _context.ServiceTypes
+						.FirstOrDefaultAsync(st => st.Id == saleItem.ServiceTypeId.Value);
+				if (serviceType != null)
+				{
+					tracksInventory = false; // Services don't track inventory
+					saleItem.UnitCost = 0; // Services typically have no material cost
+				}
+			}
 
       // Calculate backorder quantity only for inventory-tracked items
       if (tracksInventory)
@@ -399,15 +382,15 @@ namespace InventorySystem.Services
       }
       else
       {
-        // Non-inventory items never have backorders
+        // Non-inventory items (including services) never have backorders
         saleItem.QuantityBackordered = 0;
-        _logger.LogInformation("Added non-inventory item to sale - no backorder logic applied for Item ID: {ItemId}", saleItem.ItemId);
+        _logger.LogInformation("Added non-inventory item to sale - no backorder logic applied for Item ID: {ItemId}, ServiceType ID: {ServiceTypeId}", 
+					saleItem.ItemId, saleItem.ServiceTypeId);
       }
 
       _context.SaleItems.Add(saleItem);
       await _context.SaveChangesAsync();
 
-      // Update sale status (totals are computed automatically)
       await _backorderService.CheckAndUpdateSaleStatusAsync(saleItem.SaleId);
 
       return saleItem;
@@ -421,12 +404,14 @@ namespace InventorySystem.Services
     public async Task<IEnumerable<Sale>> GetBackorderedSalesAsync()
     {
       return await _context.Sales
-          .Include(s => s.Customer) // ADDED: Include Customer
+          .Include(s => s.Customer)
           .Include(s => s.SaleItems)
           .ThenInclude(si => si.Item)
           .Include(s => s.SaleItems)
           .ThenInclude(si => si.FinishedGood)
-          .Where(s => s.SaleItems.Any(si => si.QuantityBackordered > 0)) // FIXED: Look for any items with backorders
+          .Include(s => s.SaleItems)
+          .ThenInclude(si => si.ServiceType) // ✅ ADDED: Include ServiceType navigation
+          .Where(s => s.SaleItems.Any(si => si.QuantityBackordered > 0))
           .OrderBy(s => s.SaleDate)
           .ToListAsync();
     }
@@ -435,9 +420,10 @@ namespace InventorySystem.Services
     {
       return await _context.SaleItems
           .Include(si => si.Sale)
-          .ThenInclude(s => s.Customer) // ADDED: Include Customer through Sale
+          .ThenInclude(s => s.Customer)
           .Include(si => si.Item)
           .Include(si => si.FinishedGood)
+          .Include(si => si.ServiceType) // ✅ ADDED: Include ServiceType navigation
           .Where(si => si.QuantityBackordered > 0)
           .OrderBy(si => si.Sale.SaleDate)
           .ToListAsync();
@@ -463,8 +449,6 @@ namespace InventorySystem.Services
           // Only check stock for inventory-tracked items
           if (item.TrackInventory && item.CurrentStock < saleItem.QuantitySold)
             return false;
-          
-          // Non-inventory items (Service, Virtual, etc.) can always be processed
         }
         else if (saleItem.FinishedGoodId.HasValue)
         {
@@ -474,35 +458,26 @@ namespace InventorySystem.Services
           if (finishedGood == null || finishedGood.CurrentStock < saleItem.QuantitySold)
             return false;
         }
+        // ✅ ServiceType items don't need stock validation as they don't track inventory
       }
 
       return true;
     }
 
-    /// <summary>
-    /// Determines if sale items can be added or removed based on the sale status
-    /// </summary>
-    /// <param name="saleStatus">The current status of the sale</param>
-    /// <returns>True if items can be modified, false otherwise</returns>
     private static bool CanModifySaleItems(SaleStatus saleStatus)
     {
       return saleStatus switch
       {
-        SaleStatus.Processing => true,    // Can modify - sale is still being prepared
-        SaleStatus.Backordered => true,   // Can modify - still waiting for inventory
-        SaleStatus.Shipped => false,     // Cannot modify - sale has been shipped
-        SaleStatus.Delivered => false,   // Cannot modify - sale has been delivered  
-        SaleStatus.Cancelled => false,   // Cannot modify - sale has been cancelled
-        SaleStatus.Returned => false,    // Cannot modify - sale has been returned
-        _ => false                        // Default: Cannot modify unknown status
+        SaleStatus.Processing => true,
+        SaleStatus.Backordered => true,
+        SaleStatus.Shipped => false,
+        SaleStatus.Delivered => false,
+        SaleStatus.Cancelled => false,
+        SaleStatus.Returned => false,
+        _ => false
       };
     }
 
-    /// <summary>
-    /// Public method to check if a sale can have items modified
-    /// </summary>
-    /// <param name="saleId">The ID of the sale to check</param>
-    /// <returns>True if items can be modified, false otherwise</returns>
     public async Task<bool> CanModifySaleItemsAsync(int saleId)
     {
       var sale = await _context.Sales.FindAsync(saleId);
