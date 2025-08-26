@@ -113,6 +113,22 @@ namespace InventorySystem.Services
 		/// <param name="endDate">End date</param>
 		/// <returns>Total debit amount of manual journal entries</returns>
 		Task<decimal> GetManualJournalEntriesTotalAsync(DateTime startDate, DateTime endDate);
+
+		/// <summary>
+		/// Gets all ledger entries with enhanced reference information (actual sale numbers, etc.)
+		/// </summary>
+		/// <param name="startDate">Start date for filtering (optional)</param>
+		/// <param name="endDate">End date for filtering (optional)</param>
+		/// <returns>Ledger entries with enhanced reference display information</returns>
+		Task<IEnumerable<GeneralLedgerEntry>> GetAllLedgerEntriesWithEnhancedReferencesAsync(DateTime? startDate = null, DateTime? endDate = null);
+
+		/// <summary>
+		/// Gets enhanced reference information for a journal entry
+		/// </summary>
+		/// <param name="referenceType">Type of reference (Sale, Purchase, etc.)</param>
+		/// <param name="referenceId">ID of the referenced entity</param>
+		/// <returns>Enhanced display text, URL, and icon information</returns>
+		Task<(string displayText, string? url, string icon)> GetEnhancedReferenceInfoAsync(string? referenceType, int? referenceId);
 	}
 
 	public class AccountValidationResult

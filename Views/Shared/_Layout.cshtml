@@ -82,6 +82,26 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
+                
+                <!-- ✅ NEW: Inventory Adjustments Section -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-balance-scale"></i> Inventory Adjustments
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Inventory" asp-action="History">
+                    <i class="fas fa-history text-info"></i> Adjustment History
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                
+                <!-- Alerts & Monitoring -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-exclamation-triangle"></i> Alerts
+                  </h6>
+                </li>
                 <li>
                   <a class="dropdown-item" asp-controller="Items" asp-action="LowStock">
                     <i class="fas fa-exclamation-triangle text-warning"></i> Low Stock Items

@@ -176,9 +176,30 @@
                   }
                 </td>
                 <td>
-                  @if (!string.IsNullOrEmpty(entry.ReferenceType) && entry.ReferenceId.HasValue)
+                  @if (entry.HasReference)
                   {
-                    <small class="badge bg-secondary">@entry.ReferenceType #@entry.ReferenceId</small>
+                    var url = entry.GetFinalReferenceUrl();
+                    var displayText = entry.GetFinalReferenceText();
+                    
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                      <a href="@url" class="@entry.GetReferenceBadgeClass() text-decoration-none" 
+                         title="View @entry.ReferenceType Details" target="_blank">
+                        <i class="@entry.GetReferenceIcon() me-1"></i>
+                        @displayText
+                      </a>
+                    }
+                    else
+                    {
+                      <span class="@entry.GetReferenceBadgeClass()">
+                        <i class="@entry.GetReferenceIcon() me-1"></i>
+                        @displayText
+                      </span>
+                    }
+                  }
+                  else
+                  {
+                    <span class="text-muted">-</span>
                   }
                 </td>
               </tr>

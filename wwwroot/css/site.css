@@ -315,3 +315,60 @@
 .shadow {
   box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
 }
+
+/* Journal Link style */
+.journal-reference-link {
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+}
+
+  .journal-reference-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+/* Enhanced badge styling for journal entry references */
+.badge {
+  font-size: 0.75em;
+  padding: 0.4em 0.6em;
+  transition: all 0.2s ease;
+}
+
+  .badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+.text-decoration-none:hover {
+  text-decoration: none !important;
+}
+
+/* Timeline styling for adjustment details */
+.timeline {
+  position: relative;
+  padding-left: 30px;
+}
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+  }
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -22px;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}

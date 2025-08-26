@@ -795,6 +795,76 @@ namespace InventorySystem.Services
 					.ToListAsync();
 		}
 
+		// Add this method to AccountingService for enhanced reference information
+		public async Task<IEnumerable<GeneralLedgerEntry>> GetAllLedgerEntriesWithEnhancedReferencesAsync(DateTime? startDate = null, DateTime? endDate = null)
+		{
+			IQueryable<GeneralLedgerEntry> query = _context.GeneralLedgerEntries
+					.Include(e => e.Account);
+
+			if (startDate.HasValue)
+				query = query.Where(e => e.TransactionDate >= startDate.Value);
+
+			if (endDate.HasValue)
+				query = query.Where(e => e.TransactionDate <= endDate.Value);
+
+			var entries = await query
+					.OrderByDescending(e => e.TransactionDate)
+					.ThenBy(e => e.TransactionNumber)
+					.ToListAsync();
+
+			// Enhance entries with actual sale/purchase numbers
+			foreach (var entry in entries.Where(e => e.HasReference))
+			{
+				await EnhanceEntryWithReferenceInfoAsync(entry);
+			}
+
+			return entries;
+		}
+
+		private async Task EnhanceEntryWithReferenceInfoAsync(GeneralLedgerEntry entry)
+		{
+			if (!entry.HasReference) return;
+
+			try
+			{
+				switch (entry.ReferenceType?.ToLower())
+				{
+					case "sale":
+						var sale = await _context.Sales.FindAsync(entry.ReferenceId!.Value);
+						if (sale != null)
+						{
+							// Store enhanced info in Description if needed, or use a custom property
+							entry.EnhancedReferenceText = $"Sale {sale.SaleNumber}";
+						}
+						break;
+
+					case "purchase":
+						var purchase = await _context.Purchases.FindAsync(entry.ReferenceId!.Value);
+						if (purchase != null)
+						{
+							entry.EnhancedReferenceText = $"Purchase {purchase.PurchaseOrderNumber ?? $"#{purchase.Id}"}";
+						}
+						break;
+
+					case "customerpayment":
+						var payment = await _context.CustomerPayments
+							.Include(p => p.Sale)
+							.FirstOrDefaultAsync(p => p.Id == entry.ReferenceId!.Value);
+						if (payment?.Sale != null)
+						{
+							entry.EnhancedReferenceText = $"Payment for {payment.Sale.SaleNumber}";
+							// Update the URL to point to the correct sale
+							entry.EnhancedReferenceUrl = $"/Sales/Details/{payment.SaleId}";
+						}
+						break;
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Failed to enhance reference info for entry {EntryId}", entry.Id);
+			}
+		}
+
 		public async Task RecalculateAccountBalanceAsync(string accountCode)
 		{
 			var account = await GetAccountByCodeAsync(accountCode);
@@ -1465,6 +1535,53 @@ namespace InventorySystem.Services
 		{
 			var suggestedCode = Expense.GetSuggestedAccountCodeForCategory(category);
 			return await GetAccountByCodeAsync(suggestedCode);
+		}
+
+		// Add this method to AccountingService to get enhanced reference info:
+
+		public async Task<(string displayText, string? url, string icon)> GetEnhancedReferenceInfoAsync(string? referenceType, int? referenceId)
+		{
+			if (string.IsNullOrEmpty(referenceType) || !referenceId.HasValue)
+				return ("", null, "fas fa-link text-muted");
+
+			try
+			{
+				switch (referenceType.ToLower())
+				{
+					case "sale":
+						var sale = await _context.Sales.FindAsync(referenceId.Value);
+						return (
+							$"Sale {sale?.SaleNumber ?? $"#{referenceId}"}",
+							$"/Sales/Details/{referenceId}",
+							"fas fa-shopping-cart text-success"
+						);
+
+					case "purchase": 
+						var purchase = await _context.Purchases.FindAsync(referenceId.Value);
+						return (
+							$"Purchase {purchase?.PurchaseOrderNumber ?? $"#{referenceId}"}",
+							$"/Purchases/Details/{referenceId}",
+							"fas fa-shopping-bag text-primary"
+						);
+
+					case "customerpayment":
+						var payment = await _context.CustomerPayments
+							.Include(p => p.Sale)
+							.FirstOrDefaultAsync(p => p.Id == referenceId.Value);
+						return (
+							$"Payment for {payment?.Sale?.SaleNumber ?? $"#{referenceId}"}",
+							$"/Sales/Details/{payment?.SaleId}",
+							"fas fa-credit-card text-success"
+						);
+
+					default:
+						return ($"{referenceType} #{referenceId}", null, "fas fa-link text-muted");
+				}
+			}
+			catch
+			{
+				return ($"{referenceType} #{referenceId}", null, "fas fa-link text-muted");
+			}
 		}
 	}
 }

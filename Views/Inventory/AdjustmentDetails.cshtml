@@ -1,0 +1,278 @@
+@model InventorySystem.Models.InventoryAdjustment
+@{
+    ViewData["Title"] = "Adjustment Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-balance-scale"></i> Adjustment Details</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("History", "Inventory")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to History
+        </a>
+        @if (Model.Item != null)
+        {
+            <a href="@Url.Action("Details", "Items", new { id = Model.ItemId })" class="btn btn-outline-primary">
+                <i class="fas fa-box"></i> View Item
+            </a>
+        }
+    </div>
+</div>
+
+<!-- Adjustment Overview -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Adjustment Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-5">Adjustment ID:</dt>
+                            <dd class="col-sm-7"><strong>#@Model.Id</strong></dd>
+                            
+                            <dt class="col-sm-5">Date:</dt>
+                            <dd class="col-sm-7">@Model.AdjustmentDate.ToString("MMMM dd, yyyy")</dd>
+                            
+                            <dt class="col-sm-5">Type:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-secondary">
+                                    <i class="@Model.AdjustmentIcon"></i>
+                                    @Model.AdjustmentTypeDisplay
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-5">Quantity:</dt>
+                            <dd class="col-sm-7">
+                                @if (Model.QuantityAdjusted > 0)
+                                {
+                                    <span class="text-success fw-bold fs-5">+@Model.QuantityAdjusted</span>
+                                }
+                                else
+                                {
+                                    <span class="text-danger fw-bold fs-5">@Model.QuantityAdjusted</span>
+                                }
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-5">Stock Before:</dt>
+                            <dd class="col-sm-7"><span class="badge bg-info">@Model.StockBefore units</span></dd>
+                            
+                            <dt class="col-sm-5">Stock After:</dt>
+                            <dd class="col-sm-7"><span class="badge bg-success">@Model.StockAfter units</span></dd>
+                            
+                            <dt class="col-sm-5">Cost Impact:</dt>
+                            <dd class="col-sm-7">
+                                @if (Model.CostImpact > 0)
+                                {
+                                    <span class="text-success fw-bold">+$@Model.CostImpact.ToString("N2")</span>
+                                }
+                                else if (Model.CostImpact < 0)
+                                {
+                                    <span class="text-danger fw-bold">-$@Math.Abs(Model.CostImpact).ToString("N2")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">$0.00</span>
+                                }
+                            </dd>
+                            
+                            <dt class="col-sm-5">Adjusted By:</dt>
+                            <dd class="col-sm-7">@Model.AdjustedBy</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(Model.Reason))
+                {
+                    <div class="mt-3">
+                        <strong>Reason:</strong>
+                        <p class="mt-2 p-3 bg-light rounded">@Model.Reason</p>
+                    </div>
+                }
+                
+                @if (!string.IsNullOrEmpty(Model.ReferenceNumber))
+                {
+                    <div class="mt-3">
+                        <strong>Reference Number:</strong> <code>@Model.ReferenceNumber</code>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Item Information -->
+        @if (Model.Item != null)
+        {
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-box"></i> Item Information</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="mb-0">
+                        <dt>Part Number:</dt>
+                        <dd><strong>@Model.Item.PartNumber</strong></dd>
+                        
+                        <dt>Description:</dt>
+                        <dd>@Model.Item.Description</dd>
+                        
+                        <dt>Current Stock:</dt>
+                        <dd><span class="badge bg-primary">@Model.Item.CurrentStock units</span></dd>
+                    </dl>
+                    
+                    <div class="mt-3">
+                        <a href="@Url.Action("Details", "Items", new { id = Model.ItemId })" class="btn btn-sm btn-outline-primary d-block">
+                            <i class="fas fa-eye"></i> View Item Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+        
+        <!-- Timeline -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-clock"></i> Timeline</h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Adjustment Created</h6>
+                            <p class="timeline-text">@Model.CreatedDate.ToString("MMM dd, yyyy 'at' h:mm tt")</p>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.JournalEntryNumber))
+                    {
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <h6 class="timeline-title">Journal Entry Generated</h6>
+                                <p class="timeline-text">Entry: @Model.JournalEntryNumber</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Journal Entries -->
+@if (ViewBag.JournalEntries != null)
+{
+    var journalEntries = ViewBag.JournalEntries as List<InventorySystem.Models.Accounting.GeneralLedgerEntry>;
+    if (journalEntries?.Any() == true)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="fas fa-book"></i> Related Journal Entries</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Account</th>
+                                <th>Description</th>
+                                <th class="text-end">Debit</th>
+                                <th class="text-end">Credit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in journalEntries)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@entry.Account.AccountCode</strong>
+                                        <br><small class="text-muted">@entry.Account.AccountName</small>
+                                    </td>
+                                    <td>@entry.Description</td>
+                                    <td class="text-end">
+                                        @if (entry.DebitAmount > 0)
+                                        {
+                                            <span class="text-success">$@entry.DebitAmount.ToString("N2")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        @if (entry.CreditAmount > 0)
+                                        {
+                                            <span class="text-danger">$@entry.CreditAmount.ToString("N2")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-3">
+                    <a href="@Url.Action("GeneralLedger", "Accounting", new { accountCode = "", startDate = Model.AdjustmentDate.ToString("yyyy-MM-dd"), endDate = Model.AdjustmentDate.ToString("yyyy-MM-dd") })" 
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-book"></i> View in General Ledger
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.timeline-content {
+    padding-left: 10px;
+}
+
+.timeline-title {
+    font-size: 0.9rem;
+    margin: 0;
+    font-weight: 600;
+}
+
+.timeline-text {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin: 0;
+}
+</style>

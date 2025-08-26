@@ -234,10 +234,15 @@ namespace InventorySystem.Controllers
 				if (!string.IsNullOrEmpty(accountCode))
 				{
 					entries = await _accountingService.GetAccountLedgerEntriesAsync(accountCode, defaultStartDate, defaultEndDate);
+					// Enhance with reference info
+					foreach (var entry in entries.Where(e => e.HasReference))
+					{
+						await EnhanceEntryReferenceInfo(entry);
+					}
 				}
 				else
 				{
-					entries = await _accountingService.GetAllLedgerEntriesAsync(defaultStartDate, defaultEndDate);
+					entries = await _accountingService.GetAllLedgerEntriesWithEnhancedReferencesAsync(defaultStartDate, defaultEndDate);
 				}
 
 				var accounts = await _accountingService.GetActiveAccountsAsync();
@@ -258,6 +263,31 @@ namespace InventorySystem.Controllers
 				_logger.LogError(ex, "Error loading general ledger");
 				TempData["ErrorMessage"] = "Error loading general ledger";
 				return View(new GeneralLedgerViewModel());
+			}
+		}
+
+		// Helper method for enhancing individual entries
+		private async Task EnhanceEntryReferenceInfo(GeneralLedgerEntry entry)
+		{
+			if (!entry.HasReference) return;
+
+			try
+			{
+				switch (entry.ReferenceType?.ToLower())
+				{
+					case "sale":
+						var sale = await _context.Sales.FindAsync(entry.ReferenceId!.Value);
+						if (sale != null)
+						{
+							entry.EnhancedReferenceText = $"Sale {sale.SaleNumber}";
+						}
+						break;
+					// Add other cases as needed
+				}
+			}
+			catch
+			{
+				// Ignore enhancement errors
 			}
 		}
 
