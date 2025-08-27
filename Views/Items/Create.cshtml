@@ -155,7 +155,7 @@
             </div>
             <div class="col-md-6">
               <div class="form-check mt-2">
-                <input asp-for="IsSellable" class="form-check-input" type="checkbox" />
+                <input asp-for="IsSellable" class="form-check-input" type="checkbox" id="isSellableSwitch" />
                 <label asp-for="IsSellable" class="form-check-label">
                   <i class="fas fa-dollar-sign text-success"></i>
                   This item can be sold to customers
@@ -163,6 +163,15 @@
                 <div class="form-text">Uncheck for raw materials, components, tools, or internal-use items.</div>
               </div>
             </div>
+          </div>
+
+          <!-- NEW: Revenue Account Section -->
+          <div id="revenueAccountSection" style="display: none;">
+            @await Component.InvokeAsync("RevenueAccountDropdown", new { 
+              entity = new InventorySystem.Models.Item(), 
+              propertyName = "PreferredRevenueAccountCode", 
+              isRequired = false 
+            })
           </div>
 
           <!-- Stock Management -->
@@ -700,6 +709,8 @@
       const bomGuideCard = document.getElementById('bomGuideCard');
       const hasInitialPurchaseCheckbox = document.getElementById('hasInitialPurchaseCheckbox');
       const initialPurchaseSection = document.getElementById('initialPurchaseSection');
+      const isSellableSwitch = document.getElementById('isSellableSwitch');
+      const revenueAccountSection = document.getElementById('revenueAccountSection');
 
       // Get all initial purchase fields
       const initialPurchaseFields = document.querySelectorAll('#initialPurchaseSection input, #initialPurchaseSection select');
@@ -738,6 +749,15 @@
         }
 
         updateManufacturingBomVisibility();
+      }
+
+      // NEW: Show/hide revenue account section based on sellable status
+      function toggleRevenueAccountSection() {
+        if (isSellableSwitch && isSellableSwitch.checked) {
+          revenueAccountSection.style.display = '';
+        } else {
+          revenueAccountSection.style.display = 'none';
+        }
       }
 
       function updateManufacturingBomVisibility() {
@@ -822,10 +842,16 @@
 
       // Initial setup
       updateFormBasedOnItemType();
+      toggleRevenueAccountSection();
 
       // Event listeners
       itemTypeSelect.addEventListener('change', updateFormBasedOnItemType);
       materialTypeSelect.addEventListener('change', updateManufacturingBomVisibility);
+
+      // NEW: Handle sellable status changes
+      if (isSellableSwitch) {
+        isSellableSwitch.addEventListener('change', toggleRevenueAccountSection);
+      }
 
       if (yieldFactorInput) {
         yieldFactorInput.addEventListener('input', updateRequiredMaterialCalculation);

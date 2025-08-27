@@ -142,27 +142,60 @@
             <span class="badge bg-secondary">@Model.Account.AccountSubType</span>
           </dd>
 
+          <!-- FIXED: Show actual parent account information -->
           <dt class="col-sm-5">Parent Account:</dt>
           <dd class="col-sm-7">
-            @if (Model.Account.ParentAccountId.HasValue)
+            @if (Model.Account.ParentAccount != null)
             {
-              <span class="text-info">Has parent account</span>
+              <div>
+                <a href="@Url.Action("AccountDetails", new { id = Model.Account.ParentAccount.Id })" 
+                   class="text-decoration-none">
+                  <i class="fas fa-arrow-up"></i> @Model.Account.ParentAccount.AccountCode - @Model.Account.ParentAccount.AccountName
+                </a>
+              </div>
+              <small class="text-muted">This is a sub-account</small>
             }
             else
             {
-              <span class="text-muted">Top-level account</span>
+              <span class="text-muted">
+                <i class="fas fa-layer-group"></i> Top-level account
+              </span>
             }
           </dd>
+
+          <!-- NEW: Show sub-accounts if any -->
+          @if (Model.Account.SubAccounts?.Any() == true)
+          {
+            <dt class="col-sm-5">Sub-Accounts:</dt>
+            <dd class="col-sm-7">
+              <div class="d-flex flex-column gap-1">
+                @foreach (var subAccount in Model.Account.SubAccounts.OrderBy(s => s.AccountCode))
+                {
+                  <div>
+                    <a href="@Url.Action("AccountDetails", new { id = subAccount.Id })" 
+                       class="text-decoration-none small">
+                      <i class="fas fa-arrow-down"></i> @subAccount.AccountCode - @subAccount.AccountName
+                    </a>
+                  </div>
+                }
+              </div>
+              <small class="text-muted">@Model.Account.SubAccounts.Count sub-account(s)</small>
+            </dd>
+          }
 
           <dt class="col-sm-5">System Account:</dt>
           <dd class="col-sm-7">
             @if (Model.Account.IsSystemAccount)
             {
-              <span class="badge bg-warning">System Account</span>
+              <span class="badge bg-warning">
+                <i class="fas fa-shield-alt"></i> System Account
+              </span>
             }
             else
             {
-              <span class="badge bg-success">User Account</span>
+              <span class="badge bg-success">
+                <i class="fas fa-user"></i> User Account
+              </span>
             }
           </dd>
 
@@ -222,6 +255,48 @@
         }
       </div>
     </div>
+
+    <!-- NEW: Account Hierarchy Card (if has parent or sub-accounts) -->
+    @if (Model.Account.ParentAccount != null || Model.Account.SubAccounts?.Any() == true)
+    {
+      <div class="card mt-3 border-info">
+        <div class="card-header bg-info text-white">
+          <h6><i class="fas fa-sitemap"></i> Account Hierarchy</h6>
+        </div>
+        <div class="card-body">
+          @if (Model.Account.ParentAccount != null)
+          {
+            <div class="mb-2">
+              <strong>Parent:</strong>
+              <div class="ms-3">
+                <a href="@Url.Action("AccountDetails", new { id = Model.Account.ParentAccount.Id })" 
+                   class="text-decoration-none">
+                  <i class="fas fa-level-up-alt"></i> @Model.Account.ParentAccount.AccountCode - @Model.Account.ParentAccount.AccountName
+                </a>
+              </div>
+            </div>
+          }
+          
+          @if (Model.Account.SubAccounts?.Any() == true)
+          {
+            <div class="mb-2">
+              <strong>Sub-Accounts (@Model.Account.SubAccounts.Count):</strong>
+              <div class="ms-3">
+                @foreach (var subAccount in Model.Account.SubAccounts.OrderBy(s => s.AccountCode))
+                {
+                  <div>
+                    <a href="@Url.Action("AccountDetails", new { id = subAccount.Id })" 
+                       class="text-decoration-none small">
+                      <i class="fas fa-level-down-alt"></i> @subAccount.AccountCode - @subAccount.AccountName
+                    </a>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
   </div>
 
   <!-- Recent Transactions -->
@@ -334,6 +409,12 @@
             <a href="/Accounting/EditAccount/@Model.Account.Id" class="btn btn-outline-secondary">
               <i class="fas fa-edit"></i> Edit Account
             </a>
+            @if (Model.Account.ParentAccount != null)
+            {
+              <a href="/Accounting/AccountDetails/@Model.Account.ParentAccount.Id" class="btn btn-outline-info">
+                <i class="fas fa-level-up-alt"></i> View Parent
+              </a>
+            }
             @if (!Model.Account.IsSystemAccount)
             {
               <button type="button" class="btn btn-outline-warning" onclick="toggleAccountStatus(@Model.Account.Id, false)">

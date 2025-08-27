@@ -1,0 +1,20 @@
+@model string
+
+<div class="btn-group" role="group" aria-label="Financial Period Selection">
+    <a href="@Url.Action(ViewContext.RouteData.Values["action"]?.ToString(), new { period = "current-fy" })" 
+       class="btn @(Model == "current-fy" ? "btn-primary" : "btn-outline-primary") btn-sm">
+        <i class="fas fa-calendar-check"></i> Current FY
+    </a>
+    <a href="@Url.Action(ViewContext.RouteData.Values["action"]?.ToString(), new { period = "previous-fy" })" 
+       class="btn @(Model == "previous-fy" ? "btn-primary" : "btn-outline-primary") btn-sm">
+        <i class="fas fa-calendar-minus"></i> Previous FY
+    </a>
+    <a href="@Url.Action(ViewContext.RouteData.Values["action"]?.ToString(), new { period = "calendar-year" })" 
+       class="btn @(Model == "calendar-year" ? "btn-primary" : "btn-outline-primary") btn-sm">
+        <i class="fas fa-calendar"></i> Calendar Year
+    </a>
+    <a href="@Url.Action(ViewContext.RouteData.Values["action"]?.ToString(), new { period = "all-time" })" 
+       class="btn @(Model == "all-time" ? "btn-warning" : "btn-outline-warning") btn-sm">
+        <i class="fas fa-history"></i> All Time
+    </a>
+</div>

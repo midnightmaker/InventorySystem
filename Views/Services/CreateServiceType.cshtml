@@ -55,7 +55,6 @@
             </div>
           </div>
 
-          <!-- NEW: Vendor Selection Section -->
           <div class="mb-3">
             <label asp-for="VendorId" class="form-label">
               <i class="fas fa-truck"></i> Service Provider (Vendor)
@@ -180,28 +179,19 @@
             </div>
           </div>
 
-          <!-- Sales Integration Section -->
+          <!-- Revenue Account Section -->
           <hr>
-          <h6><i class="fas fa-shopping-cart"></i> Sales Integration</h6>
+          <h6><i class="fas fa-coins"></i> Revenue Settings</h6>
+          <p class="text-muted small mb-3">
+            <i class="fas fa-info-circle"></i>
+            Configure how revenue from this service will be recorded in the accounting system.
+          </p>
 
-          <div class="form-check mb-3">
-            <input asp-for="CreateServiceItem" class="form-check-input" type="checkbox" checked />
-            <label asp-for="CreateServiceItem" class="form-check-label">
-              <i class="fas fa-cube"></i> Create corresponding service item for sales
-            </label>
-            <div class="form-text">Automatically creates a sellable service item that can be added to customer orders</div>
-          </div>
-
-          <div class="mb-3" id="serviceItemPreview">
-            <label class="form-label">Generated Service Item</label>
-            <div class="input-group">
-              <span class="input-group-text">Part #:</span>
-              <input id="generatedPartNumber" class="form-control" readonly />
-              <span class="input-group-text">Price:</span>
-              <input id="generatedPrice" class="form-control" readonly />
-            </div>
-            <div class="form-text">This service item will be available for sales teams to add to customer orders</div>
-          </div>
+          @await Component.InvokeAsync("RevenueAccountDropdown", new { 
+            entity = new InventorySystem.Models.ServiceType(), 
+            propertyName = "PreferredRevenueAccountCode", 
+            isRequired = false 
+          })
         </div>
       </div>
 
@@ -254,6 +244,11 @@
         </div>
 
         <div class="mb-3">
+          <h6 class="text-success"><i class="fas fa-coins"></i> Revenue Accounts</h6>
+          <p class="small text-muted">Revenue account settings determine where income from this service is recorded in your books.</p>
+        </div>
+
+        <div class="mb-3">
           <h6 class="text-danger"><i class="fas fa-file-alt"></i> Document Requirements</h6>
           <p class="small text-muted">
             <strong>Certificate:</strong> Official certification documents (PDFs, images)<br>
@@ -276,6 +271,21 @@
             <p>Fill in the form to see a preview</p>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Revenue Account Info -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6><i class="fas fa-coins"></i> Revenue Account</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-6">Current:</dt>
+          <dd class="col-sm-6" id="displayRevenueAccount">
+            <span class="text-muted">4100 - Service Revenue (Default)</span>
+          </dd>
+        </dl>
       </div>
     </div>
   </div>
@@ -308,7 +318,6 @@
         const estimatedCost = hours * rate;
 
         document.getElementById('estimatedCost').value = '$' + estimatedCost.toFixed(2);
-        document.getElementById('generatedPrice').value = '$' + estimatedCost.toFixed(2);
         updatePreview();
     }
 
@@ -325,13 +334,9 @@
         const certRequired = document.querySelector('[name="CertificateRequired"]').checked;
         const worksheetRequired = document.querySelector('[name="WorksheetRequired"]').checked;
         const isActive = document.querySelector('[name="IsActive"]').checked;
-        const createServiceItem = document.querySelector('[name="CreateServiceItem"]').checked;
 
         // Update requirements warning
         updateRequirementsWarning(qcRequired, certRequired, worksheetRequired);
-
-        // Update generated part number
-        updateGeneratedPartNumber(serviceName, serviceCode);
 
         if (!serviceName && !hours && !rate) {
             document.getElementById('servicePreview').innerHTML = `
@@ -377,10 +382,6 @@
                     ${worksheetRequired ? '<span class="badge bg-primary me-1">Worksheet</span>' : ''}
                     ${isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}
                 </div>
-
-                <div class="mt-3">
-                    ${createServiceItem ? '<span class="badge bg-primary">Auto Item</span>' : ''}
-                </div>
             </div>
         `;
 
@@ -404,27 +405,28 @@
         }
     }
 
-    function updateGeneratedPartNumber(serviceName, serviceCode) {
-        let partNumber = '';
+    // Update revenue account display in sidebar
+    function updateRevenueAccountDisplay() {
+        const revenueAccountSelect = document.querySelector('[name="PreferredRevenueAccountCode"]');
+        const displayElement = document.getElementById('displayRevenueAccount');
         
-        if (serviceCode && serviceCode.trim()) {
-            partNumber = `SVC-${serviceCode.trim().toUpperCase()}`;
-        } else if (serviceName && serviceName.trim()) {
-            const nameCode = serviceName.toUpperCase()
-                .replace(/[^A-Z0-9]/g, '')
-                .substring(0, 8);
-            partNumber = `SVC-${nameCode}`;
-        } else {
-            partNumber = 'SVC-XXXXXXXX';
+        if (revenueAccountSelect && displayElement) {
+            const selectedValue = revenueAccountSelect.value;
+            
+            if (selectedValue) {
+                const selectedText = revenueAccountSelect.selectedOptions[0]?.text || selectedValue;
+                displayElement.innerHTML = `<span class="text-primary">${selectedText} (Override)</span>`;
+            } else {
+                // Show default account (4100 for service types)
+                displayElement.innerHTML = `<span class="text-muted">4100 - Service Revenue (Default)</span>`;
+            }
         }
-        
-        document.getElementById('generatedPartNumber').value = partNumber;
     }
 
     // Initialize preview and calculation
     document.addEventListener('DOMContentLoaded', function() {
         // Add event listeners to form fields for real-time preview
-        const formFields = ['ServiceName', 'ServiceCode', 'VendorId', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'WorksheetRequired', 'IsActive', 'CreateServiceItem'];
+        const formFields = ['ServiceName', 'ServiceCode', 'VendorId', 'ServiceCategory', 'Description', 'StandardHours', 'StandardRate', 'QcRequired', 'CertificateRequired', 'WorksheetRequired', 'IsActive'];
 
         formFields.forEach(fieldName => {
             const field = document.querySelector(`[name="${fieldName}"]`);
@@ -434,9 +436,18 @@
             }
         });
 
-        // Initial calculation
+        // Add revenue account listener
+        const revenueAccountSelect = document.querySelector('[name="PreferredRevenueAccountCode"]');
+        if (revenueAccountSelect) {
+            revenueAccountSelect.addEventListener('change', function() {
+                updateRevenueAccountDisplay();
+            });
+        }
+
+        // Initial calculation and setup
         calculateEstimatedCost();
         updatePreview();
+        updateRevenueAccountDisplay();
     });
 
     // Form validation

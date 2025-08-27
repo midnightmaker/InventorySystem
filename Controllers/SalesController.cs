@@ -505,6 +505,27 @@ namespace InventorySystem.Controllers
 				var createdSale = await _salesService.CreateSaleAsync(sale);
 
 				SetSuccessMessage($"Sale {createdSale.SaleNumber} created successfully!"); // ✅ Using BaseController method
+				try
+				{
+					// Generate journal entry for the sale
+					var accountingService = HttpContext.RequestServices.GetRequiredService<IAccountingService>();
+					var journalEntryCreated = await accountingService.GenerateJournalEntriesForSaleAsync(sale);
+
+					if (journalEntryCreated)
+					{
+						_logger.LogInformation("Journal entry created for sale {SaleId}", sale.Id);
+					}
+					else
+					{
+						_logger.LogWarning("Failed to create journal entry for sale {SaleId}", sale.Id);
+					}
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Error creating journal entry for sale {SaleId}. Sale was recorded successfully.", sale.Id);
+					// Don't fail the sale creation if journal entry fails
+					SetErrorMessage($"Sale {createdSale.SaleNumber} created successfully! Error creating journal entry for the sale. Use accounting Sync function to synchronize the Journal"); 
+				}
 				return RedirectToAction("Details", new { id = createdSale.Id });
 			}
 			catch (Exception ex)

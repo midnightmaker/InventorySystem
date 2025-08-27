@@ -141,7 +141,7 @@
             <div class="col-md-6">
               <div class="mb-3">
                 <div class="form-check mt-2">
-                  <input asp-for="IsSellable" class="form-check-input" type="checkbox" />
+                  <input asp-for="IsSellable" class="form-check-input" type="checkbox" id="isSellableSwitch" />
                   <label asp-for="IsSellable" class="form-check-label">
                     <i class="fas fa-dollar-sign text-success"></i>
                     This item can be sold to customers
@@ -151,7 +151,14 @@
               </div>
             </div>
           </div>
-
+          <!-- NEW: Revenue Account Selection -->
+          <div id="revenueAccountSection" style="@(Model.IsSellable ? "" : "display: none;")">
+            @await Component.InvokeAsync("RevenueAccountDropdown", new {
+                entity = Model,
+                propertyName = "PreferredRevenueAccountCode",
+                isRequired = false
+            })
+          </div>
           <!-- Stock Management (only for Inventoried items) -->
           <div class="row" id="stockManagement">
             <div class="col-md-6">
@@ -431,6 +438,7 @@
                           {
                             <br>
                       
+    
                             <small class="text-muted">@doc.Description</small>
                           }
                         </div>
@@ -515,6 +523,18 @@
             <span class="badge bg-outline-secondary">@Model.UnitOfMeasureCategory</span>
           </dd>
 
+          <dt class="col-sm-6">Revenue Account:</dt>
+          <dd class="col-sm-6" id="displayRevenueAccount">
+            @if (string.IsNullOrEmpty(Model.PreferredRevenueAccountCode))
+            {
+              <span class="text-muted">@Model.GetDefaultRevenueAccountCode() (Default)</span>
+            }
+            else
+            {
+              <span class="text-primary">@Model.PreferredRevenueAccountCode (Override)</span>
+            }
+          </dd>
+
           @if (Model.CreatedFromChangeOrder != null)
           {
             <dt class="col-sm-6">Change Order:</dt>
@@ -561,6 +581,10 @@
           <div class="list-group-item border-0 px-0">
             <strong>Sellable Status:</strong>
             <small class="text-muted d-block">Controls whether this item appears in sales forms and customer-facing areas.</small>
+          </div>
+          <div class="list-group-item border-0 px-0">
+            <strong>Revenue Account:</strong>
+            <small class="text-muted d-block">Configure which account receives revenue when this item is sold. Defaults based on item type.</small>
           </div>
           <div class="list-group-item border-0 px-0">
             <strong>Version Control:</strong>
@@ -731,6 +755,8 @@
     const itemTypeSelect = document.getElementById('itemTypeSelect');
     const stockManagement = document.getElementById('stockManagement');
     const pricingSection = document.getElementById('pricingSection');
+    const isSellableSwitch = document.getElementById('isSellableSwitch');
+    const revenueAccountSection = document.getElementById('revenueAccountSection');
 
     function updateFormBasedOnItemType() {
       const itemType = parseInt(itemTypeSelect.value);
@@ -748,10 +774,51 @@
 
       pricingSection.style.display = 'block';
       
+      // Update revenue account display
+      updateRevenueAccountDisplay();
+    }
+
+    // Show/hide revenue account section based on sellable status
+    function toggleRevenueAccountSection() {
+      if (isSellableSwitch && isSellableSwitch.checked) {
+        revenueAccountSection.style.display = '';
+      } else {
+        revenueAccountSection.style.display = 'none';
+      }
+      updateRevenueAccountDisplay();
+    }
+
+    // Update revenue account display in sidebar
+    function updateRevenueAccountDisplay() {
+      const revenueAccountSelect = document.querySelector('select[name="PreferredRevenueAccountCode"]');
+      const displayElement = document.getElementById('displayRevenueAccount');
+      
+      if (revenueAccountSelect && displayElement) {
+        const selectedValue = revenueAccountSelect.value;
+        
+        if (selectedValue) {
+          const selectedText = revenueAccountSelect.selectedOptions[0]?.text || selectedValue;
+          displayElement.innerHTML = `<span class="text-primary">${selectedText} (Override)</span>`;
+        } else {
+          // Show default based on item type
+          const defaultAccount = getDefaultAccountForItemType(parseInt(itemTypeSelect.value));
+          displayElement.innerHTML = `<span class="text-muted">${defaultAccount} (Default)</span>`;
+        }
+      }
+    }
+
+    function getDefaultAccountForItemType(itemType) {
+      switch(itemType) {
+        case 0: return '4000 - Product Sales'; // Inventoried
+        case 4: return '4010 - Supply Sales';  // Consumable  
+        case 8: return '4020 - Research Material Sales'; // R&D Materials
+        default: return '4000 - Product Sales';
+      }
     }
 
     // Initial setup
     updateFormBasedOnItemType();
+    toggleRevenueAccountSection();
 
     // Handle item type changes
     itemTypeSelect.addEventListener('change', function() {
@@ -768,6 +835,17 @@
         }
       }
     });
+
+    // Handle sellable status changes
+    if (isSellableSwitch) {
+      isSellableSwitch.addEventListener('change', toggleRevenueAccountSection);
+    }
+
+    // Handle revenue account changes
+    const revenueAccountSelect = document.querySelector('select[name="PreferredRevenueAccountCode"]');
+    if (revenueAccountSelect) {
+      revenueAccountSelect.addEventListener('change', updateRevenueAccountDisplay);
+    }
 
     $(document).ready(function() {
         var currentItemId = @Model.Id;
@@ -882,6 +960,7 @@
             loadVendorRelationshipInfo(initialVendorId);
         }
     });
+  });
   </script>
 
   <style>

@@ -57,8 +57,22 @@ namespace InventorySystem.Models
         public int? ServiceItemId { get; set; }
         public virtual Item? ServiceItem { get; set; }
 
-        // Navigation properties
-        public virtual ICollection<ServiceOrder> ServiceOrders { get; set; } = new List<ServiceOrder>();
+		    [Display(Name = "Revenue Account Code")]
+		    [StringLength(10)]
+		    public string? PreferredRevenueAccountCode { get; set; }
+
+		    // And implement the missing ISellableEntity method:
+		    public string GetDefaultRevenueAccountCode()
+		    {
+			    // Use preferred account if specified, otherwise default to service revenue
+			    if (!string.IsNullOrEmpty(PreferredRevenueAccountCode))
+				    return PreferredRevenueAccountCode;
+
+			    return "4100"; // Service Revenue
+		    }
+
+		    // Navigation properties
+		    public virtual ICollection<ServiceOrder> ServiceOrders { get; set; } = new List<ServiceOrder>();
         public virtual ICollection<ServiceTypeDocument> Documents { get; set; } = new List<ServiceTypeDocument>();
 
         // Computed properties with null safety

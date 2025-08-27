@@ -4,7 +4,21 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-chart-line"></i> Income Statement</h1>
+  <div>
+    <h1><i class="fas fa-chart-line"></i> Income Statement</h1>
+    <p class="text-muted mb-0">
+      @if (Model.CurrentFinancialPeriod != null && !string.IsNullOrEmpty(Model.SelectedPeriod))
+      {
+        <span class="badge bg-info">@Model.PeriodDisplayName</span>
+        <span>@Model.StartDate.ToString("MMM dd, yyyy") - @Model.EndDate.ToString("MMM dd, yyyy")</span>
+      }
+      else
+      {
+        <span class="badge bg-secondary">Custom Period</span>
+        <span>@Model.StartDate.ToString("MMM dd, yyyy") - @Model.EndDate.ToString("MMM dd, yyyy")</span>
+      }
+    </p>
+  </div>
   <div class="btn-group">
     <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
@@ -26,10 +40,59 @@
   </div>
 }
 
+<!-- Financial Period Quick Selection -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h5><i class="fas fa-calendar-alt"></i> Financial Period Selection</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-8">
+        <div class="btn-group flex-wrap" role="group" aria-label="Period Selection">
+          <a href="@Url.Action("IncomeStatement", new { period = "current-fy" })" 
+             class="btn @(Model.SelectedPeriod == "current-fy" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar-check"></i> Current FY
+          </a>
+          <a href="@Url.Action("IncomeStatement", new { period = "previous-fy" })" 
+             class="btn @(Model.SelectedPeriod == "previous-fy" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar-minus"></i> Previous FY
+          </a>
+          <a href="@Url.Action("IncomeStatement", new { period = "calendar-year" })" 
+             class="btn @(Model.SelectedPeriod == "calendar-year" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar"></i> Calendar Year
+          </a>
+          <a href="@Url.Action("IncomeStatement", new { period = "ytd" })" 
+             class="btn @(Model.SelectedPeriod == "ytd" ? "btn-info" : "btn-outline-info")">
+            <i class="fas fa-chart-line"></i> Year to Date
+          </a>
+        </div>
+      </div>
+      <div class="col-md-4 text-end">
+        @if (Model.CurrentFinancialPeriod != null)
+        {
+          <div class="text-muted small">
+            <strong>Current FY:</strong> @Model.CurrentFinancialPeriod.FormattedPeriod
+            <br>
+            <strong>Status:</strong> 
+            @if (Model.CurrentFinancialPeriod.IsClosed)
+            {
+              <span class="badge bg-danger">Closed</span>
+            }
+            else
+            {
+              <span class="badge bg-success">Open</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Date Range Selection -->
 <div class="card mb-4">
   <div class="card-header">
-    <h5><i class="fas fa-calendar-alt"></i> Reporting Period</h5>
+    <h5><i class="fas fa-calendar-day"></i> Custom Reporting Period</h5>
   </div>
   <div class="card-body">
     <form method="get">
@@ -445,6 +508,12 @@
       endDateInput.value = '@Model.EndDate.ToString("yyyy-MM-dd")';
       form.appendChild(endDateInput);
 
+      const periodInput = document.createElement('input');
+      periodInput.type = 'hidden';
+      periodInput.name = 'period';
+      periodInput.value = '@Model.SelectedPeriod';
+      form.appendChild(periodInput);
+
       document.body.appendChild(form);
       form.submit();
       document.body.removeChild(form);
@@ -466,6 +535,12 @@
       endDateInput.name = 'endDate';
       endDateInput.value = '@Model.EndDate.ToString("yyyy-MM-dd")';
       form.appendChild(endDateInput);
+
+      const periodInput = document.createElement('input');
+      periodInput.type = 'hidden';
+      periodInput.name = 'period';
+      periodInput.value = '@Model.SelectedPeriod';
+      form.appendChild(periodInput);
 
       document.body.appendChild(form);
       form.submit();

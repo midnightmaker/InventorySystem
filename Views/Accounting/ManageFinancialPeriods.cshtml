@@ -1,0 +1,472 @@
+@model InventorySystem.ViewModels.Accounting.FinancialPeriodViewModel
+@{
+    ViewData["Title"] = "Manage Financial Periods";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-calendar-alt"></i> Financial Period Management</h1>
+        <p class="text-muted mb-0">Configure financial years and reporting periods</p>
+    </div>
+    <div class="btn-group">
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPeriodModal">
+            <i class="fas fa-plus"></i> Create Period
+        </button>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <!-- Company Settings -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> Company Financial Settings</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="UpdateCompanySettings" method="post">
+                    <div class="mb-3">
+                        <label asp-for="CompanySettings.CompanyName" class="form-label">Company Name</label>
+                        <input asp-for="CompanySettings.CompanyName" class="form-control" />
+                        <span asp-validation-for="CompanySettings.CompanyName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Financial Year Start</label>
+                        <div class="row">
+                            <div class="col-8">
+                                <select asp-for="CompanySettings.FinancialYearStartMonth" class="form-select">
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                    <option value="3">March</option>
+                                    <option value="4">April</option>
+                                    <option value="5">May</option>
+                                    <option value="6">June</option>
+                                    <option value="7">July</option>
+                                    <option value="8">August</option>
+                                    <option value="9">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <input asp-for="CompanySettings.FinancialYearStartDay" class="form-control" type="number" min="1" max="31" />
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> 
+                            @if (Model.CompanySettings.FinancialYearStartMonth == 1 && Model.CompanySettings.FinancialYearStartDay == 1)
+                            {
+                                <span>Calendar year (January 1 - December 31)</span>
+                            }
+                            else
+                            {
+                                <span>Financial year starts @(new DateTime(DateTime.Today.Year, Model.CompanySettings.FinancialYearStartMonth, Model.CompanySettings.FinancialYearStartDay).ToString("MMMM dd"))</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="CompanySettings.DefaultReportPeriod" class="form-label">Default Report Period</label>
+                        <select asp-for="CompanySettings.DefaultReportPeriod" class="form-select">
+                            <option value="1">Current Financial Year</option>
+                            <option value="2">Calendar Year</option>
+                            <option value="3">Last Month</option>
+                            <option value="4">Last 90 Days</option>
+                            <option value="5">All Time</option>
+                        </select>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> Default period for financial reports
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="CompanySettings.AutoCreateFinancialPeriods" class="form-check-input" type="checkbox" />
+                            <label asp-for="CompanySettings.AutoCreateFinancialPeriods" class="form-check-label">
+                                Auto-create financial periods
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> Automatically create next financial year when current year ends
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Current Period Info -->
+        @if (Model.CurrentPeriod != null)
+        {
+            <div class="card mt-3">
+                <div class="card-header bg-success text-white">
+                    <h6><i class="fas fa-calendar-check"></i> Current Financial Period</h6>
+                </div>
+                <div class="card-body">
+                    <h5>@Model.CurrentPeriod.PeriodName</h5>
+                    <p class="mb-2">@Model.CurrentPeriod.FormattedPeriod</p>
+                    <div class="d-flex justify-content-between">
+                        <span>Duration:</span>
+                        <strong>@Model.CurrentPeriod.DurationInDays days</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Status:</span>
+                        <span class="badge @(Model.CurrentPeriod.IsClosed ? "bg-danger" : "bg-success")">
+                            @(Model.CurrentPeriod.IsClosed ? "Closed" : "Open")
+                        </span>
+                    </div>
+                    
+                    @if (!Model.CurrentPeriod.IsClosed)
+                    {
+                        <div class="mt-3">
+                            <a href="@Url.Action("CloseFinancialYear", new { periodId = Model.CurrentPeriod.Id })" 
+                               class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-lock"></i> Close Period
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Quick Period Info -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Period Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <strong>Current FY:</strong>
+                    <small class="text-muted d-block">
+                        @Model.CurrentFinancialYear.start.ToString("MMM dd, yyyy") - @Model.CurrentFinancialYear.end.ToString("MMM dd, yyyy")
+                    </small>
+                </div>
+                <div class="mb-2">
+                    <strong>Previous FY:</strong>
+                    <small class="text-muted d-block">
+                        @Model.PreviousFinancialYear.start.ToString("MMM dd, yyyy") - @Model.PreviousFinancialYear.end.ToString("MMM dd, yyyy")
+                    </small>
+                </div>
+                <div class="mb-2">
+                    <strong>Calendar Year:</strong>
+                    <small class="text-muted d-block">
+                        @Model.CurrentCalendarYear.start.ToString("MMM dd, yyyy") - @Model.CurrentCalendarYear.end.ToString("MMM dd, yyyy")
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Periods List -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-list"></i> Financial Periods</h5>
+                <span class="badge bg-info">@Model.AvailablePeriods.Count periods</span>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.AvailablePeriods.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Period Name</th>
+                                    <th>Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var period in Model.AvailablePeriods)
+                                {
+                                    <tr class="@(period.IsCurrentPeriod ? "table-success" : "")">
+                                        <td>
+                                            <strong>@period.PeriodName</strong>
+                                            @if (period.IsCurrentPeriod)
+                                            {
+                                                <span class="badge bg-success ms-2">Current</span>
+                                            }
+                                            @if (!string.IsNullOrEmpty(period.Description))
+                                            {
+                                                <br><small class="text-muted">@period.Description</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">@period.PeriodType</span>
+                                        </td>
+                                        <td>@period.StartDate.ToString("MMM dd, yyyy")</td>
+                                        <td>@period.EndDate.ToString("MMM dd, yyyy")</td>
+                                        <td>@period.DurationInDays days</td>
+                                        <td>
+                                            @if (period.IsClosed)
+                                            {
+                                                <span class="badge bg-danger">Closed</span>
+                                            }
+                                            else if (period.IsActive)
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Future</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="@Url.Action("GeneralLedger", new { period = "custom", startDate = period.StartDate.ToString("yyyy-MM-dd"), endDate = period.EndDate.ToString("yyyy-MM-dd") })" 
+                                                   class="btn btn-outline-info" title="View Transactions">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                @if (!period.IsClosed && !period.IsCurrentPeriod)
+                                                {
+                                                    <form asp-action="SetCurrentPeriod" method="post" class="d-inline">
+                                                        <input type="hidden" name="periodId" value="@period.Id" />
+                                                        <button type="submit" class="btn btn-outline-primary" title="Set as Current">
+                                                            <i class="fas fa-check-circle"></i>
+                                                        </button>
+                                                    </form>
+                                                }
+                                                @if (!period.IsClosed)
+                                                {
+                                                    <button type="button" class="btn btn-outline-warning" title="Edit Period" 
+                                                            onclick="editPeriod(@period.Id, '@period.PeriodName', '@period.StartDate.ToString("yyyy-MM-dd")', '@period.EndDate.ToString("yyyy-MM-dd")', '@period.Description')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                }
+                                                @if (!period.IsClosed && !period.IsCurrentPeriod)
+                                                {
+                                                    <form asp-action="DeletePeriod" method="post" class="d-inline"
+                                                          onsubmit="return confirm('Are you sure you want to delete this period?');">
+                                                        <input type="hidden" name="periodId" value="@period.Id" />
+                                                        <button type="submit" class="btn btn-outline-danger" title="Delete Period">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h5>No Financial Periods Defined</h5>
+                        <p class="text-muted">Create your first financial period to get started.</p>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPeriodModal">
+                            <i class="fas fa-plus"></i> Create Financial Period
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-lightning-bolt"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2 d-md-flex">
+                    <form asp-action="CreateNextFinancialYear" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus-circle"></i> Create Next Financial Year
+                        </button>
+                    </form>
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#createQuartersModal">
+                        <i class="fas fa-calendar-week"></i> Create Quarterly Periods
+                    </button>
+                    <a href="@Url.Action("TrialBalance")" class="btn btn-outline-primary">
+                        <i class="fas fa-balance-scale"></i> View Trial Balance
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Period Modal -->
+<div class="modal fade" id="createPeriodModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="CreatePeriod" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> Create Financial Period</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Period Name <span class="text-danger">*</span></label>
+                        <input type="text" name="PeriodName" class="form-control" placeholder="e.g., FY 2024" required />
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                                <input type="date" name="StartDate" class="form-control" required />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">End Date <span class="text-danger">*</span></label>
+                                <input type="date" name="EndDate" class="form-control" required />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Period Type</label>
+                        <select name="PeriodType" class="form-select">
+                            <option value="1">Annual</option>
+                            <option value="2">Quarterly</option>
+                            <option value="3">Monthly</option>
+                            <option value="4">Custom</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="Description" class="form-control" rows="2" placeholder="Optional description"></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" name="IsCurrentPeriod" class="form-check-input" />
+                        <label class="form-check-label">Set as current period</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Create Period
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Period Modal -->
+<div class="modal fade" id="editPeriodModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="UpdatePeriod" method="post">
+                <input type="hidden" id="editPeriodId" name="Id" />
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-edit"></i> Edit Financial Period</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Period Name <span class="text-danger">*</span></label>
+                        <input type="text" id="editPeriodName" name="PeriodName" class="form-control" required />
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                                <input type="date" id="editStartDate" name="StartDate" class="form-control" required />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">End Date <span class="text-danger">*</span></label>
+                                <input type="date" id="editEndDate" name="EndDate" class="form-control" required />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea id="editDescription" name="Description" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Period
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Quarters Modal -->
+<div class="modal fade" id="createQuartersModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="CreateQuarterlyPeriods" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-calendar-week"></i> Create Quarterly Periods</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Financial Year <span class="text-danger">*</span></label>
+                        <input type="number" name="FinancialYear" class="form-control" 
+                               value="@DateTime.Today.Year" min="2020" max="2050" required />
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> Year when the financial year starts
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        This will create Q1, Q2, Q3, and Q4 periods based on your financial year settings.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-calendar-plus"></i> Create Quarters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editPeriod(id, name, startDate, endDate, description) {
+    document.getElementById('editPeriodId').value = id;
+    document.getElementById('editPeriodName').value = name;
+    document.getElementById('editStartDate').value = startDate;
+    document.getElementById('editEndDate').value = endDate;
+    document.getElementById('editDescription').value = description || '';
+    
+    var editModal = new bootstrap.Modal(document.getElementById('editPeriodModal'));
+    editModal.show();
+}
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

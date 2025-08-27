@@ -53,11 +53,13 @@ namespace InventorySystem.ViewModels
         [Display(Name = "Is Active")]
         public bool IsActive { get; set; } = true;
 
-        [Display(Name = "Create Service Item for Sales")]
-        public bool CreateServiceItem { get; set; } = true;
+		    [Display(Name = "Revenue Account Code")]
+		    [StringLength(10)]
+		    public string? PreferredRevenueAccountCode { get; set; }
 
-        // NEW: Vendor options for dropdown
-        public SelectList? VendorOptions { get; set; }
+
+		    // NEW: Vendor options for dropdown
+		    public SelectList? VendorOptions { get; set; }
 
         // NEW: Document properties
         [Display(Name = "Documents")]
@@ -74,5 +76,27 @@ namespace InventorySystem.ViewModels
 
         [Display(Name = "Document Description")]
         public string? DocumentDescription { get; set; }
-    }
+
+		    // ISellableEntity implementation
+		    public string DisplayName => !string.IsNullOrEmpty(ServiceCode)
+				    ? $"{ServiceCode} - {ServiceName}"
+				    : ServiceName;
+
+		
+		    public decimal SalePrice => StandardHours * StandardRate;
+
+		    public bool IsSellable => IsActive;
+
+		    public string EntityType => "ServiceType";
+
+		    public string? Code => ServiceCode;
+
+		    public string GetDefaultRevenueAccountCode()
+		    {
+			    if (!string.IsNullOrEmpty(PreferredRevenueAccountCode))
+				    return PreferredRevenueAccountCode;
+
+			    return "4100"; // Service Revenue
+		    }
+	}
 }

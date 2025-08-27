@@ -101,7 +101,24 @@ namespace InventorySystem.ViewModels.Accounting
 
 		public bool IsSystemAccount { get; set; }
 		public decimal CurrentBalance { get; set; }
-		public DateTime LastTransactionDate { get; set; }
+		public DateTime? LastTransactionDate { get; set; }
+		// Helper properties for display
+		[Display(Name = "Account Type Display")]
+		public string AccountTypeDisplay => AccountType switch
+		{
+			AccountType.Asset => "Asset",
+			AccountType.Liability => "Liability",
+			AccountType.Equity => "Equity",
+			AccountType.Revenue => "Revenue",
+			AccountType.Expense => "Expense",
+			_ => "Unknown"
+		};
+
+		[Display(Name = "Has Activity")]
+		public bool HasActivity => LastTransactionDate.HasValue;
+
+		[Display(Name = "Can Modify Type")]
+		public bool CanModifyAccountType => !HasActivity && !IsSystemAccount;
 	}
 
 	public class AccountDetailsViewModel
@@ -131,6 +148,27 @@ namespace InventorySystem.ViewModels.Accounting
 		public decimal TotalDebits => Entries.Sum(e => e.DebitAmount);
 		public decimal TotalCredits => Entries.Sum(e => e.CreditAmount);
 		public bool IsBalanced => Math.Abs(TotalDebits - TotalCredits) < 0.01m;
+
+		// NEW: Financial period support
+		public FinancialPeriod? CurrentFinancialPeriod { get; set; }
+		public string? SelectedPeriod { get; set; }
+		public bool IsAllTimeView { get; set; } = false;
+
+		// Helper properties
+		public bool IsCurrentFinancialYearView => 
+				CurrentFinancialPeriod != null && 
+				StartDate >= CurrentFinancialPeriod.StartDate && 
+				EndDate <= CurrentFinancialPeriod.EndDate;
+
+		public string PeriodDisplayName => SelectedPeriod switch
+		{
+			"current-fy" => "Current Financial Year",
+			"previous-fy" => "Previous Financial Year", 
+			"calendar-year" => "Calendar Year",
+			"all-time" => "All Time",
+			_ => "Custom Period"
+		};
+
 	}
 
 	// ============= FINANCIAL REPORTS =============
@@ -139,10 +177,21 @@ namespace InventorySystem.ViewModels.Accounting
 	{
 		public DateTime AsOfDate { get; set; } = DateTime.Today;
 		public List<TrialBalanceEntry> Entries { get; set; } = new();
-
 		public decimal TotalDebits => Entries.Sum(e => e.DebitBalance);
 		public decimal TotalCredits => Entries.Sum(e => e.CreditBalance);
 		public bool IsBalanced => Math.Abs(TotalDebits - TotalCredits) < 0.01m;
+
+		// NEW: Financial period support
+		public FinancialPeriod? CurrentFinancialPeriod { get; set; }
+		public string? SelectedPeriod { get; set; }
+		public string PeriodDisplayName => SelectedPeriod switch
+		{
+			"current-fy-end" => CurrentFinancialPeriod?.PeriodName + " (End)" ?? "Current FY End",
+			"previous-fy-end" => "Previous FY End",
+			"calendar-year-end" => "Calendar Year End",
+			_ => $"As of {AsOfDate:MMM dd, yyyy}"
+		};
+
 	}
 
 	public class TrialBalanceEntry
@@ -185,6 +234,17 @@ namespace InventorySystem.ViewModels.Accounting
 		public decimal TotalLiabilitiesAndEquity => TotalLiabilities + TotalEquity;
 
 		public bool IsBalanced => Math.Abs(TotalAssets - TotalLiabilitiesAndEquity) < 0.01m;
+		
+		public FinancialPeriod? CurrentFinancialPeriod { get; set; }
+		public string? SelectedPeriod { get; set; }
+
+		public string PeriodDisplayName => SelectedPeriod switch
+		{
+			"current-fy-end" => CurrentFinancialPeriod?.PeriodName + " (End)" ?? "Current FY End",
+			"previous-fy-end" => "Previous FY End",
+			"calendar-year-end" => "Calendar Year End",
+			_ => $"As of {AsOfDate:MMM dd, yyyy}"
+		};
 	}
 
 	public class BalanceSheetAccount
@@ -225,6 +285,20 @@ namespace InventorySystem.ViewModels.Accounting
 		public decimal NetProfitMargin => TotalRevenue > 0 ? (NetIncome / TotalRevenue) * 100 : 0;
 
 		public string PeriodDisplay => $"{StartDate:MMM dd, yyyy} to {EndDate:MMM dd, yyyy}";
+
+		// Financial period support  
+		public FinancialPeriod? CurrentFinancialPeriod { get; set; }
+		public string? SelectedPeriod { get; set; }
+		// Add financial period support  
+		
+		public string PeriodDisplayName => SelectedPeriod switch
+		{
+			"current-fy" => CurrentFinancialPeriod?.PeriodName ?? "Current Financial Year",
+			"previous-fy" => "Previous Financial Year",
+			"calendar-year" => "Calendar Year",
+			"ytd" => "Year to Date",
+			_ => $"{StartDate:MMM dd, yyyy} to {EndDate:MMM dd, yyyy}"
+		};
 	}
 
 	public class IncomeStatementAccount

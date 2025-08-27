@@ -302,6 +302,20 @@
             </div>
           </div>
 
+          <!-- Revenue Account Section -->
+          <hr>
+          <h6><i class="fas fa-coins"></i> Revenue Settings</h6>
+          <p class="text-muted small mb-3">
+            <i class="fas fa-info-circle"></i>
+            Configure how revenue from this service will be recorded in the accounting system.
+          </p>
+
+          @await Component.InvokeAsync("RevenueAccountDropdown", new { 
+            entity = Model, 
+            propertyName = "PreferredRevenueAccountCode", 
+            isRequired = false 
+          })
+
           <!-- Change Tracking Information -->
           <hr>
           <div class="row">
@@ -320,7 +334,7 @@
         </div>
       </div>
 
-      <!-- Documents Card - FIXED APPROACH -->
+      <!-- Documents Card -->
       <div class="card mt-4">
         <div class="card-header">
           <h5><i class="fas fa-paperclip"></i> Documents</h5>
@@ -365,7 +379,6 @@
                               @if (!string.IsNullOrEmpty(doc.Description))
                               {
                                 <br>
-                          
                                 <small class="text-muted">@doc.Description</small>
                               }
                             </div>
@@ -497,6 +510,28 @@
       </div>
     </div>
 
+    <!-- Revenue Account Info -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6><i class="fas fa-coins"></i> Revenue Account</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-6">Current:</dt>
+          <dd class="col-sm-6" id="displayRevenueAccount">
+            @if (string.IsNullOrEmpty(Model?.PreferredRevenueAccountCode))
+            {
+              <span class="text-muted">4100 - Service Revenue (Default)</span>
+            }
+            else
+            {
+              <span class="text-primary">@Model?.PreferredRevenueAccountCode (Override)</span>
+            }
+          </dd>
+        </dl>
+      </div>
+    </div>
+
     <!-- Guidelines -->
     <div class="card mb-3">
       <div class="card-header">
@@ -516,6 +551,11 @@
         <div class="mb-3">
           <h6 class="text-info"><i class="fas fa-toggle-off"></i> Deactivation</h6>
           <p class="small text-muted">Deactivating prevents new orders but doesn't affect existing ones. Use when discontinuing services.</p>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="text-success"><i class="fas fa-coins"></i> Revenue Accounts</h6>
+          <p class="small text-muted">Revenue account settings determine where income from this service is recorded in your books.</p>
         </div>
       </div>
     </div>
@@ -653,6 +693,7 @@
         setTimeout(() => {
             calculateEstimatedCost();
             updatePreview();
+            updateRevenueAccountDisplay();
         }, 100);
     });
 
@@ -716,6 +757,14 @@
                 });
             }
         });
+
+        // Add revenue account listener
+        const revenueAccountSelect = document.querySelector('[name="PreferredRevenueAccountCode"]');
+        if (revenueAccountSelect) {
+            revenueAccountSelect.addEventListener('change', function() {
+                updateRevenueAccountDisplay();
+            });
+        }
     }
 
     function updatePreview() {
@@ -770,6 +819,24 @@
         const previewElement = document.getElementById('servicePreview');
         if (previewElement) {
             previewElement.innerHTML = previewHtml;
+        }
+    }
+
+    // Update revenue account display in sidebar
+    function updateRevenueAccountDisplay() {
+        const revenueAccountSelect = document.querySelector('[name="PreferredRevenueAccountCode"]');
+        const displayElement = document.getElementById('displayRevenueAccount');
+        
+        if (revenueAccountSelect && displayElement) {
+            const selectedValue = revenueAccountSelect.value;
+            
+            if (selectedValue) {
+                const selectedText = revenueAccountSelect.selectedOptions[0]?.text || selectedValue;
+                displayElement.innerHTML = `<span class="text-primary">${selectedText} (Override)</span>`;
+            } else {
+                // Show default account (4100 for service types)
+                displayElement.innerHTML = `<span class="text-muted">4100 - Service Revenue (Default)</span>`;
+            }
         }
     }
 
@@ -893,9 +960,9 @@
                     const field = form.querySelector(`[name="${key}"]`);
                     if (field) {
                         if (field.type === 'checkbox') {
-                            field.checked = value === 'true';
+                          field.checked = value === 'true';
                         } else {
-                            field.value = value;
+                          field.value = value;
                         }
                     }
                 }
@@ -903,6 +970,7 @@
                 form.classList.remove('was-validated');
                 calculateEstimatedCost();
                 updatePreview();
+                updateRevenueAccountDisplay();
                 showNotification('Form reset to original values', 'success');
             }
         }

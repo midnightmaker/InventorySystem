@@ -213,6 +213,15 @@ namespace InventorySystem.Models.Accounting
 					AccountSubType = AccountSubType.RetainedEarnings,
 					IsSystemAccount = true
 				},
+				new() {
+					AccountCode = "3200",
+					AccountName = "Current Year Earnings",
+					Description = "Running total of company's profitability for the year",
+					AccountType = AccountType.Equity,
+					AccountSubType = AccountSubType.RetainedEarnings,
+					IsSystemAccount = true
+				},
+
 
                 // ============= REVENUE (4000-4999) =============
                 new() {

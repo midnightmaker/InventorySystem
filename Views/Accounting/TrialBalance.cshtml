@@ -4,7 +4,21 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-balance-scale"></i> Trial Balance</h1>
+  <div>
+    <h1><i class="fas fa-balance-scale"></i> Trial Balance</h1>
+    <p class="text-muted mb-0">
+      @if (Model.CurrentFinancialPeriod != null && !string.IsNullOrEmpty(Model.SelectedPeriod))
+      {
+        <span class="badge bg-info">@Model.PeriodDisplayName</span>
+        <span>As of @Model.AsOfDate.ToString("MMM dd, yyyy")</span>
+      }
+      else
+      {
+        <span class="badge bg-secondary">Custom Date</span>
+        <span>As of @Model.AsOfDate.ToString("MMMM dd, yyyy")</span>
+      }
+    </p>
+  </div>
   <div class="btn-group">
     <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
@@ -26,10 +40,59 @@
   </div>
 }
 
-<!-- Date Selection -->
+<!-- Financial Period Quick Selection -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h5><i class="fas fa-calendar-alt"></i> Financial Period Selection</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-8">
+        <div class="btn-group flex-wrap" role="group" aria-label="Period Selection">
+          <a href="@Url.Action("TrialBalance", new { period = "current-fy-end" })" 
+             class="btn @(Model.SelectedPeriod == "current-fy-end" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar-check"></i> Current FY End
+          </a>
+          <a href="@Url.Action("TrialBalance", new { period = "previous-fy-end" })" 
+             class="btn @(Model.SelectedPeriod == "previous-fy-end" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar-minus"></i> Previous FY End
+          </a>
+          <a href="@Url.Action("TrialBalance", new { period = "calendar-year-end" })" 
+             class="btn @(Model.SelectedPeriod == "calendar-year-end" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar"></i> Calendar Year End
+          </a>
+          <a href="@Url.Action("TrialBalance", new { asOfDate = DateTime.Today.ToString("yyyy-MM-dd") })" 
+             class="btn @(string.IsNullOrEmpty(Model.SelectedPeriod) ? "btn-secondary" : "btn-outline-secondary")">
+            <i class="fas fa-clock"></i> Today
+          </a>
+        </div>
+      </div>
+      <div class="col-md-4 text-end">
+        @if (Model.CurrentFinancialPeriod != null)
+        {
+          <div class="text-muted small">
+            <strong>Current FY:</strong> @Model.CurrentFinancialPeriod.FormattedPeriod
+            <br>
+            <strong>Status:</strong> 
+            @if (Model.CurrentFinancialPeriod.IsClosed)
+            {
+              <span class="badge bg-danger">Closed</span>
+            }
+            else
+            {
+              <span class="badge bg-success">Open</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Date Selection -->
 <div class="card mb-4">
   <div class="card-header">
-    <h5><i class="fas fa-calendar-alt"></i> Report Date</h5>
+    <h5><i class="fas fa-calendar-day"></i> Custom Report Date</h5>
   </div>
   <div class="card-body">
     <form method="get">
@@ -46,6 +109,21 @@
             <i class="fas fa-refresh"></i> Update Report
           </button>
         </div>
+        <div class="col-md-4">
+          <div class="mb-3">
+            <label class="form-label">Quick Dates</label>
+            <select class="form-select" onchange="setQuickDate(this.value)">
+              <option value="">Select Quick Date</option>
+              <option value="today">Today</option>
+              <option value="month-end">Month End</option>
+              <option value="quarter-end">Quarter End</option>
+              <option value="year-end">Year End</option>
+              <option value="last-month-end">Last Month End</option>
+              <option value="last-quarter-end">Last Quarter End</option>
+              <option value="last-year-end">Last Year End</option>
+            </select>
+          </div>
+        </div>
       </div>
     </form>
   </div>
@@ -57,7 +135,7 @@
   <div class="alert alert-danger">
     <i class="fas fa-exclamation-triangle"></i>
     <strong>Trial Balance Error:</strong>
-    The books are out of balance! Debits (@Model.TotalDebits.ToString("C")) do not equal Credits (@Model.TotalCredits.ToString("C")).
+    The books are out of balance for @Model.PeriodDisplayName! Debits (@Model.TotalDebits.ToString("C")) do not equal Credits (@Model.TotalCredits.ToString("C")).
     <br><strong>Difference: @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")</strong>
     <br><small>Please review your journal entries for errors.</small>
   </div>
@@ -67,7 +145,7 @@ else if (Model.IsBalanced && Model.Entries.Any())
   <div class="alert alert-success">
     <i class="fas fa-check-circle"></i>
     <strong>Trial Balance Confirmed:</strong>
-    The books are in balance. Debits equal Credits (@Model.TotalDebits.ToString("C")).
+    The books are in balance for @Model.PeriodDisplayName. Debits equal Credits (@Model.TotalDebits.ToString("C")).
   </div>
 }
 
@@ -283,6 +361,12 @@ else if (Model.IsBalanced && Model.Entries.Any())
       asOfDateInput.value = '@Model.AsOfDate.ToString("yyyy-MM-dd")';
       form.appendChild(asOfDateInput);
 
+      const periodInput = document.createElement('input');
+      periodInput.type = 'hidden';
+      periodInput.name = 'period';
+      periodInput.value = '@Model.SelectedPeriod';
+      form.appendChild(periodInput);
+
       document.body.appendChild(form);
       form.submit();
       document.body.removeChild(form);
@@ -299,8 +383,49 @@ else if (Model.IsBalanced && Model.Entries.Any())
       asOfDateInput.value = '@Model.AsOfDate.ToString("yyyy-MM-dd")';
       form.appendChild(asOfDateInput);
 
+      const periodInput = document.createElement('input');
+      periodInput.type = 'hidden';
+      periodInput.name = 'period';
+      periodInput.value = '@Model.SelectedPeriod';
+      form.appendChild(periodInput);
+
       document.body.appendChild(form);
       form.submit();
       document.body.removeChild(form);
+  }
+
+  function setQuickDate(period) {
+      if (!period) return;
+
+      const today = new Date();
+      let targetDate = today;
+
+      switch(period) {
+          case 'today':
+              targetDate = today;
+              break;
+          case 'month-end':
+              targetDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+              break;
+          case 'quarter-end':
+              const quarter = Math.floor(today.getMonth() / 3);
+              targetDate = new Date(today.getFullYear(), (quarter + 1) * 3, 0);
+              break;
+          case 'year-end':
+              targetDate = new Date(today.getFullYear(), 11, 31);
+              break;
+          case 'last-month-end':
+              targetDate = new Date(today.getFullYear(), today.getMonth(), 0);
+              break;
+          case 'last-quarter-end':
+              const lastQuarter = Math.floor(today.getMonth() / 3) - 1;
+              targetDate = new Date(today.getFullYear(), lastQuarter * 3 + 3, 0);
+              break;
+          case 'last-year-end':
+              targetDate = new Date(today.getFullYear() - 1, 11, 31);
+              break;
+      }
+
+      document.querySelector('input[name="asOfDate"]').value = targetDate.toISOString().split('T')[0];
   }
 </script>

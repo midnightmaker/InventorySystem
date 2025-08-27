@@ -165,11 +165,16 @@ namespace InventorySystem.Models
     [Range(0, double.MaxValue, ErrorMessage = "Sale price must be 0 or greater")]
     public decimal SalePrice { get; set; }
 
-    [Display(Name = "Has Sale Price")]
+		// NEW: Allow items to override default revenue account
+		[Display(Name = "Revenue Account Code")]
+		[StringLength(10)]
+		public string? PreferredRevenueAccountCode { get; set; }
+
+		[Display(Name = "Has Sale Price")]
     [NotMapped]
     public bool HasSalePrice => SalePrice > 0;
 
-    // UPDATED: Simplified suggested pricing for operational items only
+    // Simplified suggested pricing for operational items only
     [Display(Name = "Suggested Sale Price")]
     [NotMapped]
     public decimal SuggestedSalePrice
@@ -262,5 +267,25 @@ namespace InventorySystem.Models
     
     [NotMapped]
     public string EntityType => "Item";
-  }
+
+		[NotMapped]
+		string? ISellableEntity.PreferredRevenueAccountCode => PreferredRevenueAccountCode;
+
+
+		public string GetDefaultRevenueAccountCode()
+		{
+			// Use preferred account if specified, otherwise use ItemType logic
+			if (!string.IsNullOrEmpty(PreferredRevenueAccountCode))
+				return PreferredRevenueAccountCode;
+
+			return ItemType switch
+			{
+				ItemType.Inventoried => "4000", // Product Sales
+				ItemType.Consumable => "4010",  // Supply Sales
+				ItemType.RnDMaterials => "4020", // Research Material Sales
+				ItemType.Service => "4100",     // Service Revenue
+				_ => "4000" // Default
+			};
+		}
+	}
 }

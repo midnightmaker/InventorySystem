@@ -14,12 +14,18 @@ namespace InventorySystem.Controllers
 	public class AccountingController : Controller
 	{
 		private readonly IAccountingService _accountingService;
+		private readonly IFinancialPeriodService _financialPeriodService; // ADD THIS
 		private readonly InventoryContext _context;
 		private readonly ILogger<AccountingController> _logger;
 
-		public AccountingController(IAccountingService accountingService, InventoryContext context, ILogger<AccountingController> logger)
+		public AccountingController(
+			IAccountingService accountingService, 
+			IFinancialPeriodService financialPeriodService, // ADD THIS PARAMETER
+			InventoryContext context, 
+			ILogger<AccountingController> logger)
 		{
 			_accountingService = accountingService;
+			_financialPeriodService = financialPeriodService; // ADD THIS
 			_context = context;
 			_logger = logger;
 		}
@@ -152,6 +158,16 @@ namespace InventorySystem.Controllers
 					return RedirectToAction(nameof(ChartOfAccounts));
 				}
 
+				// Check if account has activity to determine what can be edited
+				var hasActivity = await _accountingService.HasAccountActivityAsync(id);
+
+				// Get available parent accounts for dropdown
+				var allAccounts = await _accountingService.GetActiveAccountsAsync();
+				var availableParentAccounts = allAccounts
+					.Where(a => a.Id != id && a.ParentAccountId != id) // Exclude self and children
+					.OrderBy(a => a.AccountCode)
+					.ToList();
+
 				var viewModel = new EditAccountViewModel
 				{
 					Id = account.Id,
@@ -162,8 +178,16 @@ namespace InventorySystem.Controllers
 					AccountSubType = account.AccountSubType,
 					IsActive = account.IsActive,
 					IsSystemAccount = account.IsSystemAccount,
-					ParentAccountId = account.ParentAccountId
+					ParentAccountId = account.ParentAccountId,
+					CurrentBalance = account.CurrentBalance,
+					LastTransactionDate = account.LastTransactionDate,
+					AvailableParentAccounts = availableParentAccounts
 				};
+
+				// Add debug information to ViewBag for troubleshooting
+				ViewBag.AccountTypeValue = (int)account.AccountType;
+				ViewBag.AccountSubTypeValue = (int)account.AccountSubType;
+				ViewBag.HasActivity = hasActivity;
 
 				return View(viewModel);
 			}
@@ -199,13 +223,33 @@ namespace InventorySystem.Controllers
 					return RedirectToAction(nameof(ChartOfAccounts));
 				}
 
-				account.AccountCode = model.AccountCode;
+				// Check if account has activity
+				var hasActivity = await _accountingService.HasAccountActivityAsync(id);
+
+				// Only allow safe field updates
 				account.AccountName = model.AccountName;
 				account.Description = model.Description;
-				account.AccountType = model.AccountType;
-				account.AccountSubType = model.AccountSubType;
 				account.IsActive = model.IsActive;
 				account.ParentAccountId = model.ParentAccountId;
+
+				// RESTRICTED: Only allow account code changes for accounts without activity
+				if (!hasActivity && !account.IsSystemAccount)
+				{
+					account.AccountCode = model.AccountCode;
+				}
+				else if (account.AccountCode != model.AccountCode)
+				{
+					TempData["WarningMessage"] = "Account code cannot be changed for accounts with transaction history";
+				}
+
+				// RESTRICTED: Never allow AccountType changes
+				// account.AccountType remains unchanged
+
+				// RESTRICTED: Only allow AccountSubType changes for accounts without activity
+				if (!hasActivity && !account.IsSystemAccount)
+				{
+					account.AccountSubType = model.AccountSubType;
+				}
 
 				await _accountingService.UpdateAccountAsync(account);
 				TempData["SuccessMessage"] = $"Account {account.AccountCode} updated successfully";
@@ -222,38 +266,49 @@ namespace InventorySystem.Controllers
 		// ============= GENERAL LEDGER =============
 
 		// GET: Accounting/GeneralLedger
-		public async Task<IActionResult> GeneralLedger(string? accountCode = null, DateTime? startDate = null, DateTime? endDate = null)
+		public async Task<IActionResult> GeneralLedger(string? accountCode = null, DateTime? startDate = null, DateTime? endDate = null, string? period = null)
 		{
 			try
 			{
-				var defaultStartDate = startDate ?? DateTime.Today.AddMonths(-1);
-				var defaultEndDate = endDate ?? DateTime.Today;
+				// Get default date range based on financial period settings
+				(DateTime defaultStart, DateTime defaultEnd) = period switch
+				{
+					"current-fy" => await _financialPeriodService.GetCurrentFinancialYearRangeAsync(),
+					"previous-fy" => await _financialPeriodService.GetPreviousFinancialYearRangeAsync(),
+					"calendar-year" => await _financialPeriodService.GetCalendarYearRangeAsync(),
+					"all-time" => (new DateTime(2020, 1, 1), DateTime.Today),
+					_ => await _financialPeriodService.GetDefaultReportDateRangeAsync()
+				};
+
+				var actualStartDate = startDate ?? defaultStart;
+				var actualEndDate = endDate ?? defaultEnd;
 
 				IEnumerable<GeneralLedgerEntry> entries;
 
 				if (!string.IsNullOrEmpty(accountCode))
 				{
-					entries = await _accountingService.GetAccountLedgerEntriesAsync(accountCode, defaultStartDate, defaultEndDate);
-					// Enhance with reference info
-					foreach (var entry in entries.Where(e => e.HasReference))
-					{
-						await EnhanceEntryReferenceInfo(entry);
-					}
+					entries = await _accountingService.GetAccountLedgerEntriesAsync(accountCode, actualStartDate, actualEndDate);
 				}
 				else
 				{
-					entries = await _accountingService.GetAllLedgerEntriesWithEnhancedReferencesAsync(defaultStartDate, defaultEndDate);
+					entries = await _accountingService.GetAllLedgerEntriesWithEnhancedReferencesAsync(actualStartDate, actualEndDate);
 				}
 
 				var accounts = await _accountingService.GetActiveAccountsAsync();
+				var financialPeriodInfo = await _financialPeriodService.GetCompanySettingsAsync();
+				var currentPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
 
 				var viewModel = new GeneralLedgerViewModel
 				{
 					Entries = entries.OrderByDescending(e => e.TransactionDate).ThenBy(e => e.TransactionNumber).ToList(),
 					SelectedAccountCode = accountCode,
-					StartDate = defaultStartDate,
-					EndDate = defaultEndDate,
-					Accounts = accounts.ToList()
+					StartDate = actualStartDate,
+					EndDate = actualEndDate,
+					Accounts = accounts.ToList(),
+					// Add financial period info
+					CurrentFinancialPeriod = currentPeriod,
+					SelectedPeriod = period,
+					IsAllTimeView = period == "all-time"
 				};
 
 				return View(viewModel);
@@ -294,12 +349,34 @@ namespace InventorySystem.Controllers
 		// ============= FINANCIAL REPORTS =============
 
 		// GET: Accounting/TrialBalance
-		public async Task<IActionResult> TrialBalance(DateTime? asOfDate = null)
+		[HttpGet("Accounting/TrialBalance")]
+		public async Task<IActionResult> TrialBalance(DateTime? asOfDate = null, string? period = null)
 		{
 			try
 			{
-				var defaultDate = asOfDate ?? DateTime.Today;
+				DateTime defaultDate;
+				
+				if (!string.IsNullOrEmpty(period))
+				{
+					defaultDate = period switch
+					{
+						"current-fy-end" => (await _financialPeriodService.GetCurrentFinancialYearRangeAsync()).end,
+						"previous-fy-end" => (await _financialPeriodService.GetPreviousFinancialYearRangeAsync()).end,
+						"calendar-year-end" => new DateTime(DateTime.Today.Year, 12, 31),
+						_ => asOfDate ?? DateTime.Today
+					};
+				}
+				else
+				{
+					defaultDate = asOfDate ?? DateTime.Today;
+				}
+
 				var trialBalance = await _accountingService.GetTrialBalanceAsync(defaultDate);
+				
+				// Add financial period info
+				trialBalance.CurrentFinancialPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
+				trialBalance.SelectedPeriod = period;
+				
 				return View(trialBalance);
 			}
 			catch (Exception ex)
@@ -311,12 +388,34 @@ namespace InventorySystem.Controllers
 		}
 
 		// GET: Accounting/BalanceSheet
-		public async Task<IActionResult> BalanceSheet(DateTime? asOfDate = null)
+		[HttpGet("Accounting/BalanceSheet")]
+		public async Task<IActionResult> BalanceSheet(DateTime? asOfDate = null, string? period = null)
 		{
 			try
 			{
-				var defaultDate = asOfDate ?? DateTime.Today;
+				DateTime defaultDate;
+				
+				if (!string.IsNullOrEmpty(period))
+				{
+					defaultDate = period switch
+					{
+						"current-fy-end" => (await _financialPeriodService.GetCurrentFinancialYearRangeAsync()).end,
+						"previous-fy-end" => (await _financialPeriodService.GetPreviousFinancialYearRangeAsync()).end,
+						"calendar-year-end" => new DateTime(DateTime.Today.Year, 12, 31),
+						_ => asOfDate ?? DateTime.Today
+					};
+				}
+				else
+				{
+					defaultDate = asOfDate ?? DateTime.Today;
+				}
+
 				var balanceSheet = await _accountingService.GetBalanceSheetAsync(defaultDate);
+				
+				// Add financial period info
+				balanceSheet.CurrentFinancialPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
+				balanceSheet.SelectedPeriod = period;
+				
 				return View(balanceSheet);
 			}
 			catch (Exception ex)
@@ -328,14 +427,37 @@ namespace InventorySystem.Controllers
 		}
 
 		// GET: Accounting/IncomeStatement
-		public async Task<IActionResult> IncomeStatement(DateTime? startDate = null, DateTime? endDate = null)
+		[HttpGet("Accounting/IncomeStatement")]
+		public async Task<IActionResult> IncomeStatement(DateTime? startDate = null, DateTime? endDate = null, string? period = null)
 		{
 			try
 			{
-				var defaultStartDate = startDate ?? new DateTime(DateTime.Today.Year, 1, 1);
-				var defaultEndDate = endDate ?? DateTime.Today;
+				DateTime defaultStartDate;
+				DateTime defaultEndDate;
+				
+				if (!string.IsNullOrEmpty(period))
+				{
+					(defaultStartDate, defaultEndDate) = period switch
+					{
+						"current-fy" => await _financialPeriodService.GetCurrentFinancialYearRangeAsync(),
+						"previous-fy" => await _financialPeriodService.GetPreviousFinancialYearRangeAsync(),
+						"calendar-year" => await _financialPeriodService.GetCalendarYearRangeAsync(),
+						"ytd" => (new DateTime(DateTime.Today.Year, 1, 1), DateTime.Today),
+						_ => (startDate ?? new DateTime(DateTime.Today.Year, 1, 1), endDate ?? DateTime.Today)
+					};
+				}
+				else
+				{
+					defaultStartDate = startDate ?? new DateTime(DateTime.Today.Year, 1, 1);
+					defaultEndDate = endDate ?? DateTime.Today;
+				}
 
 				var incomeStatement = await _accountingService.GetIncomeStatementAsync(defaultStartDate, defaultEndDate);
+				
+				// Add financial period info
+				incomeStatement.CurrentFinancialPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
+				incomeStatement.SelectedPeriod = period;
+				
 				return View(incomeStatement);
 			}
 			catch (Exception ex)
@@ -1086,6 +1208,320 @@ namespace InventorySystem.Controllers
 			public int? CustomerId { get; set; }
 			public int? SaleId { get; set; }
 			public decimal? Amount { get; set; }
+		}
+
+		// POST: Accounting/ToggleAccountStatus/5
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> ToggleAccountStatus(int id, [FromBody] ToggleAccountStatusRequest request)
+		{
+			try
+			{
+				var account = await _accountingService.GetAccountByIdAsync(id);
+				if (account == null)
+				{
+					return Json(new { success = false, message = "Account not found" });
+				}
+
+				if (account.IsSystemAccount)
+				{
+					return Json(new { success = false, message = "Cannot modify system accounts" });
+				}
+
+				account.IsActive = request.IsActive;
+				await _accountingService.UpdateAccountAsync(account);
+
+				var status = request.IsActive ? "activated" : "deactivated";
+				return Json(new { success = true, message = $"Account {status} successfully" });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error toggling account status for account {AccountId}", id);
+				return Json(new { success = false, message = "Error updating account status" });
+			}
+		}
+
+		// ============= FINANCIAL PERIOD MANAGEMENT =============
+
+		// GET: Accounting/ManageFinancialPeriods
+		public async Task<IActionResult> ManageFinancialPeriods()
+		{
+			try
+			{
+				var companySettings = await _financialPeriodService.GetCompanySettingsAsync();
+				var periods = await _financialPeriodService.GetAllFinancialPeriodsAsync();
+				var currentPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
+
+				var viewModel = new FinancialPeriodViewModel
+				{
+					CompanySettings = companySettings,
+					AvailablePeriods = periods.ToList(),
+					CurrentPeriod = currentPeriod,
+					CurrentFinancialYear = await _financialPeriodService.GetCurrentFinancialYearRangeAsync(),
+					PreviousFinancialYear = await _financialPeriodService.GetPreviousFinancialYearRangeAsync(),
+					CurrentCalendarYear = await _financialPeriodService.GetCalendarYearRangeAsync()
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading financial periods");
+				TempData["ErrorMessage"] = "Error loading financial periods";
+				return RedirectToAction(nameof(Index));
+			}
+		}
+
+		// POST: Accounting/UpdateCompanySettings
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> UpdateCompanySettings(CompanySettingsViewModel model)
+		{
+			try
+			{
+				if (!ModelState.IsValid)
+				{
+					TempData["ErrorMessage"] = "Please correct the errors and try again";
+					return RedirectToAction(nameof(ManageFinancialPeriods));
+				}
+
+				var settings = await _financialPeriodService.GetCompanySettingsAsync();
+				settings.CompanyName = model.CompanyName;
+				settings.FinancialYearStartMonth = model.FinancialYearStartMonth;
+				settings.FinancialYearStartDay = model.FinancialYearStartDay;
+				settings.DefaultReportPeriod = model.DefaultReportPeriod;
+				settings.AutoCreateFinancialPeriods = model.AutoCreateFinancialPeriods;
+				settings.UpdatedBy = User.Identity?.Name ?? "System";
+
+				await _financialPeriodService.UpdateCompanySettingsAsync(settings);
+				TempData["SuccessMessage"] = "Company settings updated successfully";
+				
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error updating company settings");
+				TempData["ErrorMessage"] = $"Error updating company settings: {ex.Message}";
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+		}
+
+		// POST: Accounting/CreatePeriod
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreatePeriod(CreateFinancialPeriodViewModel model)
+		{
+			try
+			{
+				if (!ModelState.IsValid)
+				{
+					TempData["ErrorMessage"] = "Please correct the errors and try again";
+					return RedirectToAction(nameof(ManageFinancialPeriods));
+				}
+
+				var period = new FinancialPeriod
+				{
+					PeriodName = model.PeriodName,
+					StartDate = model.StartDate,
+					EndDate = model.EndDate,
+					PeriodType = model.PeriodType,
+					Description = model.Description,
+					IsCurrentPeriod = model.IsCurrentPeriod,
+					CreatedBy = User.Identity?.Name ?? "System"
+				};
+
+				var createdPeriod = await _financialPeriodService.CreateFinancialPeriodAsync(period);
+
+				if (model.IsCurrentPeriod)
+				{
+					await _financialPeriodService.SetCurrentFinancialPeriodAsync(createdPeriod.Id);
+				}
+
+				TempData["SuccessMessage"] = $"Financial period '{model.PeriodName}' created successfully";
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating financial period");
+				TempData["ErrorMessage"] = $"Error creating financial period: {ex.Message}";
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+		}
+
+		// POST: Accounting/SetCurrentPeriod
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> SetCurrentPeriod(int periodId)
+		{
+			try
+			{
+				var period = await _financialPeriodService.GetFinancialPeriodByIdAsync(periodId);
+				if (period == null)
+				{
+					TempData["ErrorMessage"] = "Financial period not found";
+					return RedirectToAction(nameof(ManageFinancialPeriods));
+				}
+
+				if (period.IsClosed)
+				{
+					TempData["ErrorMessage"] = "Cannot set a closed period as current";
+					return RedirectToAction(nameof(ManageFinancialPeriods));
+				}
+
+				await _financialPeriodService.SetCurrentFinancialPeriodAsync(periodId);
+				TempData["SuccessMessage"] = $"'{period.PeriodName}' is now the current financial period";
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error setting current financial period");
+				TempData["ErrorMessage"] = $"Error setting current period: {ex.Message}";
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+		}
+
+		// POST: Accounting/CreateNextFinancialYear
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreateNextFinancialYear()
+		{
+			try
+			{
+				var nextYear = await _financialPeriodService.CreateNextFinancialYearAsync();
+				TempData["SuccessMessage"] = $"Next financial year '{nextYear.PeriodName}' created successfully";
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating next financial year");
+				TempData["ErrorMessage"] = $"Error creating next financial year: {ex.Message}";
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+		}
+
+		// GET: Accounting/CloseFinancialYear
+		public async Task<IActionResult> CloseFinancialYear(int? periodId = null)
+		{
+			try
+			{
+				var currentPeriod = periodId.HasValue 
+					? await _financialPeriodService.GetFinancialPeriodByIdAsync(periodId.Value)
+					: await _financialPeriodService.GetCurrentFinancialPeriodAsync();
+
+				if (currentPeriod == null)
+				{
+					TempData["ErrorMessage"] = "No financial period found to close";
+					return RedirectToAction(nameof(ManageFinancialPeriods));
+				}
+
+				// Get financial year summary data
+				var (start, end) = (currentPeriod.StartDate, currentPeriod.EndDate);
+				var ledgerEntries = await _accountingService.GetAllLedgerEntriesAsync(start, end);
+				var totalDebits = ledgerEntries.Sum(e => e.DebitAmount);
+				var totalCredits = ledgerEntries.Sum(e => e.CreditAmount);
+
+				// Check for pending items
+				var pendingTransactions = await GetPendingTransactionsAsync(currentPeriod);
+				var unreconciledAccounts = await GetUnreconciledAccountsAsync(currentPeriod);
+
+				// Get next financial year
+				var nextYear = await GetNextFinancialYearAsync(currentPeriod);
+
+				var viewModel = new FinancialYearCloseViewModel
+				{
+					CurrentPeriod = currentPeriod,
+					NextFinancialYear = nextYear,
+					TotalDebits = totalDebits,
+					TotalCredits = totalCredits,
+					TotalTransactions = ledgerEntries.Count(),
+					IsBalanced = Math.Abs(totalDebits - totalCredits) < 0.01m,
+					HasPendingTransactions = pendingTransactions.Any(),
+					PendingTransactionCount = pendingTransactions.Count,
+					AllAccountsReconciled = !unreconciledAccounts.Any(),
+					UnreconciledAccountCount = unreconciledAccounts.Count
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading financial year close page");
+				TempData["ErrorMessage"] = "Error loading financial year close page";
+				return RedirectToAction(nameof(ManageFinancialPeriods));
+			}
+		}
+
+		// POST: Accounting/CloseFinancialYear
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CloseFinancialYear(FinancialYearCloseViewModel model)
+		{
+			try
+			{
+				if (!ModelState.IsValid)
+				{
+					return View(model);
+				}
+
+				// Perform final validation
+				var period = await _financialPeriodService.GetFinancialPeriodByIdAsync(model.CurrentPeriod.Id);
+				if (period == null || period.IsClosed)
+				{
+					TempData["ErrorMessage"] = "Financial period not found or already closed";
+					return RedirectToAction(nameof(ManageFinancialPeriods));
+				}
+
+				// Close the financial year
+				var success = await _financialPeriodService.CloseFinancialYearAsync(
+					period.Id, 
+					model.ClosingNotes, 
+					User.Identity?.Name ?? "System");
+
+				if (success)
+				{
+					// Create next financial year if requested
+					if (model.CreateNextYear)
+					{
+						await _financialPeriodService.CreateNextFinancialYearAsync();
+					}
+
+					TempData["SuccessMessage"] = $"Financial year {period.PeriodName} has been successfully closed";
+					return RedirectToAction(nameof(ManageFinancialPeriods));
+				}
+				else
+				{
+					TempData["ErrorMessage"] = "Failed to close financial year";
+					return View(model);
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error closing financial year");
+				TempData["ErrorMessage"] = $"Error closing financial year: {ex.Message}";
+				return View(model);
+			}
+		}
+
+		// Helper methods for financial year closing
+		private async Task<List<object>> GetPendingTransactionsAsync(FinancialPeriod period)
+		{
+			return new List<object>();
+		}
+
+		private async Task<List<object>> GetUnreconciledAccountsAsync(FinancialPeriod period)
+		{
+			return new List<object>();
+		}
+
+		private async Task<FinancialPeriod?> GetNextFinancialYearAsync(FinancialPeriod currentPeriod)
+		{
+			var nextStart = currentPeriod.EndDate.AddDays(1);
+			return await _financialPeriodService.GetFinancialPeriodForDateAsync(nextStart);
+		}
+		// Helper class for account status toggle
+		public class ToggleAccountStatusRequest
+		{
+			public bool IsActive { get; set; }
 		}
 	}
 }

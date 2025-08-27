@@ -82,6 +82,10 @@ namespace InventorySystem.Data
 		public DbSet<Shipment> Shipments { get; set; }
 		public DbSet<ShipmentItem> ShipmentItems { get; set; }
 
+		// Add these to your existing DbSets
+		public DbSet<FinancialPeriod> FinancialPeriods { get; set; }
+		public DbSet<CompanySettings> CompanySettings { get; set; }
+
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
 			// ============= CORE INVENTORY ENTITIES =============
@@ -921,7 +925,24 @@ namespace InventorySystem.Data
 			modelBuilder.Entity<Sale>()
 					.Navigation(s => s.RelatedAdjustments)
 					.EnableLazyLoading();
+
+			// Financial Period configuration
+			modelBuilder.Entity<FinancialPeriod>(entity =>
+			{
+				entity.HasIndex(e => new { e.StartDate, e.EndDate });
+				entity.HasIndex(e => e.IsCurrentPeriod);
+			});
+
+			// Company Settings configuration
+			modelBuilder.Entity<CompanySettings>(entity =>
+			{
+				entity.HasOne(e => e.CurrentFinancialPeriod)
+							.WithMany()
+							.HasForeignKey(e => e.CurrentFinancialPeriodId)
+							.OnDelete(DeleteBehavior.SetNull);
+			});
 		}
+
 
 		private void ConfigureExistingEntities(ModelBuilder modelBuilder)
     {

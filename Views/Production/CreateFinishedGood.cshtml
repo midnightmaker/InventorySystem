@@ -174,6 +174,13 @@
               </div>
             </div>
           </div>
+
+          <!-- Revenue Account Section -->
+          @await Component.InvokeAsync("RevenueAccountDropdown", new {
+          entity = Model,
+                    propertyName = "PreferredRevenueAccountCode",
+                    isRequired = false
+                    })
         </div>
       </div>
 
@@ -337,11 +344,20 @@
           </div>
 
           <!-- Total Value -->
-          <div>
+          <div class="mb-3">
             <h6 class="text-muted">Total Inventory Value</h6>
             <div class="d-flex justify-content-between">
               <strong>Total Value:</strong>
               <strong id="displayTotalValue" class="text-primary">$0.00</strong>
+            </div>
+          </div>
+
+          <!-- NEW: Revenue Account Info -->
+          <div class="mb-3">
+            <h6 class="text-muted">Revenue Account</h6>
+            <div class="d-flex justify-content-between">
+              <span>Current:</span>
+              <span id="displayRevenueAccount" class="text-muted">4000 (Default)</span>
             </div>
           </div>
 
@@ -408,6 +424,12 @@
         currentStockInput.addEventListener('input', updateCalculations);
         minStockInput.addEventListener('input', updateCalculations);
 
+        // NEW: Revenue account listener
+        const revenueAccountSelect = document.querySelector('select[name="PreferredRevenueAccountCode"]');
+        if (revenueAccountSelect) {
+            revenueAccountSelect.addEventListener('change', updateRevenueAccountDisplay);
+        }
+
         // ✅ ENHANCED: Image file input with better error handling and beautiful alerts
         const imageFileInput = document.getElementById('imageFile');
         const imagePreview = document.getElementById('imagePreview');
@@ -463,6 +485,7 @@
         // Initial calculation
         updateCalculations();
         updateRequirementsPreview();
+        updateRevenueAccountDisplay();
 
         function handleBomChange() {
             const bomId = bomSelect.value;
@@ -538,6 +561,24 @@
                 stockStatusElement.className = 'badge bg-success';
             }
         }
+
+        // NEW: Update revenue account display in sidebar
+        function updateRevenueAccountDisplay() {
+            const revenueAccountSelect = document.querySelector('select[name="PreferredRevenueAccountCode"]');
+            const displayElement = document.getElementById('displayRevenueAccount');
+            
+            if (revenueAccountSelect && displayElement) {
+                const selectedValue = revenueAccountSelect.value;
+                
+                if (selectedValue) {
+                    const selectedText = revenueAccountSelect.selectedOptions[0]?.text || selectedValue;
+                    displayElement.innerHTML = `<span class="text-primary">${selectedText} (Override)</span>`;
+                } else {
+                    // Show default account (4000 for finished goods)
+                    displayElement.innerHTML = `<span class="text-muted">4000 - Product Sales (Default)</span>`;
+                }
+            }
+        }
     });
 
     // ✅ ENHANCED: Beautiful delete confirmation
@@ -572,7 +613,7 @@
     function updateRequirementsPreview() {
         const requiresSerial = document.getElementById('requiresSerialNumber').checked;
         const requiresModel = document.getElementById('requiresModelNumber').checked;
-        const requirementsList = document.getElementById('requirementsList';
+        const requirementsList = document.getElementById('requirementsList');
 
         const requirements = [];
         if (requiresSerial) requirements.push('<li><i class="fas fa-hashtag text-warning"></i> Serial number will be required for each unit sold</li>');

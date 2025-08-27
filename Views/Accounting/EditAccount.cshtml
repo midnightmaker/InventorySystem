@@ -44,6 +44,8 @@
         <form asp-action="EditAccount" method="post">
           <input asp-for="Id" type="hidden" />
           <input asp-for="IsSystemAccount" type="hidden" />
+          <input asp-for="CurrentBalance" type="hidden" />
+          <input asp-for="LastTransactionDate" type="hidden" />
 
           @if (Model.IsSystemAccount)
           {
@@ -53,23 +55,36 @@
             </div>
           }
 
+          @if (Model.HasActivity)
+          {
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Account has transaction history:</strong> Some fields cannot be modified to maintain financial integrity.
+            </div>
+          }
+
           <div class="row">
             <!-- Account Code -->
             <div class="col-md-6 mb-3">
               <label asp-for="AccountCode" class="form-label">
                 <i class="fas fa-hashtag"></i> Account Code <span class="text-danger">*</span>
               </label>
-              <input asp-for="AccountCode"
-                     class="form-control"
-                     placeholder="e.g., 1100"
-                     readonly="@Model.IsSystemAccount" />
-              <span asp-validation-for="AccountCode" class="text-danger"></span>
-              @if (!Model.IsSystemAccount)
+              @if (Model.HasActivity || Model.IsSystemAccount)
               {
+                <input type="text" class="form-control" value="@Model.AccountCode" readonly />
+                <input asp-for="AccountCode" type="hidden" />
+                <div class="form-text">
+                  <i class="fas fa-lock"></i> Account code locked due to @(Model.IsSystemAccount ? "system account status" : "transaction history")
+                </div>
+              }
+              else
+              {
+                <input asp-for="AccountCode" class="form-control" placeholder="e.g., 1100" />
                 <div class="form-text">
                   <i class="fas fa-info-circle"></i> Unique identifier for this account
                 </div>
               }
+              <span asp-validation-for="AccountCode" class="text-danger"></span>
             </div>
 
             <!-- Account Name -->
@@ -97,23 +112,16 @@
           </div>
 
           <div class="row">
-            <!-- Account Type -->
+            <!-- Account Type - READ ONLY -->
             <div class="col-md-6 mb-3">
-              <label asp-for="AccountType" class="form-label">
-                <i class="fas fa-layer-group"></i> Account Type <span class="text-danger">*</span>
+              <label class="form-label">
+                <i class="fas fa-layer-group"></i> Account Type
               </label>
-              <select asp-for="AccountType"
-                      class="form-select"
-                      id="accountTypeSelect"
-                      disabled="@Model.IsSystemAccount">
-                <option value="">-- Select Account Type --</option>
-                <option value="1">1 - Asset</option>
-                <option value="2">2 - Liability</option>
-                <option value="3">3 - Equity</option>
-                <option value="4">4 - Revenue</option>
-                <option value="5">5 - Expense</option>
-              </select>
-              <span asp-validation-for="AccountType" class="text-danger"></span>
+              <input type="text" class="form-control" value="@Model.AccountTypeDisplay" readonly />
+              <input asp-for="AccountType" type="hidden" />
+              <div class="form-text">
+                <i class="fas fa-lock"></i> Account type cannot be changed to maintain financial integrity
+              </div>
             </div>
 
             <!-- Account Sub Type -->
@@ -121,12 +129,23 @@
               <label asp-for="AccountSubType" class="form-label">
                 <i class="fas fa-sitemap"></i> Account Sub Type
               </label>
-              <select asp-for="AccountSubType"
-                      class="form-select"
-                      id="accountSubTypeSelect"
-                      disabled="@Model.IsSystemAccount">
-                <option value="">-- Select Sub Type --</option>
-              </select>
+              @if (Model.HasActivity || Model.IsSystemAccount)
+              {
+                <input type="text" class="form-control" value="@Model.AccountSubType" readonly />
+                <input asp-for="AccountSubType" type="hidden" />
+                <div class="form-text">
+                  <i class="fas fa-lock"></i> Sub type locked due to @(Model.IsSystemAccount ? "system account status" : "transaction history")
+                </div>
+              }
+              else
+              {
+                <select asp-for="AccountSubType" class="form-select" id="accountSubTypeSelect">
+                  <option value="">-- Select Sub Type --</option>
+                </select>
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i> Sub type can be changed since no transactions exist
+                </div>
+              }
               <span asp-validation-for="AccountSubType" class="text-danger"></span>
             </div>
           </div>
@@ -138,7 +157,15 @@
             </label>
             <select asp-for="ParentAccountId" class="form-select">
               <option value="">-- No Parent Account --</option>
-              <!-- This would be populated by the controller with available parent accounts -->
+              @if (Model.AvailableParentAccounts?.Any() == true)
+              {
+                @foreach (var parentAccount in Model.AvailableParentAccounts)
+                {
+                  <option value="@parentAccount.Id" selected="@(parentAccount.Id == Model.ParentAccountId)">
+                    @parentAccount.AccountCode - @parentAccount.AccountName
+                  </option>
+                }
+              }
             </select>
             <span asp-validation-for="ParentAccountId" class="text-danger"></span>
             <div class="form-text">
@@ -261,8 +288,33 @@
           <ul class="small">
             <li>Account code cannot be changed</li>
             <li>Account type cannot be modified</li>
+            <li>Account sub type cannot be modified</li>
             <li>Account cannot be deactivated</li>
             <li>Account cannot be deleted</li>
+          </ul>
+        </div>
+      </div>
+    }
+
+    @if (Model.HasActivity)
+    {
+      <div class="card mt-3 border-info">
+        <div class="card-header bg-info text-white">
+          <h6><i class="fas fa-info-circle"></i> Account Activity</h6>
+        </div>
+        <div class="card-body">
+          <p class="small mb-2">
+            This account has transaction history:
+          </p>
+          <ul class="small">
+            <li>Current Balance: @Model.CurrentBalance.ToString("C")</li>
+            @if (Model.LastTransactionDate.HasValue)
+            {
+              <li>Last Transaction: @Model.LastTransactionDate.Value.ToString("MM/dd/yyyy")</li>
+            }
+            <li>Account code changes restricted</li>
+            <li>Account type changes restricted</li>
+            <li>Account sub type changes restricted</li>
           </ul>
         </div>
       </div>
@@ -272,60 +324,67 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-      const accountTypeSelect = document.getElementById('accountTypeSelect');
       const accountSubTypeSelect = document.getElementById('accountSubTypeSelect');
+      
+      // Only initialize if the sub type select exists (not locked)
+      if (accountSubTypeSelect) {
+          const subTypeOptions = {
+              '1': [ // Asset
+                  { value: '101', text: 'Current Asset' },
+                  { value: '102', text: 'Fixed Asset' },
+                  { value: '103', text: 'Inventory Asset' }
+              ],
+              '2': [ // Liability
+                  { value: '201', text: 'Current Liability' },
+                  { value: '202', text: 'Long Term Liability' }
+              ],
+              '3': [ // Equity
+                  { value: '301', text: 'Owner Equity' },
+                  { value: '302', text: 'Retained Earnings' }
+              ],
+              '4': [ // Revenue
+                  { value: '401', text: 'Sales Revenue' },
+                  { value: '402', text: 'Service Revenue' }
+              ],
+              '5': [ // Expense
+                  { value: '501', text: 'Cost of Goods Sold' },
+                  { value: '502', text: 'Operating Expense' },
+                  { value: '503', text: 'Utility Expense' },
+                  { value: '504', text: 'Subscription Expense' }
+              ]
+          };
 
-      const subTypeOptions = {
-          '1': [ // Asset
-              { value: '101', text: 'Current Asset' },
-              { value: '102', text: 'Fixed Asset' },
-              { value: '103', text: 'Inventory Asset' }
-          ],
-          '2': [ // Liability
-              { value: '201', text: 'Current Liability' },
-              { value: '202', text: 'Long Term Liability' }
-          ],
-          '3': [ // Equity
-              { value: '301', text: 'Owner Equity' },
-              { value: '302', text: 'Retained Earnings' }
-          ],
-          '4': [ // Revenue
-              { value: '401', text: 'Sales Revenue' },
-              { value: '402', text: 'Service Revenue' }
-          ],
-          '5': [ // Expense
-              { value: '501', text: 'Cost of Goods Sold' },
-              { value: '502', text: 'Operating Expense' },
-              { value: '503', text: 'Utility Expense' },
-              { value: '504', text: 'Subscription Expense' }
-          ]
-      };
+          // Get the account type from the hidden field
+          const accountTypeValue = '@((int)Model.AccountType)';
+          const currentSubTypeValue = '@((int)Model.AccountSubType)';
 
-      function updateSubTypes() {
-          const accountType = accountTypeSelect.value;
-          const currentSubType = accountSubTypeSelect.value;
+          console.log('Account Type:', accountTypeValue);
+          console.log('Current Sub Type:', currentSubTypeValue);
 
-          // Clear existing options but keep the current selection
-          accountSubTypeSelect.innerHTML = '<option value="">-- Select Sub Type --</option>';
+          function populateSubTypes() {
+              // Clear existing options
+              accountSubTypeSelect.innerHTML = '<option value="">-- Select Sub Type --</option>';
 
-          if (accountType && subTypeOptions[accountType]) {
-              subTypeOptions[accountType].forEach(option => {
-                  const optionElement = document.createElement('option');
-                  optionElement.value = option.value;
-                  optionElement.textContent = option.text;
-                  if (option.value === currentSubType) {
-                      optionElement.selected = true;
-                  }
-                  accountSubTypeSelect.appendChild(optionElement);
-              });
+              if (accountTypeValue && subTypeOptions[accountTypeValue]) {
+                  subTypeOptions[accountTypeValue].forEach(option => {
+                      const optionElement = document.createElement('option');
+                      optionElement.value = option.value;
+                      optionElement.textContent = option.text;
+                      
+                      // Select the current sub type
+                      if (option.value === currentSubTypeValue) {
+                          optionElement.selected = true;
+                          console.log('Selected sub type:', option.value, option.text);
+                      }
+                      
+                      accountSubTypeSelect.appendChild(optionElement);
+                  });
+              }
           }
+
+          // Initialize sub-types on page load
+          populateSubTypes();
       }
-
-      // Initialize sub-types on page load
-      updateSubTypes();
-
-      // Update sub-types when account type changes
-      accountTypeSelect.addEventListener('change', updateSubTypes);
   });
 </script>
 

@@ -1,10 +1,32 @@
 ﻿@model InventorySystem.ViewModels.Accounting.GeneralLedgerViewModel
 @{
   ViewData["Title"] = "General Ledger";
+  // Determine if this is a complete trial balance view
+  bool isCompleteTrialBalance = string.IsNullOrEmpty(Model.SelectedAccountCode);
+  bool isFilteredByDate = Model.IsAllTimeView || (Model.EndDate - Model.StartDate).TotalDays > 400; // More than typical FY
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-book"></i> General Ledger</h1>
+  <div>
+    <h1><i class="fas fa-book"></i> General Ledger</h1>
+    <p class="text-muted mb-0">
+      @if (Model.CurrentFinancialPeriod != null && !Model.IsAllTimeView)
+      {
+        <span class="badge bg-info">@Model.PeriodDisplayName</span>
+        <span>@Model.StartDate.ToString("MMM dd, yyyy") - @Model.EndDate.ToString("MMM dd, yyyy")</span>
+      }
+      else if (Model.IsAllTimeView)
+      {
+        <span class="badge bg-warning">All Time View</span>
+        <span>Complete transaction history</span>
+      }
+      else
+      {
+        <span class="badge bg-secondary">Custom Period</span>
+        <span>@Model.StartDate.ToString("MMM dd, yyyy") - @Model.EndDate.ToString("MMM dd, yyyy")</span>
+      }
+    </p>
+  </div>
   <div class="btn-group">
     <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
@@ -31,13 +53,63 @@
   </div>
 }
 
+<!-- Financial Period Quick Selection -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h5><i class="fas fa-calendar-alt"></i> Financial Period Selection</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-8">
+        <div class="btn-group flex-wrap" role="group" aria-label="Period Selection">
+          <a href="@Url.Action("GeneralLedger", new { period = "current-fy", accountCode = Model.SelectedAccountCode })" 
+             class="btn @(Model.SelectedPeriod == "current-fy" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar-check"></i> Current FY
+          </a>
+          <a href="@Url.Action("GeneralLedger", new { period = "previous-fy", accountCode = Model.SelectedAccountCode })" 
+             class="btn @(Model.SelectedPeriod == "previous-fy" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar-minus"></i> Previous FY
+          </a>
+          <a href="@Url.Action("GeneralLedger", new { period = "calendar-year", accountCode = Model.SelectedAccountCode })" 
+             class="btn @(Model.SelectedPeriod == "calendar-year" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar"></i> Calendar Year
+          </a>
+          <a href="@Url.Action("GeneralLedger", new { period = "all-time", accountCode = Model.SelectedAccountCode })" 
+             class="btn @(Model.IsAllTimeView ? "btn-warning" : "btn-outline-warning")">
+            <i class="fas fa-history"></i> All Time
+          </a>
+        </div>
+      </div>
+      <div class="col-md-4 text-end">
+        @if (Model.CurrentFinancialPeriod != null)
+        {
+          <div class="text-muted small">
+            <strong>Current FY:</strong> @Model.CurrentFinancialPeriod.FormattedPeriod
+            <br>
+            <strong>Status:</strong> 
+            @if (Model.CurrentFinancialPeriod.IsClosed)
+            {
+              <span class="badge bg-danger">Closed</span>
+            }
+            else
+            {
+              <span class="badge bg-success">Open</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Filter Controls -->
 <div class="card mb-4">
   <div class="card-header">
-    <h5><i class="fas fa-filter"></i> Filter Transactions</h5>
+    <h5><i class="fas fa-filter"></i> Advanced Filters</h5>
   </div>
   <div class="card-body">
     <form method="get">
+      <input type="hidden" name="period" value="@Model.SelectedPeriod" />
       <div class="row">
         <div class="col-md-3">
           <div class="mb-3">
@@ -56,16 +128,22 @@
         </div>
         <div class="col-md-3">
           <div class="mb-3">
-            <label class="form-label">Start Date</label>
+            <label class="form-label">Custom Start Date</label>
             <input type="date" name="startDate" class="form-control"
                    value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+            <div class="form-text">
+              <i class="fas fa-info-circle"></i> Overrides period selection
+            </div>
           </div>
         </div>
         <div class="col-md-3">
           <div class="mb-3">
-            <label class="form-label">End Date</label>
+            <label class="form-label">Custom End Date</label>
             <input type="date" name="endDate" class="form-control"
                    value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+            <div class="form-text">
+              <i class="fas fa-info-circle"></i> Overrides period selection
+            </div>
           </div>
         </div>
         <div class="col-md-3">
@@ -81,21 +159,74 @@
   </div>
 </div>
 
-<!-- Balance Check Alert -->
-@if (!Model.IsBalanced && Model.Entries.Any())
+<!-- UPDATED: Conditional Balance Check Alert with Financial Period Context -->
+@if (Model.Entries.Any())
 {
-  <div class="alert alert-warning">
-    <i class="fas fa-exclamation-triangle"></i>
-    <strong>Trial Balance Warning:</strong>
-    Debits (@Model.TotalDebits.ToString("C")) do not equal Credits (@Model.TotalCredits.ToString("C")).
-    Difference: @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")
-  </div>
+  @if (isCompleteTrialBalance && !Model.IsBalanced && !Model.IsAllTimeView)
+  {
+    <!-- Show trial balance warning only for complete financial period view -->
+    <div class="alert alert-danger">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>Financial Period Trial Balance Error:</strong>
+      The books are out of balance for @Model.PeriodDisplayName! 
+      Total debits (@Model.TotalDebits.ToString("C")) do not equal total credits (@Model.TotalCredits.ToString("C")).
+      <br>
+      <strong>Difference: @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")</strong>
+      <br>
+      <small>This indicates a serious accounting error within the financial period that needs immediate attention.</small>
+    </div>
+  }
+  else if (isCompleteTrialBalance && !Model.IsBalanced && Model.IsAllTimeView)
+  {
+    <!-- Show all-time trial balance warning -->
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>Historical Trial Balance Warning:</strong>
+      Historical data shows unbalanced entries. This may be due to system migration or incomplete data.
+      <br>
+      <strong>Total Difference: @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")</strong>
+      <br>
+      <small>For current financial period accuracy, <a href="@Url.Action("GeneralLedger", new { period = "current-fy" })" class="alert-link">view Current Financial Year</a>.</small>
+    </div>
+  }
+  else if (!isCompleteTrialBalance && !Model.IsBalanced)
+  {
+    <!-- Show informational message for filtered views -->
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      <strong>Filtered View:</strong>
+      Showing @(!string.IsNullOrEmpty(Model.SelectedAccountCode) ? "transactions for selected account" : "filtered transactions") within @Model.PeriodDisplayName.
+      Debits and credits are not expected to balance in filtered views.
+      @if (!string.IsNullOrEmpty(Model.SelectedAccountCode))
+      {
+        <br><small>For trial balance verification, <a href="@Url.Action("GeneralLedger", new { period = Model.SelectedPeriod })" class="alert-link">view all accounts</a> or go to <a href="@Url.Action("TrialBalance", new { period = Model.SelectedPeriod })" class="alert-link">Trial Balance report</a>.</small>
+      }
+    </div>
+  }
+  else if (isCompleteTrialBalance && Model.IsBalanced && !Model.IsAllTimeView)
+  {
+    <!-- Show success message for balanced financial period -->
+    <div class="alert alert-success">
+      <i class="fas fa-check-circle"></i>
+      <strong>Financial Period Verified:</strong>
+      @Model.PeriodDisplayName is in perfect balance. Total debits equal total credits (@Model.TotalDebits.ToString("C")).
+    </div>
+  }
 }
 
 <!-- Ledger Entries -->
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <h5><i class="fas fa-list"></i> Ledger Entries</h5>
+    <h5><i class="fas fa-list"></i> 
+      @if (isCompleteTrialBalance)
+      {
+        <span>General Ledger - All Accounts (@Model.PeriodDisplayName)</span>
+      }
+      else
+      {
+        <span>General Ledger - Filtered View (@Model.PeriodDisplayName)</span>
+      }
+    </h5>
     <div>
       @if (!string.IsNullOrEmpty(Model.SelectedAccountCode))
       {
@@ -104,6 +235,14 @@
         {
           <span class="badge bg-primary">@selectedAccount.AccountCode - @selectedAccount.AccountName</span>
         }
+      }
+      @if (Model.IsAllTimeView)
+      {
+        <span class="badge bg-warning">All Time Data</span>
+      }
+      else if (isFilteredByDate)
+      {
+        <span class="badge bg-secondary">Custom Period</span>
       }
       <span class="badge bg-info">@Model.Entries.Count entries</span>
     </div>
@@ -140,7 +279,6 @@
                   @if (isNewTransaction)
                   {
                     <br>
-              
                     <small class="text-muted">@entry.TransactionDate.ToString("h:mm tt")</small>
                   }
                 </td>
@@ -207,17 +345,49 @@
           </tbody>
           <tfoot class="table-light">
             <tr>
-              <th colspan="4" class="text-end">Totals:</th>
-              <th class="text-end text-success">@Model.TotalDebits.ToString("C")</th>
-              <th class="text-end text-danger">@Model.TotalCredits.ToString("C")</th>
-              <th>
-                @if (Model.IsBalanced)
+              <th colspan="4" class="text-end">
+                @if (isCompleteTrialBalance && !Model.IsAllTimeView)
                 {
-                  <span class="badge bg-success">Balanced</span>
+                  <span>@Model.PeriodDisplayName Totals:</span>
+                }
+                else if (Model.IsAllTimeView)
+                {
+                  <span>All Time Totals:</span>
                 }
                 else
                 {
-                  <span class="badge bg-warning">Out of Balance</span>
+                  <span>Filtered Totals:</span>
+                }
+              </th>
+              <th class="text-end text-success">@Model.TotalDebits.ToString("C")</th>
+              <th class="text-end text-danger">@Model.TotalCredits.ToString("C")</th>
+              <th>
+                @if (isCompleteTrialBalance && !Model.IsAllTimeView)
+                {
+                  @if (Model.IsBalanced)
+                  {
+                    <span class="badge bg-success">
+                      <i class="fas fa-check"></i> Balanced
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="badge bg-danger">
+                      <i class="fas fa-exclamation-triangle"></i> Out of Balance
+                    </span>
+                  }
+                }
+                else if (Model.IsAllTimeView)
+                {
+                  <span class="badge bg-warning">
+                    <i class="fas fa-history"></i> Historical View
+                  </span>
+                }
+                else
+                {
+                  <span class="badge bg-secondary">
+                    <i class="fas fa-filter"></i> Filtered View
+                  </span>
                 }
               </th>
             </tr>
@@ -233,17 +403,23 @@
         <p class="text-muted">
           @if (!string.IsNullOrEmpty(Model.SelectedAccountCode))
           {
-            <span>No transactions found for the selected account and date range.</span>
+            <span>No transactions found for the selected account within @Model.PeriodDisplayName.</span>
           }
           else
           {
-            <span>No transactions found for the selected date range.</span>
+            <span>No transactions found within @Model.PeriodDisplayName.</span>
           }
         </p>
         <div class="mt-3">
           <a href="@Url.Action("Index")" class="btn btn-primary">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
           </a>
+          @if (!Model.IsAllTimeView)
+          {
+            <a href="@Url.Action("GeneralLedger", new { period = "all-time" })" class="btn btn-outline-warning">
+              <i class="fas fa-history"></i> View All Time
+            </a>
+          }
           <form method="post" action="@Url.Action("GenerateJournalEntries")" class="d-inline">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-success">
@@ -265,6 +441,7 @@
         <div class="card-body">
           <h5 class="card-title text-success">Total Debits</h5>
           <h3 class="text-success">@Model.TotalDebits.ToString("C")</h3>
+          <small class="text-muted">@Model.PeriodDisplayName</small>
         </div>
       </div>
     </div>
@@ -273,25 +450,66 @@
         <div class="card-body">
           <h5 class="card-title text-danger">Total Credits</h5>
           <h3 class="text-danger">@Model.TotalCredits.ToString("C")</h3>
+          <small class="text-muted">@Model.PeriodDisplayName</small>
         </div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="card text-center">
         <div class="card-body">
-          <h5 class="card-title">Balance Status</h5>
-          @if (Model.IsBalanced)
+          <h5 class="card-title">
+            @if (isCompleteTrialBalance && !Model.IsAllTimeView)
+            {
+              <span>Financial Period Status</span>
+            }
+            else if (Model.IsAllTimeView)
+            {
+              <span>Historical Status</span>
+            }
+            else
+            {
+              <span>Filter Status</span>
+            }
+          </h5>
+          @if (isCompleteTrialBalance && !Model.IsAllTimeView)
           {
-            <h3 class="text-success">
-              <i class="fas fa-check-circle"></i> Balanced
+            @if (Model.IsBalanced)
+            {
+              <h3 class="text-success">
+                <i class="fas fa-check-circle"></i> Balanced
+              </h3>
+              <small class="text-success">Financial period is in balance</small>
+            }
+            else
+            {
+              <h3 class="text-danger">
+                <i class="fas fa-exclamation-triangle"></i> Out of Balance
+              </h3>
+              <small class="text-danger">Difference: @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")</small>
+            }
+          }
+          else if (Model.IsAllTimeView)
+          {
+            <h3 class="text-warning">
+              <i class="fas fa-history"></i> All Time
             </h3>
+            <small class="text-muted">Historical data view</small>
           }
           else
           {
-            <h3 class="text-warning">
-              <i class="fas fa-exclamation-triangle"></i> Out of Balance
+            <h3 class="text-info">
+              <i class="fas fa-filter"></i> Filtered
             </h3>
-            <small class="text-muted">Difference: @Math.Abs(Model.TotalDebits - Model.TotalCredits).ToString("C")</small>
+            <small class="text-muted">
+              @if (!string.IsNullOrEmpty(Model.SelectedAccountCode))
+              {
+                <span>Single account view</span>
+              }
+              else
+              {
+                <span>Partial data view</span>
+              }
+            </small>
           }
         </div>
       </div>

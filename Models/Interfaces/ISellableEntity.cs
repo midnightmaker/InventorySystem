@@ -9,5 +9,8 @@ namespace InventorySystem.Models.Interfaces
         bool IsSellable { get; }
         string EntityType { get; }
         string? Code { get; }
-    }
+		    // Revenue account designation
+		    string? PreferredRevenueAccountCode { get; }
+		    string GetDefaultRevenueAccountCode();
+	}
 }

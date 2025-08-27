@@ -129,6 +129,26 @@ namespace InventorySystem.Services
 		/// <param name="referenceId">ID of the referenced entity</param>
 		/// <returns>Enhanced display text, URL, and icon information</returns>
 		Task<(string displayText, string? url, string icon)> GetEnhancedReferenceInfoAsync(string? referenceType, int? referenceId);
+
+		/// <summary>
+		/// Gets revenue accounts suitable for ISellableEntity objects
+		/// </summary>
+		/// <returns>List of active revenue accounts ordered by account code</returns>
+		Task<IEnumerable<Account>> GetRevenueAccountsForSellableEntitiesAsync();
+
+		/// <summary>
+		/// Gets the recommended revenue account for a sale based on its items
+		/// </summary>
+		/// <param name="sale">The sale to analyze</param>
+		/// <returns>Recommended revenue account code</returns>
+		Task<string> GetRecommendedRevenueAccountForSaleAsync(Sale sale);
+
+		/// <summary>
+		/// Validates that a revenue account code is valid and active
+		/// </summary>
+		/// <param name="accountCode">Account code to validate</param>
+		/// <returns>True if valid and active, false otherwise</returns>
+		Task<bool> IsValidRevenueAccountAsync(string? accountCode);
 	}
 
 	public class AccountValidationResult

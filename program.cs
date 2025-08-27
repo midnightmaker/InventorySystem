@@ -108,6 +108,9 @@ builder.Services.AddScoped<IServiceOrderService, ServiceOrderService>();
 // Register the BulkUploadService
 builder.Services.AddScoped<IBulkUploadService, BulkUploadService>();
 
+// Register Financial Period Service
+builder.Services.AddScoped<IFinancialPeriodService, FinancialPeriodService>();
+
 // Configure file upload limits and request sizes
 builder.Services.Configure<FormOptions>(options =>
 {

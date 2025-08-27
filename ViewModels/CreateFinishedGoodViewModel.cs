@@ -1,9 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using InventorySystem.Models.Interfaces;
+using System.ComponentModel.DataAnnotations;
 
 namespace InventorySystem.ViewModels
 {
-  public class CreateFinishedGoodViewModel
-  {
+  public class CreateFinishedGoodViewModel : ISellableEntity
+	{
     public int Id { get; set; } // For editing
 
     [Required]
@@ -44,8 +45,12 @@ namespace InventorySystem.ViewModels
     [Display(Name = "Requires Model Number")]
     public bool RequiresModelNumber { get; set; } = true; // Default TRUE for Finished Goods
 
-    // Calculated properties
-    public decimal ProfitMargin => SellingPrice > 0 && UnitCost > 0 ? ((SellingPrice - UnitCost) / SellingPrice) * 100 : 0;
+		[Display(Name = "Revenue Account Code")]
+		[StringLength(10)]
+		public string? PreferredRevenueAccountCode { get; set; }
+
+		// Calculated properties
+		public decimal ProfitMargin => SellingPrice > 0 && UnitCost > 0 ? ((SellingPrice - UnitCost) / SellingPrice) * 100 : 0;
     public decimal ProfitPerUnit => SellingPrice - UnitCost;
     public bool IsEditing => Id > 0;
 
@@ -72,5 +77,26 @@ namespace InventorySystem.ViewModels
 
     [Display(Name = "Image File Name")]
     public string? ImageFileName { get; set; }
-  }
+
+		// ISellableEntity implementation
+		public string DisplayName => !string.IsNullOrEmpty(PartNumber) ? $"{PartNumber} - {Description}" : Description;
+
+		string ISellableEntity.Description => Description;
+
+		public decimal SalePrice => SellingPrice;
+
+		public bool IsSellable => SellingPrice > 0;
+
+		public string EntityType => "FinishedGood";
+
+		public string? Code => PartNumber;
+
+		public string GetDefaultRevenueAccountCode()
+		{
+			if (!string.IsNullOrEmpty(PreferredRevenueAccountCode))
+				return PreferredRevenueAccountCode;
+
+			return "4000"; // Product Sales
+		}
+	}
 }

@@ -1,0 +1,73 @@
+﻿@using InventorySystem.Models.Accounting
+@using InventorySystem.Models.Interfaces
+@model (IEnumerable<Account> RevenueAccounts, ISellableEntity Entity, string PropertyName, bool IsRequired)
+
+@{
+    var revenueAccounts = Model.RevenueAccounts ?? new List<Account>();
+    var entity = Model.Entity;
+    var propertyName = Model.PropertyName ?? "PreferredRevenueAccountCode";
+    var isRequired = Model.IsRequired;
+    var currentValue = entity?.PreferredRevenueAccountCode;
+    var defaultAccountCode = entity?.GetDefaultRevenueAccountCode();
+}
+
+<div class="mb-3">
+    <label for="@propertyName" class="form-label">
+        <i class="fas fa-coins text-info"></i> Revenue Account Code
+        @if (isRequired)
+        {
+            <span class="text-danger">*</span>
+        }
+    </label>
+    
+    <select name="@propertyName" id="@propertyName" class="form-select" @(isRequired ? "required" : "")>
+        <option value="">-- Use Default Account (@defaultAccountCode) --</option>
+        @foreach (var account in revenueAccounts.OrderBy(a => a.AccountCode))
+        {
+            <option value="@account.AccountCode" 
+                    selected="@(currentValue == account.AccountCode)">
+                @account.AccountCode - @account.AccountName
+            </option>
+        }
+    </select>
+    
+    <div class="form-text">
+        <i class="fas fa-info-circle"></i>
+        @if (string.IsNullOrEmpty(currentValue))
+        {
+            <span class="text-muted">
+                Will use default account <strong>@defaultAccountCode</strong> 
+                (@GetAccountName(defaultAccountCode, revenueAccounts)) based on @entity?.EntityType type.
+            </span>
+        }
+        else
+        {
+            <span class="text-success">
+                Override: Will use <strong>@currentValue</strong> 
+                (@GetAccountName(currentValue, revenueAccounts)) instead of default.
+            </span>
+        }
+    </div>
+</div>
+
+@functions {
+    private string GetAccountName(string? accountCode, IEnumerable<Account> accounts)
+    {
+        if (string.IsNullOrEmpty(accountCode)) return "Unknown";
+        
+        var account = accounts.FirstOrDefault(a => a.AccountCode == accountCode);
+        return account?.AccountName ?? GetDefaultAccountName(accountCode);
+    }
+    
+    private string GetDefaultAccountName(string accountCode)
+    {
+        return accountCode switch
+        {
+            "4000" => "Product Sales",
+            "4010" => "Supply Sales", 
+            "4020" => "Research Material Sales",
+            "4100" => "Service Revenue",
+            _ => "Revenue Account"
+        };
+    }
+}

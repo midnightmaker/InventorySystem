@@ -682,26 +682,12 @@ namespace InventorySystem.Controllers
 					QcRequired = model.QcRequired,
 					CertificateRequired = model.CertificateRequired,
 					WorksheetRequired = model.WorksheetRequired, // ✅ NEW: Include worksheet requirement
-					IsActive = model.IsActive
+					IsActive = model.IsActive,
+					PreferredRevenueAccountCode = model.PreferredRevenueAccountCode
 				};
 
-				// Create corresponding service item
-				//if (model.CreateServiceItem)
-				//{
-				//	var serviceItem = await CreateServiceItemFromServiceType(serviceType);
-				//	if (serviceItem != null)
-				//	{
-				//		serviceType.ServiceItemId = serviceItem.Id;
-				//		TempData["SuccessMessage"] = $"Service type '{model.ServiceName}' and corresponding service item '{serviceItem.PartNumber}' created successfully";
-				//	}
-				//	else
-				//	{
-				//		TempData["WarningMessage"] = $"Service type '{model.ServiceName}' created, but service item creation failed";
-				//	}
-				//}
-
 				await _serviceOrderService.CreateServiceTypeAsync(serviceType);
-
+				TempData["SuccessMessage"] = $"Service type '{model.ServiceName}' created successfully";
 				return RedirectToAction(nameof(ServiceTypes));
 			}
 			catch (Exception ex)
@@ -881,7 +867,7 @@ namespace InventorySystem.Controllers
 		}
 		// Add these methods to your existing ServicesController
 
-		// GET: Services/EditServiceType/5
+		
 		// GET: Services/EditServiceType/5
 		public async Task<IActionResult> EditServiceType(int id)
 		{
@@ -914,6 +900,7 @@ namespace InventorySystem.Controllers
 					CertificateRequired = serviceType.CertificateRequired,
 					WorksheetRequired = serviceType.WorksheetRequired,
 					IsActive = serviceType.IsActive,
+					PreferredRevenueAccountCode = serviceType.PreferredRevenueAccountCode, 
 					VendorOptions = new SelectList(vendors, "Id", "CompanyName", serviceType.VendorId),
 					Documents = serviceType.Documents // ✅ ADD THIS LINE
 				};
@@ -1022,6 +1009,7 @@ namespace InventorySystem.Controllers
 				existingServiceType.CertificateRequired = model.CertificateRequired;
 				existingServiceType.WorksheetRequired = model.WorksheetRequired;
 				existingServiceType.IsActive = model.IsActive;
+				existingServiceType.PreferredRevenueAccountCode = model.PreferredRevenueAccountCode; 
 
 				_logger.LogInformation("Updating ServiceType {Id} with name: {ServiceName}", id, model.ServiceName);
 
@@ -1163,28 +1151,7 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		// Helper method to create service item from service type
 		
-
-		// Helper method to generate service part numbers
-		private string GenerateServicePartNumber(ServiceType serviceType)
-		{
-			// Use service code if available, otherwise generate from name
-			if (!string.IsNullOrEmpty(serviceType.ServiceCode))
-			{
-				return $"SVC-{serviceType.ServiceCode.ToUpper()}";
-			}
-
-			// Generate from service name
-			var nameCode = new string(serviceType.ServiceName
-				.ToUpper()
-				.Where(c => char.IsLetterOrDigit(c))
-				.Take(8)
-				.ToArray());
-
-			return $"SVC-{nameCode}";
-		}
-
 		// New method to create service order from sale item
 		[HttpPost]
 		public async Task<IActionResult> CreateServiceOrderFromSaleItem(int saleItemId)
@@ -1599,49 +1566,6 @@ namespace InventorySystem.Controllers
 					email = serviceOrder.Customer?.Email
 				}
 			};
-		}
-
-		// GET: Services/EditServiceItem/5
-		public async Task<IActionResult> EditServiceItem(int id)
-		{
-			try
-			{
-				// Get the service item
-				var serviceItem = await _context.Items
-					.Include(i => i.VendorItems)
-						.ThenInclude(vi => vi.Vendor)
-					.FirstOrDefaultAsync(i => i.Id == id && i.ItemType == ItemType.Service);
-
-				if (serviceItem == null)
-				{
-					TempData["ErrorMessage"] = "Service item not found";
-					return RedirectToAction("Index", "Items");
-				}
-
-				// Find the related service type
-				var serviceType = await _context.ServiceTypes
-					.Include(st => st.Vendor)
-					.FirstOrDefaultAsync(st => st.ServiceItemId == id);
-
-				if (serviceType != null)
-				{
-					// If there's a service type, redirect to edit the service type
-					return RedirectToAction("EditServiceType", new { id = serviceType.Id });
-				}
-				else
-				{
-					// If no service type exists, redirect to regular item edit
-					// This handles orphaned service items
-					TempData["WarningMessage"] = "This service item is not linked to a service type. Editing as a regular item.";
-					return RedirectToAction("Edit", "Items", new { id });
-				}
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error loading service item for editing: {ItemId}", id);
-				TempData["ErrorMessage"] = "Error loading service item";
-				return RedirectToAction("Index", "Items");
-			}
 		}
 
 		// GET: Services/UploadServiceTypeDocument

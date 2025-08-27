@@ -1583,5 +1583,91 @@ namespace InventorySystem.Services
 				return ($"{referenceType} #{referenceId}", null, "fas fa-link text-muted");
 			}
 		}
+
+		/// <summary>
+		/// Gets revenue accounts suitable for ISellableEntity objects
+		/// </summary>
+		/// <returns>List of active revenue accounts ordered by account code</returns>
+		public async Task<IEnumerable<Account>> GetRevenueAccountsForSellableEntitiesAsync()
+		{
+			return await _context.Accounts
+				.Where(a => a.AccountType == AccountType.Revenue && 
+									 a.IsActive &&
+									 (a.AccountCode.StartsWith("40") || a.AccountCode.StartsWith("41"))) // Revenue accounts 4000-4199
+				.OrderBy(a => a.AccountCode)
+				.ToListAsync();
+		}
+
+		/// <summary>
+		/// Gets the recommended revenue account for a sale based on its items
+		/// Uses the GetDefaultRevenueAccountCode logic for ISellableEntity objects
+		/// </summary>
+		/// <param name="sale">The sale to analyze</param>
+		/// <returns>Recommended revenue account code</returns>
+		public async Task<string> GetRecommendedRevenueAccountForSaleAsync(Sale sale)
+		{
+			// If sale has a specific revenue account set, use it
+			if (!string.IsNullOrEmpty(sale.RevenueAccountCode))
+			{
+				return sale.RevenueAccountCode;
+			}
+
+			// Analyze sale items to determine best revenue account
+			if (sale.SaleItems?.Any() == true)
+			{
+				// Get all unique revenue account codes from sale items
+				var itemAccountCodes = new List<string>();
+				
+				foreach (var saleItem in sale.SaleItems)
+				{
+					if (saleItem.ItemId.HasValue && saleItem.Item != null)
+					{
+						itemAccountCodes.Add(saleItem.Item.GetDefaultRevenueAccountCode());
+					}
+					else if (saleItem.ServiceTypeId.HasValue && saleItem.ServiceType != null)
+					{
+						itemAccountCodes.Add(saleItem.ServiceType.GetDefaultRevenueAccountCode());
+					}
+					// Add logic for other ISellableEntity types as needed
+				}
+
+				// Use the most common account code, or prioritize based on business rules
+				if (itemAccountCodes.Any())
+				{
+					// If all items use the same account, use that
+					var distinctCodes = itemAccountCodes.Distinct().ToList();
+					if (distinctCodes.Count == 1)
+					{
+						return distinctCodes.First();
+					}
+
+					// If mixed, prioritize based on business logic
+					if (itemAccountCodes.Contains("4000")) return "4000"; // Product Sales takes priority
+					if (itemAccountCodes.Contains("4100")) return "4100"; // Service Revenue
+					if (itemAccountCodes.Contains("4010")) return "4010"; // Supply Sales
+					if (itemAccountCodes.Contains("4020")) return "4020"; // Research Material Sales
+					
+					return itemAccountCodes.First(); // Fallback to first found
+				}
+			}
+
+			return "4000"; // Default to Product Sales
+		}
+
+		/// <summary>
+		/// Validates that a revenue account code is valid and active
+		/// </summary>
+		/// <param name="accountCode">Account code to validate</param>
+		/// <returns>True if valid and active, false otherwise</returns>
+		public async Task<bool> IsValidRevenueAccountAsync(string? accountCode)
+		{
+			if (string.IsNullOrEmpty(accountCode))
+				return false;
+
+			var account = await GetAccountByCodeAsync(accountCode);
+			return account != null && 
+				   account.IsActive && 
+				   account.AccountType == AccountType.Revenue;
+		}
 	}
 }
