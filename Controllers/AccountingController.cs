@@ -270,6 +270,12 @@ namespace InventorySystem.Controllers
 		{
 			try
 			{
+				// ✅ DEFAULT TO CURRENT FINANCIAL YEAR when no period specified
+				if (string.IsNullOrEmpty(period) && !startDate.HasValue && !endDate.HasValue)
+				{
+					period = "current-fy";
+				}
+
 				// Get default date range based on financial period settings
 				(DateTime defaultStart, DateTime defaultEnd) = period switch
 				{
@@ -355,7 +361,13 @@ namespace InventorySystem.Controllers
 			try
 			{
 				DateTime defaultDate;
-				
+				// ✅ DEFAULT TO CURRENT FINANCIAL YEAR END when no period specified
+				if (string.IsNullOrEmpty(period) && !asOfDate.HasValue)
+				{
+					period = "current-fy-end";
+				}
+
+
 				if (!string.IsNullOrEmpty(period))
 				{
 					defaultDate = period switch
@@ -394,7 +406,12 @@ namespace InventorySystem.Controllers
 			try
 			{
 				DateTime defaultDate;
-				
+				// ✅ DEFAULT TO CURRENT FINANCIAL YEAR END when no period specified
+				if (string.IsNullOrEmpty(period) && !asOfDate.HasValue)
+				{
+					period = "current-fy-end";
+				}
+
 				if (!string.IsNullOrEmpty(period))
 				{
 					defaultDate = period switch
@@ -434,7 +451,11 @@ namespace InventorySystem.Controllers
 			{
 				DateTime defaultStartDate;
 				DateTime defaultEndDate;
-				
+				// ✅ DEFAULT TO CURRENT FINANCIAL YEAR when no period specified
+				if (string.IsNullOrEmpty(period) && !startDate.HasValue && !endDate.HasValue)
+				{
+					period = "current-fy";
+				}
 				if (!string.IsNullOrEmpty(period))
 				{
 					(defaultStartDate, defaultEndDate) = period switch
@@ -498,6 +519,55 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		// GET: Accounting/CashFlowStatement
+		[HttpGet("Accounting/CashFlowStatement")]
+		public async Task<IActionResult> CashFlowStatement(DateTime? startDate = null, DateTime? endDate = null, string? period = null)
+		{
+			try
+			{
+				DateTime defaultStartDate;
+				DateTime defaultEndDate;
+
+				// ✅ DEFAULT TO CURRENT FINANCIAL YEAR when no period specified
+				if (string.IsNullOrEmpty(period) && !startDate.HasValue && !endDate.HasValue)
+				{
+					period = "current-fy";
+				}
+
+				if (!string.IsNullOrEmpty(period))
+				{
+					(defaultStartDate, defaultEndDate) = period switch
+					{
+						"current-fy" => await _financialPeriodService.GetCurrentFinancialYearRangeAsync(),
+						"previous-fy" => await _financialPeriodService.GetPreviousFinancialYearRangeAsync(),
+						"calendar-year" => await _financialPeriodService.GetCalendarYearRangeAsync(),
+						"ytd" => (new DateTime(DateTime.Today.Year, 1, 1), DateTime.Today),
+						_ => (startDate ?? new DateTime(DateTime.Today.Year, 1, 1), endDate ?? DateTime.Today)
+					};
+				}
+				else
+				{
+					// Fall back to current financial year if no period specified
+					var currentFYRange = await _financialPeriodService.GetCurrentFinancialYearRangeAsync();
+					defaultStartDate = startDate ?? currentFYRange.start;
+					defaultEndDate = endDate ?? currentFYRange.end;
+				}
+
+				var cashFlowStatement = await _accountingService.GetCashFlowStatementAsync(defaultStartDate, defaultEndDate);
+
+				// Add financial period info
+				cashFlowStatement.CurrentFinancialPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
+				cashFlowStatement.SelectedPeriod = period;
+
+				return View(cashFlowStatement);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error generating cash flow statement");
+				TempData["ErrorMessage"] = "Error generating cash flow statement";
+				return View(new CashFlowStatementViewModel());
+			}
+		}
 		// ============= SETUP & INITIALIZATION =============
 
 		// GET: Accounting/Setup
@@ -1451,7 +1521,8 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		// POST: Accounting/CloseFinancialYear
+		
+		// Enhanced CloseFinancialYear POST method
 		[HttpPost]
 		[ValidateAntiForgeryToken]
 		public async Task<IActionResult> CloseFinancialYear(FinancialYearCloseViewModel model)
@@ -1463,7 +1534,6 @@ namespace InventorySystem.Controllers
 					return View(model);
 				}
 
-				// Perform final validation
 				var period = await _financialPeriodService.GetFinancialPeriodByIdAsync(model.CurrentPeriod.Id);
 				if (period == null || period.IsClosed)
 				{
@@ -1471,11 +1541,26 @@ namespace InventorySystem.Controllers
 					return RedirectToAction(nameof(ManageFinancialPeriods));
 				}
 
+				// Perform year-end closing if requested
+				if (model.PerformYearEndClosing)
+				{
+					var closingSuccess = await _accountingService.PerformYearEndClosingAsync(
+							period,
+							model.ClosingNotes,
+							User.Identity?.Name ?? "System");
+
+					if (!closingSuccess)
+					{
+						TempData["ErrorMessage"] = "Failed to perform year-end closing entries";
+						return View(model);
+					}
+				}
+
 				// Close the financial year
 				var success = await _financialPeriodService.CloseFinancialYearAsync(
-					period.Id, 
-					model.ClosingNotes, 
-					User.Identity?.Name ?? "System");
+						period.Id,
+						model.ClosingNotes,
+						User.Identity?.Name ?? "System");
 
 				if (success)
 				{
@@ -1485,7 +1570,8 @@ namespace InventorySystem.Controllers
 						await _financialPeriodService.CreateNextFinancialYearAsync();
 					}
 
-					TempData["SuccessMessage"] = $"Financial year {period.PeriodName} has been successfully closed";
+					TempData["SuccessMessage"] = $"Financial year {period.PeriodName} has been successfully closed. " +
+							(model.PerformYearEndClosing ? "Year-end closing entries have been created." : "");
 					return RedirectToAction(nameof(ManageFinancialPeriods));
 				}
 				else

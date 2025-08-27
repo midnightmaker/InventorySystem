@@ -48,24 +48,24 @@
   <div class="card-body">
     <div class="row">
       <div class="col-md-8">
-        <div class="btn-group flex-wrap" role="group" aria-label="Period Selection">
-          <a href="@Url.Action("BalanceSheet", new { period = "current-fy-end" })" 
-             class="btn @(Model.SelectedPeriod == "current-fy-end" ? "btn-primary" : "btn-outline-primary")">
-            <i class="fas fa-calendar-check"></i> Current FY End
-          </a>
-          <a href="@Url.Action("BalanceSheet", new { period = "previous-fy-end" })" 
-             class="btn @(Model.SelectedPeriod == "previous-fy-end" ? "btn-primary" : "btn-outline-primary")">
-            <i class="fas fa-calendar-minus"></i> Previous FY End
-          </a>
-          <a href="@Url.Action("BalanceSheet", new { period = "calendar-year-end" })" 
-             class="btn @(Model.SelectedPeriod == "calendar-year-end" ? "btn-primary" : "btn-outline-primary")">
-            <i class="fas fa-calendar"></i> Calendar Year End
-          </a>
-          <a href="@Url.Action("BalanceSheet", new { asOfDate = DateTime.Today.ToString("yyyy-MM-dd") })" 
-             class="btn @(string.IsNullOrEmpty(Model.SelectedPeriod) ? "btn-secondary" : "btn-outline-secondary")">
-            <i class="fas fa-clock"></i> Today
-          </a>
-        </div>
+        div class="btn-group flex-wrap" role="group" aria-label="Period Selection">
+        <a href="@Url.Action("BalanceSheet", new { period = "current-fy-end" })"
+           class="btn @((Model.SelectedPeriod == "current-fy-end" || string.IsNullOrEmpty(Model.SelectedPeriod)) ? "btn-primary" : "btn-outline-primary")">
+          <i class="fas fa-calendar-check"></i> Current FY End
+        </a>
+        <a href="@Url.Action("BalanceSheet", new { period = "previous-fy-end" })"
+           class="btn @(Model.SelectedPeriod == "previous-fy-end" ? "btn-primary" : "btn-outline-primary")">
+          <i class="fas fa-calendar-minus"></i> Previous FY End
+        </a>
+        <a href="@Url.Action("BalanceSheet", new { period = "calendar-year-end" })"
+           class="btn @(Model.SelectedPeriod == "calendar-year-end" ? "btn-primary" : "btn-outline-primary")">
+          <i class="fas fa-calendar"></i> Calendar Year End
+        </a>
+        <a href="@Url.Action("BalanceSheet", new { asOfDate = DateTime.Today.ToString("yyyy-MM-dd") })"
+           class="btn btn-outline-secondary">
+          <i class="fas fa-clock"></i> Today
+        </a>
+      </div>
       </div>
       <div class="col-md-4 text-end">
         @if (Model.CurrentFinancialPeriod != null)

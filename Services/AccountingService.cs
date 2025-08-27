@@ -1669,5 +1669,918 @@ namespace InventorySystem.Services
 				   account.IsActive && 
 				   account.AccountType == AccountType.Revenue;
 		}
+
+		// Add these methods to your existing AccountingService class
+
+		public async Task<bool> PerformYearEndClosingAsync(FinancialPeriod financialPeriod, string closingNotes, string? createdBy = null)
+		{
+			using var transaction = await _context.Database.BeginTransactionAsync();
+
+			try
+			{
+				_logger.LogInformation("Starting year-end closing for period {PeriodName} ({PeriodId})",
+						financialPeriod.PeriodName, financialPeriod.Id);
+
+				// 1. Validate the closing can be performed
+				var validation = await ValidateYearEndClosingAsync(financialPeriod);
+				if (!validation.IsValid)
+				{
+					_logger.LogError("Year-end closing validation failed: {Errors}", string.Join(", ", validation.Errors));
+					return false;
+				}
+
+				// 2. Generate closing transaction numbers
+				var revenueClosingTxn = await GenerateNextJournalNumberAsync("CLOSE-REV");
+				var expenseClosingTxn = await GenerateNextJournalNumberAsync("CLOSE-EXP");
+				var retainedEarningsTransferTxn = await GenerateNextJournalNumberAsync("CLOSE-RE");
+
+				// 3. Close revenue accounts to Current Year Earnings
+				var revenueEntries = await CreateRevenueClosingEntriesAsync(financialPeriod, revenueClosingTxn, createdBy);
+
+				// 4. Close expense accounts to Current Year Earnings  
+				var expenseEntries = await CreateExpenseClosingEntriesAsync(financialPeriod, expenseClosingTxn, createdBy);
+
+				// 5. Transfer Current Year Earnings balance to Retained Earnings
+				var retainedEarningsEntries = await CreateRetainedEarningsTransferAsync(financialPeriod, retainedEarningsTransferTxn, createdBy);
+
+				// 6. Save all entries
+				var allEntries = revenueEntries.Concat(expenseEntries).Concat(retainedEarningsEntries);
+				_context.GeneralLedgerEntries.AddRange(allEntries);
+				await _context.SaveChangesAsync();
+
+				// 7. Commit the transaction
+				await transaction.CommitAsync();
+
+				_logger.LogInformation("Year-end closing completed successfully for period {PeriodName}. " +
+						"Created {RevenueEntries} revenue entries, {ExpenseEntries} expense entries, {TransferEntries} transfer entries",
+						financialPeriod.PeriodName, revenueEntries.Count, expenseEntries.Count, retainedEarningsEntries.Count);
+
+				return true;
+			}
+			catch (Exception ex)
+			{
+				await transaction.RollbackAsync();
+				_logger.LogError(ex, "Error performing year-end closing for period {PeriodId}", financialPeriod.Id);
+				return false;
+			}
+		}
+
+		public async Task<List<GeneralLedgerEntry>> CreateRevenueClosingEntriesAsync(FinancialPeriod financialPeriod, string transactionNumber, string? createdBy = null)
+		{
+			var entries = new List<GeneralLedgerEntry>();
+
+			// Get all revenue accounts with balances in the period
+			var revenueAccounts = await _context.Accounts
+					.Where(a => a.AccountType == AccountType.Revenue && a.IsActive)
+					.ToListAsync();
+
+			var currentYearEarningsAccount = await GetAccountByCodeAsync("3200");
+			if (currentYearEarningsAccount == null)
+			{
+				throw new InvalidOperationException("Current Year Earnings account (3200) not found");
+			}
+
+			decimal totalRevenueToClose = 0;
+
+			foreach (var account in revenueAccounts)
+			{
+				var balance = await GetAccountBalanceAsync(account.AccountCode, financialPeriod.EndDate);
+
+				if (balance > 0.01m) // Only close accounts with significant balances
+				{
+					// Debit the Revenue account to zero it out
+					entries.Add(new GeneralLedgerEntry
+					{
+						TransactionNumber = transactionNumber,
+						TransactionDate = financialPeriod.EndDate,
+						AccountId = account.Id,
+						Description = $"Year-end closing: Close {account.AccountName} to Current Year Earnings",
+						DebitAmount = balance,
+						CreditAmount = 0,
+						ReferenceType = "YearEndClosing",
+						ReferenceId = financialPeriod.Id,
+						CreatedBy = createdBy ?? "System",
+						CreatedDate = DateTime.Now
+					});
+
+					totalRevenueToClose += balance;
+				}
+			}
+
+			// Credit Current Year Earnings with total revenue
+			if (totalRevenueToClose > 0)
+			{
+				entries.Add(new GeneralLedgerEntry
+				{
+					TransactionNumber = transactionNumber,
+					TransactionDate = financialPeriod.EndDate,
+					AccountId = currentYearEarningsAccount.Id,
+					Description = $"Year-end closing: Transfer revenue to Current Year Earnings ({financialPeriod.PeriodName})",
+					DebitAmount = 0,
+					CreditAmount = totalRevenueToClose,
+					ReferenceType = "YearEndClosing",
+					ReferenceId = financialPeriod.Id,
+					CreatedBy = createdBy ?? "System",
+					CreatedDate = DateTime.Now
+				});
+			}
+
+			return entries;
+		}
+
+		public async Task<List<GeneralLedgerEntry>> CreateExpenseClosingEntriesAsync(FinancialPeriod financialPeriod, string transactionNumber, string? createdBy = null)
+		{
+			var entries = new List<GeneralLedgerEntry>();
+
+			// Get all expense accounts with balances in the period
+			var expenseAccounts = await _context.Accounts
+					.Where(a => a.AccountType == AccountType.Expense && a.IsActive)
+					.ToListAsync();
+
+			var currentYearEarningsAccount = await GetAccountByCodeAsync("3200");
+			if (currentYearEarningsAccount == null)
+			{
+				throw new InvalidOperationException("Current Year Earnings account (3200) not found");
+			}
+
+			decimal totalExpensesToClose = 0;
+
+			foreach (var account in expenseAccounts)
+			{
+				var balance = await GetAccountBalanceAsync(account.AccountCode, financialPeriod.EndDate);
+
+				if (balance > 0.01m) // Only close accounts with significant balances
+				{
+					// Credit the Expense account to zero it out
+					entries.Add(new GeneralLedgerEntry
+					{
+						TransactionNumber = transactionNumber,
+						TransactionDate = financialPeriod.EndDate,
+						AccountId = account.Id,
+						Description = $"Year-end closing: Close {account.AccountName} to Current Year Earnings",
+						DebitAmount = 0,
+						CreditAmount = balance,
+						ReferenceType = "YearEndClosing",
+						ReferenceId = financialPeriod.Id,
+						CreatedBy = createdBy ?? "System",
+						CreatedDate = DateTime.Now
+					});
+
+					totalExpensesToClose += balance;
+				}
+			}
+
+			// Debit Current Year Earnings with total expenses
+			if (totalExpensesToClose > 0)
+			{
+				entries.Add(new GeneralLedgerEntry
+				{
+					TransactionNumber = transactionNumber,
+					TransactionDate = financialPeriod.EndDate,
+					AccountId = currentYearEarningsAccount.Id,
+					Description = $"Year-end closing: Transfer expenses to Current Year Earnings ({financialPeriod.PeriodName})",
+					DebitAmount = totalExpensesToClose,
+					CreditAmount = 0,
+					ReferenceType = "YearEndClosing",
+					ReferenceId = financialPeriod.Id,
+					CreatedBy = createdBy ?? "System",
+					CreatedDate = DateTime.Now
+				});
+			}
+
+			return entries;
+		}
+
+		public async Task<List<GeneralLedgerEntry>> CreateRetainedEarningsTransferAsync(FinancialPeriod financialPeriod, string transactionNumber, string? createdBy = null)
+		{
+			var entries = new List<GeneralLedgerEntry>();
+
+			var currentYearEarningsAccount = await GetAccountByCodeAsync("3200");
+			var retainedEarningsAccount = await GetAccountByCodeAsync("3100");
+
+			if (currentYearEarningsAccount == null)
+			{
+				throw new InvalidOperationException("Current Year Earnings account (3200) not found");
+			}
+
+			if (retainedEarningsAccount == null)
+			{
+				throw new InvalidOperationException("Retained Earnings account (3100) not found");
+			}
+
+			// Get the Current Year Earnings balance after revenue/expense closing
+			var currentYearEarningsBalance = await GetAccountBalanceAsync("3200", financialPeriod.EndDate);
+
+			if (Math.Abs(currentYearEarningsBalance) > 0.01m) // Only transfer if there's a significant balance
+			{
+				if (currentYearEarningsBalance > 0) // Profit - transfer credit balance
+				{
+					// Debit Current Year Earnings to zero it out
+					entries.Add(new GeneralLedgerEntry
+					{
+						TransactionNumber = transactionNumber,
+						TransactionDate = financialPeriod.EndDate,
+						AccountId = currentYearEarningsAccount.Id,
+						Description = $"Year-end closing: Transfer profit to Retained Earnings ({financialPeriod.PeriodName})",
+						DebitAmount = currentYearEarningsBalance,
+						CreditAmount = 0,
+						ReferenceType = "YearEndClosing",
+						ReferenceId = financialPeriod.Id,
+						CreatedBy = createdBy ?? "System",
+						CreatedDate = DateTime.Now
+					});
+
+					// Credit Retained Earnings
+					entries.Add(new GeneralLedgerEntry
+					{
+						TransactionNumber = transactionNumber,
+						TransactionDate = financialPeriod.EndDate,
+						AccountId = retainedEarningsAccount.Id,
+						Description = $"Year-end closing: Net income transfer from {financialPeriod.PeriodName}",
+						DebitAmount = 0,
+						CreditAmount = currentYearEarningsBalance,
+						ReferenceType = "YearEndClosing",
+						ReferenceId = financialPeriod.Id,
+						CreatedBy = createdBy ?? "System",
+						CreatedDate = DateTime.Now
+					});
+				}
+				else // Loss - transfer debit balance
+				{
+					var lossAmount = Math.Abs(currentYearEarningsBalance);
+
+					// Credit Current Year Earnings to zero it out
+					entries.Add(new GeneralLedgerEntry
+					{
+						TransactionNumber = transactionNumber,
+						TransactionDate = financialPeriod.EndDate,
+						AccountId = currentYearEarningsAccount.Id,
+						Description = $"Year-end closing: Transfer loss to Retained Earnings ({financialPeriod.PeriodName})",
+						DebitAmount = 0,
+						CreditAmount = lossAmount,
+						ReferenceType = "YearEndClosing",
+						ReferenceId = financialPeriod.Id,
+						CreatedBy = createdBy ?? "System",
+						CreatedDate = DateTime.Now
+					});
+
+					// Debit Retained Earnings
+					entries.Add(new GeneralLedgerEntry
+					{
+						TransactionNumber = transactionNumber,
+						TransactionDate = financialPeriod.EndDate,
+						AccountId = retainedEarningsAccount.Id,
+						Description = $"Year-end closing: Net loss transfer from {financialPeriod.PeriodName}",
+						DebitAmount = lossAmount,
+						CreditAmount = 0,
+						ReferenceType = "YearEndClosing",
+						ReferenceId = financialPeriod.Id,
+						CreatedBy = createdBy ?? "System",
+						CreatedDate = DateTime.Now
+					});
+				}
+			}
+
+			return entries;
+		}
+
+		public async Task<decimal> CalculateNetIncomeAsync(DateTime startDate, DateTime endDate)
+		{
+			// Get revenue total
+			var revenueAccounts = await _context.Accounts
+					.Where(a => a.AccountType == AccountType.Revenue && a.IsActive)
+					.ToListAsync();
+
+			decimal totalRevenue = 0;
+			foreach (var account in revenueAccounts)
+			{
+				totalRevenue += await GetAccountBalanceForPeriodAsync(account.AccountCode, startDate, endDate);
+			}
+
+			// Get expense total
+			var expenseAccounts = await _context.Accounts
+					.Where(a => a.AccountType == AccountType.Expense && a.IsActive)
+					.ToListAsync();
+
+			decimal totalExpenses = 0;
+			foreach (var account in expenseAccounts)
+			{
+				totalExpenses += await GetAccountBalanceForPeriodAsync(account.AccountCode, startDate, endDate);
+			}
+
+			return totalRevenue - totalExpenses;
+		}
+
+		public async Task<YearEndValidationResult> ValidateYearEndClosingAsync(FinancialPeriod financialPeriod)
+		{
+			var result = new YearEndValidationResult { IsValid = true };
+
+			try
+			{
+				// Check if period is already closed
+				if (financialPeriod.IsClosed)
+				{
+					result.Errors.Add("Financial period is already closed");
+					result.IsValid = false;
+				}
+
+				// Check if required accounts exist
+				var currentYearEarnings = await GetAccountByCodeAsync("3200");
+				var retainedEarnings = await GetAccountByCodeAsync("3100");
+
+				if (currentYearEarnings == null)
+				{
+					result.Errors.Add("Current Year Earnings account (3200) not found");
+					result.IsValid = false;
+				}
+
+				if (retainedEarnings == null)
+				{
+					result.Errors.Add("Retained Earnings account (3100) not found");
+					result.IsValid = false;
+				}
+
+				// Check trial balance
+				var ledgerEntries = await GetAllLedgerEntriesAsync(financialPeriod.StartDate, financialPeriod.EndDate);
+				result.TotalDebits = ledgerEntries.Sum(e => e.DebitAmount);
+				result.TotalCredits = ledgerEntries.Sum(e => e.CreditAmount);
+				result.TrialBalanceIsBalanced = Math.Abs(result.TotalDebits - result.TotalCredits) < 0.01m;
+
+				if (!result.TrialBalanceIsBalanced)
+				{
+					result.Errors.Add($"Trial balance is not balanced. Debits: {result.TotalDebits:C}, Credits: {result.TotalCredits:C}");
+					result.IsValid = false;
+				}
+
+				// Calculate net income
+				result.NetIncome = await CalculateNetIncomeAsync(financialPeriod.StartDate, financialPeriod.EndDate);
+
+				// Check for pending transactions (warnings)
+				var endOfPeriod = financialPeriod.EndDate.Date.AddDays(1).AddSeconds(-1);
+				var futureTransactions = await _context.GeneralLedgerEntries
+						.Where(e => e.TransactionDate > endOfPeriod)
+						.CountAsync();
+
+				if (futureTransactions > 0)
+				{
+					result.Warnings.Add($"There are {futureTransactions} transactions dated after the period end");
+				}
+
+			}
+			catch (Exception ex)
+			{
+				result.Errors.Add($"Validation error: {ex.Message}");
+				result.IsValid = false;
+			}
+
+			return result;
+		}
+
+		public async Task<YearEndClosingSummary> GetYearEndClosingSummaryAsync(FinancialPeriod financialPeriod)
+		{
+			var summary = new YearEndClosingSummary();
+
+			// Get revenue accounts and balances
+			var revenueAccounts = await _context.Accounts
+					.Where(a => a.AccountType == AccountType.Revenue && a.IsActive)
+					.ToListAsync();
+
+			foreach (var account in revenueAccounts)
+			{
+				var balance = await GetAccountBalanceAsync(account.AccountCode, financialPeriod.EndDate);
+				if (balance > 0.01m)
+				{
+					summary.RevenueAccounts.Add(new AccountClosingSummary
+					{
+						AccountCode = account.AccountCode,
+						AccountName = account.AccountName,
+						Balance = balance
+					});
+					summary.TotalRevenue += balance;
+				}
+			}
+
+			// Get expense accounts and balances
+			var expenseAccounts = await _context.Accounts
+					.Where(a => a.AccountType == AccountType.Expense && a.IsActive)
+					.ToListAsync();
+
+			foreach (var account in expenseAccounts)
+			{
+				var balance = await GetAccountBalanceAsync(account.AccountCode, financialPeriod.EndDate);
+				if (balance > 0.01m)
+				{
+					summary.ExpenseAccounts.Add(new AccountClosingSummary
+					{
+						AccountCode = account.AccountCode,
+						AccountName = account.AccountName,
+						Balance = balance
+					});
+					summary.TotalExpenses += balance;
+				}
+			}
+
+			// Calculate net income
+			summary.NetIncome = summary.TotalRevenue - summary.TotalExpenses;
+
+			// Get current account balances
+			summary.CurrentYearEarningsBalance = await GetAccountBalanceAsync("3200", financialPeriod.EndDate);
+			summary.RetainedEarningsBalanceBefore = await GetAccountBalanceAsync("3100", financialPeriod.EndDate);
+			summary.RetainedEarningsBalanceAfter = summary.RetainedEarningsBalanceBefore + summary.NetIncome;
+
+			return summary;
+		}
+
+		// Helper method to get account balance for a specific period
+		private async Task<decimal> GetAccountBalanceForPeriodAsync(string accountCode, DateTime startDate, DateTime endDate)
+		{
+			var entries = await GetAccountLedgerEntriesAsync(accountCode, startDate, endDate);
+			return entries.Sum(e => e.DebitAmount - e.CreditAmount);
+		}
+
+		// Add these methods to your existing AccountingService class
+
+		// ============= ENHANCED CASH FLOW ANALYSIS METHODS =============
+
+		public async Task<EnhancedCashFlowAnalysisViewModel> GetEnhancedCashFlowAnalysisAsync(DateTime startDate, DateTime endDate, bool includePriorPeriod = true)
+		{
+			try
+			{
+				var currentPeriod = await GetCashFlowStatementAsync(startDate, endDate);
+
+				var analysis = new EnhancedCashFlowAnalysisViewModel
+				{
+					CurrentPeriod = currentPeriod
+				};
+
+				// Get prior period for comparison if requested
+				if (includePriorPeriod)
+				{
+					var periodLength = endDate - startDate;
+					var priorStartDate = startDate.Subtract(periodLength);
+					var priorEndDate = startDate.AddDays(-1);
+
+					analysis.PriorPeriod = await GetCashFlowStatementAsync(priorStartDate, priorEndDate);
+				}
+
+				// Calculate working capital analysis
+				analysis.WorkingCapitalAnalysis = await GetWorkingCapitalAnalysisAsync(startDate, endDate);
+
+				// Calculate free cash flow
+				analysis.FreeCashFlow = await GetFreeCashFlowAnalysisAsync(startDate, endDate);
+
+				// Calculate cash efficiency metrics
+				await CalculateCashEfficiencyMetrics(analysis, startDate, endDate);
+
+				// Get cash flow ratios
+				analysis.CashFlowRatios = await CalculateCashFlowRatios(analysis.CurrentPeriod);
+
+				// Get monthly trends
+				analysis.MonthlyTrends = await GetMonthlyCashFlowTrendsAsync(12);
+
+				return analysis;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting enhanced cash flow analysis");
+				return new EnhancedCashFlowAnalysisViewModel();
+			}
+		}
+
+		public async Task<CashFlowProjectionViewModel> GetCashFlowProjectionsAsync(int projectionMonths = 12)
+		{
+			try
+			{
+				var projection = new CashFlowProjectionViewModel();
+
+				// Get historical data for pattern analysis
+				var historicalData = await GetMonthlyCashFlowTrendsAsync(12);
+
+				// Simple projection based on averages (can be enhanced with more sophisticated algorithms)
+				var avgOperatingCashFlow = historicalData.Any() ? historicalData.Average(h => h.OperatingCashFlow) : 0;
+				var avgInvestingCashFlow = historicalData.Any() ? historicalData.Average(h => h.InvestingCashFlow) : 0;
+				var avgFinancingCashFlow = historicalData.Any() ? historicalData.Average(h => h.FinancingCashFlow) : 0;
+
+				var currentCashBalance = await GetAccountBalanceAsync("1000");
+
+				for (int i = 1; i <= projectionMonths; i++)
+				{
+					var projectionMonth = DateTime.Today.AddMonths(i);
+
+					projection.Projections.Add(new MonthlyProjection
+					{
+						Month = projectionMonth,
+						ProjectedOperatingCashFlow = avgOperatingCashFlow,
+						ProjectedInvestingCashFlow = avgInvestingCashFlow,
+						ProjectedFinancingCashFlow = avgFinancingCashFlow,
+						ProjectedNetCashFlow = avgOperatingCashFlow + avgInvestingCashFlow + avgFinancingCashFlow,
+						ProjectedCashBalance = currentCashBalance + (avgOperatingCashFlow + avgInvestingCashFlow + avgFinancingCashFlow) * i,
+						ConfidenceLevel = Math.Max(30, 90 - (i * 5)) // Decreasing confidence over time
+					});
+				}
+
+				// Create scenarios
+				projection.OptimisticScenario = CreateProjectionScenario("Optimistic", projection.Projections, 1.2m);
+				projection.MostLikelyScenario = CreateProjectionScenario("Most Likely", projection.Projections, 1.0m);
+				projection.PessimisticScenario = CreateProjectionScenario("Pessimistic", projection.Projections, 0.8m);
+
+				return projection;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting cash flow projections");
+				return new CashFlowProjectionViewModel();
+			}
+		}
+
+		public async Task<WorkingCapitalAnalysisViewModel> GetWorkingCapitalAnalysisAsync(DateTime startDate, DateTime endDate)
+		{
+			try
+			{
+				var analysis = new WorkingCapitalAnalysisViewModel();
+
+				// Get current working capital components
+				var currentAR = await GetAccountBalanceAsync("1100", endDate);
+				var currentInventory = await GetAccountBalanceAsync("1220", endDate);
+				var currentAP = await GetAccountBalanceAsync("2000", endDate);
+				var currentAccruedLiabilities = await GetAccountBalanceAsync("2100", endDate);
+
+				analysis.CurrentWorkingCapital = currentAR + currentInventory - currentAP - currentAccruedLiabilities;
+
+				// Get prior period working capital
+				var priorAR = await GetAccountBalanceAsync("1100", startDate.AddDays(-1));
+				var priorInventory = await GetAccountBalanceAsync("1220", startDate.AddDays(-1));
+				var priorAP = await GetAccountBalanceAsync("2000", startDate.AddDays(-1));
+				var priorAccruedLiabilities = await GetAccountBalanceAsync("2100", startDate.AddDays(-1));
+
+				analysis.PriorWorkingCapital = priorAR + priorInventory - priorAP - priorAccruedLiabilities;
+
+				// Calculate changes
+				analysis.AccountsReceivableChange = currentAR - priorAR;
+				analysis.InventoryChange = currentInventory - priorInventory;
+				analysis.AccountsPayableChange = currentAP - priorAP;
+				analysis.AccruedLiabilitiesChange = currentAccruedLiabilities - priorAccruedLiabilities;
+
+				// Calculate efficiency ratios
+				var sales = await GetRevenueForPeriod(startDate, endDate);
+				analysis.WorkingCapitalTurnover = sales > 0 ? sales / Math.Max(analysis.CurrentWorkingCapital, 1) : 0;
+				analysis.WorkingCapitalToSalesRatio = sales > 0 ? analysis.CurrentWorkingCapital / sales : 0;
+
+				// Create component analysis
+				analysis.Components = new List<WorkingCapitalComponent>
+				{
+						new WorkingCapitalComponent
+						{
+								ComponentName = "Accounts Receivable",
+								BeginningBalance = priorAR,
+								EndingBalance = currentAR,
+								ComponentType = "Asset",
+								IsImprovement = currentAR < priorAR // Lower A/R is generally better for cash flow
+            },
+						new WorkingCapitalComponent
+						{
+								ComponentName = "Inventory",
+								BeginningBalance = priorInventory,
+								EndingBalance = currentInventory,
+								ComponentType = "Asset",
+								IsImprovement = currentInventory < priorInventory // Lower inventory is generally better for cash flow
+            },
+						new WorkingCapitalComponent
+						{
+								ComponentName = "Accounts Payable",
+								BeginningBalance = priorAP,
+								EndingBalance = currentAP,
+								ComponentType = "Liability",
+								IsImprovement = currentAP > priorAP // Higher A/P is generally better for cash flow
+            }
+				};
+
+				return analysis;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting working capital analysis");
+				return new WorkingCapitalAnalysisViewModel();
+			}
+		}
+
+		public async Task<CustomerCashFlowAnalysisViewModel> GetCustomerCashFlowAnalysisAsync(DateTime startDate, DateTime endDate)
+		{
+			try
+			{
+				var analysis = new CustomerCashFlowAnalysisViewModel();
+
+				// Get customer payment data
+				var customerPayments = await _context.CustomerPayments
+						.Include(p => p.Sale)
+						.ThenInclude(s => s!.Customer)
+						.Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate)
+						.ToListAsync();
+
+				var customerGroups = customerPayments
+						.Where(p => p.Sale?.Customer != null)
+						.GroupBy(p => p.Sale!.Customer!)
+						.ToList();
+
+				foreach (var group in customerGroups)
+				{
+					var customer = group.Key;
+					var payments = group.ToList();
+
+					var totalCollections = payments.Sum(p => p.Amount);
+					var avgCollectionDays = await CalculateAverageCollectionDays(customer.Id, startDate, endDate);
+					var collectionEfficiency = await CalculateCollectionEfficiency(customer.Id, startDate, endDate);
+
+					analysis.CustomerCashFlows.Add(new CustomerCashFlow
+					{
+						CustomerId = customer.Id,
+						CustomerName = customer.CustomerName,
+						NetCashFlow = totalCollections,
+						Collections = totalCollections,
+						AverageCollectionDays = avgCollectionDays,
+						CollectionEfficiency = collectionEfficiency,
+						OutstandingBalance = customer.OutstandingBalance,
+						CreditLimit = customer.CreditLimit,
+						LastPaymentDate = payments.Max(p => p.PaymentDate),
+						PaymentTrend = DeterminePaymentTrend(payments)
+					});
+				}
+
+				analysis.TotalCollections = analysis.CustomerCashFlows.Sum(c => c.Collections);
+				analysis.AverageCollectionPeriod = analysis.CustomerCashFlows.Any()
+						? analysis.CustomerCashFlows.Average(c => c.AverageCollectionDays) : 0;
+				analysis.CollectionEfficiency = analysis.CustomerCashFlows.Any()
+						? analysis.CustomerCashFlows.Average(c => c.CollectionEfficiency) : 0;
+
+				return analysis;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting customer cash flow analysis");
+				return new CustomerCashFlowAnalysisViewModel();
+			}
+		}
+
+		public async Task<FreeCashFlowAnalysisViewModel> GetFreeCashFlowAnalysisAsync(DateTime startDate, DateTime endDate)
+		{
+			try
+			{
+				var analysis = new FreeCashFlowAnalysisViewModel();
+
+				// Get operating cash flow from the cash flow statement
+				var cashFlowStatement = await GetCashFlowStatementAsync(startDate, endDate);
+				analysis.OperatingCashFlow = cashFlowStatement.NetCashFromOperations;
+
+				// Calculate capital expenditures from investing activities
+				var capitalExpenditures = await GetCapitalExpenditures(startDate, endDate);
+				analysis.TotalCapitalExpenditures = capitalExpenditures.Sum(c => c.Amount);
+				analysis.CapitalExpenditureDetails = capitalExpenditures;
+
+				// Calculate ratios
+				var revenue = await GetRevenueForPeriod(startDate, endDate);
+				analysis.FreeCashFlowMargin = revenue > 0 ? (analysis.FreeCashFlow / revenue) * 100 : 0;
+				analysis.FreeCashFlowYield = analysis.FreeCashFlow > 0 ? (analysis.FreeCashFlow / Math.Max(revenue, 1)) * 100 : 0;
+
+				// Calculate adequacy ratio (simplified)
+				analysis.CashFlowAdequacyRatio = analysis.FreeCashFlow / Math.Max(analysis.TotalCapitalExpenditures, 1);
+
+				return analysis;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting free cash flow analysis");
+				return new FreeCashFlowAnalysisViewModel();
+			}
+		}
+
+		public async Task<List<MonthlyCashFlowTrend>> GetMonthlyCashFlowTrendsAsync(int months = 12)
+		{
+			try
+			{
+				var trends = new List<MonthlyCashFlowTrend>();
+				var endDate = DateTime.Today;
+
+				for (int i = months - 1; i >= 0; i--)
+				{
+					var monthStart = new DateTime(endDate.Year, endDate.Month, 1).AddMonths(-i);
+					var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+					var monthlyEntries = await GetAllLedgerEntriesAsync(monthStart, monthEnd);
+
+					var operatingCashFlow = await CalculateOperatingCashFlowForPeriod(monthStart, monthEnd);
+					var investingCashFlow = await CalculateInvestingCashFlowForPeriod(monthStart, monthEnd);
+					var financingCashFlow = await CalculateFinancingCashFlowForPeriod(monthStart, monthEnd);
+
+					var trend = new MonthlyCashFlowTrend
+					{
+						Month = monthStart,
+						OperatingCashFlow = operatingCashFlow,
+						InvestingCashFlow = investingCashFlow,
+						FinancingCashFlow = financingCashFlow,
+						NetCashFlow = operatingCashFlow + investingCashFlow + financingCashFlow,
+						EndingCashBalance = await GetAccountBalanceAsync("1000", monthEnd)
+					};
+
+					// Calculate growth rate
+					if (trends.Any())
+					{
+						var previousTrend = trends.Last();
+						trend.CashFlowGrowthRate = previousTrend.NetCashFlow != 0
+								? ((trend.NetCashFlow - previousTrend.NetCashFlow) / Math.Abs(previousTrend.NetCashFlow)) * 100
+								: 0;
+					}
+
+					trends.Add(trend);
+				}
+
+				return trends;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting monthly cash flow trends");
+				return new List<MonthlyCashFlowTrend>();
+			}
+		}
+
+		// ============= HELPER METHODS FOR ENHANCED CASH FLOW ANALYSIS =============
+
+		private async Task CalculateCashEfficiencyMetrics(EnhancedCashFlowAnalysisViewModel analysis, DateTime startDate, DateTime endDate)
+		{
+			// Calculate Days in Accounts Receivable
+			var avgAR = (await GetAccountBalanceAsync("1100", startDate) + await GetAccountBalanceAsync("1100", endDate)) / 2;
+			var revenue = await GetRevenueForPeriod(startDate, endDate);
+			var days = (endDate - startDate).Days;
+
+			analysis.DaysInAccountsReceivable = revenue > 0 ? (avgAR / revenue) * days : 0;
+
+			// Calculate Days in Inventory
+			var avgInventory = (await GetAccountBalanceAsync("1220", startDate) + await GetAccountBalanceAsync("1220", endDate)) / 2;
+			var cogs = await GetCOGSForPeriod(startDate, endDate);
+
+			analysis.DaysInInventory = cogs > 0 ? (avgInventory / cogs) * days : 0;
+
+			// Calculate Days in Accounts Payable
+			var avgAP = (await GetAccountBalanceAsync("2000", startDate) + await GetAccountBalanceAsync("2000", endDate)) / 2;
+
+			analysis.DaysInAccountsPayable = cogs > 0 ? (avgAP / cogs) * days : 0;
+
+			// Calculate Cash Conversion Cycle
+			analysis.CashConversionCycle = analysis.DaysInAccountsReceivable + analysis.DaysInInventory - analysis.DaysInAccountsPayable;
+		}
+
+		private async Task<List<CashFlowRatio>> CalculateCashFlowRatios(CashFlowStatementViewModel cashFlow)
+		{
+			var ratios = new List<CashFlowRatio>();
+
+			// Operating Cash Flow Ratio
+			ratios.Add(new CashFlowRatio
+			{
+				RatioName = "Operating Cash Flow Ratio",
+				Value = cashFlow.NetIncome != 0 ? cashFlow.NetCashFromOperations / cashFlow.NetIncome : 0,
+				FormattedValue = $"{(cashFlow.NetIncome != 0 ? cashFlow.NetCashFromOperations / cashFlow.NetIncome : 0):F2}",
+				Interpretation = "Measures quality of earnings",
+				Benchmark = cashFlow.NetIncome != 0 && cashFlow.NetCashFromOperations / cashFlow.NetIncome > 1 ? RatioBenchmark.Good : RatioBenchmark.Average
+			});
+
+			// Cash Flow Margin
+			var revenue = await GetRevenueForPeriod(cashFlow.StartDate, cashFlow.EndDate);
+			var cashFlowMargin = revenue > 0 ? (cashFlow.NetCashFromOperations / revenue) * 100 : 0;
+
+			ratios.Add(new CashFlowRatio
+			{
+				RatioName = "Cash Flow Margin",
+				Value = cashFlowMargin,
+				FormattedValue = $"{cashFlowMargin:F1}%",
+				Interpretation = "Operating cash flow as % of revenue",
+				Benchmark = cashFlowMargin > 15 ? RatioBenchmark.Excellent :
+										 cashFlowMargin > 10 ? RatioBenchmark.Good :
+										 cashFlowMargin > 5 ? RatioBenchmark.Average : RatioBenchmark.Poor
+			});
+
+			return ratios;
+		}
+
+		private ProjectionScenario CreateProjectionScenario(string scenarioName, List<MonthlyProjection> baseProjections, decimal multiplier)
+		{
+			var scenario = new ProjectionScenario
+			{
+				ScenarioName = scenarioName,
+				ProbabilityPercent = scenarioName switch
+				{
+					"Optimistic" => 20,
+					"Most Likely" => 60,
+					"Pessimistic" => 20,
+					_ => 33
+				}
+			};
+
+			scenario.Projections = baseProjections.Select(p => new MonthlyProjection
+			{
+				Month = p.Month,
+				ProjectedOperatingCashFlow = p.ProjectedOperatingCashFlow * multiplier,
+				ProjectedInvestingCashFlow = p.ProjectedInvestingCashFlow * multiplier,
+				ProjectedFinancingCashFlow = p.ProjectedFinancingCashFlow * multiplier,
+				ProjectedNetCashFlow = p.ProjectedNetCashFlow * multiplier,
+				ProjectedCashBalance = p.ProjectedCashBalance * multiplier,
+				ConfidenceLevel = p.ConfidenceLevel
+			}).ToList();
+
+			scenario.TotalProjectedCashFlow = scenario.Projections.Sum(p => p.ProjectedNetCashFlow);
+			scenario.MinimumCashBalance = scenario.Projections.Min(p => p.ProjectedCashBalance);
+
+			return scenario;
+		}
+
+		private async Task<decimal> GetRevenueForPeriod(DateTime startDate, DateTime endDate)
+		{
+			var revenueAccounts = await _context.Accounts
+					.Where(a => a.AccountType == AccountType.Revenue && a.IsActive)
+					.ToListAsync();
+
+			decimal totalRevenue = 0;
+			foreach (var account in revenueAccounts)
+			{
+				var entries = await GetAccountLedgerEntriesAsync(account.AccountCode, startDate, endDate);
+				totalRevenue += entries.Sum(e => e.CreditAmount - e.DebitAmount);
+			}
+
+			return totalRevenue;
+		}
+
+		private async Task<decimal> GetCOGSForPeriod(DateTime startDate, DateTime endDate)
+		{
+			var cogsAccount = await GetAccountByCodeAsync("5000");
+			if (cogsAccount == null) return 0;
+
+			var entries = await GetAccountLedgerEntriesAsync("5000", startDate, endDate);
+			return entries.Sum(e => e.DebitAmount - e.CreditAmount);
+		}
+
+		private async Task<List<CapitalExpenditureDetail>> GetCapitalExpenditures(DateTime startDate, DateTime endDate)
+		{
+			// This would typically look at fixed asset purchases
+			// For now, return empty list - you can enhance this based on your chart of accounts
+			return new List<CapitalExpenditureDetail>();
+		}
+
+		private async Task<decimal> CalculateOperatingCashFlowForPeriod(DateTime startDate, DateTime endDate)
+		{
+			// Simplified calculation - would need more sophisticated logic in production
+			var revenue = await GetRevenueForPeriod(startDate, endDate);
+			var expenses = await GetExpensesForPeriod(startDate, endDate);
+			return revenue - expenses;
+		}
+
+		private async Task<decimal> CalculateInvestingCashFlowForPeriod(DateTime startDate, DateTime endDate)
+		{
+			// Simplified - would analyze fixed asset purchases/sales
+			return 0;
+		}
+
+		private async Task<decimal> CalculateFinancingCashFlowForPeriod(DateTime startDate, DateTime endDate)
+		{
+			// Simplified - would analyze debt/equity transactions
+			return 0;
+		}
+
+		private async Task<decimal> GetExpensesForPeriod(DateTime startDate, DateTime endDate)
+		{
+			var expenseAccounts = await _context.Accounts
+					.Where(a => a.AccountType == AccountType.Expense && a.IsActive)
+					.ToListAsync();
+
+			decimal totalExpenses = 0;
+			foreach (var account in expenseAccounts)
+			{
+				var entries = await GetAccountLedgerEntriesAsync(account.AccountCode, startDate, endDate);
+				totalExpenses += entries.Sum(e => e.DebitAmount - e.CreditAmount);
+			}
+
+			return totalExpenses;
+		}
+
+		private async Task<decimal> CalculateAverageCollectionDays(int customerId, DateTime startDate, DateTime endDate)
+		{
+			// Simplified calculation - would need more sophisticated analysis
+			return 30; // Default to 30 days
+		}
+
+		private async Task<decimal> CalculateCollectionEfficiency(int customerId, DateTime startDate, DateTime endDate)
+		{
+			// Simplified calculation - would analyze payment patterns
+			return 85; // Default to 85%
+		}
+
+		private string DeterminePaymentTrend(List<CustomerPayment> payments)
+		{
+			if (payments.Count < 2) return "Insufficient Data";
+
+			var recent = payments.OrderByDescending(p => p.PaymentDate).Take(3).Sum(p => p.Amount);
+			var older = payments.OrderByDescending(p => p.PaymentDate).Skip(3).Take(3).Sum(p => p.Amount);
+
+			if (recent > older * 1.1m) return "Improving";
+			if (recent < older * 0.9m) return "Declining";
+			return "Stable";
+		}
 	}
 }

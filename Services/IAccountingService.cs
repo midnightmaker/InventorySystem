@@ -149,8 +149,148 @@ namespace InventorySystem.Services
 		/// <param name="accountCode">Account code to validate</param>
 		/// <returns>True if valid and active, false otherwise</returns>
 		Task<bool> IsValidRevenueAccountAsync(string? accountCode);
+
+		// ============= YEAR-END CLOSING METHODS =============
+
+		/// <summary>
+		/// Performs year-end closing by transferring revenue and expense balances to Current Year Earnings,
+		/// then transferring Current Year Earnings to Retained Earnings
+		/// </summary>
+		/// <param name="financialPeriod">The financial period to close</param>
+		/// <param name="closingNotes">Notes about the closing process</param>
+		/// <param name="createdBy">User performing the closing</param>
+		/// <returns>True if successful, false otherwise</returns>
+		Task<bool> PerformYearEndClosingAsync(FinancialPeriod financialPeriod, string closingNotes, string? createdBy = null);
+
+		/// <summary>
+		/// Creates year-end closing entries to transfer revenue accounts to Current Year Earnings
+		/// </summary>
+		/// <param name="financialPeriod">The financial period being closed</param>
+		/// <param name="transactionNumber">The transaction number for the journal entry</param>
+		/// <param name="createdBy">User performing the closing</param>
+		/// <returns>List of created journal entries</returns>
+		Task<List<GeneralLedgerEntry>> CreateRevenueClosingEntriesAsync(FinancialPeriod financialPeriod, string transactionNumber, string? createdBy = null);
+
+		/// <summary>
+		/// Creates year-end closing entries to transfer expense accounts to Current Year Earnings
+		/// </summary>
+		/// <param name="financialPeriod">The financial period being closed</param>
+		/// <param name="transactionNumber">The transaction number for the journal entry</param>
+		/// <param name="createdBy">User performing the closing</param>
+		/// <returns>List of created journal entries</returns>
+		Task<List<GeneralLedgerEntry>> CreateExpenseClosingEntriesAsync(FinancialPeriod financialPeriod, string transactionNumber, string? createdBy = null);
+
+		/// <summary>
+		/// Creates final year-end closing entry to transfer Current Year Earnings to Retained Earnings
+		/// </summary>
+		/// <param name="financialPeriod">The financial period being closed</param>
+		/// <param name="transactionNumber">The transaction number for the journal entry</param>
+		/// <param name="createdBy">User performing the closing</param>
+		/// <returns>List of created journal entries</returns>
+		Task<List<GeneralLedgerEntry>> CreateRetainedEarningsTransferAsync(FinancialPeriod financialPeriod, string transactionNumber, string? createdBy = null);
+
+		/// <summary>
+		/// Calculates the net income for a financial period (Revenue - Expenses)
+		/// </summary>
+		/// <param name="startDate">Period start date</param>
+		/// <param name="endDate">Period end date</param>
+		/// <returns>Net income amount</returns>
+		Task<decimal> CalculateNetIncomeAsync(DateTime startDate, DateTime endDate);
+
+		/// <summary>
+		/// Validates that all accounts are ready for year-end closing
+		/// </summary>
+		/// <param name="financialPeriod">The financial period to validate</param>
+		/// <returns>Validation result with any errors</returns>
+		Task<YearEndValidationResult> ValidateYearEndClosingAsync(FinancialPeriod financialPeriod);
+
+		/// <summary>
+		/// Gets a summary of account balances that will be affected by year-end closing
+		/// </summary>
+		/// <param name="financialPeriod">The financial period being closed</param>
+		/// <returns>Summary of closing balances</returns>
+		Task<YearEndClosingSummary> GetYearEndClosingSummaryAsync(FinancialPeriod financialPeriod);
+
+		// ============= ENHANCED CASH FLOW ANALYSIS =============
+
+		/// <summary>
+		/// Gets detailed cash flow analysis with trends and projections
+		/// </summary>
+		/// <param name="startDate">Period start date</param>
+		/// <param name="endDate">Period end date</param>
+		/// <param name="includePriorPeriod">Include prior period for comparison</param>
+		/// <returns>Enhanced cash flow analysis</returns>
+		Task<EnhancedCashFlowAnalysisViewModel> GetEnhancedCashFlowAnalysisAsync(DateTime startDate, DateTime endDate, bool includePriorPeriod = true);
+
+		/// <summary>
+		/// Gets cash flow projections based on historical patterns
+		/// </summary>
+		/// <param name="projectionMonths">Number of months to project forward</param>
+		/// <returns>Cash flow projections</returns>
+		Task<CashFlowProjectionViewModel> GetCashFlowProjectionsAsync(int projectionMonths = 12);
+
+		/// <summary>
+		/// Gets working capital analysis and changes
+		/// </summary>
+		/// <param name="startDate">Period start date</param>
+		/// <param name="endDate">Period end date</param>
+		/// <returns>Working capital analysis</returns>
+		Task<WorkingCapitalAnalysisViewModel> GetWorkingCapitalAnalysisAsync(DateTime startDate, DateTime endDate);
+
+		/// <summary>
+		/// Gets cash flow by customer analysis for collections insight
+		/// </summary>
+		/// <param name="startDate">Period start date</param>
+		/// <param name="endDate">Period end date</param>
+		/// <returns>Customer cash flow analysis</returns>
+		Task<CustomerCashFlowAnalysisViewModel> GetCustomerCashFlowAnalysisAsync(DateTime startDate, DateTime endDate);
+
+		/// <summary>
+		/// Gets free cash flow calculation and analysis
+		/// </summary>
+		/// <param name="startDate">Period start date</param>
+		/// <param name="endDate">Period end date</param>
+		/// <returns>Free cash flow analysis</returns>
+		Task<FreeCashFlowAnalysisViewModel> GetFreeCashFlowAnalysisAsync(DateTime startDate, DateTime endDate);
+
+		/// <summary>
+		/// Gets monthly cash flow trend data for charting
+		/// </summary>
+		/// <param name="months">Number of months of historical data</param>
+		/// <returns>Monthly cash flow trends</returns>
+		Task<List<MonthlyCashFlowTrend>> GetMonthlyCashFlowTrendsAsync(int months = 12);
 	}
 
+	public class YearEndValidationResult
+	{
+		public bool IsValid { get; set; }
+		public List<string> Errors { get; set; } = new();
+		public List<string> Warnings { get; set; } = new();
+		public bool TrialBalanceIsBalanced { get; set; }
+		public decimal TotalDebits { get; set; }
+		public decimal TotalCredits { get; set; }
+		public decimal NetIncome { get; set; }
+	}
+
+	public class YearEndClosingSummary
+	{
+		public decimal TotalRevenue { get; set; }
+		public decimal TotalExpenses { get; set; }
+		public decimal NetIncome { get; set; }
+		public decimal CurrentYearEarningsBalance { get; set; }
+		public decimal RetainedEarningsBalanceBefore { get; set; }
+		public decimal RetainedEarningsBalanceAfter { get; set; }
+		public List<AccountClosingSummary> RevenueAccounts { get; set; } = new();
+		public List<AccountClosingSummary> ExpenseAccounts { get; set; } = new();
+	}
+
+	public class AccountClosingSummary
+	{
+		public string AccountCode { get; set; } = string.Empty;
+		public string AccountName { get; set; } = string.Empty;
+		public decimal Balance { get; set; }
+		public string FormattedBalance => Balance.ToString("C");
+	}
 	public class AccountValidationResult
 	{
 		public bool IsValid { get; set; }

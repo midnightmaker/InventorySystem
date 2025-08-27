@@ -10,11 +10,11 @@
   <link rel="stylesheet" href="~/css/confirmation-dialog.css" />
   @if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
   {
-      <link href="~/css/site.css?v=@DateTime.Now.Ticks" rel="stylesheet" />
+    <link href="~/css/site.css?v=@DateTime.Now.Ticks" rel="stylesheet" />
   }
   else
   {
-      <link href="~/css/site.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" />
   }
   @RenderSection("Styles", required: false)
 </head>
@@ -61,7 +61,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- All Items -->
                 <li>
                   <a class="dropdown-item" asp-controller="Items" asp-action="Index">
@@ -69,7 +69,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Item Management -->
                 <li>
                   <a class="dropdown-item" asp-controller="Items" asp-action="Create">
@@ -82,7 +82,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- ✅ NEW: Inventory Adjustments Section -->
                 <li>
                   <h6 class="dropdown-header">
@@ -95,7 +95,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Alerts & Monitoring -->
                 <li>
                   <h6 class="dropdown-header">
@@ -192,6 +192,12 @@
                     <i class="fas fa-chart-line"></i> Income Statement
                   </a>
                 </li>
+                <!-- ✅ ADD: Cash Flow Statement -->
+                <li>
+                  <a class="dropdown-item" href="/Accounting/CashFlowStatement">
+                    <i class="fas fa-water text-info"></i> Cash Flow Statement
+                  </a>
+                </li>
                 <li>
                   <a class="dropdown-item" href="/Accounting/AccountsPayable">
                     <i class="fas fa-credit-card"></i> Accounts Payable
@@ -206,7 +212,7 @@
                 </li>
               </ul>
             </li>
-           <!-- NEW: Expenses Management Dropdown -->
+            <!-- NEW: Expenses Management Dropdown -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-file-invoice-dollar"></i> Expenses
@@ -219,7 +225,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Expense Categories -->
                 <li>
                   <h6 class="dropdown-header">
@@ -252,7 +258,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Financial Reports -->
                 <li>
                   <h6 class="dropdown-header">
@@ -275,7 +281,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Expense Management -->
                 <li>
                   <h6 class="dropdown-header">
@@ -328,7 +334,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Project Status Views -->
                 <li>
                   <h6 class="dropdown-header">
@@ -356,7 +362,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Project Types -->
                 <li>
                   <h6 class="dropdown-header">
@@ -379,7 +385,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Reports & Analytics -->
                 <li>
                   <h6 class="dropdown-header">
@@ -442,37 +448,37 @@
                   </a>
                 </li>
                 <li>
-                <a class="dropdown-item" href="@Url.Action("Index", "Services")">
-                  <i class="fas fa-tachometer-alt"></i> Dashboard
-                </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="@Url.Action("ServiceOrders", "Services")">
-                <i class="fas fa-clipboard-list"></i> Service Orders
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="@Url.Action("Create", "Services")">
-                <i class="fas fa-plus-circle"></i> New Service Order
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="@Url.Action("Schedule", "Services")">
-                <i class="fas fa-calendar-alt"></i> Scheduling
-              </a>
-            </li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-              <a class="dropdown-item" href="@Url.Action("ServiceTypes", "Services")">
-                <i class="fas fa-cogs"></i> Service Types
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="@Url.Action("Reports", "Services")">
-                <i class="fas fa-chart-bar"></i> Reports
-              </a>
-            </li>
-          </ul>
+                  <a class="dropdown-item" href="@Url.Action("Index", "Services")">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="@Url.Action("ServiceOrders", "Services")">
+                    <i class="fas fa-clipboard-list"></i> Service Orders
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="@Url.Action("Create", "Services")">
+                    <i class="fas fa-plus-circle"></i> New Service Order
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="@Url.Action("Schedule", "Services")">
+                    <i class="fas fa-calendar-alt"></i> Scheduling
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="@Url.Action("ServiceTypes", "Services")">
+                    <i class="fas fa-cogs"></i> Service Types
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="@Url.Action("Reports", "Services")">
+                    <i class="fas fa-chart-bar"></i> Reports
+                  </a>
+                </li>
+              </ul>
             </li>
 
             <!-- BOMs Dropdown -->
@@ -578,7 +584,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Payment Recording & History Section -->
                 <li>
                   <h6 class="dropdown-header">
@@ -591,7 +597,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                
+
                 <!-- Reports & Analytics -->
                 <li>
                   <h6 class="dropdown-header">
@@ -725,7 +731,7 @@
               </ul>
             </li>
           </ul>
-         
+
 
           <!-- Right side navbar items -->
           <ul class="navbar-nav ms-auto">
@@ -865,7 +871,7 @@
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-  
+
   <!-- Embedded Loading Indicator System (inline for reliability) -->
   <script>
     // ===== EMBEDDED LOADING INDICATOR SYSTEM =====
@@ -920,7 +926,7 @@
                         opacity: 0;
                         transition: opacity 0.2s ease-in-out;
                     }
-                    
+
                     #globalLoadingOverlay.show {
                         opacity: 1;
                     }
@@ -980,7 +986,7 @@
                     }
                 </style>
             `;
-            
+
             document.head.insertAdjacentHTML('beforeend', styles);
         },
 
@@ -993,27 +999,27 @@
             if (this.isShowing) return;
 
             clearTimeout(this.timeoutId);
-            
-            // Use immediate mode or default delay  
+
+            // Use immediate mode or default delay
             const delay = immediate ? 0 : this.showDelay;
-            
+
             this.timeoutId = setTimeout(() => {
                 const overlay = document.getElementById('globalLoadingOverlay');
                 if (!overlay) return;
 
                 const textElement = overlay.querySelector('.loading-text');
                 const subtextElement = overlay.querySelector('.loading-subtext');
-                
+
                 if (textElement) textElement.textContent = message;
                 if (subtextElement) subtextElement.textContent = subtext;
-                
+
                 overlay.style.display = 'block';
                 document.body.classList.add('loading');
-                
+
                 requestAnimationFrame(() => {
                     overlay.classList.add('show');
                 });
-                
+
                 this.isShowing = true;
                 console.log('🔄 Loading indicator displayed:', message);
             }, delay);
@@ -1021,7 +1027,7 @@
 
         hide: function(force = false) {
             clearTimeout(this.timeoutId);
-            
+
             if (!this.isShowing) return;
 
             // Add protection against hiding too early during navigation
@@ -1038,7 +1044,7 @@
                 this.isShowing = false;
                 return;
             }
-            
+
             // Add immediate cleanup for forced hide (like validation errors)
             if (force) {
                 overlay.classList.remove('show');
@@ -1048,11 +1054,11 @@
                 console.log('✅ Loading indicator force hidden immediately');
                 return;
             }
-            
+
             setTimeout(() => {
                 overlay.classList.remove('show');
                 document.body.classList.remove('loading');
-                
+
                 setTimeout(() => {
                     overlay.style.display = 'none';
                     this.isShowing = false;
@@ -1063,7 +1069,7 @@
 
         setupNavigationListeners: function() {
             console.log('🔧 Setting up navigation listeners...');
-            
+
             // Navigation links - using event delegation for better performance
             document.addEventListener('click', (e) => {
                 const link = e.target.closest('a[href]');
@@ -1071,10 +1077,10 @@
 
                 const href = link.getAttribute('href');
                 console.log('🔗 Link clicked:', href, 'Element:', link);
-                
-                if (!href || 
-                    href.startsWith('#') || 
-                    href.startsWith('mailto:') || 
+
+                if (!href ||
+                    href.startsWith('#') ||
+                    href.startsWith('mailto:') ||
                     href.startsWith('tel:') ||
                     href.includes('download') ||
                     href.includes('javascript:') ||
@@ -1088,9 +1094,32 @@
                 // Enhanced message detection with specific RecordPayments handling
                 let message = 'Loading...';
                 let subtext = 'Please wait';
-                
-                // Check for specific Details pages first
-                if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
+                // ✅ ADD: Cash Flow Statement handling
+            if (href.includes('/CashFlowStatement')) {
+                operation = 'loading-cash-flow-statement';
+            }
+            // Check for RecordPayments specifically
+            else if (href.includes('/RecordPayments') || href.includes('/RecordPayment')) {
+                operation = 'loading-payment-recording';
+            }
+            // ✅ ADD: Other Accounting reports
+            else if (href.includes('/TrialBalance')) {
+                operation = 'loading-trial-balance';
+            }
+            else if (href.includes('/BalanceSheet')) {
+                operation = 'loading-balance-sheet';
+            }
+            else if (href.includes('/IncomeStatement')) {
+                operation = 'loading-income-statement';
+            }
+            else if (href.includes('/GeneralLedger')) {
+                operation = 'loading-general-ledger';
+            }
+            else if (href.includes('/ChartOfAccounts')) {
+                operation = 'loading-chart-of-accounts';
+            }
+                // Check for specific Details pages
+                else if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
                     if (href.includes('/Items/Details/') || href.match(/\/Items\/\d+$/)) {
                         message = 'Loading Item Details...';
                         subtext = 'Retrieving complete item information';
@@ -1280,6 +1309,15 @@
 
         showForOperation: function(operation, immediate = true) {
             const messages = {
+              // ✅ ADD: Accounting-specific loading messages
+                'loading-cash-flow-statement': { text: 'Loading Cash Flow Statement...', subtext: 'Generating comprehensive cash flow analysis and trends' },
+                'loading-trial-balance': { text: 'Loading Trial Balance...', subtext: 'Calculating account balances and verifying accuracy' },
+                'loading-balance-sheet': { text: 'Loading Balance Sheet...', subtext: 'Generating financial position statement' },
+                'loading-income-statement': { text: 'Loading Income Statement...', subtext: 'Calculating revenue, expenses, and profitability' },
+                'loading-general-ledger': { text: 'Loading General Ledger...', subtext: 'Retrieving detailed transaction history' },
+                'loading-chart-of-accounts': { text: 'Loading Chart of Accounts...', subtext: 'Retrieving account structure and balances' },
+                'loading-accounting': { text: 'Loading Accounting...', subtext: 'Retrieving financial data and reports' },
+
                 // General section loading
                 'loading-bom': { text: 'Loading BOM...', subtext: 'Retrieving Bill of Materials data' },
                 'loading-items': { text: 'Loading Items...', subtext: 'Retrieving inventory data' },
@@ -1290,7 +1328,7 @@
                 'loading-dashboard': { text: 'Loading Dashboard...', subtext: 'Retrieving dashboard data' },
                 'loading-purchases': { text: 'Loading Purchases...', subtext: 'Retrieving purchase data' },
                 'loading-expenses': { text: 'Loading Expenses...', subtext: 'Retrieving expense data' },
-                
+
                 // Specific Details pages
                 'loading-item-details': { text: 'Loading Item Details...', subtext: 'Retrieving complete item information' },
                 'loading-vendor-details': { text: 'Loading Vendor Details...', subtext: 'Retrieving vendor information and relationships' },
@@ -1300,14 +1338,14 @@
                 'loading-bom-details': { text: 'Loading BOM Details...', subtext: 'Retrieving Bill of Materials structure' },
                 'loading-purchase-details': { text: 'Loading Purchase Order Details...', subtext: 'Retrieving purchase order information' },
                 'loading-expense-details': { text: 'Loading Expense Details...', subtext: 'Retrieving expense information and payment history' },
-                
+
                 // Specific actions
                 'loading-editor': { text: 'Loading Editor...', subtext: 'Preparing form for editing' },
                 'loading-creator': { text: 'Loading Creator...', subtext: 'Preparing new item form' },
                 'loading-reports': { text: 'Loading Reports...', subtext: 'Generating analytics and reports' },
                 'loading-visualizer': { text: 'Loading Visualizer...', subtext: 'Generating interactive diagrams' },
                 'loading-payment-recording': { text: 'Loading Payment Recording...', subtext: 'Preparing expense payment form with document upload' },
-                
+
                 // Process operations
                 'generating-report': { text: 'Generating Report...', subtext: 'Processing data and calculations' },
                 'uploading': { text: 'Uploading...', subtext: 'Transferring files to server' },
@@ -1341,400 +1379,400 @@
     // Make globally available immediately
     window.LoadingIndicator = LoadingIndicator;
   </script>
-  
+
   <!-- Try to load site.js but don't depend on it -->
   <script src="~/js/site.js" asp-append-version="true" onerror="console.log('site.js failed to load, using embedded LoadingIndicator')"></script>
 
   <!-- Global workflow JavaScript -->
   <script>
-    // Global notification system
-    function showNotification(message, type = 'info') {
-        const alertContainer = document.getElementById('alertContainer');
-        const alertId = 'alert-' + Date.now();
+        // Global notification system
+        function showNotification(message, type = 'info') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertId = 'alert-' + Date.now();
 
-        const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${alertId}">
-                <i class="fas fa-${getIconForType(type)}"></i> ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${alertId}">
+                    <i class="fas fa-${getIconForType(type)}"></i> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
 
-        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+            alertContainer.insertAdjacentHTML('beforeend', alertHtml);
 
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            const alert = document.getElementById(alertId);
-            if (alert) {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            }
-        }, 5000);
-    }
-
-    function getIconForType(type) {
-        switch(type) {
-            case 'success': return 'check-circle';
-            case 'danger': return 'exclamation-triangle';
-            case 'warning': return 'exclamation-circle';
-            case 'info': return 'info-circle';
-            default: return 'info-circle';
-        }
-    }
-
-    // Placeholder notification function
-    function showNotifications() {
-        showNotification('Notification system coming soon!', 'info');
-    }
-
-    // System info modal
-    function showSystemInfo() {
-        alert('Inventory Management System v2.0\nWith Advanced Workflow Management\n\nFeatures:\n• Real-time WIP Dashboard\n• Kanban Board\n• Production Workflow\n• Quality Control\n• Employee Assignment');
-    }
-
-    // Check for workflow updates every 30 seconds
-    setInterval(function() {
-        if (window.location.pathname.includes('WipDashboard') ||
-            window.location.pathname.includes('Production')) {
-            // Refresh workflow data if on relevant pages
-            // This would call an API endpoint to check for updates
-        }
-    }, 30000);
-
-    // Highlight active navigation item
-    document.addEventListener('DOMContentLoaded', function() {
-        const currentPath = window.location.pathname;
-        const navLinks = document.querySelectorAll('.navbar-nav .nav-link, .dropdown-item');
-
-        navLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            if (href && currentPath.includes(href) && href !== '/') {
-                link.classList.add('active');
-                // Also highlight parent dropdown if it's a dropdown item
-                const dropdown = link.closest('.dropdown');
-                if (dropdown) {
-                    dropdown.querySelector('.nav-link').classList.add('active');
-                }
-            }
-        });
-
-        // Enhanced navigation with loading indicators
-        setupEnhancedNavigation();
-
-        // Global validation error detection and cleanup (run after a short delay to ensure DOM is fully loaded)
-        setTimeout(() => {
-            checkForValidationErrorsAndCleanup();
-        }, 250);
-    });
-    // Enhanced Navigation Setup
-    function setupEnhancedNavigation() {
-        console.log('🔧 Setting up enhanced navigation...');
-        
-        // Add loading indicators for specific page types
-        const navLinks = document.querySelectorAll('.navbar-nav a[href], .dropdown-item[href]');
-        console.log(`🔧 Found ${navLinks.length} navigation links`);
-        
-        navLinks.forEach((link, index) => {
-            const href = link.getAttribute('href');
-            
-            link.addEventListener('click', function(e) {
-                const href = this.getAttribute('href');
-                
-                // Skip if it's not a navigation link
-                if (!href || href.startsWith('#') || href.startsWith('mailto:') || this.target === '_blank') {
-                    console.log('⏭️ Enhanced nav: Skipping link:', href);
-                    return;
-                }
-
-                console.log('🔧 Enhanced navigation click:', href);
-
-                // Determine the operation type for custom loading messages
-                let operation = 'loading';
-                
-                // Check for RecordPayments specifically
-                if (href.includes('/RecordPayments') || href.includes('/RecordPayment')) {
-                    operation = 'loading-payment-recording';
-                }
-                // Check for specific Details pages first
-                else if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
-                    if (href.includes('/Items/Details/') || href.match(/\/Items\/\d+$/)) {
-                        operation = 'loading-item-details';
-                    } else if (href.includes('/Vendors/Details/') || href.match(/\/Vendors\/\d+$/)) {
-                        operation = 'loading-vendor-details';
-                    } else if (href.includes('/Customers/Details/') || href.match(/\/Customers\/\d+$/)) {
-                        operation = 'loading-customer-details';
-                    } else if (href.includes('/Sales/Details/') || href.match(/\/Sales\/\d+$/)) {
-                        operation = 'loading-sale-details';
-                    } else if (href.includes('/Production/Details/') || href.match(/\/Production\/\d+$/)) {
-                        operation = 'loading-production-details';
-                    } else if (href.includes('/Boms/Details/') || href.match(/\/Boms\/\d+$/)) {
-                        operation = 'loading-bom-details';
-                    } else if (href.includes('/Purchases/Details/') || href.match(/\/Purchases\/\d+$/)) {
-                        operation = 'loading-purchase-details';
-                    } else if (href.includes('/Expenses/Details/') || href.match(/\/Expenses\/\d+$/)) {
-                        operation = 'loading-expense-details';
-                    }
-                }
-                // Check for general sections
-                else if (href.includes('/Boms')) {
-                    operation = 'loading-bom';
-                } else if (href.includes('/Items')) {
-                    operation = 'loading-items';
-                } else if (href.includes('/Vendors')) {
-                    operation = 'loading-vendors';
-                } else if (href.includes('/Customers')) {
-                    operation = 'loading-customers';
-                } else if (href.includes('/Sales')) {
-                    operation = 'loading-sales';
-                } else if (href.includes('/Production')) {
-                    operation = 'loading-production';
-                } else if (href.includes('/Purchases')) {
-                    operation = 'loading-purchases';
-                } else if (href.includes('/Expenses')) {
-                    operation = 'loading-expenses';
-                } else if (href.includes('/Home')) {
-                    operation = 'loading-dashboard';
-                }
-
-                // Show appropriate loading indicator with immediate mode
-                if (window.LoadingIndicator) {
-                    console.log(`🚀 Enhanced nav: Showing loading for operation: ${operation}`);
-                    window.LoadingIndicator.showForOperation(operation, true); // Always immediate
-                } else {
-                    console.error('❌ LoadingIndicator not available in enhanced nav!');
-                }
-            });
-        });
-
-        console.log('? Enhanced navigation setup complete');
-
-        // Enhanced form submission handling
-        const forms = document.querySelectorAll('form');
-        forms.forEach(form => {
-            form.addEventListener('submit', function(e) {
-                const submitButton = this.querySelector('button[type="submit"], input[type="submit"]');
-                
-                if (submitButton && window.LoadingIndicator) {
-                    // Show appropriate loading message
-                    const action = this.getAttribute('action') || '';
-                    let operation = 'saving';
-                    
-                    if (action.includes('Upload') || this.enctype === 'multipart/form-data') {
-                        operation = 'uploading';
-                    } else if (action.includes('Report')) {
-                        operation = 'generating-report';
-                    }
-                    
-                    console.log('?? Form submission with operation:', operation);
-                    window.LoadingIndicator.showForOperation(operation, false); // Forms can have delay
-                }
-            });
-        });
-    }
-
-    // Global validation error detection and loading indicator cleanup
-    function checkForValidationErrorsAndCleanup() {
-        // Check for various validation error indicators
-        const validationErrors = document.querySelectorAll(
-            '.text-danger:not(:empty), ' +
-            '.alert-danger, ' +
-            '.alert-warning, ' +
-            '.validation-summary-errors, ' +
-            '.field-validation-error:not(:empty), ' +
-            '.is-invalid, ' +
-            'span[data-valmsg-for]:not(:empty)'
-        );
-
-        const hasValidationErrors = validationErrors.length > 0;
-
-        if (hasValidationErrors) {
-            console.log('? Global validation error detection: Found', validationErrors.length, 'validation errors');
-            
-            // Force hide any loading indicator that might be showing
-            if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
-                console.log('? Hiding loading indicator due to validation errors');
-                window.LoadingIndicator.hide(true); // Force hide
-            }
-
-            // Add a small delay to ensure the page is fully rendered
+            // Auto-dismiss after 5 seconds
             setTimeout(() => {
-                // Find and focus on the first error field for better UX
-                const firstErrorField = document.querySelector(
-                    'input.is-invalid, ' +
-                    'select.is-invalid, ' +
-                    'textarea.is-invalid, ' +
-                    '.text-danger:not(:empty)'
-                );
+                const alert = document.getElementById(alertId);
+                if (alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
 
-                if (firstErrorField) {
-                    let targetElement = firstErrorField;
-                    
-                    // If it's an error message, try to find the related input
-                    if (firstErrorField.classList.contains('text-danger') || firstErrorField.tagName === 'SPAN') {
-                        const forAttribute = firstErrorField.getAttribute('data-valmsg-for');
-                        if (forAttribute) {
-                            const relatedInput = document.querySelector(`[name="${forAttribute}"], #${forAttribute}`);
-                            if (relatedInput) {
-                                targetElement = relatedInput;
-                            }
-                        } else {
-                            // Try to find a nearby input
-                            const nearbyInput = firstErrorField.parentElement?.querySelector('input, select, textarea');
-                            if (nearbyInput) {
-                                targetElement = nearbyInput;
-                            }
+        function getIconForType(type) {
+            switch(type) {
+                case 'success': return 'check-circle';
+                case 'danger': return 'exclamation-triangle';
+                case 'warning': return 'exclamation-circle';
+                case 'info': return 'info-circle';
+                default: return 'info-circle';
+            }
+        }
+
+        // Placeholder notification function
+        function showNotifications() {
+            showNotification('Notification system coming soon!', 'info');
+        }
+
+        // System info modal
+        function showSystemInfo() {
+            alert('Inventory Management System v2.0\nWith Advanced Workflow Management\n\nFeatures:\n• Real-time WIP Dashboard\n• Kanban Board\n• Production Workflow\n• Quality Control\n• Employee Assignment');
+        }
+
+        // Check for workflow updates every 30 seconds
+        setInterval(function() {
+            if (window.location.pathname.includes('WipDashboard') ||
+                window.location.pathname.includes('Production')) {
+                // Refresh workflow data if on relevant pages
+                // This would call an API endpoint to check for updates
+            }
+        }, 30000);
+
+        // Highlight active navigation item
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.navbar-nav .nav-link, .dropdown-item');
+
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && currentPath.includes(href) && href !== '/') {
+                    link.classList.add('active');
+                    // Also highlight parent dropdown if it's a dropdown item
+                    const dropdown = link.closest('.dropdown');
+                    if (dropdown) {
+                        dropdown.querySelector('.nav-link').classList.add('active');
+                    }
+                }
+            });
+
+            // Enhanced navigation with loading indicators
+            setupEnhancedNavigation();
+
+            // Global validation error detection and cleanup (run after a short delay to ensure DOM is fully loaded)
+            setTimeout(() => {
+                checkForValidationErrorsAndCleanup();
+            }, 250);
+        });
+        // Enhanced Navigation Setup
+        function setupEnhancedNavigation() {
+            console.log('🔧 Setting up enhanced navigation...');
+
+            // Add loading indicators for specific page types
+            const navLinks = document.querySelectorAll('.navbar-nav a[href], .dropdown-item[href]');
+            console.log(`🔧 Found ${navLinks.length} navigation links`);
+
+            navLinks.forEach((link, index) => {
+                const href = link.getAttribute('href');
+
+                link.addEventListener('click', function(e) {
+                    const href = this.getAttribute('href');
+
+                    // Skip if it's not a navigation link
+                    if (!href || href.startsWith('#') || href.startsWith('mailto:') || this.target === '_blank') {
+                        console.log('⏭️ Enhanced nav: Skipping link:', href);
+                        return;
+                    }
+
+                    console.log('🔧 Enhanced navigation click:', href);
+
+                    // Determine the operation type for custom loading messages
+                    let operation = 'loading';
+
+                    // Check for RecordPayments specifically
+                    if (href.includes('/RecordPayments') || href.includes('/RecordPayment')) {
+                        operation = 'loading-payment-recording';
+                    }
+                    // Check for specific Details pages first
+                    else if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
+                        if (href.includes('/Items/Details/') || href.match(/\/Items\/\d+$/)) {
+                            operation = 'loading-item-details';
+                        } else if (href.includes('/Vendors/Details/') || href.match(/\/Vendors\/\d+$/)) {
+                            operation = 'loading-vendor-details';
+                        } else if (href.includes('/Customers/Details/') || href.match(/\/Customers\/\d+$/)) {
+                            operation = 'loading-customer-details';
+                        } else if (href.includes('/Sales/Details/') || href.match(/\/Sales\/\d+$/)) {
+                            operation = 'loading-sale-details';
+                        } else if (href.includes('/Production/Details/') || href.match(/\/Production\/\d+$/)) {
+                            operation = 'loading-production-details';
+                        } else if (href.includes('/Boms/Details/') || href.match(/\/Boms\/\d+$/)) {
+                            operation = 'loading-bom-details';
+                        } else if (href.includes('/Purchases/Details/') || href.match(/\/Purchases\/\d+$/)) {
+                            operation = 'loading-purchase-details';
+                        } else if (href.includes('/Expenses/Details/') || href.match(/\/Expenses\/\d+$/)) {
+                            operation = 'loading-expense-details';
                         }
                     }
+                    // Check for general sections
+                    else if (href.includes('/Boms')) {
+                        operation = 'loading-bom';
+                    } else if (href.includes('/Items')) {
+                        operation = 'loading-items';
+                    } else if (href.includes('/Vendors')) {
+                        operation = 'loading-vendors';
+                    } else if (href.includes('/Customers')) {
+                        operation = 'loading-customers';
+                    } else if (href.includes('/Sales')) {
+                        operation = 'loading-sales';
+                    } else if (href.includes('/Production')) {
+                        operation = 'loading-production';
+                    } else if (href.includes('/Purchases')) {
+                        operation = 'loading-purchases';
+                    } else if (href.includes('/Expenses')) {
+                        operation = 'loading-expenses';
+                    } else if (href.includes('/Home')) {
+                        operation = 'loading-dashboard';
+                    }
 
-                    console.log('? Focusing on error field:', targetElement);
-                    targetElement.focus();
+                    // Show appropriate loading indicator with immediate mode
+                    if (window.LoadingIndicator) {
+                        console.log(`🚀 Enhanced nav: Showing loading for operation: ${operation}`);
+                        window.LoadingIndicator.showForOperation(operation, true); // Always immediate
+                    } else {
+                        console.error('❌ LoadingIndicator not available in enhanced nav!');
+                    }
+                });
+            });
 
-                    // Scroll to the error if it's not visible
-                    targetElement.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
+            console.log('? Enhanced navigation setup complete');
+
+            // Enhanced form submission handling
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const submitButton = this.querySelector('button[type="submit"], input[type="submit"]');
+
+                    if (submitButton && window.LoadingIndicator) {
+                        // Show appropriate loading message
+                        const action = this.getAttribute('action') || '';
+                        let operation = 'saving';
+
+                        if (action.includes('Upload') || this.enctype === 'multipart/form-data') {
+                            operation = 'uploading';
+                        } else if (action.includes('Report')) {
+                            operation = 'generating-report';
+                        }
+
+                        console.log('?? Form submission with operation:', operation);
+                        window.LoadingIndicator.showForOperation(operation, false); // Forms can have delay
+                    }
+                });
+            });
+        }
+
+        // Global validation error detection and loading indicator cleanup
+        function checkForValidationErrorsAndCleanup() {
+            // Check for various validation error indicators
+            const validationErrors = document.querySelectorAll(
+                '.text-danger:not(:empty), ' +
+                '.alert-danger, ' +
+                '.alert-warning, ' +
+                '.validation-summary-errors, ' +
+                '.field-validation-error:not(:empty), ' +
+                '.is-invalid, ' +
+                'span[data-valmsg-for]:not(:empty)'
+            );
+
+            const hasValidationErrors = validationErrors.length > 0;
+
+            if (hasValidationErrors) {
+                console.log('? Global validation error detection: Found', validationErrors.length, 'validation errors');
+
+                // Force hide any loading indicator that might be showing
+                if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+                    console.log('? Hiding loading indicator due to validation errors');
+                    window.LoadingIndicator.hide(true); // Force hide
                 }
-            }, 100);
-        }
 
-        return hasValidationErrors;
-    }
+                // Add a small delay to ensure the page is fully rendered
+                setTimeout(() => {
+                    // Find and focus on the first error field for better UX
+                    const firstErrorField = document.querySelector(
+                        'input.is-invalid, ' +
+                        'select.is-invalid, ' +
+                        'textarea.is-invalid, ' +
+                        '.text-danger:not(:empty)'
+                    );
 
-    // Monitor for validation errors and cleanup on important events
-    document.addEventListener('DOMContentLoaded', () => {
-        // Initial check on page load
-        checkForValidationErrorsAndCleanup();
-    });
+                    if (firstErrorField) {
+                        let targetElement = firstErrorField;
 
-    // Reapply check on AJAX form submits (for partial updates)
-    document.addEventListener('submit', (e) => {
-        const form = e.target;
-        if (form.hasAttribute('data-ajax-form')) {
-            // Use a slight delay to allow AJAX call to settle
-            setTimeout(() => {
-                checkForValidationErrorsAndCleanup();
-            }, 300);
-        }
-    });
+                        // If it's an error message, try to find the related input
+                        if (firstErrorField.classList.contains('text-danger') || firstErrorField.tagName === 'SPAN') {
+                            const forAttribute = firstErrorField.getAttribute('data-valmsg-for');
+                            if (forAttribute) {
+                                const relatedInput = document.querySelector(`[name="${forAttribute}"], #${forAttribute}`);
+                                if (relatedInput) {
+                                    targetElement = relatedInput;
+                                }
+                            } else {
+                                // Try to find a nearby input
+                                const nearbyInput = firstErrorField.parentElement?.querySelector('input, select, textarea');
+                                if (nearbyInput) {
+                                    targetElement = nearbyInput;
+                                }
+                            }
+                        }
 
-    // Global error handler for AJAX requests
-    window.addEventListener('unhandledrejection', function(event) {
-        console.error('Unhandled promise rejection:', event.reason);
-        if (window.LoadingIndicator) {
-            window.LoadingIndicator.hide();
-        }
-        showNotification('An error occurred while loading data. Please try again.', 'danger');
-    });
+                        console.log('? Focusing on error field:', targetElement);
+                        targetElement.focus();
 
-    // Add loading indicator test functionality (for debugging)
-    window.testLoadingIndicator = function() {
-        console.log('Testing LoadingIndicator...');
-        if (window.LoadingIndicator) {
-            if (window.LoadingIndicator.isInitialized) {
-                window.LoadingIndicator.test();
-            } else {
-                console.error('LoadingIndicator not initialized!');
-                alert('LoadingIndicator not initialized! Check console for errors.');
+                        // Scroll to the error if it's not visible
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+                }, 100);
             }
-        } else {
-            console.error('LoadingIndicator not found!');
-            alert('LoadingIndicator not found! This should not happen with embedded system.');
+
+            return hasValidationErrors;
         }
-    };
 
-    // Diagnostic function
-    window.diagnoseLoadingIndicator = function() {
-        console.log('=== LoadingIndicator Diagnostics ===');
-        console.log('LoadingIndicator exists:', !!window.LoadingIndicator);
-        console.log('IsInitialized:', window.LoadingIndicator?.isInitialized);
-        console.log('IsShowing:', window.LoadingIndicator?.isShowing);
-        console.log('Overlay exists:', !!document.getElementById('globalLoadingOverlay'));
-        console.log('Styles exist:', !!document.getElementById('loading-indicator-styles'));
-        console.log('jQuery available:', !!window.jQuery);
-        console.log('External site.js PaymentValidation:', !!window.PaymentValidation);
-        
-        // Show diagnostic results
-        const results = `
-EMBEDDED LOADING SYSTEM:
-- LoadingIndicator exists: ${!!window.LoadingIndicator}
-- IsInitialized: ${window.LoadingIndicator?.isInitialized}
-- IsShowing: ${window.LoadingIndicator?.isShowing}
-- Overlay exists: ${!!document.getElementById('globalLoadingOverlay')}
-- Styles exist: ${!!document.getElementById('loading-indicator-styles')}
+        // Monitor for validation errors and cleanup on important events
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initial check on page load
+            checkForValidationErrorsAndCleanup();
+        });
 
-ENVIRONMENT:
-- jQuery available: ${!!window.jQuery}
-- External site.js loaded: ${!!window.PaymentValidation}
-- DOM ready: ${document.readyState}
-        `;
-        
-        alert('LoadingIndicator Diagnostics:\n' + results);
-        
-        // Test the system
-        if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
-            console.log('Running quick test...');
-            window.LoadingIndicator.show('Diagnostic Test', 'System is working!');
-            setTimeout(() => {
+        // Reapply check on AJAX form submits (for partial updates)
+        document.addEventListener('submit', (e) => {
+            const form = e.target;
+            if (form.hasAttribute('data-ajax-form')) {
+                // Use a slight delay to allow AJAX call to settle
+                setTimeout(() => {
+                    checkForValidationErrorsAndCleanup();
+                }, 300);
+            }
+        });
+
+        // Global error handler for AJAX requests
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled promise rejection:', event.reason);
+            if (window.LoadingIndicator) {
                 window.LoadingIndicator.hide();
-            }, 2000);
-        }
-    };
-
-    // Add page visibility change handler for cleanup
-    document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'visible') {
-            console.log('? Page became visible, checking for validation errors and cleaning up loading indicators');
-            
-            // Run cleanup after a small delay to ensure page is fully rendered
-            setTimeout(() => {
-                checkForValidationErrorsAndCleanup();
-            }, 100);
-        }
-    });
-
-    // Add beforeunload handler to ensure cleanup
-    window.addEventListener('beforeunload', function() {
-        if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
-            console.log('? Page unloading, hiding loading indicator');
-            window.LoadingIndicator.hide(true);
-        }
-    });
-
-    document.addEventListener('DOMContentLoaded', function() {
-    // Load open POs count
-    loadOpenPOsCount();
-    
-    // Refresh count every 5 minutes
-    setInterval(loadOpenPOsCount, 5 * 60 * 1000);
-});
-
-async function loadOpenPOsCount() {
-    try {
-        const response = await fetch('@Url.Action("GetOpenPOsCount", "Purchases")');
-        if (response.ok) {
-            const data = await response.json();
-            const badge = document.getElementById('openPOsBadge');
-            
-            if (badge && data.count > 0) {
-                badge.textContent = data.count;
-                badge.style.display = 'inline';
-                
-                // Add visual indicators for overdue
-                if (data.overdueCount > 0) {
-                    badge.className = 'badge bg-danger ms-1';
-                    badge.title = `${data.count} open POs (${data.overdueCount} overdue)`;
-                } else {
-                    badge.className = 'badge bg-primary ms-1';
-                    badge.title = `${data.count} open purchase orders`;
-                }
-            } else if (badge) {
-                badge.style.display = 'none';
             }
+            showNotification('An error occurred while loading data. Please try again.', 'danger');
+        });
+
+        // Add loading indicator test functionality (for debugging)
+        window.testLoadingIndicator = function() {
+            console.log('Testing LoadingIndicator...');
+            if (window.LoadingIndicator) {
+                if (window.LoadingIndicator.isInitialized) {
+                    window.LoadingIndicator.test();
+                } else {
+                    console.error('LoadingIndicator not initialized!');
+                    alert('LoadingIndicator not initialized! Check console for errors.');
+                }
+            } else {
+                console.error('LoadingIndicator not found!');
+                alert('LoadingIndicator not found! This should not happen with embedded system.');
+            }
+        };
+
+        // Diagnostic function
+        window.diagnoseLoadingIndicator = function() {
+            console.log('=== LoadingIndicator Diagnostics ===');
+            console.log('LoadingIndicator exists:', !!window.LoadingIndicator);
+            console.log('IsInitialized:', window.LoadingIndicator?.isInitialized);
+            console.log('IsShowing:', window.LoadingIndicator?.isShowing);
+            console.log('Overlay exists:', !!document.getElementById('globalLoadingOverlay'));
+            console.log('Styles exist:', !!document.getElementById('loading-indicator-styles'));
+            console.log('jQuery available:', !!window.jQuery);
+            console.log('External site.js PaymentValidation:', !!window.PaymentValidation);
+
+            // Show diagnostic results
+            const results = `
+    EMBEDDED LOADING SYSTEM:
+    - LoadingIndicator exists: ${!!window.LoadingIndicator}
+    - IsInitialized: ${window.LoadingIndicator?.isInitialized}
+    - IsShowing: ${window.LoadingIndicator?.isShowing}
+    - Overlay exists: ${!!document.getElementById('globalLoadingOverlay')}
+    - Styles exist: ${!!document.getElementById('loading-indicator-styles')}
+
+    ENVIRONMENT:
+    - jQuery available: ${!!window.jQuery}
+    - External site.js loaded: ${!!window.PaymentValidation}
+    - DOM ready: ${document.readyState}
+            `;
+
+            alert('LoadingIndicator Diagnostics:\n' + results);
+
+            // Test the system
+            if (window.LoadingIndicator && window.LoadingIndicator.isInitialized) {
+                console.log('Running quick test...');
+                window.LoadingIndicator.show('Diagnostic Test', 'System is working!');
+                setTimeout(() => {
+                    window.LoadingIndicator.hide();
+                }, 2000);
+            }
+        };
+
+        // Add page visibility change handler for cleanup
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                console.log('? Page became visible, checking for validation errors and cleaning up loading indicators');
+
+                // Run cleanup after a small delay to ensure page is fully rendered
+                setTimeout(() => {
+                    checkForValidationErrorsAndCleanup();
+                }, 100);
+            }
+        });
+
+        // Add beforeunload handler to ensure cleanup
+        window.addEventListener('beforeunload', function() {
+            if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+                console.log('? Page unloading, hiding loading indicator');
+                window.LoadingIndicator.hide(true);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+        // Load open POs count
+        loadOpenPOsCount();
+
+        // Refresh count every 5 minutes
+        setInterval(loadOpenPOsCount, 5 * 60 * 1000);
+    });
+
+    async function loadOpenPOsCount() {
+        try {
+            const response = await fetch('@Url.Action("GetOpenPOsCount", "Purchases")');
+            if (response.ok) {
+                const data = await response.json();
+                const badge = document.getElementById('openPOsBadge');
+
+                if (badge && data.count > 0) {
+                    badge.textContent = data.count;
+                    badge.style.display = 'inline';
+
+                    // Add visual indicators for overdue
+                    if (data.overdueCount > 0) {
+                        badge.className = 'badge bg-danger ms-1';
+                        badge.title = `${data.count} open POs (${data.overdueCount} overdue)`;
+                    } else {
+                        badge.className = 'badge bg-primary ms-1';
+                        badge.title = `${data.count} open purchase orders`;
+                    }
+                } else if (badge) {
+                    badge.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Error loading open POs count:', error);
         }
-    } catch (error) {
-        console.error('Error loading open POs count:', error);
     }
-}
   </script>
 
   @await RenderSectionAsync("Scripts", required: false)

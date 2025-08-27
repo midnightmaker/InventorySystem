@@ -1,0 +1,829 @@
+﻿@model InventorySystem.ViewModels.Accounting.CashFlowStatementViewModel
+@{
+  ViewData["Title"] = "Cash Flow Statement";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1><i class="fas fa-water"></i> Cash Flow Statement</h1>
+    <p class="text-muted mb-0">
+      @if (Model.CurrentFinancialPeriod != null && !string.IsNullOrEmpty(Model.SelectedPeriod))
+      {
+        <span class="badge bg-info">@Model.PeriodDisplayName</span>
+        <span>@Model.StartDate.ToString("MMM dd, yyyy") - @Model.EndDate.ToString("MMM dd, yyyy")</span>
+      }
+      else
+      {
+        <span class="badge bg-secondary">Custom Period</span>
+        <span>@Model.StartDate.ToString("MMM dd, yyyy") - @Model.EndDate.ToString("MMM dd, yyyy")</span>
+      }
+    </p>
+  </div>
+  <div class="btn-group">
+    <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    <button class="btn btn-success" onclick="exportCashFlowStatement()">
+      <i class="fas fa-download"></i> Export PDF
+    </button>
+    <button class="btn btn-outline-success" onclick="exportCashFlowStatementExcel()">
+      <i class="fas fa-file-excel"></i> Export Excel
+    </button>
+  </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
+<!-- Financial Period Quick Selection -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h5><i class="fas fa-calendar-alt"></i> Financial Period Selection</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-8">
+        <div class="btn-group flex-wrap" role="group" aria-label="Period Selection">
+          <a href="@Url.Action("CashFlowStatement", new { period = "current-fy" })" 
+             class="btn @((Model.SelectedPeriod == "current-fy" || string.IsNullOrEmpty(Model.SelectedPeriod)) ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar-check"></i> Current FY
+          </a>
+          <a href="@Url.Action("CashFlowStatement", new { period = "previous-fy" })" 
+             class="btn @(Model.SelectedPeriod == "previous-fy" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar-minus"></i> Previous FY
+          </a>
+          <a href="@Url.Action("CashFlowStatement", new { period = "calendar-year" })" 
+             class="btn @(Model.SelectedPeriod == "calendar-year" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fas fa-calendar"></i> Calendar Year
+          </a>
+          <a href="@Url.Action("CashFlowStatement", new { period = "ytd" })" 
+             class="btn @(Model.SelectedPeriod == "ytd" ? "btn-info" : "btn-outline-info")">
+            <i class="fas fa-chart-line"></i> Year to Date
+          </a>
+        </div>
+      </div>
+      <div class="col-md-4 text-end">
+        @if (Model.CurrentFinancialPeriod != null)
+        {
+          <div class="text-muted small">
+            <strong>Current FY:</strong> @Model.CurrentFinancialPeriod.FormattedPeriod
+            <br>
+            <strong>Status:</strong> 
+            @if (Model.CurrentFinancialPeriod.IsClosed)
+            {
+              <span class="badge bg-danger">Closed</span>
+            }
+            else
+            {
+              <span class="badge bg-success">Open</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Date Range Selection -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5><i class="fas fa-calendar-day"></i> Custom Reporting Period</h5>
+  </div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row">
+        <div class="col-md-3">
+          <div class="mb-3">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="startDate" class="form-control"
+                   value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="mb-3">
+            <label class="form-label">End Date</label>
+            <input type="date" name="endDate" class="form-control"
+                   value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+          </div>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary mb-3">
+            <i class="fas fa-refresh"></i> Update Report
+          </button>
+        </div>
+        <div class="col-md-3">
+          <div class="mb-3">
+            <label class="form-label">Quick Periods</label>
+            <select class="form-select" onchange="setQuickPeriod(this.value)">
+              <option value="">Select Period</option>
+              <option value="mtd">Month to Date</option>
+              <option value="qtd">Quarter to Date</option>
+              <option value="ytd">Year to Date</option>
+              <option value="lastmonth">Last Month</option>
+              <option value="lastquarter">Last Quarter</option>
+              <option value="lastyear">Last Year</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Cash Flow Analysis Alert -->
+@if (Model.NetChangeInCash != 0)
+{
+  @if (Model.IsHealthyCashFlow)
+  {
+    <div class="alert alert-success">
+      <i class="fas fa-check-circle"></i>
+      <strong>Positive Cash Flow:</strong>
+      Strong cash generation from operations (@Model.NetCashFromOperations.ToString("C")) resulted in a net cash increase of @Model.NetChangeInCash.ToString("C") for @Model.PeriodDisplayName.
+    </div>
+  }
+  else if (Model.NetChangeInCash < 0 && Model.NetCashFromOperations > 0)
+  {
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>Mixed Cash Flow:</strong>
+      While operations generated @Model.NetCashFromOperations.ToString("C"), investing or financing activities resulted in a net cash decrease of @Math.Abs(Model.NetChangeInCash).ToString("C").
+    </div>
+  }
+  else if (Model.NetCashFromOperations < 0)
+  {
+    <div class="alert alert-danger">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>Negative Operating Cash Flow:</strong>
+      Operations consumed @Math.Abs(Model.NetCashFromOperations).ToString("C") in cash during @Model.PeriodDisplayName. This requires immediate attention.
+    </div>
+  }
+}
+
+<!-- Cash Flow Statement Report -->
+<div class="card">
+  <div class="card-header text-center">
+    <h4>Statement of Cash Flows</h4>
+    <h6 class="text-muted">@Model.PeriodDisplay</h6>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-borderless">
+        <tbody>
+          <!-- OPERATING ACTIVITIES SECTION -->
+          <tr class="table-success">
+            <td colspan="2">
+              <h5 class="mb-0">
+                <i class="fas fa-cogs"></i> CASH FLOWS FROM OPERATING ACTIVITIES
+              </h5>
+            </td>
+          </tr>
+          <tr>
+            <td class="ps-4">Net Income</td>
+            <td class="text-end fw-bold">@Model.NetIncome.ToString("C")</td>
+          </tr>
+          @if (Model.OperatingAdjustments.Any())
+          {
+            <tr>
+              <td class="ps-4 text-muted small">Adjustments to reconcile net income to cash flows:</td>
+              <td></td>
+            </tr>
+            @foreach (var adjustment in Model.OperatingAdjustments.OrderBy(a => a.Description))
+            {
+              <tr>
+                <td class="ps-5">@adjustment.Description</td>
+                <td class="text-end">@adjustment.FormattedAmount</td>
+              </tr>
+            }
+          }
+          else
+          {
+            <tr>
+              <td class="ps-4 text-muted">No operating adjustments</td>
+              <td class="text-end text-muted">$0.00</td>
+            </tr>
+          }
+          <tr class="border-top fw-bold">
+            <td class="ps-4">Net Cash Provided by Operating Activities</td>
+            <td class="text-end @(Model.NetCashFromOperations >= 0 ? "text-success" : "text-danger")">
+              @Model.NetCashFromOperations.ToString("C")
+            </td>
+          </tr>
+
+          <!-- INVESTING ACTIVITIES SECTION -->
+          <tr class="table-info">
+            <td colspan="2" class="pt-4">
+              <h5 class="mb-0">
+                <i class="fas fa-chart-line"></i> CASH FLOWS FROM INVESTING ACTIVITIES
+              </h5>
+            </td>
+          </tr>
+          @if (Model.InvestingActivities.Any())
+          {
+            @foreach (var investment in Model.InvestingActivities.OrderBy(i => i.Description))
+            {
+              <tr>
+                <td class="ps-4">@investment.Description</td>
+                <td class="text-end">@investment.FormattedAmount</td>
+              </tr>
+            }
+          }
+          else
+          {
+            <tr>
+              <td class="ps-4 text-muted">No investing activities</td>
+              <td class="text-end text-muted">$0.00</td>
+            </tr>
+          }
+          <tr class="border-top fw-bold">
+            <td class="ps-4">Net Cash Used in Investing Activities</td>
+            <td class="text-end @(Model.NetCashFromInvesting >= 0 ? "text-success" : "text-danger")">
+              @Model.NetCashFromInvesting.ToString("C")
+            </td>
+          </tr>
+
+          <!-- FINANCING ACTIVITIES SECTION -->
+          <tr class="table-warning">
+            <td colspan="2" class="pt-4">
+              <h5 class="mb-0">
+                <i class="fas fa-university"></i> CASH FLOWS FROM FINANCING ACTIVITIES
+              </h5>
+            </td>
+          </tr>
+          @if (Model.FinancingActivities.Any())
+          {
+            @foreach (var financing in Model.FinancingActivities.OrderBy(f => f.Description))
+            {
+              <tr>
+                <td class="ps-4">@financing.Description</td>
+                <td class="text-end">@financing.FormattedAmount</td>
+              </tr>
+            }
+          }
+          else
+          {
+            <tr>
+              <td class="ps-4 text-muted">No financing activities</td>
+              <td class="text-end text-muted">$0.00</td>
+            </tr>
+          }
+          <tr class="border-top fw-bold">
+            <td class="ps-4">Net Cash Provided by Financing Activities</td>
+            <td class="text-end @(Model.NetCashFromFinancing >= 0 ? "text-success" : "text-danger")">
+              @Model.NetCashFromFinancing.ToString("C")
+            </td>
+          </tr>
+
+          <!-- NET CHANGE IN CASH -->
+          <tr class="bg-primary text-white">
+            <td class="fw-bold p-3">
+              <h5 class="mb-0">NET INCREASE (DECREASE) IN CASH</h5>
+            </td>
+            <td class="text-end fw-bold p-3">
+              <h5 class="mb-0">@Model.NetChangeInCash.ToString("C")</h5>
+            </td>
+          </tr>
+
+          <!-- CASH RECONCILIATION -->
+          <tr class="table-light">
+            <td class="ps-4 pt-3">Cash at Beginning of Period</td>
+            <td class="text-end pt-3 fw-bold">@Model.BeginningCashBalance.ToString("C")</td>
+          </tr>
+          <tr class="table-light border-top">
+            <td class="ps-4 fw-bold">Cash at End of Period</td>
+            <td class="text-end fw-bold text-primary">@Model.EndingCashBalance.ToString("C")</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Cash Flow Analysis -->
+<div class="row mt-4">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5><i class="fas fa-analytics"></i> Cash Flow Analysis</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6 class="text-success">Operating Activities Breakdown</h6>
+            @if (Model.OperatingAdjustments.Any())
+            {
+              <div class="mb-3">
+                <small class="text-muted">Net Income: @Model.NetIncome.ToString("C")</small>
+                <div class="progress mb-2" style="height: 8px;">
+                  @{
+                    var netIncomePercentage = Model.NetCashFromOperations != 0 ? Math.Abs(Model.NetIncome / Model.NetCashFromOperations * 100) : 0;
+                  }
+                  <div class="progress-bar bg-info" style="width: @Math.Min(netIncomePercentage, 100)%"></div>
+                </div>
+              </div>
+              @foreach (var adjustment in Model.OperatingAdjustments.OrderByDescending(a => Math.Abs(a.Amount)).Take(5))
+              {
+                var percentage = Model.NetCashFromOperations != 0 ? Math.Abs(adjustment.Amount / Model.NetCashFromOperations * 100) : 0;
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <small>@adjustment.Description</small>
+                    <small class="fw-bold">@adjustment.FormattedAmount</small>
+                  </div>
+                  <div class="progress mb-1" style="height: 6px;">
+                    <div class="progress-bar @(adjustment.Amount >= 0 ? "bg-success" : "bg-danger")" 
+                         style="width: @Math.Min(percentage, 100)%"></div>
+                  </div>
+                </div>
+              }
+            }
+            else
+            {
+              <small class="text-muted">No operating adjustments recorded</small>
+            }
+          </div>
+
+          <div class="col-md-6">
+            <h6 class="text-info">Cash Flow Composition</h6>
+            @{
+              var totalCashFlow = Math.Abs(Model.NetCashFromOperations) + Math.Abs(Model.NetCashFromInvesting) + Math.Abs(Model.NetCashFromFinancing);
+              var operatingPercentage = totalCashFlow > 0 ? Math.Abs(Model.NetCashFromOperations) / totalCashFlow * 100 : 0;
+              var investingPercentage = totalCashFlow > 0 ? Math.Abs(Model.NetCashFromInvesting) / totalCashFlow * 100 : 0;
+              var financingPercentage = totalCashFlow > 0 ? Math.Abs(Model.NetCashFromFinancing) / totalCashFlow * 100 : 0;
+            }
+            
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <small>Operating Activities</small>
+                <small class="fw-bold">@operatingPercentage.ToString("F1")%</small>
+              </div>
+              <div class="progress mb-2" style="height: 8px;">
+                <div class="progress-bar bg-success" style="width: @operatingPercentage%"></div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <small>Investing Activities</small>
+                <small class="fw-bold">@investingPercentage.ToString("F1")%</small>
+              </div>
+              <div class="progress mb-2" style="height: 8px;">
+                <div class="progress-bar bg-info" style="width: @investingPercentage%"></div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <small>Financing Activities</small>
+                <small class="fw-bold">@financingPercentage.ToString("F1")%</small>
+              </div>
+              <div class="progress mb-2" style="height: 8px;">
+                <div class="progress-bar bg-warning" style="width: @financingPercentage%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5><i class="fas fa-tachometer-alt"></i> Key Metrics</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6">
+            <div class="text-center p-2 border rounded">
+              <h4 class="@(Model.NetCashFromOperations >= 0 ? "text-success" : "text-danger") mb-1">
+                @Model.NetCashFromOperations.ToString("C0")
+              </h4>
+              <small class="text-muted">Operating Cash</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="text-center p-2 border rounded">
+              <h4 class="@(Model.NetChangeInCash >= 0 ? "text-primary" : "text-danger") mb-1">
+                @Model.NetChangeInCash.ToString("C0")
+              </h4>
+              <small class="text-muted">Net Change</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="text-center p-2 border rounded">
+              <h4 class="text-info mb-1">@Model.BeginningCashBalance.ToString("C0")</h4>
+              <small class="text-muted">Beginning Cash</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="text-center p-2 border rounded">
+              <h4 class="text-primary mb-1">@Model.EndingCashBalance.ToString("C0")</h4>
+              <small class="text-muted">Ending Cash</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cash Flow Health Indicators -->
+        <div class="mt-4">
+          <h6 class="text-muted mb-3">Cash Flow Health</h6>
+          <div class="d-flex justify-content-between mb-2">
+            <small>Operating Margin:</small>
+            <small class="fw-bold @(Model.OperatingCashFlowMargin >= 100 ? "text-success" : Model.OperatingCashFlowMargin >= 80 ? "text-warning" : "text-danger")">
+              @Model.OperatingCashFlowMargin.ToString("F1")%
+            </small>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <small>Cash Trend:</small>
+            <small class="fw-bold @(Model.CashFlowTrend == "Positive" ? "text-success" : Model.CashFlowTrend == "Negative" ? "text-danger" : "text-warning")">
+              @Model.CashFlowTrend
+            </small>
+          </div>
+        </div>
+
+        <!-- Performance Indicators -->
+        <div class="mt-3">
+          <h6 class="text-muted mb-2">Cash Performance</h6>
+          @if (Model.IsHealthyCashFlow)
+          {
+            <span class="badge bg-success">Healthy Cash Flow</span>
+          }
+          else if (Model.NetCashFromOperations > 0)
+          {
+            <span class="badge bg-warning">Mixed Results</span>
+          }
+          else
+          {
+            <span class="badge bg-danger">Cash Flow Concern</span>
+          }
+
+          @if (Model.NetChangeInCash > 0)
+          {
+            <span class="badge bg-info">Cash Increasing</span>
+          }
+          else if (Model.NetChangeInCash < 0)
+          {
+            <span class="badge bg-warning">Cash Decreasing</span>
+          }
+          else
+          {
+            <span class="badge bg-secondary">Cash Stable</span>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Advanced Cash Flow Analytics -->
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-chart-area"></i> Advanced Cash Flow Analytics</h5>
+      </div>
+      <div class="card-body">
+        <!-- Nav tabs for different analysis views -->
+        <ul class="nav nav-tabs" id="cashFlowTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="ratios-tab" data-bs-toggle="tab" data-bs-target="#ratios" type="button">
+              <i class="fas fa-percentage"></i> Cash Flow Ratios
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="working-capital-tab" data-bs-toggle="tab" data-bs-target="#working-capital" type="button">
+              <i class="fas fa-exchange-alt"></i> Working Capital
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends" type="button">
+              <i class="fas fa-chart-line"></i> Trends
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="projections-tab" data-bs-toggle="tab" data-bs-target="#projections" type="button">
+              <i class="fas fa-crystal-ball"></i> Projections
+            </button>
+          </li>
+        </ul>
+
+        <!-- Tab content -->
+        <div class="tab-content mt-3" id="cashFlowTabContent">
+          <!-- Cash Flow Ratios Tab -->
+          <div class="tab-pane fade show active" id="ratios" role="tabpanel">
+            <div class="row">
+              <div class="col-md-6">
+                <h6>Liquidity Ratios</h6>
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <tbody>
+                      <tr>
+                        <td>Operating Cash Flow Ratio</td>
+                        <td class="text-end fw-bold">
+                          @{
+                            // ✅ FIXED: Add zero-check for division
+                            var avgCashBalance = (Model.BeginningCashBalance + Model.EndingCashBalance) / 2;
+                            var operatingCashFlowRatio = avgCashBalance > 0 ? (Model.NetCashFromOperations / avgCashBalance * 100) : 0;
+                          }
+                          @operatingCashFlowRatio.ToString("F1")%
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Cash Coverage Ratio</td>
+                        <td class="text-end fw-bold">
+                          @{
+                            // ✅ FIXED: Add zero-check for division
+                            var cashCoverageRatio = Model.NetIncome != 0 ? (Model.NetCashFromOperations / Math.Abs(Model.NetIncome) * 100) : 0;
+                          }
+                          @cashCoverageRatio.ToString("F1")%
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Free Cash Flow Yield</td>
+                        <td class="text-end fw-bold">
+                          @{
+                            // ✅ FIXED: Add zero-check for division and null-check for InvestingActivities
+                            var capitalExpenses = Model.InvestingActivities?.Where(i => i.Description.Contains("Capital")).Sum(i => i.Amount) ?? 0;
+                            var freeCashFlow = Model.NetCashFromOperations - capitalExpenses;
+                            var freeCashFlowYield = Model.EndingCashBalance > 0 ? (freeCashFlow / Model.EndingCashBalance * 100) : 0;
+                          }
+                          @freeCashFlowYield.ToString("F1")%
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <h6>Quality Metrics</h6>
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <tbody>
+                      <tr>
+                        <td>Quality of Earnings</td>
+                        <td class="text-end fw-bold">@((Model.NetIncome != 0 ? Model.NetCashFromOperations / Model.NetIncome : 0).ToString("F2"))</td>
+                      </tr>
+                      <tr>
+                        <td>Cash ROI</td>
+                        <td class="text-end fw-bold">
+                          @{
+                            // ✅ FIXED: Add zero-check for division
+                            var cashROI = Model.BeginningCashBalance > 0 ? (Model.NetCashFromOperations / Model.BeginningCashBalance * 100) : 0;
+                          }
+                          @cashROI.ToString("F1")%
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Cash Flow Margin</td>
+                        <td class="text-end fw-bold">@Model.OperatingCashFlowMargin.ToString("F1")%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Working Capital Tab -->
+          <div class="tab-pane fade" id="working-capital" role="tabpanel">
+            <div class="row">
+              <div class="col-md-8">
+                <h6>Working Capital Components Analysis</h6>
+                <canvas id="workingCapitalChart" width="400" height="200"></canvas>
+              </div>
+              <div class="col-md-4">
+                <h6>Working Capital Metrics</h6>
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                      <small>Days Sales Outstanding:</small>
+                      <small class="fw-bold">-- days</small>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                      <small>Days Inventory Outstanding:</small>
+                      <small class="fw-bold">-- days</small>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                      <small>Days Payable Outstanding:</small>
+                      <small class="fw-bold">-- days</small>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                      <small><strong>Cash Conversion Cycle:</strong></small>
+                      <small class="fw-bold">-- days</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trends Tab -->
+          <div class="tab-pane fade" id="trends" role="tabpanel">
+            <h6>12-Month Cash Flow Trends</h6>
+            <canvas id="cashFlowTrendChart" width="400" height="200"></canvas>
+          </div>
+
+          <!-- Projections Tab -->
+          <div class="tab-pane fade" id="projections" role="tabpanel">
+            <div class="row">
+              <div class="col-md-8">
+                <h6>6-Month Cash Flow Projections</h6>
+                <canvas id="cashFlowProjectionChart" width="400" height="200"></canvas>
+              </div>
+              <div class="col-md-4">
+                <h6>Projection Summary</h6>
+                <div class="alert alert-info">
+                  <small><i class="fas fa-info-circle"></i> Projections are based on historical patterns and current trends.</small>
+                </div>
+                <div class="card">
+                  <div class="card-body">
+                    <h6 class="card-title">Scenarios</h6>
+                    <div class="mb-2">
+                      <small class="text-success">Best Case:</small>
+                      <span class="float-end fw-bold text-success">+$50K</span>
+                    </div>
+                    <div class="mb-2">
+                      <small class="text-warning">Most Likely:</small>
+                      <span class="float-end fw-bold text-warning">+$25K</span>
+                    </div>
+                    <div class="mb-2">
+                      <small class="text-danger">Worst Case:</small>
+                      <span class="float-end fw-bold text-danger">-$10K</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cash Flow Insights and Recommendations -->
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-lightbulb"></i> Cash Flow Insights & Recommendations</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6>🔍 Key Insights</h6>
+            <div class="list-group list-group-flush">
+              @if (Model.NetCashFromOperations > Model.NetIncome * 1.2m)
+              {
+                <div class="list-group-item border-0 px-0">
+                  <i class="fas fa-thumbs-up text-success me-2"></i>
+                  <strong>Strong Cash Generation:</strong> Operating cash flow exceeds net income by @((Model.NetCashFromOperations - Model.NetIncome).ToString("C")), indicating high-quality earnings.
+                </div>
+              }
+              
+              @if (Model.NetChangeInCash < 0 && Model.NetCashFromOperations > 0)
+              {
+                <div class="list-group-item border-0 px-0">
+                  <i class="fas fa-info-circle text-info me-2"></i>
+                  <strong>Investment Focus:</strong> Positive operating cash flow but negative overall change suggests investment in growth.
+                </div>
+              }
+              
+              @if (Model.EndingCashBalance < Model.BeginningCashBalance * 0.8m)
+              {
+                <div class="list-group-item border-0 px-0">
+                  <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                  <strong>Cash Decline:</strong> Cash balance decreased by @((Model.BeginningCashBalance - Model.EndingCashBalance).ToString("C")) during the period.
+                </div>
+              }
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <h6>💡 Recommendations</h6>
+            <div class="list-group list-group-flush">
+              @if (Model.NetCashFromOperations < 0)
+              {
+                <div class="list-group-item border-0 px-0">
+                  <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                  <strong>Improve Operations:</strong> Focus on accelerating collections and optimizing payment terms with suppliers.
+                </div>
+              }
+              
+              @if (Model.EndingCashBalance > Model.NetCashFromOperations * 3)
+              {
+                <div class="list-group-item border-0 px-0">
+                  <i class="fas fa-chart-line text-success me-2"></i>
+                  <strong>Investment Opportunity:</strong> Consider investing excess cash in growth initiatives or short-term investments.
+                </div>
+              }
+              
+              <div class="list-group-item border-0 px-0">
+                <i class="fas fa-calendar-check text-info me-2"></i>
+                <strong>Monitor Trends:</strong> Set up monthly cash flow monitoring to identify patterns and seasonal variations.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function exportCashFlowStatement() {
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = '@Url.Action("ExportCashFlowStatementPDF")';
+
+      const startDateInput = document.createElement('input');
+      startDateInput.type = 'hidden';
+      startDateInput.name = 'startDate';
+      startDateInput.value = '@Model.StartDate.ToString("yyyy-MM-dd")';
+      form.appendChild(startDateInput);
+
+      const endDateInput = document.createElement('input');
+      endDateInput.type = 'hidden';
+      endDateInput.name = 'endDate';
+      endDateInput.value = '@Model.EndDate.ToString("yyyy-MM-dd")';
+      form.appendChild(endDateInput);
+
+      const periodInput = document.createElement('input');
+      periodInput.type = 'hidden';
+      periodInput.name = 'period';
+      periodInput.value = '@Model.SelectedPeriod';
+      form.appendChild(periodInput);
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+  }
+
+  function exportCashFlowStatementExcel() {
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = '@Url.Action("ExportCashFlowStatementExcel")';
+
+      const startDateInput = document.createElement('input');
+      startDateInput.type = 'hidden';
+      startDateInput.name = 'startDate';
+      startDateInput.value = '@Model.StartDate.ToString("yyyy-MM-dd")';
+      form.appendChild(startDateInput);
+
+      const endDateInput = document.createElement('input');
+      endDateInput.type = 'hidden';
+      endDateInput.name = 'endDate';
+      endDateInput.value = '@Model.EndDate.ToString("yyyy-MM-dd")';
+      form.appendChild(endDateInput);
+
+      const periodInput = document.createElement('input');
+      periodInput.type = 'hidden';
+      periodInput.name = 'period';
+      periodInput.value = '@Model.SelectedPeriod';
+      form.appendChild(periodInput);
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+  }
+
+  function setQuickPeriod(period) {
+      if (!period) return;
+
+      const today = new Date();
+      let startDate, endDate = today;
+
+      switch(period) {
+          case 'mtd':
+              startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+              break;
+          case 'qtd':
+              const quarter = Math.floor(today.getMonth() / 3);
+              startDate = new Date(today.getFullYear(), quarter * 3, 1);
+              break;
+          case 'ytd':
+              startDate = new Date(today.getFullYear(), 0, 1);
+              break;
+          case 'lastmonth':
+              startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+              endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+              break;
+          case 'lastquarter':
+              const lastQuarter = Math.floor(today.getMonth() / 3) - 1;
+              startDate = new Date(today.getFullYear(), lastQuarter * 3, 1);
+              endDate = new Date(today.getFullYear(), (lastQuarter + 1) * 3, 0);
+              break;
+          case 'lastyear':
+              startDate = new Date(today.getFullYear() - 1, 0, 1);
+              endDate = new Date(today.getFullYear() - 1, 11, 31);
+              break;
+      }
+
+      document.querySelector('input[name="startDate"]').value = startDate.toISOString().split('T')[0];
+      document.querySelector('input[name="endDate"]').value = endDate.toISOString().split('T')[0];
+  }
+</script>

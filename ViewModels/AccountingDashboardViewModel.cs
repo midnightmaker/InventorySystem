@@ -163,9 +163,10 @@ namespace InventorySystem.ViewModels.Accounting
 		public string PeriodDisplayName => SelectedPeriod switch
 		{
 			"current-fy" => "Current Financial Year",
-			"previous-fy" => "Previous Financial Year", 
+			"previous-fy" => "Previous Financial Year",
 			"calendar-year" => "Calendar Year",
 			"all-time" => "All Time",
+			null when CurrentFinancialPeriod != null => CurrentFinancialPeriod.PeriodName, // ✅ Default case
 			_ => "Custom Period"
 		};
 
@@ -189,6 +190,7 @@ namespace InventorySystem.ViewModels.Accounting
 			"current-fy-end" => CurrentFinancialPeriod?.PeriodName + " (End)" ?? "Current FY End",
 			"previous-fy-end" => "Previous FY End",
 			"calendar-year-end" => "Calendar Year End",
+			null when CurrentFinancialPeriod != null => CurrentFinancialPeriod.PeriodName + " (End)", // ✅ Default case
 			_ => $"As of {AsOfDate:MMM dd, yyyy}"
 		};
 
@@ -243,6 +245,7 @@ namespace InventorySystem.ViewModels.Accounting
 			"current-fy-end" => CurrentFinancialPeriod?.PeriodName + " (End)" ?? "Current FY End",
 			"previous-fy-end" => "Previous FY End",
 			"calendar-year-end" => "Calendar Year End",
+			null when CurrentFinancialPeriod != null => CurrentFinancialPeriod.PeriodName + " (End)", // ✅ Default case
 			_ => $"As of {AsOfDate:MMM dd, yyyy}"
 		};
 	}
@@ -290,13 +293,14 @@ namespace InventorySystem.ViewModels.Accounting
 		public FinancialPeriod? CurrentFinancialPeriod { get; set; }
 		public string? SelectedPeriod { get; set; }
 		// Add financial period support  
-		
+
 		public string PeriodDisplayName => SelectedPeriod switch
 		{
 			"current-fy" => CurrentFinancialPeriod?.PeriodName ?? "Current Financial Year",
 			"previous-fy" => "Previous Financial Year",
 			"calendar-year" => "Calendar Year",
 			"ytd" => "Year to Date",
+			null when CurrentFinancialPeriod != null => CurrentFinancialPeriod.PeriodName, // ✅ Default case
 			_ => $"{StartDate:MMM dd, yyyy} to {EndDate:MMM dd, yyyy}"
 		};
 	}
@@ -333,7 +337,26 @@ namespace InventorySystem.ViewModels.Accounting
 		public decimal BeginningCashBalance { get; set; }
 		public decimal EndingCashBalance => BeginningCashBalance + NetChangeInCash;
 
+		// ✅ FIXED: Financial period support
+		public FinancialPeriod? CurrentFinancialPeriod { get; set; }
+		public string? SelectedPeriod { get; set; }
+
 		public string PeriodDisplay => $"{StartDate:MMM dd, yyyy} to {EndDate:MMM dd, yyyy}";
+
+		public string PeriodDisplayName => SelectedPeriod switch
+		{
+			"current-fy" => CurrentFinancialPeriod?.PeriodName ?? "Current Financial Year",
+			"previous-fy" => "Previous Financial Year",
+			"calendar-year" => "Calendar Year",
+			"ytd" => "Year to Date",
+			null when CurrentFinancialPeriod != null => CurrentFinancialPeriod.PeriodName,
+			_ => $"{StartDate:MMM dd, yyyy} to {EndDate:MMM dd, yyyy}"
+		};
+
+		// ✅ FIXED: Helper properties with zero-checking
+		public decimal OperatingCashFlowMargin => Math.Abs(NetIncome) > 0.01m ? (NetCashFromOperations / Math.Abs(NetIncome)) * 100 : 0;
+		public bool IsHealthyCashFlow => NetCashFromOperations > 0 && NetChangeInCash > 0;
+		public string CashFlowTrend => NetChangeInCash > 0 ? "Positive" : NetChangeInCash < 0 ? "Negative" : "Neutral";
 	}
 
 	public class CashFlowItem
@@ -341,6 +364,20 @@ namespace InventorySystem.ViewModels.Accounting
 		public string Description { get; set; } = string.Empty;
 		public decimal Amount { get; set; }
 		public string FormattedAmount => Amount.ToString("C");
+
+		// ✅ ADD: Additional properties for better analysis
+		public string AccountCode { get; set; } = string.Empty;
+		public CashFlowCategory Category { get; set; }
+		public bool IsInflow => Amount > 0;
+		public bool IsOutflow => Amount < 0;
+	}
+
+	// ✅ ADD: Cash flow categorization
+	public enum CashFlowCategory
+	{
+		Operating,
+		Investing,
+		Financing
 	}
 
 	// ============= ACCOUNTS PAYABLE =============
