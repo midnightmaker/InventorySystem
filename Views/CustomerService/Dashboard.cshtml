@@ -1,0 +1,346 @@
+@model InventorySystem.ViewModels.CustomerService.CustomerServiceDashboardViewModel
+@{
+    ViewData["Title"] = "Customer Service Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-headset text-primary"></i> Customer Service Dashboard</h1>
+    <div class="btn-group" role="group">
+        <a href="@Url.Action("Create")" class="btn btn-success">
+            <i class="fas fa-plus-circle"></i> New Support Case
+        </a>
+        <a href="@Url.Action("Index")" class="btn btn-outline-primary">
+            <i class="fas fa-ticket-alt"></i> All Cases
+        </a>
+        <a href="@Url.Action("Reports")" class="btn btn-outline-info">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+    </div>
+</div>
+
+<!-- Summary Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">@Model.TotalOpenCases</h4>
+                        <p class="card-text">Open Cases</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-folder-open fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">@Model.TotalCasesToday</h4>
+                        <p class="card-text">Cases Today</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-day fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">@Model.TotalOverdueCases</h4>
+                        <p class="card-text">Overdue Cases</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">@Model.TotalEscalatedCases</h4>
+                        <p class="card-text">Escalated Cases</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-arrow-up fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Metrics Row -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4 class="text-info">@Model.AverageResponseTimeHours.ToString("F1")h</h4>
+                <p class="text-muted">Avg Response Time</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4 class="text-success">@Model.AverageResolutionTimeHours.ToString("F1")h</h4>
+                <p class="text-muted">Avg Resolution Time</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4 class="text-warning">@Model.CustomerSatisfactionAverage.ToString("F1")/5</h4>
+                <p class="text-muted">Customer Satisfaction</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4 class="text-primary">@Model.FirstCallResolutionRate.ToString("F1")%</h4>
+                <p class="text-muted">First Call Resolution</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Cases -->
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-clock text-primary"></i> Recent Cases</h5>
+                <a href="@Url.Action("Index")" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                @if (Model.RecentCases.Any())
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var supportCase in Model.RecentCases.Take(5))
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">
+                                        <a href="@Url.Action("Details", new { id = supportCase.Id })" class="text-decoration-none">
+                                            @supportCase.CaseNumber
+                                        </a>
+                                    </div>
+                                    <div class="text-truncate" style="max-width: 250px;">@supportCase.Subject</div>
+                                    <small class="text-muted">@supportCase.Customer?.CustomerName</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-@supportCase.StatusColor rounded-pill">@supportCase.Status</span>
+                                    <div><small class="text-muted">@supportCase.CreatedDate.ToString("MM/dd HH:mm")</small></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No recent cases</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- High Priority Cases -->
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-flag text-danger"></i> High Priority Cases</h5>
+                <a href="@Url.Action("Index", new { priority = "High" })" class="btn btn-sm btn-outline-danger">View All</a>
+            </div>
+            <div class="card-body">
+                @if (Model.HighPriorityCases.Any())
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var supportCase in Model.HighPriorityCases.Take(5))
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">
+                                        <a href="@Url.Action("Details", new { id = supportCase.Id })" class="text-decoration-none">
+                                            @supportCase.CaseNumber
+                                        </a>
+                                    </div>
+                                    <div class="text-truncate" style="max-width: 250px;">@supportCase.Subject</div>
+                                    <small class="text-muted">@supportCase.Customer?.CustomerName</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-@supportCase.PriorityColor rounded-pill">@supportCase.Priority</span>
+                                    <div><small class="text-muted">@supportCase.CreatedDate.ToString("MM/dd HH:mm")</small></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No high priority cases</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row">
+    <!-- Cases by Status Chart -->
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie text-info"></i> Cases by Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cases by Priority Chart -->
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-doughnut text-warning"></i> Cases by Priority</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="priorityChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Agent Performance Table -->
+@if (Model.AgentStats.Any())
+{
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-users text-success"></i> Agent Performance</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Agent</th>
+                            <th>Assigned</th>
+                            <th>Resolved</th>
+                            <th>Resolution Rate</th>
+                            <th>Avg Resolution Time</th>
+                            <th>Customer Satisfaction</th>
+                            <th>Overdue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var agent in Model.AgentStats)
+                        {
+                            <tr>
+                                <td>@agent.AgentName</td>
+                                <td>@agent.AssignedCases</td>
+                                <td>@agent.ResolvedCases</td>
+                                <td>
+                                    <span class="badge bg-@(agent.ResolutionRate >= 80 ? "success" : agent.ResolutionRate >= 60 ? "warning" : "danger")">
+                                        @agent.ResolutionRate.ToString("F1")%
+                                    </span>
+                                </td>
+                                <td>@agent.AverageResolutionTime.ToString("F1")h</td>
+                                <td>
+                                    @if (agent.AverageSatisfaction.HasValue)
+                                    {
+                                        <span class="badge bg-@(agent.AverageSatisfaction >= 4 ? "success" : agent.AverageSatisfaction >= 3 ? "warning" : "danger")">
+                                            @agent.AverageSatisfaction.Value.ToString("F1")/5
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (agent.OverdueCases > 0)
+                                    {
+                                        <span class="badge bg-danger">@agent.OverdueCases</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success">0</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Cases by Status Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: [@Html.Raw(string.Join(",", Model.CasesByStatus.Keys.Select(k => $"'{k}'")))],
+            datasets: [{
+                data: [@string.Join(",", Model.CasesByStatus.Values)],
+                backgroundColor: ['#007bff', '#ffc107', '#dc3545', '#6c757d', '#28a745', '#17a2b8']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Cases by Priority Chart
+    const priorityCtx = document.getElementById('priorityChart').getContext('2d');
+    new Chart(priorityCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [@Html.Raw(string.Join(",", Model.CasesByPriority.Keys.Select(k => $"'{k}'")))],
+            datasets: [{
+                data: [@string.Join(",", Model.CasesByPriority.Values)],
+                backgroundColor: ['#dc3545', '#ffc107', '#007bff', '#6c757d']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+</script>
+}

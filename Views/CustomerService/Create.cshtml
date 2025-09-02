@@ -1,0 +1,399 @@
+﻿@model InventorySystem.ViewModels.CustomerService.CustomerCaseCreateViewModel
+@{
+    ViewData["Title"] = "Create Support Case";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-plus-circle text-success"></i> Create Support Case</h1>
+    <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Cases
+    </a>
+</div>
+
+<form asp-action="Create" method="post" enctype="multipart/form-data" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="row">
+        <!-- Main Form -->
+        <div class="col-lg-8">
+            <!-- Customer Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-user text-primary"></i> Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="CustomerId" class="form-label">Customer *</label>
+                                <select asp-for="CustomerId" asp-items="Model.CustomerOptions" class="form-select" id="customerSelect">
+                                    <option value="">Select Customer...</option>
+                                </select>
+                                <span asp-validation-for="CustomerId" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ContactName" class="form-label">Contact Name *</label>
+                                <input asp-for="ContactName" class="form-control" placeholder="Contact person name" />
+                                <span asp-validation-for="ContactName" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ContactEmail" class="form-label">Contact Email *</label>
+                                <input asp-for="ContactEmail" type="email" class="form-control" placeholder="email@company.com" />
+                                <span asp-validation-for="ContactEmail" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ContactPhone" class="form-label">Contact Phone</label>
+                                <input asp-for="ContactPhone" class="form-control" placeholder="(555) 123-4567" />
+                                <span asp-validation-for="ContactPhone" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Case Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-ticket-alt text-info"></i> Case Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="Subject" class="form-label">Subject *</label>
+                        <input asp-for="Subject" class="form-control" placeholder="Brief description of the issue" />
+                        <span asp-validation-for="Subject" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">Description *</label>
+                        <textarea asp-for="Description" class="form-control" rows="6" placeholder="Detailed description of the issue, including steps to reproduce, error messages, etc."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <div class="form-text">Please provide as much detail as possible to help us resolve your issue quickly.</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="CaseType" class="form-label">Case Type *</label>
+                                <select asp-for="CaseType" class="form-select">
+                                    <option value="GeneralInquiry">General Inquiry</option>
+                                    <option value="TechnicalSupport">Technical Support</option>
+                                    <option value="BillingQuestion">Billing Question</option>
+                                    <option value="ProductDefect">Product Defect</option>
+                                    <option value="FeatureRequest">Feature Request</option>
+                                    <option value="Complaint">Complaint</option>
+                                    <option value="ReturnRefund">Return/Refund</option>
+                                    <option value="InstallationSupport">Installation Support</option>
+                                    <option value="TrainingRequest">Training Request</option>
+                                    <option value="Documentation">Documentation</option>
+                                </select>
+                                <span asp-validation-for="CaseType" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="Priority" class="form-label">Priority *</label>
+                                <select asp-for="Priority" class="form-select">
+                                    <option value="Low">🟢 Low</option>
+                                    <option value="Medium" selected>🟡 Medium</option>
+                                    <option value="High">🟠 High</option>
+                                    <option value="Critical">🔴 Critical</option>
+                                </select>
+                                <span asp-validation-for="Priority" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="Channel" class="form-label">Contact Channel *</label>
+                                <select asp-for="Channel" class="form-select">
+                                    <option value="Email" selected>📧 Email</option>
+                                    <option value="Phone">📞 Phone</option>
+                                    <option value="WebPortal">🌐 Web Portal</option>
+                                    <option value="Chat">💬 Chat</option>
+                                    <option value="SocialMedia">📱 Social Media</option>
+                                    <option value="InPerson">👤 In Person</option>
+                                </select>
+                                <span asp-validation-for="Channel" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-link text-warning"></i> Related Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="RelatedSaleId" class="form-label">Related Sale/Order</label>
+                                <select asp-for="RelatedSaleId" asp-items="Model.SaleOptions" class="form-select">
+                                    <option value="">Select Sale...</option>
+                                </select>
+                                <span asp-validation-for="RelatedSaleId" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="RelatedServiceOrderId" class="form-label">Related Service Order</label>
+                                <select asp-for="RelatedServiceOrderId" asp-items="Model.ServiceOrderOptions" class="form-select">
+                                    <option value="">Select Service Order...</option>
+                                </select>
+                                <span asp-validation-for="RelatedServiceOrderId" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="RelatedProductId" class="form-label">Related Product</label>
+                                <select asp-for="RelatedProductId" asp-items="Model.ProductOptions" class="form-select">
+                                    <option value="">Select Product...</option>
+                                </select>
+                                <span asp-validation-for="RelatedProductId" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ProductSerialNumber" class="form-label">Product Serial Number</label>
+                        <input asp-for="ProductSerialNumber" class="form-control" placeholder="Enter serial number if applicable" />
+                        <span asp-validation-for="ProductSerialNumber" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Attachments -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-paperclip text-success"></i> File Attachments</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="AttachedFiles" class="form-label">Attach Files</label>
+                        <input asp-for="AttachedFiles" type="file" class="form-control" multiple accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif">
+                        <div class="form-text">
+                            Maximum 10MB per file. Allowed types: PDF, DOC, DOCX, TXT, JPG, PNG, GIF.
+                            You can select multiple files.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="FileDescription" class="form-label">File Description</label>
+                        <textarea asp-for="FileDescription" class="form-control" rows="2" placeholder="Brief description of the attached files"></textarea>
+                        <span asp-validation-for="FileDescription" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Sidebar -->
+        <div class="col-lg-4">
+            <!-- Assignment & Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-cog text-secondary"></i> Case Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="AssignedTo" class="form-label">Assign To</label>
+                        <select asp-for="AssignedTo" asp-items="Model.AgentOptions" class="form-select">
+                            <option value="">Auto-assign</option>
+                        </select>
+                        <span asp-validation-for="AssignedTo" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Tags" class="form-label">Tags</label>
+                        <input asp-for="Tags" class="form-control" placeholder="tag1, tag2, tag3" />
+                        <span asp-validation-for="Tags" class="text-danger"></span>
+                        <div class="form-text">Separate tags with commas</div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="AutoAssign" class="form-check-input" checked />
+                        <label asp-for="AutoAssign" class="form-check-label">Auto-assign based on case type</label>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="SendConfirmationEmail" class="form-check-input" checked />
+                        <label asp-for="SendConfirmationEmail" class="form-check-label">Send confirmation email to customer</label>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="NotifyCustomer" class="form-check-input" checked />
+                        <label asp-for="NotifyCustomer" class="form-check-label">Notify customer of updates</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Internal Notes -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-sticky-note text-warning"></i> Internal Notes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="InternalNotes" class="form-label">Internal Notes</label>
+                        <textarea asp-for="InternalNotes" class="form-control" rows="4" placeholder="Internal notes visible only to staff"></textarea>
+                        <span asp-validation-for="InternalNotes" class="text-danger"></span>
+                        <div class="form-text">These notes are not visible to the customer</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Priority Guide -->
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-info-circle text-info"></i> Priority Guidelines</h6>
+                </div>
+                <div class="card-body">
+                    <div class="small">
+                        <div class="mb-2">
+                            <span class="badge bg-danger">Critical</span>
+                            <div class="mt-1">System down, security breach, data loss</div>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge bg-warning">High</span>
+                            <div class="mt-1">Major functionality affected, urgent business need</div>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge bg-info">Medium</span>
+                            <div class="mt-1">Normal support request, minor issue</div>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge bg-secondary">Low</span>
+                            <div class="mt-1">Enhancement request, how-to question</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Create Support Case
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    $(document).ready(function() {
+        // Customer selection handler
+        $('#customerSelect').on('change', function() {
+            const customerId = $(this).val();
+            if (customerId) {
+                loadCustomerInfo(customerId);
+                loadCustomerSales(customerId);
+                loadCustomerServiceOrders(customerId);
+            }
+        });
+
+        // Auto-fill contact info when customer is selected
+        function loadCustomerInfo(customerId) {
+            $.get('@Url.Action("GetCustomerInfo")', { customerId: customerId })
+                .done(function(result) {
+                    if (result.success) {
+                        $('#ContactName').val(result.customer.contactName || result.customer.customerName);
+                        $('#ContactEmail').val(result.customer.contactEmail || result.customer.email);
+                        $('#ContactPhone').val(result.customer.contactPhone || result.customer.phone);
+                    }
+                })
+                .fail(function() {
+                    console.log('Error loading customer info');
+                });
+        }
+
+        // Load customer sales for related sale dropdown
+        function loadCustomerSales(customerId) {
+            $.get('@Url.Action("GetCustomerSales")', { customerId: customerId })
+                .done(function(result) {
+                    if (result.success) {
+                        const salesSelect = $('#RelatedSaleId');
+                        salesSelect.empty().append('<option value="">Select Sale...</option>');
+                        
+                        result.sales.forEach(function(sale) {
+                            salesSelect.append(`<option value="${sale.id}">${sale.displayText}</option>`);
+                        });
+                    }
+                })
+                .fail(function() {
+                    console.log('Error loading customer sales');
+                });
+        }
+
+        // Load customer service orders
+        function loadCustomerServiceOrders(customerId) {
+            $.get('@Url.Action("GetCustomerServiceOrders")', { customerId: customerId })
+                .done(function(result) {
+                    if (result.success) {
+                        const serviceOrderSelect = $('#RelatedServiceOrderId');
+                        serviceOrderSelect.empty().append('<option value="">Select Service Order...</option>');
+                        
+                        result.serviceOrders.forEach(function(so) {
+                            serviceOrderSelect.append(`<option value="${so.id}">${so.displayText}</option>`);
+                        });
+                    }
+                })
+                .fail(function() {
+                    console.log('Error loading customer service orders');
+                });
+        }
+
+        // File validation
+        $('input[type="file"]').on('change', function() {
+            const files = this.files;
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            let hasError = false;
+
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].size > maxSize) {
+                    alert(`File "${files[i].name}" is too large. Maximum size is 10MB.`);
+                    hasError = true;
+                }
+            }
+
+            if (hasError) {
+                this.value = '';
+            }
+        });
+
+        // Form validation
+        $('form').on('submit', function(e) {
+            const customerId = $('#customerSelect').val();
+            const subject = $('#Subject').val().trim();
+            const description = $('#Description').val().trim();
+
+            if (!customerId || !subject || !description) {
+                e.preventDefault();
+                alert('Please fill in all required fields (Customer, Subject, and Description).');
+                return false;
+            }
+
+            // Show loading indicator
+            if (window.LoadingIndicator) {
+                window.LoadingIndicator.show('Creating Support Case...', 'Processing case information and file attachments');
+            }
+        });
+    });
+</script>
+}

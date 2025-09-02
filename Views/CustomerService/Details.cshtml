@@ -1,0 +1,859 @@
+@model InventorySystem.Models.CustomerService.SupportCase
+@{
+    ViewData["Title"] = $"Case {Model.CaseNumber} - {Model.Subject}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>
+            <i class="fas fa-ticket-alt text-primary"></i> 
+            Case @Model.CaseNumber
+            <span class="badge bg-@Model.StatusColor ms-2">@Model.Status</span>
+            <span class="badge bg-@Model.PriorityColor ms-1">@Model.Priority</span>
+        </h1>
+        <h5 class="text-muted">@Model.Subject</h5>
+    </div>
+    <div class="btn-group" role="group">
+        <a href="@Url.Action("Edit", new { id = Model.Id })" class="btn btn-outline-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
+            <i class="fas fa-exchange-alt"></i> Update Status
+        </button>
+        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#addUpdateModal">
+            <i class="fas fa-comment"></i> Add Update
+        </button>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Cases
+        </a>
+    </div>
+</div>
+
+<!-- Alert Messages -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Case Overview -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-info-circle text-primary"></i> Case Overview</h5>
+                @if (Model.IsOverdue)
+                {
+                    <span class="badge bg-danger">
+                        <i class="fas fa-clock"></i> Overdue (@Model.AgeDays days)
+                    </span>
+                }
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Description</h6>
+                        <p class="mb-4">@Model.Description</p>
+                        
+                        @if (!string.IsNullOrEmpty(Model.InternalNotes))
+                        {
+                            <h6 class="text-muted mb-3">Internal Notes</h6>
+                            <div class="alert alert-light">
+                                <i class="fas fa-sticky-note text-warning"></i>
+                                @Model.InternalNotes
+                            </div>
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-5">Case Type:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-info">@Model.CaseType.ToString().Replace("_", " ")</span>
+                            </dd>
+                            
+                            <dt class="col-sm-5">Channel:</dt>
+                            <dd class="col-sm-7">@Model.Channel</dd>
+                            
+                            <dt class="col-sm-5">Created:</dt>
+                            <dd class="col-sm-7">@Model.CreatedDate.ToString("MM/dd/yyyy HH:mm")</dd>
+                            
+                            <dt class="col-sm-5">Age:</dt>
+                            <dd class="col-sm-7">
+                                <span class="@(Model.AgeDays > 7 ? "text-danger" : Model.AgeDays > 3 ? "text-warning" : "text-success")">
+                                    @Model.AgeDays day@(Model.AgeDays != 1 ? "s" : "")
+                                </span>
+                            </dd>
+                            
+                            @if (Model.DueDate.HasValue)
+                            {
+                                <dt class="col-sm-5">Due Date:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="@(Model.IsOverdue ? "text-danger" : "text-info")">
+                                        @Model.DueDate.Value.ToString("MM/dd/yyyy HH:mm")
+                                    </span>
+                                </dd>
+                            }
+                            
+                            @if (Model.ResolutionDate.HasValue)
+                            {
+                                <dt class="col-sm-5">Resolved:</dt>
+                                <dd class="col-sm-7">@Model.ResolutionDate.Value.ToString("MM/dd/yyyy HH:mm")</dd>
+                            }
+                        </dl>
+                        
+                        @if (Model.TagsList.Any())
+                        {
+                            <h6 class="text-muted mb-2">Tags</h6>
+                            <div class="mb-3">
+                                @foreach (var tag in Model.TagsList)
+                                {
+                                    <span class="badge bg-light text-dark me-1">@tag</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(Model.ResolutionNotes))
+                {
+                    <div class="alert alert-success mt-3">
+                        <h6><i class="fas fa-check-circle"></i> Resolution</h6>
+                        <p class="mb-0">@Model.ResolutionNotes</p>
+                        @if (Model.CustomerSatisfactionRating.HasValue)
+                        {
+                            <div class="mt-2">
+                                <strong>Customer Satisfaction:</strong>
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    <i class="fas fa-star @(i <= Model.CustomerSatisfactionRating ? "text-warning" : "text-muted")"></i>
+                                }
+                                (@Model.CustomerSatisfactionRating/5)
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.CustomerFeedback))
+                        {
+                            <div class="mt-2">
+                                <strong>Customer Feedback:</strong> @Model.CustomerFeedback
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Case Updates Timeline -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-history text-info"></i> Case Updates (@Model.UpdateCount)</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUpdateModal">
+                    <i class="fas fa-plus"></i> Add Update
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.CaseUpdates.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var update in Model.CaseUpdates.OrderByDescending(u => u.UpdateDate))
+                        {
+                            <div class="timeline-item">
+                                <div class="timeline-marker">
+                                    <div class="timeline-marker-icon bg-@update.UpdateTypeColor">
+                                        <i class="@update.UpdateTypeIcon"></i>
+                                    </div>
+                                </div>
+                                <div class="timeline-content">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-1">
+                                                @update.UpdatedBy
+                                                <span class="badge bg-@update.UpdateTypeColor ms-2">@update.UpdateType.ToString().Replace("_", " ")</span>
+                                                @if (update.IsInternal)
+                                                {
+                                                    <span class="badge bg-warning ms-1">Internal</span>
+                                                }
+                                            </h6>
+                                            <small class="text-muted">@update.UpdateDate.ToString("MM/dd/yyyy HH:mm")</small>
+                                        </div>
+                                        @if (update.HasTimeLogged)
+                                        {
+                                            <span class="badge bg-secondary">@update.TimeSpentHours h</span>
+                                        }
+                                    </div>
+                                    
+                                    <p class="mb-2">@update.UpdateText</p>
+                                    
+                                    @if (update.IsStatusChange)
+                                    {
+                                        <div class="alert alert-light py-2 mb-2">
+                                            <small>
+                                                <i class="fas fa-exchange-alt"></i>
+                                                Status changed from <strong>@update.PreviousStatus</strong> to <strong>@update.NewStatus</strong>
+                                            </small>
+                                        </div>
+                                    }
+                                    
+                                    @if (update.IsAssignmentChange)
+                                    {
+                                        <div class="alert alert-light py-2 mb-2">
+                                            <small>
+                                                <i class="fas fa-user"></i>
+                                                Assigned from <strong>@(update.PreviousAssignee ?? "Unassigned")</strong> to <strong>@(update.NewAssignee ?? "Unassigned")</strong>
+                                            </small>
+                                        </div>
+                                    }
+                                    
+                                    @if (!string.IsNullOrEmpty(update.WorkCategory))
+                                    {
+                                        <div class="mt-2">
+                                            <span class="badge bg-light text-dark">@update.WorkCategory</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-comment fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No updates yet</h6>
+                        <p class="text-muted">Add the first update to start tracking case progress.</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Documents -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-paperclip text-success"></i> Documents (@Model.CaseDocuments.Count)</h5>
+                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
+                    <i class="fas fa-upload"></i> Upload Document
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.CaseDocuments.Any())
+                {
+                    <div class="row">
+                        @foreach (var doc in Model.CaseDocuments.OrderByDescending(d => d.UploadedDate))
+                        {
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start">
+                                            <div class="me-3">
+                                                <i class="@doc.FileTypeIcon fa-2x"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="card-title mb-1">@doc.DocumentName</h6>
+                                                <p class="card-text small text-muted mb-1">
+                                                    @doc.FileSizeFormatted
+                                                    @if (!string.IsNullOrEmpty(doc.DocumentType))
+                                                    {
+                                                        <span class="ms-2 badge bg-light text-dark">@doc.DocumentType</span>
+                                                    }
+                                                </p>
+                                                @if (!string.IsNullOrEmpty(doc.Description))
+                                                {
+                                                    <p class="card-text small">@doc.Description</p>
+                                                }
+                                                <small class="text-muted">
+                                                    Uploaded by @doc.UploadedBy on @doc.UploadedDate.ToString("MM/dd/yyyy")
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <div class="btn-group btn-group-sm w-100">
+                                                <a href="@Url.Action("ViewDocument", new { id = doc.Id })" class="btn btn-outline-primary" target="_blank">
+                                                    <i class="fas fa-eye"></i> View
+                                                </a>
+                                                <a href="@Url.Action("DownloadDocument", new { id = doc.Id })" class="btn btn-outline-success">
+                                                    <i class="fas fa-download"></i> Download
+                                                </a>
+                                                <button type="button" class="btn btn-outline-danger" onclick="deleteDocument(@doc.Id, '@doc.DocumentName')">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-file fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No documents attached</h6>
+                        <p class="text-muted">Upload documents to support this case.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Customer Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-user text-primary"></i> Customer Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                        <i class="fas fa-user fa-lg"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">
+                            <a href="@Url.Action("Details", "Customers", new { id = Model.CustomerId })" class="text-decoration-none">
+                                @Model.Customer?.CustomerName
+                            </a>
+                        </h6>
+                        @if (!string.IsNullOrEmpty(Model.Customer?.CompanyName))
+                        {
+                            <small class="text-muted">@Model.Customer.CompanyName</small>
+                        }
+                    </div>
+                </div>
+                
+                <dl class="mb-0">
+                    <dt>Contact Person:</dt>
+                    <dd>@Model.ContactName</dd>
+                    
+                    <dt>Email:</dt>
+                    <dd>
+                        <a href="mailto:@Model.ContactEmail">@Model.ContactEmail</a>
+                    </dd>
+                    
+                    @if (!string.IsNullOrEmpty(Model.ContactPhone))
+                    {
+                        <dt>Phone:</dt>
+                        <dd>
+                            <a href="tel:@Model.ContactPhone">@Model.ContactPhone</a>
+                        </dd>
+                    }
+                </dl>
+                
+                <div class="mt-3">
+                    <a href="@Url.Action("Index", new { customerId = Model.CustomerId })" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-history"></i> Customer Cases
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assignment & Status -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-tasks text-info"></i> Assignment & Status</h5>
+            </div>
+            <div class="card-body">
+                <dl class="mb-3">
+                    <dt>Assigned To:</dt>
+                    <dd>
+                        @if (!string.IsNullOrEmpty(Model.AssignedTo))
+                        {
+                            <span class="text-success">@Model.AssignedTo</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Unassigned</span>
+                        }
+                    </dd>
+                    
+                    <dt>Created By:</dt>
+                    <dd>@Model.CreatedBy</dd>
+                    
+                    @if (!string.IsNullOrEmpty(Model.LastModifiedBy))
+                    {
+                        <dt>Last Modified By:</dt>
+                        <dd>@Model.LastModifiedBy</dd>
+                    }
+                </dl>
+                
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#assignCaseModal">
+                        <i class="fas fa-user"></i> Reassign Case
+                    </button>
+                    @if (Model.Status != InventorySystem.Models.Enums.CaseStatus.Escalated)
+                    {
+                        <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#escalateCaseModal">
+                            <i class="fas fa-arrow-up"></i> Escalate Case
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Related Information -->
+        @if (Model.RelatedSaleId.HasValue || Model.RelatedServiceOrderId.HasValue || Model.RelatedProductId.HasValue)
+        {
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-link text-warning"></i> Related Information</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.RelatedSaleId.HasValue && Model.RelatedSale != null)
+                    {
+                        <div class="mb-3">
+                            <dt>Related Sale:</dt>
+                            <dd>
+                                <a href="@Url.Action("Details", "Sales", new { id = Model.RelatedSaleId })" class="text-decoration-none">
+                                    @Model.RelatedSale.SaleNumber
+                                </a>
+                                <br>
+                                <small class="text-muted">@Model.RelatedSale.SaleDate.ToString("MM/dd/yyyy") - @Model.RelatedSale.TotalAmount.ToString("C")</small>
+                            </dd>
+                        </div>
+                    }
+                    
+                    @if (Model.RelatedServiceOrderId.HasValue && Model.RelatedServiceOrder != null)
+                    {
+                        <div class="mb-3">
+                            <dt>Related Service Order:</dt>
+                            <dd>
+                                <a href="@Url.Action("Details", "Services", new { id = Model.RelatedServiceOrderId })" class="text-decoration-none">
+                                    @Model.RelatedServiceOrder.ServiceOrderNumber
+                                </a>
+                            </dd>
+                        </div>
+                    }
+                    
+                    @if (Model.RelatedProductId.HasValue && Model.RelatedProduct != null)
+                    {
+                        <div class="mb-3">
+                            <dt>Related Product:</dt>
+                            <dd>
+                                <a href="@Url.Action("Details", "Items", new { id = Model.RelatedProductId })" class="text-decoration-none">
+                                    @Model.RelatedProduct.PartNumber
+                                </a>
+                                <br>
+                                <small class="text-muted">@Model.RelatedProduct.Description</small>
+                                @if (!string.IsNullOrEmpty(Model.ProductSerialNumber))
+                                {
+                                    <br>
+                                    <small class="text-info">S/N: @Model.ProductSerialNumber</small>
+                                }
+                            </dd>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt text-warning"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    @if (Model.Status == InventorySystem.Models.Enums.CaseStatus.Open)
+                    {
+                        <button type="button" class="btn btn-success" onclick="quickStatusUpdate('InProgress')">
+                            <i class="fas fa-play"></i> Start Progress
+                        </button>
+                    }
+                    
+                    @if (Model.Status == InventorySystem.Models.Enums.CaseStatus.InProgress)
+                    {
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#resolveCaseModal">
+                            <i class="fas fa-check"></i> Resolve Case
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="quickStatusUpdate('OnHold')">
+                            <i class="fas fa-pause"></i> Put On Hold
+                        </button>
+                    }
+                    
+                    @if (Model.Status == InventorySystem.Models.Enums.CaseStatus.OnHold)
+                    {
+                        <button type="button" class="btn btn-primary" onclick="quickStatusUpdate('InProgress')">
+                            <i class="fas fa-play"></i> Resume
+                        </button>
+                    }
+                    
+                    @if (Model.Status == InventorySystem.Models.Enums.CaseStatus.Resolved)
+                    {
+                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#closeCaseModal">
+                            <i class="fas fa-times"></i> Close Case
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="quickStatusUpdate('InProgress')">
+                            <i class="fas fa-undo"></i> Reopen
+                        </button>
+                    }
+                    
+                    <button type="button" class="btn btn-outline-primary" onclick="sendEmailUpdate()">
+                        <i class="fas fa-envelope"></i> Email Customer
+                    </button>
+                    
+                    <button type="button" class="btn btn-outline-info" onclick="printCase()">
+                        <i class="fas fa-print"></i> Print Case
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Update Modal -->
+<div class="modal fade" id="addUpdateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-comment text-primary"></i> Add Case Update
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addUpdateForm">
+                <div class="modal-body">
+                    <input type="hidden" name="SupportCaseId" value="@Model.Id" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Update Type</label>
+                        <select name="UpdateType" class="form-select" required>
+                            <option value="Comment">Comment</option>
+                            <option value="CustomerResponse">Customer Response</option>
+                            <option value="StatusChange">Status Change</option>
+                            <option value="Assignment">Assignment</option>
+                            <option value="PriorityChange">Priority Change</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Update Text</label>
+                        <textarea name="UpdateText" class="form-control" rows="4" required placeholder="Enter update details..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Work Category</label>
+                                <select name="WorkCategory" class="form-select">
+                                    <option value="">Select Category...</option>
+                                    <option value="Investigation">Investigation</option>
+                                    <option value="Communication">Communication</option>
+                                    <option value="Research">Research</option>
+                                    <option value="Testing">Testing</option>
+                                    <option value="Documentation">Documentation</option>
+                                    <option value="Escalation">Escalation</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Time Spent (Hours)</label>
+                                <input type="number" name="TimeSpentHours" class="form-control" step="0.25" min="0" max="24" placeholder="0.0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" name="IsInternal" class="form-check-input" id="isInternalCheck">
+                        <label class="form-check-label" for="isInternalCheck">
+                            Internal Update (not visible to customer)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Add Update
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Document Modal -->
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload text-success"></i> Upload Document
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="uploadDocumentForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select File</label>
+                        <input type="file" name="DocumentFile" class="form-control" required accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif">
+                        <div class="form-text">Maximum 10MB. Allowed: PDF, DOC, DOCX, TXT, JPG, PNG, GIF</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Document Name</label>
+                        <input type="text" name="DocumentName" class="form-control" placeholder="Enter document name">
+                        <div class="form-text">Leave blank to use filename</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Document Type</label>
+                        <select name="DocumentType" class="form-select">
+                            <option value="General">General</option>
+                            <option value="Screenshot">Screenshot</option>
+                            <option value="Log File">Log File</option>
+                            <option value="Error Report">Error Report</option>
+                            <option value="Solution">Solution</option>
+                            <option value="Customer Response">Customer Response</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="Description" class="form-control" rows="3" placeholder="Brief description of the document"></textarea>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" name="IsCustomerVisible" class="form-check-input" checked id="customerVisibleCheck">
+                        <label class="form-check-label" for="customerVisibleCheck">
+                            Visible to customer
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-upload"></i> Upload Document
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Resolve Case Modal -->
+<div class="modal fade" id="resolveCaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle text-success"></i> Resolve Case
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="resolveCaseForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Resolution Notes</label>
+                        <textarea name="ResolutionNotes" class="form-control" rows="4" required placeholder="Describe how the case was resolved..."></textarea>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" name="NotifyCustomer" class="form-check-input" checked id="notifyCustomerResolve">
+                        <label class="form-check-label" for="notifyCustomerResolve">
+                            Notify customer of resolution
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Resolve Case
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline:before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dee2e6;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -22px;
+        top: 8px;
+    }
+    
+    .timeline-marker-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+    }
+    
+    .timeline-content {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        border-left: 3px solid #007bff;
+    }
+</style>
+}
+
+@section Scripts {
+<script>
+    $(document).ready(function() {
+        // Add Update Form
+        $('#addUpdateForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            $.post('@Url.Action("AddUpdate")', $(this).serialize())
+                .done(function(result) {
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.message);
+                    }
+                })
+                .fail(function() {
+                    alert('Error adding update');
+                });
+        });
+
+        // Upload Document Form
+        $('#uploadDocumentForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            formData.append('SupportCaseId', @Model.Id);
+            
+            $.ajax({
+                url: '@Url.Action("UploadDocument")',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                }
+            })
+            .done(function(result) {
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .fail(function() {
+                alert('Error uploading document');
+            });
+        });
+
+        // Resolve Case Form
+        $('#resolveCaseForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            const resolutionNotes = $(this).find('[name="ResolutionNotes"]').val();
+            const notifyCustomer = $(this).find('[name="NotifyCustomer"]').is(':checked');
+            
+            $.post('@Url.Action("ResolveCase")', {
+                caseId: @Model.Id,
+                resolutionNotes: resolutionNotes,
+                notifyCustomer: notifyCustomer,
+                __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+            })
+            .done(function(result) {
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .fail(function() {
+                alert('Error resolving case');
+            });
+        });
+    });
+
+    // Quick status update
+    function quickStatusUpdate(newStatus) {
+        if (confirm(`Are you sure you want to change the status to ${newStatus}?`)) {
+            $.post('@Url.Action("QuickStatusUpdate")', {
+                caseId: @Model.Id,
+                newStatus: newStatus,
+                __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+            })
+            .done(function(result) {
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .fail(function() {
+                alert('Error updating status');
+            });
+        }
+    }
+
+    // Delete document
+    function deleteDocument(documentId, documentName) {
+        if (confirm(`Are you sure you want to delete "${documentName}"?`)) {
+            $.ajax({
+                url: '@Url.Action("DeleteDocument")',
+                type: 'POST',
+                data: JSON.stringify({ DocumentId: documentId }),
+                contentType: 'application/json',
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                }
+            })
+            .done(function(result) {
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .fail(function() {
+                alert('Error deleting document');
+            });
+        }
+    }
+
+    // Email customer
+    function sendEmailUpdate() {
+        window.location.href = `mailto:@Model.ContactEmail?subject=Case ${@Model.CaseNumber} Update&body=Dear @Model.ContactName,%0A%0ARegarding your support case ${@Model.CaseNumber}:%0A${@Model.Subject}%0A%0A`;
+    }
+
+    // Print case
+    function printCase() {
+        window.print();
+    }
+</script>
+
+<!-- Add CSRF token for AJAX requests -->
+@Html.AntiForgeryToken()
+}

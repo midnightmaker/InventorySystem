@@ -3,6 +3,7 @@ using InventorySystem.Domain.Entities.Production;
 using InventorySystem.Domain.Enums;
 using InventorySystem.Models;
 using InventorySystem.Models.Accounting;
+using InventorySystem.Models.CustomerService;
 using InventorySystem.Models.Enums;
 using InventorySystem.Services;
 using Microsoft.EntityFrameworkCore;
@@ -78,13 +79,16 @@ namespace InventorySystem.Data
 		// Add DbSet for ServiceTypeDocument
 		public DbSet<ServiceTypeDocument> ServiceTypeDocuments { get; set; }
 
-		// Add these DbSets to your InventoryContext class:
 		public DbSet<Shipment> Shipments { get; set; }
 		public DbSet<ShipmentItem> ShipmentItems { get; set; }
 
-		// Add these to your existing DbSets
 		public DbSet<FinancialPeriod> FinancialPeriods { get; set; }
 		public DbSet<CompanySettings> CompanySettings { get; set; }
+
+		public DbSet<SupportCase> SupportCases { get; set; }
+		public DbSet<CaseUpdate> CaseUpdates { get; set; }
+		public DbSet<CaseDocument> CaseDocuments { get; set; }
+		public DbSet<CaseEscalation> CaseEscalations { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{

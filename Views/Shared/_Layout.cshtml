@@ -20,7 +20,7 @@
 </head>
 <body>
   <header>
-    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark border-bottom box-shadow mb-3">
+    <nav class="navbar navbar-expand-lg navbar-toggleable-lg navbar-dark bg-dark border-bottom box-shadow mb-3">
       <div class="container-fluid">
         <a class="navbar-brand fw-bold" asp-area="" asp-controller="Home" asp-action="Index">
           <i class="fas fa-boxes text-primary"></i> Inventory System
@@ -29,7 +29,7 @@
                 aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+        <div class="navbar-collapse collapse d-lg-inline-flex justify-content-between">
           <ul class="navbar-nav flex-grow-1 me-auto">
             <!-- Dashboard -->
             <li class="nav-item">
@@ -38,7 +38,7 @@
               </a>
             </li>
 
-            <!-- Items Management Dropdown (renamed from Inventory) -->
+            <!-- Items Management Dropdown -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-cube"></i> Items
@@ -83,7 +83,7 @@
                 </li>
                 <li><hr class="dropdown-divider"></li>
 
-                <!-- ✅ NEW: Inventory Adjustments Section -->
+                <!-- Inventory Adjustments Section -->
                 <li>
                   <h6 class="dropdown-header">
                     <i class="fas fa-balance-scale"></i> Inventory Adjustments
@@ -109,298 +109,192 @@
                 </li>
               </ul>
             </li>
+
+            <!-- **NEW: CONSOLIDATED Customer Management Dropdown** -->
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="accountingDropdown" role="button"
-                 data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-calculator"></i> Accounting
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-users"></i> Customers
               </a>
-              <ul class="dropdown-menu" aria-labelledby="accountingDropdown">
-                <!-- Existing core menu items -->
+              <ul class="dropdown-menu">
+                <!-- Main Customer Actions -->
                 <li>
-                  <a class="dropdown-item" href="/Accounting/Index">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-users"></i> Customer Management
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index">
+                    <i class="fas fa-list"></i> All Customers
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" href="/Accounting/ChartOfAccounts">
-                    <i class="fas fa-list"></i> Chart of Accounts
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Create">
+                    <i class="fas fa-user-plus"></i> Add Customer
                   </a>
                 </li>
-                <li>
-                  <a class="dropdown-item" href="/Accounting/GeneralLedger">
-                    <i class="fas fa-book"></i> General Ledger
-                  </a>
-                </li>
-
-                <!-- Journal Entries & Adjustments Section -->
                 <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Journal Entries & Adjustments</h6></li>
 
+                <!-- Customer Categories -->
                 <li>
-                  <a class="dropdown-item" href="/Accounting/CreateManualJournalEntry">
-                    <i class="fas fa-plus-circle text-primary"></i> Create Manual Entry
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-tags"></i> By Type
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Retail">
+                    <i class="fas fa-user text-primary"></i> Retail Customers
                   </a>
                 </li>
-
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Corporate">
+                    <i class="fas fa-building text-info"></i> Corporate Accounts
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Wholesale">
+                    <i class="fas fa-warehouse text-success"></i> Wholesale Customers
+                  </a>
+                </li>
                 <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Customer Adjustments</h6></li>
+
+                <!-- **NEW: Customer Service Section** -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-headset"></i> Customer Service
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="CustomerService" asp-action="Dashboard">
+                    <i class="fas fa-tachometer-alt text-primary"></i> Service Dashboard
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="CustomerService" asp-action="Index">
+                    <i class="fas fa-ticket-alt text-info"></i> Support Cases
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="CustomerService" asp-action="Create">
+                    <i class="fas fa-plus-circle text-success"></i> New Support Case
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="CustomerService" asp-action="MyAssigned">
+                    <i class="fas fa-user-check text-info"></i> My Cases
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" asp-controller="CustomerService" asp-action="KnowledgeBase">
+                    <i class="fas fa-book text-info"></i> Knowledge Base
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+
+                <!-- Credit Management -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-credit-card"></i> Account Management
+                  </h6>
+                </li>
                 <li>
                   <a class="dropdown-item" href="/Accounting/CreateCustomerAdjustment">
-                    <i class="fas fa-adjust"></i> Create Adjustment
+                    <i class="fas fa-adjust"></i> Customer Adjustment
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" href="/Customers/Reports">
-                    <i class="fas fa-file-invoice"></i> Customer Reports
-                  </a>
-                </li>
-
-                <li>
-                  <a class="dropdown-item" href="/Accounting/GeneralLedger?referenceType=ManualJournalEntry">
-                    <i class="fas fa-file-alt text-info"></i> View Manual Entries
-                  </a>
-                </li>
-
-                <li>
-                  <a class="dropdown-item" href="/Accounting/GeneralLedger?referenceType=CustomerAdjustment">
-                    <i class="fas fa-users-cog text-secondary"></i> View Adjustments
-                  </a>
-                </li>
-                <!-- Credit Memo section -->
-                <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Credit Memos</h6></li>
-                <li>
-                  <a class="dropdown-item" href="/AccountsReceivable/CreditMemos">
-                    <i class="fas fa-receipt"></i> View Credit Memos
-                  </a>
-                </li>
-                <!-- Financial reports section -->
-                <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Financial Reports</h6></li>
-                <li>
-                  <a class="dropdown-item" href="/Accounting/TrialBalance">
-                    <i class="fas fa-balance-scale"></i> Trial Balance
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-hasOutstandingBalance="true">
+                    <i class="fas fa-exclamation-circle text-warning"></i> Outstanding Balances
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" href="/Accounting/BalanceSheet">
-                    <i class="fas fa-chart-bar"></i> Balance Sheet
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" href="/Accounting/IncomeStatement">
-                    <i class="fas fa-chart-line"></i> Income Statement
-                  </a>
-                </li>
-                <!-- ✅ ADD: Cash Flow Statement -->
-                <li>
-                  <a class="dropdown-item" href="/Accounting/CashFlowStatement">
-                    <i class="fas fa-water text-info"></i> Cash Flow Statement
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" href="/Accounting/AccountsPayable">
-                    <i class="fas fa-credit-card"></i> Accounts Payable
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Period Management</h6></li>
-                <li>
-                  <a class="dropdown-item" href="/Accounting/ManageFinancialPeriods">
-                    <i class="fas fa-calendar-alt text-primary"></i> Financial Periods
-                  </a>
-                </li>
-              </ul>
-            </li>
-            <!-- NEW: Expenses Management Dropdown -->
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-file-invoice-dollar"></i> Expenses
-              </a>
-              <ul class="dropdown-menu">
-                <!-- All Expenses -->
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true">
-                    <i class="fas fa-list text-primary"></i> All Expenses
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-overCreditLimit="true">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> Over Credit Limit
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
 
-                <!-- Expense Categories -->
+                <!-- Reports -->
                 <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-building"></i> By Category
-                  </h6>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Expense">
-                    <i class="fas fa-receipt text-danger"></i> Operating Expenses
+                  <a class="dropdown-item" asp-controller="Customers" asp-action="Reports">
+                    <i class="fas fa-chart-line"></i> Customer Reports
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Utility">
-                    <i class="fas fa-bolt text-warning"></i> Utilities
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Subscription">
-                    <i class="fas fa-sync-alt text-info"></i> Subscriptions
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Service">
-                    <i class="fas fa-tools text-success"></i> Services
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="Index" asp-route-isExpense="true" asp-route-itemTypeFilter="Virtual">
-                    <i class="fas fa-cloud text-info"></i> Digital & Virtual
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-
-                <!-- Financial Reports -->
-                <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-chart-line"></i> Financial Reports
-                  </h6>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Expenses" asp-action="Reports">
-                    <i class="fas fa-chart-bar text-success"></i> Expense Reports
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Expenses" asp-action="IncomeStatement">
-                    <i class="fas fa-file-invoice text-primary"></i> Income Statement
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Expenses" asp-action="TaxReports">
-                    <i class="fas fa-calculator text-secondary"></i> Tax Reports
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-
-                <!-- Expense Management -->
-                <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-plus"></i> Add Expense Items
-                  </h6>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="CreateExpense" asp-route-itemType="Expense">
-                    <i class="fas fa-receipt text-danger"></i> Add Operating Expense
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="CreateExpense" asp-route-itemType="Utility">
-                    <i class="fas fa-bolt text-warning"></i> Add Utility Expense
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="CreateExpense" asp-route-itemType="Subscription">
-                    <i class="fas fa-sync-alt text-info"></i> Add Subscription
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="CreateExpense" asp-route-itemType="Service">
-                    <i class="fas fa-tools text-success"></i> Add Service
+                  <a class="dropdown-item" asp-controller="CustomerService" asp-action="Reports">
+                    <i class="fas fa-chart-bar text-success"></i> Service Reports
                   </a>
                 </li>
               </ul>
             </li>
 
-            <!-- NEW: R&D Projects Dropdown -->
+            <!-- Sales Dropdown -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="salesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-shopping-cart"></i> Sales
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="salesDropdown">
+                <li><a class="dropdown-item" href="/Sales"><i class="fas fa-list"></i> All Sales</a></li>
+                <li><a class="dropdown-item" href="/Sales/Create"><i class="fas fa-plus"></i> New Sale</a></li>
+                <!-- Enhanced Create Option -->
+                <li>
+                  <a class="dropdown-item" href="/Sales/CreateEnhanced">
+                    <i class="fas fa-plus-circle text-primary"></i>
+                    <strong>Create Sale with Items</strong>
+                    <small class="d-block text-muted">One-step creation with line items & discounts</small>
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/CustomerPayments"><i class="fas fa-credit-card text-danger"></i> Customer Payments</a></li>
+                <li><a class="dropdown-item" href="/Sales/Backorders"><i class="fas fa-hourglass-half text-warning"></i> Backorders</a></li>
+                <li><a class="dropdown-item" href="/Sales/Shipments"><i class="fas fa-shipping-fast text-info"></i> Shipments</a></li>
+                <li><a class="dropdown-item" href="/AccountsReceivable"><i class="fas fa-file-invoice-dollar text-success"></i> Accounts Receivable</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/Sales/Reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
+                <li><a class="dropdown-item" href="/CustomerPayments/Reports"><i class="fas fa-file-invoice text-warning"></i> Payment Reports</a></li>
+              </ul>
+            </li>
+
+            <!-- **NEW: CONSOLIDATED Purchasing & Vendors Dropdown** -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-project-diagram"></i> R&D Projects
+                <i class="fas fa-truck"></i> Purchasing
               </a>
               <ul class="dropdown-menu">
-                <!-- Main Project Actions -->
-                <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Dashboard">
-                    <i class="fas fa-tachometer-alt text-primary"></i> Project Dashboard
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index">
-                    <i class="fas fa-list text-info"></i> All Projects
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Create">
-                    <i class="fas fa-plus text-success"></i> New Project
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-
-                <!-- Project Status Views -->
+                <!-- Purchase Orders -->
                 <li>
                   <h6 class="dropdown-header">
-                    <i class="fas fa-tasks"></i> By Status
+                    <i class="fas fa-shopping-cart"></i> Purchase Orders
+                  </h6>
+                </li>
+                <li><a class="dropdown-item" href="/Purchases"><i class="fas fa-list"></i> All Purchases</a></li>
+                <li><a class="dropdown-item" href="/Purchases/Create"><i class="fas fa-plus"></i> New Purchase</a></li>
+                <li><hr class="dropdown-divider"></li>
+
+                <!-- Vendor Management -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-building"></i> Vendor Management
                   </h6>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-statusFilter="Active">
-                    <i class="fas fa-play text-success"></i> Active Projects
+                  <a class="dropdown-item" href="/Vendors">
+                    <i class="fas fa-list"></i> All Vendors
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-statusFilter="Planning">
-                    <i class="fas fa-clock text-secondary"></i> Planning Projects
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-statusFilter="Completed">
-                    <i class="fas fa-check text-primary"></i> Completed Projects
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-isOverBudget="true">
-                    <i class="fas fa-exclamation-triangle text-danger"></i> Over Budget
+                  <a class="dropdown-item" href="/Vendors/Create">
+                    <i class="fas fa-plus"></i> Add Vendor
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-
-                <!-- Project Types -->
                 <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-flask"></i> By Type
-                  </h6>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-typeFilter="Research">
-                    <i class="fas fa-search text-info"></i> Research Projects
+                  <a class="dropdown-item" href="/Vendors/Reports">
+                    <i class="fas fa-chart-bar"></i> Vendor Reports
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-typeFilter="Development">
-                    <i class="fas fa-code text-success"></i> Development Projects
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Index" asp-route-typeFilter="ProductDevelopment">
-                    <i class="fas fa-cogs text-warning"></i> Product Development
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-
-                <!-- Reports & Analytics -->
-                <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-chart-bar"></i> Reports & Analytics
-                  </h6>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Projects" asp-action="Reports">
-                    <i class="fas fa-chart-line text-primary"></i> Project Reports
-                  </a>
-                </li>
-                <!-- UPDATED: Link to operational purchases for R&D materials -->
-                <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Index" asp-route-itemTypeFilter="RnDMaterials">
-                    <i class="fas fa-flask text-success"></i> R&D Material Purchases
+                  <a class="dropdown-item" href="/Vendors?activeOnly=false">
+                    <i class="fas fa-ban"></i> Inactive Vendors
                   </a>
                 </li>
               </ul>
@@ -447,9 +341,16 @@
                     <i class="fas fa-plus"></i> Add Finished Good
                   </a>
                 </li>
+                <li><hr class="dropdown-divider"></li>
+                <!-- Services Section -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-tools"></i> Services
+                  </h6>
+                </li>
                 <li>
                   <a class="dropdown-item" href="@Url.Action("Index", "Services")">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                    <i class="fas fa-tachometer-alt"></i> Service Dashboard
                   </a>
                 </li>
                 <li>
@@ -463,19 +364,8 @@
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" href="@Url.Action("Schedule", "Services")">
-                    <i class="fas fa-calendar-alt"></i> Scheduling
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
                   <a class="dropdown-item" href="@Url.Action("ServiceTypes", "Services")">
                     <i class="fas fa-cogs"></i> Service Types
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" href="@Url.Action("Reports", "Services")">
-                    <i class="fas fa-chart-bar"></i> Reports
                   </a>
                 </li>
               </ul>
@@ -517,60 +407,43 @@
               </ul>
             </li>
 
-            <!-- Vendor Management -->
+            <!-- **NEW: CONSOLIDATED Finance & Accounting Dropdown** -->
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                <i class="fas fa-truck"></i>
-                Vendors
+              <a class="nav-link dropdown-toggle" href="#" id="financeDropdown" role="button"
+                 data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-calculator"></i> Finance
               </a>
-              <ul class="dropdown-menu">
+              <ul class="dropdown-menu" aria-labelledby="financeDropdown">
+                <!-- Accounting Dashboard -->
                 <li>
-                  <a class="dropdown-item" href="/Vendors">
-                    <i class="fas fa-list"></i> All Vendors
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" href="/Vendors/Create">
-                    <i class="fas fa-plus"></i> Add Vendor
+                  <a class="dropdown-item" href="/Accounting/Index">
+                    <i class="fas fa-tachometer-alt"></i> Accounting Dashboard
                   </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" href="/Vendors/Reports">
-                    <i class="fas fa-chart-bar"></i> Vendor Reports
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" href="/Vendors?activeOnly=false">
-                    <i class="fas fa-ban"></i> Inactive Vendors
-                  </a>
-                </li>
-              </ul>
-            </li>
 
-            <!-- Purchasing Dropdown -->
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-shopping-cart"></i> Purchasing
-              </a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="/Purchases"><i class="fas fa-list"></i> All Purchases</a></li>
-                <li><a class="dropdown-item" href="/Purchases/Create"><i class="fas fa-plus"></i> New Purchase</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/Vendors"><i class="fas fa-building"></i> Vendors</a></li>
-              </ul>
-            </li>
-
-            <!-- UPDATED: Expenses Dropdown with clearer terminology -->
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                <i class="fas fa-file-invoice-dollar"></i> Expenses
-              </a>
-              <ul class="dropdown-menu">
-                <!-- ✅ UPDATED: Clearer terminology to distinguish setup vs transactions -->
+                <!-- Chart of Accounts & General Ledger -->
                 <li>
                   <h6 class="dropdown-header">
-                    <i class="fas fa-cog"></i> Setup & Configuration
+                    <i class="fas fa-book"></i> Core Accounting
+                  </h6>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/Accounting/ChartOfAccounts">
+                    <i class="fas fa-list"></i> Chart of Accounts
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/Accounting/GeneralLedger">
+                    <i class="fas fa-book"></i> General Ledger
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+
+                <!-- Expenses Management -->
+                <li>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-file-invoice-dollar"></i> Expense Management
                   </h6>
                 </li>
                 <li>
@@ -579,231 +452,72 @@
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" href="/Expenses/Create">
-                    <i class="fas fa-plus text-success"></i> Create Expense Type
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-
-                <!-- Payment Recording & History Section -->
-                <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-file-invoice-dollar"></i> Payment Activities
-                  </h6>
-                </li>
-                <li>
                   <a class="dropdown-item" href="/Expenses/RecordPayments">
                     <i class="fas fa-file-invoice-dollar text-primary"></i> Record Payments
                   </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-
-                <!-- Reports & Analytics -->
-                <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-chart-bar"></i> Reports & Analytics
-                  </h6>
                 </li>
                 <li>
                   <a class="dropdown-item" href="/Expenses/Reports">
                     <i class="fas fa-chart-bar text-info"></i> Expense Reports
                   </a>
                 </li>
-                <li>
-                  <a class="dropdown-item" href="/Expenses/TaxReports">
-                    <i class="fas fa-file-alt text-warning"></i> Tax Reports
-                  </a>
-                </li>
-              </ul>
-            </li>
-            <!-- Sales Dropdown -->
-            <<!-- Update the Sales dropdown section (around line 270) -->
-            <!-- Sales Dropdown -->
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="salesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-shopping-cart"></i> Sales
-              </a>
-              <ul class="dropdown-menu" aria-labelledby="salesDropdown">
-                <li><a class="dropdown-item" href="/Sales"><i class="fas fa-list"></i> All Sales</a></li>
-                <li><a class="dropdown-item" href="/Sales/Create"><i class="fas fa-plus"></i> New Sale</a></li>
-                <!-- Enhanced Create Option -->
-                <li>
-                  <a class="dropdown-item" href="/Sales/CreateEnhanced">
-                    <i class="fas fa-plus-circle text-primary"></i>
-                    <strong>Create Sale with Items</strong>
-                    <small class="d-block text-muted">One-step creation with line items & discounts</small>
-                  </a>
-                </li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/CustomerPayments"><i class="fas fa-credit-card text-danger"></i> Customer Payments</a></li>
-                <li><a class="dropdown-item" href="/Sales/Backorders"><i class="fas fa-hourglass-half text-warning"></i> Backorders</a></li>
-                <li><a class="dropdown-item" href="/Sales/Shipments"><i class="fas fa-shipping-fast text-info"></i> Shipments</a></li>
-                <li><a class="dropdown-item" href="/AccountsReceivable"><i class="fas fa-file-invoice-dollar text-success"></i> Accounts Receivable</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/Sales/Reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
-                <li><a class="dropdown-item" href="/CustomerPayments/Reports"><i class="fas fa-file-invoice text-warning"></i> Payment Reports</a></li>
-              </ul>
-            </li>
-            <!-- Customer Management Dropdown -->
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-users"></i> Customers
-              </a>
-              <ul class="dropdown-menu">
-                <!-- Main Customer Actions -->
+
+                <!-- Journal Entries & Adjustments -->
                 <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index">
-                    <i class="fas fa-list"></i> All Customers
-                  </a>
+                  <h6 class="dropdown-header">
+                    <i class="fas fa-edit"></i> Journal Entries
+                  </h6>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Create">
-                    <i class="fas fa-user-plus"></i> Add Customer
+                  <a class="dropdown-item" href="/Accounting/CreateManualJournalEntry">
+                    <i class="fas fa-plus-circle text-primary"></i> Manual Entry
                   </a>
                 </li>
-                <!-- Add adjustment functionality -->
-                <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Account Management</h6></li>
                 <li>
                   <a class="dropdown-item" href="/Accounting/CreateCustomerAdjustment">
                     <i class="fas fa-adjust"></i> Customer Adjustment
                   </a>
                 </li>
-                <li>
-                  <a class="dropdown-item" href="/AccountsReceivable/Collections">
-                    <i class="fas fa-exclamation-triangle"></i> Collections
-                  </a>
-                </li>
                 <li><hr class="dropdown-divider"></li>
 
-                <!-- Customer Categories -->
-                <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Retail">
-                    <i class="fas fa-user text-primary"></i> Retail Customers
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Corporate">
-                    <i class="fas fa-building text-info"></i> Corporate Accounts
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-customerType="Wholesale">
-                    <i class="fas fa-warehouse text-success"></i> Wholesale Customers
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-
-                <!-- Credit Management -->
+                <!-- Financial Reports -->
                 <li>
                   <h6 class="dropdown-header">
-                    <i class="fas fa-credit-card"></i> Credit Management
+                    <i class="fas fa-chart-line"></i> Financial Reports
                   </h6>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-hasOutstandingBalance="true">
-                    <i class="fas fa-exclamation-circle text-warning"></i> Outstanding Balances
+                  <a class="dropdown-item" href="/Accounting/TrialBalance">
+                    <i class="fas fa-balance-scale"></i> Trial Balance
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-overCreditLimit="true">
-                    <i class="fas fa-exclamation-triangle text-danger"></i> Over Credit Limit
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-
-                <!-- Reports & Analytics -->
-                <li>
-                  <h6 class="dropdown-header">
-                    <i class="fas fa-chart-bar"></i> Reports & Analytics
-                  </h6>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Reports">
-                    <i class="fas fa-chart-line"></i> Customer Reports
+                  <a class="dropdown-item" href="/Accounting/BalanceSheet">
+                    <i class="fas fa-chart-bar"></i> Balance Sheet
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Index" asp-route-activeOnly="false">
-                    <i class="fas fa-user-slash text-muted"></i> Inactive Customers
-                  </a>
-                </li>
-              </ul>
-            </li>
-          </ul>
-
-
-          <!-- Right side navbar items -->
-          <ul class="navbar-nav ms-auto">
-            <!-- Workflow Quick Actions -->
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-bolt text-warning"></i> Quick Actions
-              </a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <li>
-                  <a class="dropdown-item" asp-controller="Production" asp-action="BuildBom">
-                    <i class="fas fa-hammer text-success"></i> Start Production
+                  <a class="dropdown-item" href="/Accounting/IncomeStatement">
+                    <i class="fas fa-chart-line"></i> Income Statement
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Items" asp-action="Create">
-                    <i class="fas fa-cube text-primary"></i> Add New Item
-                  </a>
-                </li>
-                <!-- Sales & Customer Actions -->
-                <li>
-                  <a class="dropdown-item" asp-controller="Sales" asp-action="Create">
-                    <i class="fas fa-cash-register text-success"></i> New Sale
+                  <a class="dropdown-item" href="/Accounting/CashFlowStatement">
+                    <i class="fas fa-water text-info"></i> Cash Flow Statement
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item" asp-controller="Customers" asp-action="Create">
-                    <i class="fas fa-user-plus text-info"></i> Add Customer
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="Create">
-                    <i class="fas fa-shopping-cart text-info"></i> Record Purchase
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Purchases" asp-action="CreateMultiLine">
-                    <i class="fas fa-list-ul text-success"></i> Multi-Line Purchase
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <!-- UPDATED: Change to Record Payment terminology -->
-                <li>
-                  <a class="dropdown-item" href="/Expenses/RecordPayments">
-                    <i class="fas fa-file-invoice-dollar text-primary"></i> Record Expense Payment
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <!-- Alerts & Monitoring -->
-                <li>
-                  <a class="dropdown-item" asp-controller="WipDashboard" asp-action="GetOverdueProductions">
-                    <i class="fas fa-exclamation-triangle text-danger"></i> View Overdue Items
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" asp-controller="Sales" asp-action="PastDueReport">
-                    <i class="fas fa-clock text-warning"></i> Past Due Sales
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" asp-controller="WipDashboard" asp-action="GetOverdueProductions">
-                    <i class="fas fa-exclamation-triangle text-danger"></i> View Overdue Items
+                  <a class="dropdown-item" href="/Accounting/AccountsPayable">
+                    <i class="fas fa-credit-card"></i> Accounts Payable
                   </a>
                 </li>
               </ul>
             </li>
 
-            <!-- Notifications (placeholder for future feature) -->
+            <!-- Alerts & Monitoring -->
             <li class="nav-item">
-              <a class="nav-link position-relative" href="#" onclick="showNotifications()" title="Notifications">
+              <a class="nav-link" href="#" onclick="showNotifications()" title="Notifications">
                 <i class="fas fa-bell"></i>
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notificationCount" style="display: none;">
                   0
@@ -1234,6 +948,17 @@
                         message = 'Loading Customers...';
                         subtext = 'Retrieving customer data';
                     }
+                } else if (href.includes('/CustomerService')) {
+                    if (href.includes('/Dashboard')) {
+                        message = 'Loading Service Dashboard...';
+                        subtext = 'Retrieving customer service metrics';
+                    } else if (href.includes('/Create')) {
+                        message = 'Loading Support Case Creator...';
+                        subtext = 'Preparing new support case form';
+                    } else {
+                        message = 'Loading Customer Service...';
+                        subtext = 'Retrieving support case data';
+                    }
                 } else if (href.includes('/Sales')) {
                     if (href.includes('/Create')) {
                         message = 'Loading Sale Creator...';
@@ -1281,6 +1006,23 @@
                         message = 'Loading WIP Dashboard...';
                         subtext = 'Retrieving work-in-progress data';
                     }
+                } else if (href.includes('/Accounting')) {
+                    if (href.includes('/TrialBalance')) {
+                        message = 'Loading Trial Balance...';
+                        subtext = 'Calculating account balances';
+                    } else if (href.includes('/BalanceSheet')) {
+                        message = 'Loading Balance Sheet...';
+                        subtext = 'Generating financial position statement';
+                    } else if (href.includes('/IncomeStatement')) {
+                        message = 'Loading Income Statement...';
+                        subtext = 'Calculating revenue and expenses';
+                    } else if (href.includes('/CashFlowStatement')) {
+                        message = 'Loading Cash Flow Statement...';
+                        subtext = 'Generating cash flow analysis';
+                    } else {
+                        message = 'Loading Accounting...';
+                        subtext = 'Retrieving financial data';
+                    }
                 } else if (href.includes('/Home')) {
                     message = 'Loading Dashboard...';
                     subtext = 'Retrieving dashboard data';
@@ -1309,16 +1051,7 @@
 
         showForOperation: function(operation, immediate = true) {
             const messages = {
-              // ✅ ADD: Accounting-specific loading messages
-                'loading-cash-flow-statement': { text: 'Loading Cash Flow Statement...', subtext: 'Generating comprehensive cash flow analysis and trends' },
-                'loading-trial-balance': { text: 'Loading Trial Balance...', subtext: 'Calculating account balances and verifying accuracy' },
-                'loading-balance-sheet': { text: 'Loading Balance Sheet...', subtext: 'Generating financial position statement' },
-                'loading-income-statement': { text: 'Loading Income Statement...', subtext: 'Calculating revenue, expenses, and profitability' },
-                'loading-general-ledger': { text: 'Loading General Ledger...', subtext: 'Retrieving detailed transaction history' },
-                'loading-chart-of-accounts': { text: 'Loading Chart of Accounts...', subtext: 'Retrieving account structure and balances' },
                 'loading-accounting': { text: 'Loading Accounting...', subtext: 'Retrieving financial data and reports' },
-
-                // General section loading
                 'loading-bom': { text: 'Loading BOM...', subtext: 'Retrieving Bill of Materials data' },
                 'loading-items': { text: 'Loading Items...', subtext: 'Retrieving inventory data' },
                 'loading-vendors': { text: 'Loading Vendors...', subtext: 'Retrieving vendor information' },
@@ -1328,25 +1061,7 @@
                 'loading-dashboard': { text: 'Loading Dashboard...', subtext: 'Retrieving dashboard data' },
                 'loading-purchases': { text: 'Loading Purchases...', subtext: 'Retrieving purchase data' },
                 'loading-expenses': { text: 'Loading Expenses...', subtext: 'Retrieving expense data' },
-
-                // Specific Details pages
-                'loading-item-details': { text: 'Loading Item Details...', subtext: 'Retrieving complete item information' },
-                'loading-vendor-details': { text: 'Loading Vendor Details...', subtext: 'Retrieving vendor information and relationships' },
-                'loading-customer-details': { text: 'Loading Customer Details...', subtext: 'Retrieving customer profile and history' },
-                'loading-sale-details': { text: 'Loading Sale Details...', subtext: 'Retrieving order details and status' },
-                'loading-production-details': { text: 'Loading Production Details...', subtext: 'Retrieving production status and progress' },
-                'loading-bom-details': { text: 'Loading BOM Details...', subtext: 'Retrieving Bill of Materials structure' },
-                'loading-purchase-details': { text: 'Loading Purchase Order Details...', subtext: 'Retrieving purchase order information' },
-                'loading-expense-details': { text: 'Loading Expense Details...', subtext: 'Retrieving expense information and payment history' },
-
-                // Specific actions
-                'loading-editor': { text: 'Loading Editor...', subtext: 'Preparing form for editing' },
-                'loading-creator': { text: 'Loading Creator...', subtext: 'Preparing new item form' },
-                'loading-reports': { text: 'Loading Reports...', subtext: 'Generating analytics and reports' },
-                'loading-visualizer': { text: 'Loading Visualizer...', subtext: 'Generating interactive diagrams' },
                 'loading-payment-recording': { text: 'Loading Payment Recording...', subtext: 'Preparing expense payment form with document upload' },
-
-                // Process operations
                 'generating-report': { text: 'Generating Report...', subtext: 'Processing data and calculations' },
                 'uploading': { text: 'Uploading...', subtext: 'Transferring files to server' },
                 'saving': { text: 'Saving...', subtext: 'Updating database records' },
@@ -1463,6 +1178,7 @@
                 checkForValidationErrorsAndCleanup();
             }, 250);
         });
+        
         // Enhanced Navigation Setup
         function setupEnhancedNavigation() {
             console.log('🔧 Setting up enhanced navigation...');
@@ -1485,88 +1201,17 @@
 
                     console.log('🔧 Enhanced navigation click:', href);
 
-                    // Determine the operation type for custom loading messages
-                    let operation = 'loading';
-
-                    // Check for RecordPayments specifically
-                    if (href.includes('/RecordPayments') || href.includes('/RecordPayment')) {
-                        operation = 'loading-payment-recording';
-                    }
-                    // Check for specific Details pages first
-                    else if (href.includes('/Details/') || href.match(/\/\w+\/\d+$/)) {
-                        if (href.includes('/Items/Details/') || href.match(/\/Items\/\d+$/)) {
-                            operation = 'loading-item-details';
-                        } else if (href.includes('/Vendors/Details/') || href.match(/\/Vendors\/\d+$/)) {
-                            operation = 'loading-vendor-details';
-                        } else if (href.includes('/Customers/Details/') || href.match(/\/Customers\/\d+$/)) {
-                            operation = 'loading-customer-details';
-                        } else if (href.includes('/Sales/Details/') || href.match(/\/Sales\/\d+$/)) {
-                            operation = 'loading-sale-details';
-                        } else if (href.includes('/Production/Details/') || href.match(/\/Production\/\d+$/)) {
-                            operation = 'loading-production-details';
-                        } else if (href.includes('/Boms/Details/') || href.match(/\/Boms\/\d+$/)) {
-                            operation = 'loading-bom-details';
-                        } else if (href.includes('/Purchases/Details/') || href.match(/\/Purchases\/\d+$/)) {
-                            operation = 'loading-purchase-details';
-                        } else if (href.includes('/Expenses/Details/') || href.match(/\/Expenses\/\d+$/)) {
-                            operation = 'loading-expense-details';
-                        }
-                    }
-                    // Check for general sections
-                    else if (href.includes('/Boms')) {
-                        operation = 'loading-bom';
-                    } else if (href.includes('/Items')) {
-                        operation = 'loading-items';
-                    } else if (href.includes('/Vendors')) {
-                        operation = 'loading-vendors';
-                    } else if (href.includes('/Customers')) {
-                        operation = 'loading-customers';
-                    } else if (href.includes('/Sales')) {
-                        operation = 'loading-sales';
-                    } else if (href.includes('/Production')) {
-                        operation = 'loading-production';
-                    } else if (href.includes('/Purchases')) {
-                        operation = 'loading-purchases';
-                    } else if (href.includes('/Expenses')) {
-                        operation = 'loading-expenses';
-                    } else if (href.includes('/Home')) {
-                        operation = 'loading-dashboard';
-                    }
-
                     // Show appropriate loading indicator with immediate mode
                     if (window.LoadingIndicator) {
-                        console.log(`🚀 Enhanced nav: Showing loading for operation: ${operation}`);
-                        window.LoadingIndicator.showForOperation(operation, true); // Always immediate
+                        console.log('🚀 Enhanced nav: Showing loading');
+                        window.LoadingIndicator.show('Loading...', 'Please wait', true); // Always immediate
                     } else {
                         console.error('❌ LoadingIndicator not available in enhanced nav!');
                     }
                 });
             });
 
-            console.log('? Enhanced navigation setup complete');
-
-            // Enhanced form submission handling
-            const forms = document.querySelectorAll('form');
-            forms.forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    const submitButton = this.querySelector('button[type="submit"], input[type="submit"]');
-
-                    if (submitButton && window.LoadingIndicator) {
-                        // Show appropriate loading message
-                        const action = this.getAttribute('action') || '';
-                        let operation = 'saving';
-
-                        if (action.includes('Upload') || this.enctype === 'multipart/form-data') {
-                            operation = 'uploading';
-                        } else if (action.includes('Report')) {
-                            operation = 'generating-report';
-                        }
-
-                        console.log('?? Form submission with operation:', operation);
-                        window.LoadingIndicator.showForOperation(operation, false); // Forms can have delay
-                    }
-                });
-            });
+            console.log('✅ Enhanced navigation setup complete');
         }
 
         // Global validation error detection and loading indicator cleanup
@@ -1585,11 +1230,11 @@
             const hasValidationErrors = validationErrors.length > 0;
 
             if (hasValidationErrors) {
-                console.log('? Global validation error detection: Found', validationErrors.length, 'validation errors');
+                console.log('⚠️ Global validation error detection: Found', validationErrors.length, 'validation errors');
 
                 // Force hide any loading indicator that might be showing
                 if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
-                    console.log('? Hiding loading indicator due to validation errors');
+                    console.log('⚠️ Hiding loading indicator due to validation errors');
                     window.LoadingIndicator.hide(true); // Force hide
                 }
 
@@ -1608,22 +1253,22 @@
 
                         // If it's an error message, try to find the related input
                         if (firstErrorField.classList.contains('text-danger') || firstErrorField.tagName === 'SPAN') {
-                            const forAttribute = firstErrorField.getAttribute('data-valmsg-for');
-                            if (forAttribute) {
-                                const relatedInput = document.querySelector(`[name="${forAttribute}"], #${forAttribute}`);
-                                if (relatedInput) {
-                                    targetElement = relatedInput;
-                                }
-                            } else {
-                                // Try to find a nearby input
-                                const nearbyInput = firstErrorField.parentElement?.querySelector('input, select, textarea');
-                                if (nearbyInput) {
-                                    targetElement = nearbyInput;
-                                }
+                          const forAttribute = firstErrorField.getAttribute('data-valmsg-for');
+                          if (forAttribute) {
+                            const relatedInput = document.querySelector(`[name="${forAttribute}"], #${forAttribute}`);
+                            if (relatedInput) {
+                              targetElement = relatedInput;
                             }
+                          } else {
+                            // Try to find a nearby input
+                            const nearbyInput = firstErrorField.parentElement?.querySelector('input, select, textarea');
+                            if (nearbyInput) {
+                              targetElement = nearbyInput;
+                            }
+                          }
                         }
 
-                        console.log('? Focusing on error field:', targetElement);
+                        console.log('⚠️ Focusing on error field:', targetElement);
                         targetElement.focus();
 
                         // Scroll to the error if it's not visible
@@ -1638,30 +1283,24 @@
             return hasValidationErrors;
         }
 
-        // Monitor for validation errors and cleanup on important events
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initial check on page load
-            checkForValidationErrorsAndCleanup();
-        });
+        // Add page visibility change handler for cleanup
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                console.log('⚠️ Page became visible, checking for validation errors and cleaning up loading indicators');
 
-        // Reapply check on AJAX form submits (for partial updates)
-        document.addEventListener('submit', (e) => {
-            const form = e.target;
-            if (form.hasAttribute('data-ajax-form')) {
-                // Use a slight delay to allow AJAX call to settle
+                // Run cleanup after a small delay to ensure page is fully rendered
                 setTimeout(() => {
                     checkForValidationErrorsAndCleanup();
-                }, 300);
+                }, 100);
             }
         });
 
-        // Global error handler for AJAX requests
-        window.addEventListener('unhandledrejection', function(event) {
-            console.error('Unhandled promise rejection:', event.reason);
-            if (window.LoadingIndicator) {
-                window.LoadingIndicator.hide();
+        // Add beforeunload handler to ensure cleanup
+        window.addEventListener('beforeunload', function() {
+            if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+                console.log('⚠️ Page unloading, hiding loading indicator');
+                window.LoadingIndicator.hide(true);
             }
-            showNotification('An error occurred while loading data. Please try again.', 'danger');
         });
 
         // Add loading indicator test functionality (for debugging)
@@ -1689,9 +1328,7 @@
             console.log('Overlay exists:', !!document.getElementById('globalLoadingOverlay'));
             console.log('Styles exist:', !!document.getElementById('loading-indicator-styles'));
             console.log('jQuery available:', !!window.jQuery);
-            console.log('External site.js PaymentValidation:', !!window.PaymentValidation);
 
-            // Show diagnostic results
             const results = `
     EMBEDDED LOADING SYSTEM:
     - LoadingIndicator exists: ${!!window.LoadingIndicator}
@@ -1702,7 +1339,6 @@
 
     ENVIRONMENT:
     - jQuery available: ${!!window.jQuery}
-    - External site.js loaded: ${!!window.PaymentValidation}
     - DOM ready: ${document.readyState}
             `;
 
@@ -1717,62 +1353,6 @@
                 }, 2000);
             }
         };
-
-        // Add page visibility change handler for cleanup
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'visible') {
-                console.log('? Page became visible, checking for validation errors and cleaning up loading indicators');
-
-                // Run cleanup after a small delay to ensure page is fully rendered
-                setTimeout(() => {
-                    checkForValidationErrorsAndCleanup();
-                }, 100);
-            }
-        });
-
-        // Add beforeunload handler to ensure cleanup
-        window.addEventListener('beforeunload', function() {
-            if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
-                console.log('? Page unloading, hiding loading indicator');
-                window.LoadingIndicator.hide(true);
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', function() {
-        // Load open POs count
-        loadOpenPOsCount();
-
-        // Refresh count every 5 minutes
-        setInterval(loadOpenPOsCount, 5 * 60 * 1000);
-    });
-
-    async function loadOpenPOsCount() {
-        try {
-            const response = await fetch('@Url.Action("GetOpenPOsCount", "Purchases")');
-            if (response.ok) {
-                const data = await response.json();
-                const badge = document.getElementById('openPOsBadge');
-
-                if (badge && data.count > 0) {
-                    badge.textContent = data.count;
-                    badge.style.display = 'inline';
-
-                    // Add visual indicators for overdue
-                    if (data.overdueCount > 0) {
-                        badge.className = 'badge bg-danger ms-1';
-                        badge.title = `${data.count} open POs (${data.overdueCount} overdue)`;
-                    } else {
-                        badge.className = 'badge bg-primary ms-1';
-                        badge.title = `${data.count} open purchase orders`;
-                    }
-                } else if (badge) {
-                    badge.style.display = 'none';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading open POs count:', error);
-        }
-    }
   </script>
 
   @await RenderSectionAsync("Scripts", required: false)

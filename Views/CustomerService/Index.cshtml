@@ -1,0 +1,333 @@
+@model IEnumerable<InventorySystem.Models.CustomerService.SupportCase>
+@{
+    ViewData["Title"] = "Support Cases";
+    var status = ViewBag.StatusFilter as string;
+    var priority = ViewBag.PriorityFilter as string;
+    var searchTerm = ViewBag.SearchTerm as string;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-ticket-alt text-primary"></i> 
+        Support Cases
+        @if (!string.IsNullOrEmpty(status))
+        {
+            <small class="text-muted">- @status Cases</small>
+        }
+        @if (!string.IsNullOrEmpty(priority))
+        {
+            <small class="text-muted">- @priority Priority</small>
+        }
+    </h1>
+    <div class="btn-group" role="group">
+        <a href="@Url.Action("Create")" class="btn btn-success">
+            <i class="fas fa-plus-circle"></i> New Case
+        </a>
+        <a href="@Url.Action("Dashboard")" class="btn btn-outline-primary">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" value="@searchTerm" placeholder="Case number, subject, or customer">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="Open" selected="@(status == "Open")">Open</option>
+                    <option value="InProgress" selected="@(status == "InProgress")">In Progress</option>
+                    <option value="Escalated" selected="@(status == "Escalated")">Escalated</option>
+                    <option value="OnHold" selected="@(status == "OnHold")">On Hold</option>
+                    <option value="Resolved" selected="@(status == "Resolved")">Resolved</option>
+                    <option value="Closed" selected="@(status == "Closed")">Closed</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Priority</label>
+                <select name="priority" class="form-select">
+                    <option value="">All Priorities</option>
+                    <option value="Critical" selected="@(priority == "Critical")">Critical</option>
+                    <option value="High" selected="@(priority == "High")">High</option>
+                    <option value="Medium" selected="@(priority == "Medium")">Medium</option>
+                    <option value="Low" selected="@(priority == "Low")">Low</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Case Type</label>
+                <select name="caseType" class="form-select">
+                    <option value="">All Types</option>
+                    <option value="TechnicalSupport">Technical Support</option>
+                    <option value="BillingQuestion">Billing Question</option>
+                    <option value="ProductDefect">Product Defect</option>
+                    <option value="Complaint">Complaint</option>
+                    <option value="ReturnRefund">Return/Refund</option>
+                    <option value="FeatureRequest">Feature Request</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h5 class="text-primary">@Model.Count(c => c.Status == InventorySystem.Models.Enums.CaseStatus.Open)</h5>
+                <small class="text-muted">Open</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h5 class="text-warning">@Model.Count(c => c.Status == InventorySystem.Models.Enums.CaseStatus.InProgress)</h5>
+                <small class="text-muted">In Progress</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h5 class="text-danger">@Model.Count(c => c.IsOverdue)</h5>
+                <small class="text-muted">Overdue</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h5 class="text-danger">@Model.Count(c => c.Status == InventorySystem.Models.Enums.CaseStatus.Escalated)</h5>
+                <small class="text-muted">Escalated</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h5 class="text-success">@Model.Count(c => c.Status == InventorySystem.Models.Enums.CaseStatus.Resolved)</h5>
+                <small class="text-muted">Resolved</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-secondary">
+            <div class="card-body text-center">
+                <h5 class="text-secondary">@Model.Count(c => c.Status == InventorySystem.Models.Enums.CaseStatus.Closed)</h5>
+                <small class="text-muted">Closed</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cases Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-list"></i> Cases (@Model.Count())</h5>
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" onclick="exportCases()">
+                <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn btn-outline-secondary" onclick="printCases()">
+                <i class="fas fa-print"></i> Print
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Case #</th>
+                            <th>Subject</th>
+                            <th>Customer</th>
+                            <th>Type</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Assigned To</th>
+                            <th>Created</th>
+                            <th>Age</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var caseInc in Model.OrderByDescending(c => c.CreatedDate))
+                        {
+                            <tr class="@(caseInc.IsOverdue ? "table-danger" : "")">
+                                <td>
+                                    <a href="@Url.Action("Details", new { id = caseInc.Id })" class="text-decoration-none fw-bold">
+                                        @caseInc.CaseNumber
+                                    </a>
+                                    @if (caseInc.IsOverdue)
+                                    {
+                                        <i class="fas fa-clock text-danger ms-1" title="Overdue"></i>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="text-truncate" style="max-width: 250px;" title="@caseInc.Subject">
+                                        @caseInc.Subject
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(caseInc.Tags))
+                                    {
+                                        <div class="mt-1">
+                                            @foreach (var tag in caseInc.TagsList.Take(3))
+                                            {
+                                                <span class="badge bg-light text-dark me-1">@tag</span>
+                                            }
+                                        </div>
+                                    }
+                                </td>
+                                <td>
+                                    <div>@caseInc.Customer?.CustomerName</div>
+                                    <small class="text-muted">@caseInc.ContactEmail</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">@caseInc.CaseType.ToString().Replace("_", " ")</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-@caseInc.PriorityColor">@caseInc.Priority</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-@caseInc.StatusColor">@caseInc.Status</span>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(caseInc.AssignedTo))
+                                    {
+                                        <span class="text-success">@caseInc.AssignedTo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Unassigned</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div>@caseInc.CreatedDate.ToString("MM/dd/yyyy")</div>
+                                    <small class="text-muted">@caseInc.CreatedDate.ToString("HH:mm")</small>
+                                </td>
+                                <td>
+                                    <span class="@(caseInc.AgeDays > 7 ? "text-danger" : caseInc.AgeDays > 3 ? "text-warning" : "text-success")">
+                                        @caseInc.AgeDays day@(caseInc.AgeDays != 1 ? "s" : "")
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="@Url.Action("Details", new { id = caseInc.Id })" class="btn btn-outline-primary btn-sm" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        @if (caseInc.IsOpen)
+                                        {
+                                            <button class="btn btn-outline-success btn-sm" onclick="quickUpdate(@caseInc.Id, 'InProgress')" title="Start Progress">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            <button class="btn btn-outline-warning btn-sm" onclick="assignCase(@caseInc.Id)" title="Assign">
+                                                <i class="fas fa-user"></i>
+                                            </button>
+                                        }
+                                        @if (caseInc.Status == InventorySystem.Models.Enums.CaseStatus.InProgress)
+                                        {
+                                            <button class="btn btn-outline-success btn-sm" onclick="quickUpdate(@caseInc.Id, 'Resolved')" title="Resolve">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-ticket-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No support cases found</h5>
+                <p class="text-muted">
+                    @if (!string.IsNullOrEmpty(searchTerm) || !string.IsNullOrEmpty(status) || !string.IsNullOrEmpty(priority))
+                    {
+                        <span>Try adjusting your filters or </span>
+                        <a href="@Url.Action("Index")">clear all filters</a>
+                    }
+                    else
+                    {
+                        <span>Get started by </span>
+                        <a href="@Url.Action("Create")">creating your first support case</a>
+                    }
+                </p>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function quickUpdate(caseId, newStatus) {
+        if (confirm(`Are you sure you want to update this case to ${newStatus}?`)) {
+            $.post('@Url.Action("QuickUpdate")', {
+                caseId: caseId,
+                newStatus: newStatus,
+                __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+            })
+            .done(function(result) {
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .fail(function() {
+                alert('Error updating case status');
+            });
+        }
+    }
+
+    function assignCase(caseId) {
+        const assignee = prompt('Assign case to:');
+        if (assignee && assignee.trim()) {
+            $.post('@Url.Action("AssignCase")', {
+                caseId: caseId,
+                assignee: assignee.trim(),
+                __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+            })
+            .done(function(result) {
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .fail(function() {
+                alert('Error assigning case');
+            });
+        }
+    }
+
+        function exportCases() {
+        window.location.href = '@Url.Action("Export")?@ViewContext.HttpContext.Request.QueryString';
+    }
+
+    function printCases() {
+        window.print();
+    }
+</script>
+}
