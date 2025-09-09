@@ -7,6 +7,8 @@ using InventorySystem.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Xml.Linq;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace InventorySystem.Controllers
 {
@@ -79,7 +81,13 @@ namespace InventorySystem.Controllers
 				}
 				else
 				{
-					serviceOrders = await _serviceOrderService.GetAllServiceOrdersAsync();
+					// ✅ ENHANCED: Ensure Sale navigation property is loaded
+					serviceOrders = await _context.ServiceOrders
+						.Include(so => so.Customer)
+						.Include(so => so.ServiceType)
+						.Include(so => so.Sale) // ✅ ADD: Include Sale navigation
+						.OrderByDescending(so => so.RequestDate)
+						.ToListAsync();
 				}
 
 				var customers = await _customerService.GetActiveCustomersAsync();
@@ -216,7 +224,17 @@ namespace InventorySystem.Controllers
 		{
 			try
 			{
-				var serviceOrder = await _serviceOrderService.GetServiceOrderByIdAsync(id);
+				// ✅ ENHANCED: Ensure Sale navigation is loaded
+				var serviceOrder = await _context.ServiceOrders
+					.Include(so => so.Customer)
+					.Include(so => so.ServiceType)
+					.Include(so => so.Sale) // ✅ ENSURE: Sale is included
+					.Include(so => so.TimeLogs)
+					.Include(so => so.Materials)
+						.ThenInclude(m => m.Item)
+					.Include(so => so.Documents)
+					.FirstOrDefaultAsync(so => so.Id == id);
+
 				if (serviceOrder == null)
 				{
 					TempData["ErrorMessage"] = "Service order not found";
@@ -235,7 +253,7 @@ namespace InventorySystem.Controllers
 					Documents = documents,
 					Customer = serviceOrder.Customer,
 					ServiceType = serviceOrder.ServiceType,
-					RelatedSale = serviceOrder.Sale,
+					RelatedSale = serviceOrder.Sale, // ✅ PASS: Sale to view model
 					AvailableStatusChanges = await _serviceOrderService.GetValidStatusChangesAsync(id),
 					CanEdit = true,
 					CanDelete = serviceOrder.Status == ServiceOrderStatus.Requested,
@@ -1245,8 +1263,6 @@ namespace InventorySystem.Controllers
 		{
 			try
 			{
-				_logger.LogInformation("Starting document upload for ServiceOrderId: {ServiceOrderId}", serviceOrderId);
-
 				var serviceOrder = await _serviceOrderService.GetServiceOrderByIdAsync(serviceOrderId);
 				if (serviceOrder == null)
 				{
@@ -1258,18 +1274,14 @@ namespace InventorySystem.Controllers
 					return Json(new { success = false, message = "Please select a file to upload" });
 				}
 
-				// Validate file size (50MB limit)
-				const long maxFileSize = 50 * 1024 * 1024;
-				if (file.Length > maxFileSize)
-				{
-					return Json(new { success = false, message = "File size cannot exceed 50MB" });
-				}
-
-				// Validate file type
-				var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff",
-									   ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-									   ".dwg", ".dxf", ".step", ".stp", ".iges", ".igs",
-									   ".txt", ".rtf", ".zip", ".rar", ".7z" };
+				// ✅ ENHANCED: Support calibration-specific file types
+				var allowedExtensions = new[] { 
+					".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", // Images & PDFs
+					".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", // Office docs
+					".dwg", ".dxf", ".step", ".stp", ".iges", ".igs", // CAD files
+					".txt", ".rtf", ".zip", ".rar", ".7z", ".csv", // Text/Archive
+					".mp4", ".avi", ".mov", ".wmv" // Video files for condition documentation
+				};
 
 				var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
 				if (!allowedExtensions.Contains(fileExtension))
@@ -1277,6 +1289,13 @@ namespace InventorySystem.Controllers
 					return Json(new { success = false, message = "File type not allowed" });
 				}
 
+				// ✅ ENHANCED: Auto-detect document type if not provided
+				if (string.IsNullOrEmpty(documentType))
+				{
+					return Json(new { success = false, message = "Please select a document type" });
+				}
+
+				
 				// Process the file
 				using var memoryStream = new MemoryStream();
 				await file.CopyToAsync(memoryStream);
@@ -1284,8 +1303,10 @@ namespace InventorySystem.Controllers
 				var document = new ServiceDocument
 				{
 					ServiceOrderId = serviceOrderId,
-					DocumentName = !string.IsNullOrWhiteSpace(documentName) ? documentName : Path.GetFileNameWithoutExtension(file.FileName),
-					DocumentType = documentType ?? "General",
+					DocumentName = !string.IsNullOrWhiteSpace(documentName) 
+						? documentName 
+						: Path.GetFileNameWithoutExtension(file.FileName),
+					DocumentType = documentType,
 					OriginalFileName = file.FileName,
 					ContentType = file.ContentType,
 					FileSize = file.Length,
@@ -1297,8 +1318,33 @@ namespace InventorySystem.Controllers
 
 				await _serviceOrderService.AddServiceDocumentAsync(document);
 
-				_logger.LogInformation("Document {DocumentName} uploaded successfully for service order {ServiceOrderNumber}",
-					document.DocumentName, serviceOrder.ServiceOrderNumber);
+				bool updated = false;
+
+				// Handle worksheet uploads
+				if (documentType.Equals("Calibration Worksheet", StringComparison.OrdinalIgnoreCase))
+				{
+					serviceOrder.WorksheetUploaded = true;
+					serviceOrder.WorksheetUploadedDate = DateTime.Now;
+					serviceOrder.WorksheetUploadedBy = User.Identity?.Name ?? "System";
+					updated = true;
+				}
+
+				// Handle certificate uploads the same way
+				if (documentType.Contains("Certificate", StringComparison.OrdinalIgnoreCase))
+				{
+					serviceOrder.CertificateGenerated = true;
+					// Optionally generate certificate number if not set
+					if (string.IsNullOrEmpty(serviceOrder.CertificateNumber))
+					{
+						serviceOrder.CertificateNumber = $"CERT-{serviceOrder.ServiceOrderNumber}-{DateTime.Now:yyyyMMdd}";
+					}
+					updated = true;
+				}
+
+				if (updated)
+				{
+					await _serviceOrderService.UpdateServiceOrderAsync(serviceOrder);
+				}
 
 				return Json(new { success = true, message = "Document uploaded successfully" });
 			}
@@ -1370,7 +1416,7 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		// GET: Services/DownloadDocument/5 - Updated method specifically for downloads
+		// GET: Services/DownloadDocument/5
 		[HttpGet]
 		public async Task<IActionResult> DownloadDocument(int id)
 		{
@@ -1398,7 +1444,7 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		// POST: Services/DeleteDocument
+		// POST: Services/DeleteDocument - Update existing method
 		[HttpPost]
 		[ValidateAntiForgeryToken]
 		public async Task<IActionResult> DeleteDocument([FromBody] DeleteDocumentRequest request)
@@ -1411,9 +1457,48 @@ namespace InventorySystem.Controllers
 					return Json(new { success = false, message = "Document not found" });
 				}
 
-				await _serviceOrderService.DeleteServiceDocumentAsync(request.DocumentId);
+				// ✅ NEW: Check if this is a worksheet being deleted
+				var isWorksheet = document.DocumentType.Equals("Calibration Worksheet", StringComparison.OrdinalIgnoreCase);
+				var serviceOrderId = document.ServiceOrderId;
+				var documentType = document.DocumentType;
+				var serviceOrder = await _serviceOrderService.GetServiceOrderByIdAsync(serviceOrderId);
 
-				_logger.LogInformation("Document {DocumentName} deleted from service order", document.DocumentName);
+				await _serviceOrderService.DeleteServiceDocumentAsync(request.DocumentId);
+				bool updated = false;
+				// ✅ NEW: Update WorksheetUploaded flag if worksheet was deleted
+				if (isWorksheet)
+				{
+					
+					if (serviceOrder != null)
+					{
+						// Check if there are any other worksheet documents
+						var hasOtherWorksheets = await _context.ServiceDocuments
+								.AnyAsync(d => d.ServiceOrderId == serviceOrderId &&
+															d.DocumentType.Equals("Calibration Worksheet", StringComparison.OrdinalIgnoreCase));
+
+						if (!hasOtherWorksheets)
+						{
+							serviceOrder.WorksheetUploaded = false;
+							serviceOrder.WorksheetUploadedDate = null;
+							serviceOrder.WorksheetUploadedBy = null;
+							await _serviceOrderService.UpdateServiceOrderAsync(serviceOrder);
+						}
+					}
+				}
+
+				if (document.DocumentType.Contains("Certificate", StringComparison.OrdinalIgnoreCase))
+				{
+					var hasOtherCertificates = await _context.ServiceDocuments
+							.AnyAsync(d => d.ServiceOrderId == serviceOrderId &&
+														d.DocumentType.Contains("Certificate"));
+
+					if (!hasOtherCertificates)
+					{
+						serviceOrder.CertificateGenerated = false;
+						serviceOrder.CertificateNumber = null;
+						updated = true;
+					}
+				}
 
 				return Json(new { success = true, message = "Document deleted successfully" });
 			}
@@ -1540,7 +1625,37 @@ namespace InventorySystem.Controllers
 				return Json(new { success = false, message = "Error loading modal" });
 			}
 		}
+		[HttpGet]
+		public async Task<IActionResult> GetCalibrationHistory(string serialNumber, int finishedGoodId)
+		{
+			var calibrationServiceOrders = await _context.ServiceOrders
+					.Include(so => so.Documents)
+					.Include(so => so.ServiceType)
+					.Include(so => so.Customer)
+					.Where(so => so.SerialNumber == serialNumber &&
+											 so.ServiceType.ServiceCategory == "Calibration")
+					.OrderByDescending(so => so.CompletedDate ?? so.RequestDate)
+					.Select(so => new
+					{
+						so.Id,
+						so.ServiceOrderNumber,
+						ServiceDate = so.CompletedDate ?? so.RequestDate,
+						so.ServiceType.ServiceName,
+						CustomerName = so.Customer.CustomerName,
+						DocumentCount = so.Documents.Count(),
+						Documents = so.Documents.Select(d => new
+						{
+							d.Id,
+							d.DocumentName,
+							d.DocumentType,
+							d.UploadedDate,
+							d.FileSizeDisplay
+						})
+					})
+					.ToListAsync();
 
+			return Json(new { success = true, calibrationHistory = calibrationServiceOrders });
+		}
 		// Add this helper method to ServicesController
 		private object CreateServiceOrderDto(ServiceOrder serviceOrder)
 		{
@@ -1793,6 +1908,95 @@ namespace InventorySystem.Controllers
 			{
 				_logger.LogError(ex, "Error deleting service type document {DocumentId}", request.DocumentId);
 				return Json(new { success = false, message = "Error deleting document" });
+			}
+		}
+
+
+		// GetDocumentTypes method
+		[HttpGet]
+		public IActionResult GetDocumentTypes(int serviceOrderId)
+		{
+			var serviceOrder = _context.ServiceOrders
+					.Include(so => so.ServiceType)
+					.FirstOrDefault(so => so.Id == serviceOrderId);
+
+			var documentTypes = new[]
+					{
+						"Calibration Worksheet",
+						"Calibration Certificate",
+						"Quality Check",
+						"Product Condition",
+						"Repair Notes",
+						"Parts Replacement Record",
+						"Technical Notes",
+						"Other"
+					};
+
+			// Highlight information about which documents are required for this service
+			var requiredDocuments = new List<string>();
+
+			if (serviceOrder?.ServiceType != null)
+			{
+				if (serviceOrder.ServiceType.WorksheetRequired)
+					requiredDocuments.Add("Calibration Worksheet");
+
+				if (serviceOrder.ServiceType.CertificateRequired)
+				{
+					requiredDocuments.Add("Calibration Certificate");
+				}
+				if (serviceOrder.ServiceType.QcRequired)
+				{
+					requiredDocuments.Add("Quality Check");
+				}
+			}
+
+			return Json(new
+			{
+				success = true,
+				documentTypes = documentTypes,
+				requiredDocuments = requiredDocuments,
+				serviceCategory = serviceOrder?.ServiceType?.ServiceCategory
+			});
+			
+		}
+
+		// GET: Services/ServiceHistory
+		public async Task<IActionResult> ServiceHistory(string? serialNumber = null)
+		{
+			try
+			{
+				var viewModel = new ServiceHistoryViewModel
+				{
+					SerialNumber = serialNumber
+				};
+
+				if (!string.IsNullOrEmpty(serialNumber))
+				{
+					// Get all service orders for this serial number (not just calibration)
+					var serviceHistory = await _context.ServiceOrders
+						.Include(so => so.Documents)
+						.Include(so => so.ServiceType)
+						.Include(so => so.Customer)
+						.Include(so => so.TimeLogs)
+						.Include(so => so.Materials)
+						.Where(so => so.SerialNumber == serialNumber)
+						.OrderByDescending(so => so.CompletedDate ?? so.RequestDate)
+						.ToListAsync();
+
+					viewModel.ServiceOrders = serviceHistory;
+					viewModel.TotalServiceOrders = serviceHistory.Count;
+					viewModel.CalibrationServices = serviceHistory.Where(so => so.ServiceType.ServiceCategory == "Calibration").Count();
+					viewModel.RepairServices = serviceHistory.Where(so => so.ServiceType.ServiceCategory == "Repair").Count();
+					viewModel.TotalDocuments = serviceHistory.Sum(so => so.Documents.Count);
+				}
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading service history for serial number {SerialNumber}", serialNumber);
+				TempData["ErrorMessage"] = "Error loading service history";
+				return View(new ServiceHistoryViewModel());
 			}
 		}
 	}

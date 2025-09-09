@@ -104,5 +104,70 @@ namespace InventorySystem.Models
         
         [NotMapped]
         public string? Code => ServiceCode;
+
+        // NEW: Document validation methods
+        [NotMapped]
+        public bool HasRequiredDocuments => !HasAnyDocumentRequirements || AreAllRequiredDocumentsUploaded;
+
+        [NotMapped]
+        public bool HasAnyDocumentRequirements => QcRequired || CertificateRequired || WorksheetRequired;
+
+        [NotMapped]
+        public bool AreAllRequiredDocumentsUploaded
+        {
+            get
+            {
+                if (!HasAnyDocumentRequirements) return true;
+
+                var uploadedDocumentTypes = Documents?.Select(d => d.DocumentType?.ToLowerInvariant()).ToHashSet() ?? new HashSet<string?>();
+
+                if (QcRequired && !uploadedDocumentTypes.Contains("quality check"))
+                    return false;
+
+                if (CertificateRequired && !uploadedDocumentTypes.Contains("certificate"))
+                    return false;
+
+                if (WorksheetRequired && !uploadedDocumentTypes.Contains("worksheet"))
+                    return false;
+
+                return true;
+            }
+        }
+
+        [NotMapped]
+        public List<string> MissingRequiredDocuments
+        {
+            get
+            {
+                var missing = new List<string>();
+                
+                if (!HasAnyDocumentRequirements) return missing;
+
+                var uploadedDocumentTypes = Documents?.Select(d => d.DocumentType?.ToLowerInvariant()).ToHashSet() ?? new HashSet<string?>();
+
+                if (QcRequired && !uploadedDocumentTypes.Contains("quality check"))
+                    missing.Add("Quality Check Document");
+
+                if (CertificateRequired && !uploadedDocumentTypes.Contains("certificate"))
+                    missing.Add("Service Certificate");
+
+                if (WorksheetRequired && !uploadedDocumentTypes.Contains("worksheet"))
+                    missing.Add("Service Worksheet");
+
+                return missing;
+            }
+        }
+
+        public string GetDocumentRequirementsMessage()
+        {
+            if (!HasAnyDocumentRequirements)
+                return "No documents required for this service type.";
+
+            if (HasRequiredDocuments)
+                return "All required documents have been uploaded.";
+
+            var missing = MissingRequiredDocuments;
+            return $"Missing required documents: {string.Join(", ", missing)}";
+        }
     }
 }

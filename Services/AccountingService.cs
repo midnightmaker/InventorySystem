@@ -134,6 +134,57 @@ namespace InventorySystem.Services
 			return entry;
 		}
 
+		public async Task<VendorPayment> CreateVendorPaymentAsync(VendorPayment payment)
+		{
+			try
+			{
+				// Set creation timestamp
+				payment.CreatedDate = DateTime.Now;
+
+				// Add the payment to the context
+				_context.VendorPayments.Add(payment);
+
+				// Update the associated accounts payable
+				var accountsPayable = await GetAccountsPayableByIdAsync(payment.AccountsPayableId);
+				if (accountsPayable != null)
+				{
+					// Update the amount paid
+					accountsPayable.AmountPaid += payment.PaymentAmount;
+
+					// Update payment status based on remaining balance
+					accountsPayable.UpdatePaymentStatus();
+					accountsPayable.LastModifiedDate = DateTime.Now;
+
+					// Update the accounts payable record
+					await UpdateAccountsPayableAsync(accountsPayable);
+				}
+				else
+				{
+					_logger.LogError("AccountsPayable with ID {AccountsPayableId} not found for vendor payment", payment.AccountsPayableId);
+					throw new InvalidOperationException($"AccountsPayable with ID {payment.AccountsPayableId} not found");
+				}
+
+				// Save the payment to the database
+				await _context.SaveChangesAsync();
+
+				// Generate journal entries for the payment
+				var journalSuccess = await GenerateJournalEntriesForVendorPaymentAsync(payment);
+				if (!journalSuccess)
+				{
+					_logger.LogWarning("Failed to generate journal entries for vendor payment {PaymentId}", payment.Id);
+				}
+
+				_logger.LogInformation("Created vendor payment {PaymentId} for {Amount} to {VendorName}",
+					payment.Id, payment.PaymentAmount, accountsPayable?.Vendor?.CompanyName ?? "Unknown Vendor");
+
+				return payment;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating vendor payment for AccountsPayable {AccountsPayableId}", payment.AccountsPayableId);
+				throw;
+			}
+		}
 		public async Task<IEnumerable<GeneralLedgerEntry>> CreateJournalEntriesAsync(IEnumerable<GeneralLedgerEntry> entries)
 		{
 			var entryList = entries.ToList();
@@ -196,6 +247,31 @@ namespace InventorySystem.Services
 			{
 				if (purchase.IsJournalEntryGenerated) return true;
 
+				// ✅ CRITICAL FIX: Ensure vendor information is loaded if missing
+				if (purchase.Vendor == null && purchase.VendorId > 0)
+				{
+					_logger.LogWarning("Vendor not loaded for purchase {PurchaseId}, loading explicitly", purchase.Id);
+
+					// Reload the purchase with vendor information
+					var purchaseWithVendor = await _context.Purchases
+							.Include(p => p.Vendor)
+							.Include(p => p.Item)
+							.FirstOrDefaultAsync(p => p.Id == purchase.Id);
+
+					if (purchaseWithVendor?.Vendor != null)
+					{
+						purchase.Vendor = purchaseWithVendor.Vendor;
+						purchase.Item = purchaseWithVendor.Item ?? purchase.Item;
+						_logger.LogInformation("Successfully loaded vendor {VendorName} for purchase {PurchaseId}",
+								purchase.Vendor.CompanyName, purchase.Id);
+					}
+					else
+					{
+						_logger.LogError("Unable to load vendor {VendorId} for purchase {PurchaseId}", purchase.VendorId, purchase.Id);
+						return false;
+					}
+				}
+
 				var journalNumber = await GenerateNextJournalNumberAsync("JE-PUR");
 				var entries = new List<GeneralLedgerEntry>();
 
@@ -207,6 +283,9 @@ namespace InventorySystem.Services
 					_logger.LogError("Account {AccountCode} not found for purchase {PurchaseId}", accountCode, purchase.Id);
 					return false;
 				}
+
+				var vendorName = purchase.Vendor?.CompanyName ?? "Unknown Vendor";
+				_logger.LogInformation("Generating journal entry for purchase from vendor: {VendorName}", vendorName);
 
 				// Debit: Inventory/Expense Account
 				entries.Add(new GeneralLedgerEntry
@@ -234,7 +313,7 @@ namespace InventorySystem.Services
 					TransactionDate = purchase.PurchaseDate,
 					TransactionNumber = journalNumber,
 					AccountId = apAccount.Id,
-					Description = $"Purchase: {purchase.Vendor?.CompanyName ?? "Unknown Vendor"}",
+					Description = $"Purchase: {vendorName}", 
 					DebitAmount = 0,
 					CreditAmount = purchase.TotalCost,
 					ReferenceType = "Purchase",
@@ -1077,28 +1156,7 @@ namespace InventorySystem.Services
 					.ToListAsync();
 		}
 
-		public async Task<IEnumerable<AccountsPayable>> GetUnpaidAccountsPayableAsync()
-		{
-			return await _context.AccountsPayable
-					.Include(ap => ap.Vendor)
-					.Include(ap => ap.Purchase)
-					.Include(ap => ap.Payments)
-					.Where(ap => ap.PaymentStatus != PaymentStatus.Paid)
-					.OrderBy(ap => ap.DueDate)
-					.ToListAsync();
-		}
-
-		public async Task<IEnumerable<AccountsPayable>> GetOverdueAccountsPayableAsync()
-		{
-			var today = DateTime.Today;
-			return await _context.AccountsPayable
-					.Include(ap => ap.Vendor)
-					.Include(ap => ap.Purchase)
-					.Include(ap => ap.Payments)
-					.Where(ap => ap.PaymentStatus != PaymentStatus.Paid && ap.DueDate < today)
-					.OrderBy(ap => ap.DueDate)
-					.ToListAsync();
-		}
+		
 
 		public async Task<AccountsPayable?> GetAccountsPayableByIdAsync(int id)
 		{
@@ -1127,39 +1185,89 @@ namespace InventorySystem.Services
 
 		public async Task<decimal> GetTotalAccountsPayableAsync()
 		{
-			return await _context.AccountsPayable
-					.Where(ap => ap.PaymentStatus != PaymentStatus.Paid)
-					.SumAsync(ap => ap.BalanceRemaining);
+			try
+			{
+				// ✅ FIX: Use the actual database columns instead of computed property
+				var unpaidInvoices = await _context.AccountsPayable
+						.Where(ap => ap.PaymentStatus != PaymentStatus.Paid)
+						.Select(ap => new { ap.InvoiceAmount, ap.AmountPaid, ap.DiscountTaken })
+						.ToListAsync();
+
+				// Calculate the balance remaining on the client side
+				return unpaidInvoices.Sum(ap => ap.InvoiceAmount - ap.AmountPaid - ap.DiscountTaken);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error calculating total accounts payable");
+				return 0;
+			}
 		}
 
 		public async Task<decimal> GetTotalOverdueAccountsPayableAsync()
 		{
-			var today = DateTime.Today;
-			return await _context.AccountsPayable
-					.Where(ap => ap.PaymentStatus != PaymentStatus.Paid && ap.DueDate < today)
-					.SumAsync(ap => ap.BalanceRemaining);
+			try
+			{
+				var today = DateTime.Today;
+
+				// ✅ FIX: Use the actual database columns instead of computed property
+				var overdueInvoices = await _context.AccountsPayable
+						.Where(ap => ap.PaymentStatus != PaymentStatus.Paid && ap.DueDate < today)
+						.Select(ap => new { ap.InvoiceAmount, ap.AmountPaid, ap.DiscountTaken })
+						.ToListAsync();
+
+				// Calculate the balance remaining on the client side
+				return overdueInvoices.Sum(ap => ap.InvoiceAmount - ap.AmountPaid - ap.DiscountTaken);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error calculating total overdue accounts payable");
+				return 0;
+			}
 		}
 
-		public async Task<VendorPayment> CreateVendorPaymentAsync(VendorPayment payment)
+		public async Task<IEnumerable<AccountsPayable>> GetUnpaidAccountsPayableAsync()
 		{
-			payment.CreatedDate = DateTime.Now;
-			_context.VendorPayments.Add(payment);
-
-			// Update the associated accounts payable
-			var accountsPayable = await GetAccountsPayableByIdAsync(payment.AccountsPayableId);
-			if (accountsPayable != null)
+			try
 			{
-				accountsPayable.AmountPaid += payment.PaymentAmount;
-				accountsPayable.UpdatePaymentStatus();
-				await UpdateAccountsPayableAsync(accountsPayable);
+				return await _context.AccountsPayable
+								.Include(ap => ap.Vendor)
+								.Include(ap => ap.Purchase)
+												.ThenInclude(p => p!.Item)
+								.Include(ap => ap.Payments)
+								.Where(ap => ap.PaymentStatus != PaymentStatus.Paid)
+								.ToListAsync(); // Execute query first
+																// Note: Removed .OrderBy(ap => ap.DueDate) to avoid any potential computed property issues
+																// The ordering will be done in memory after the query executes
 			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading unpaid accounts payable");
+				throw;
+			}
+		}
 
-			await _context.SaveChangesAsync();
+		public async Task<IEnumerable<AccountsPayable>> GetOverdueAccountsPayableAsync()
+		{
+			try
+			{
+				var today = DateTime.Today;
 
-			// Generate journal entry for the payment
-			await GenerateJournalEntriesForVendorPaymentAsync(payment);
+				// Execute the query without any computed property references
+				var unpaidAP = await _context.AccountsPayable
+								.Include(ap => ap.Vendor)
+								.Include(ap => ap.Purchase)
+												.ThenInclude(p => p!.Item)
+								.Include(ap => ap.Payments)
+								.Where(ap => ap.PaymentStatus != PaymentStatus.Paid && ap.DueDate < today)
+								.ToListAsync(); // Execute query first, then filter in memory
 
-			return payment;
+				return unpaidAP; // Computed properties will work here since we're in memory
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading overdue accounts payable");
+				throw;
+			}
 		}
 
 		public async Task<IEnumerable<VendorPayment>> GetVendorPaymentsAsync(int vendorId)

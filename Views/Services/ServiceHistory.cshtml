@@ -1,0 +1,237 @@
+@model InventorySystem.ViewModels.ServiceHistoryViewModel
+@{
+    ViewData["Title"] = "Service History";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-history"></i> Service History</h1>
+    <a href="@Url.Action("ServiceOrders")" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Service Orders
+    </a>
+</div>
+
+<!-- Search Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-search"></i> Search Service History</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <label for="serialNumber" class="form-label">Serial Number</label>
+                <input type="text" class="form-control" id="serialNumber" name="serialNumber" 
+                       value="@Model.SerialNumber" placeholder="Enter serial number to view service history">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Search History
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SerialNumber))
+{
+    <!-- Summary Card -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>
+                <i class="fas fa-barcode"></i> Service History for: <strong>@Model.SerialNumber</strong>
+            </h5>
+        </div>
+        <div class="card-body">
+            @if (Model.HasServiceHistory)
+            {
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="text-primary">@Model.TotalServiceOrders</h3>
+                            <small class="text-muted">Total Services</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="text-info">@Model.CalibrationServices</h3>
+                            <small class="text-muted">Calibrations</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="text-warning">@Model.RepairServices</h3>
+                            <small class="text-muted">Repairs</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="text-success">@Model.TotalDocuments</h3>
+                            <small class="text-muted">Documents</small>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    No service history found for serial number <strong>@Model.SerialNumber</strong>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Model.HasServiceHistory)
+    {
+        <!-- Service History Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> Service Orders</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Service Order</th>
+                                <th>Service Date</th>
+                                <th>Service Type</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Documents</th>
+                                <th>Cost</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var serviceOrder in Model.ServiceOrders)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@Url.Action("Details", new { id = serviceOrder.Id })" class="text-decoration-none">
+                                            <strong>@serviceOrder.ServiceOrderNumber</strong>
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">@serviceOrder.RequestDate.ToString("MM/dd/yyyy")</small>
+                                    </td>
+                                    <td>
+                                        @if (serviceOrder.CompletedDate.HasValue)
+                                        {
+                                            <span>@serviceOrder.CompletedDate.Value.ToString("MM/dd/yyyy")</span>
+                                            <br><small class="text-success">Completed</small>
+                                        }
+                                        else
+                                        {
+                                            <span>@serviceOrder.RequestDate.ToString("MM/dd/yyyy")</span>
+                                            <br><small class="text-muted">Requested</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@(GetServiceCategoryBadge(serviceOrder.ServiceType.ServiceCategory)) me-1">
+                                            @serviceOrder.ServiceType.ServiceCategory
+                                        </span>
+                                        <br>
+                                        <small>@serviceOrder.ServiceType.ServiceName</small>
+                                    </td>
+                                    <td>
+                                        <a href="/Customers/Details/@serviceOrder.Customer.Id" class="text-decoration-none">
+                                            @serviceOrder.Customer.CustomerName
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@(GetStatusBadgeColor(serviceOrder.Status))">
+                                            @serviceOrder.StatusDisplay
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (serviceOrder.Documents.Any())
+                                        {
+                                            <span class="badge bg-info">@serviceOrder.Documents.Count() docs</span>
+                                            <div class="small">
+                                                @foreach (var docType in serviceOrder.Documents.GroupBy(d => d.DocumentType).Take(3))
+                                                {
+                                                    <span class="badge bg-light text-dark me-1">@docType.Key</span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No documents</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (serviceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Completed)
+                                        {
+                                            <strong>@serviceOrder.TotalServiceCost.ToString("C")</strong>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">@serviceOrder.EstimatedCost.ToString("C")</span>
+                                            <br><small>(estimated)</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group-vertical btn-group-sm">
+                                            <a href="@Url.Action("Details", new { id = serviceOrder.Id })" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            @if (serviceOrder.Documents.Any())
+                                            {
+                                                <button class="btn btn-outline-info btn-sm" 
+                                                        onclick="viewServiceDocuments(@serviceOrder.Id)">
+                                                    <i class="fas fa-file-alt"></i> Docs
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@functions {
+    private string GetStatusBadgeColor(InventorySystem.Models.ServiceOrderStatus status)
+    {
+        return status switch
+        {
+            InventorySystem.Models.ServiceOrderStatus.Requested => "secondary",
+            InventorySystem.Models.ServiceOrderStatus.Quoted => "info",
+            InventorySystem.Models.ServiceOrderStatus.Approved => "primary",
+            InventorySystem.Models.ServiceOrderStatus.Scheduled => "warning",
+            InventorySystem.Models.ServiceOrderStatus.InProgress => "primary",
+            InventorySystem.Models.ServiceOrderStatus.AwaitingParts => "warning",
+            InventorySystem.Models.ServiceOrderStatus.QualityCheck => "info",
+            InventorySystem.Models.ServiceOrderStatus.Completed => "success",
+            InventorySystem.Models.ServiceOrderStatus.Delivered => "success",
+            InventorySystem.Models.ServiceOrderStatus.Cancelled => "danger",
+            InventorySystem.Models.ServiceOrderStatus.OnHold => "secondary",
+            _ => "secondary"
+        };
+    }
+
+    private string GetServiceCategoryBadge(string? category)
+    {
+        return category?.ToLower() switch
+        {
+            "calibration" => "info",
+            "repair" => "warning",
+            "maintenance" => "success",
+            "inspection" => "primary",
+            _ => "secondary"
+        };
+    }
+}
+
+@section Scripts {
+    <script>
+        function viewServiceDocuments(serviceOrderId) {
+            // Open documents in a modal or new window
+            window.open(`/Services/Details/${serviceOrderId}#documents`, '_blank');
+        }
+    </script>
+}

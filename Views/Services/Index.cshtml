@@ -452,6 +452,20 @@
   </div>
 </div>
 
+<!-- Add this to your services dashboard or navigation -->
+<div class="col-md-4">
+    <div class="card">
+        <div class="card-body text-center">
+            <i class="fas fa-history fa-3x text-info mb-3"></i>
+            <h5>Service History</h5>
+            <p class="text-muted">View service history by serial number</p>
+            <a href="@Url.Action("ServiceHistory")" class="btn btn-info">
+                <i class="fas fa-search"></i> Search History
+            </a>
+        </div>
+    </div>
+</div>
+
 @functions {
   private string GetStatusBadgeColor(InventorySystem.Models.ServiceOrderStatus status)
   {

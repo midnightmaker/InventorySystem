@@ -269,6 +269,11 @@
                 <li><a class="dropdown-item" href="/Purchases"><i class="fas fa-list"></i> All Purchases</a></li>
                 <li><a class="dropdown-item" href="/Purchases/Create"><i class="fas fa-plus"></i> New Purchase</a></li>
                 <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="@Url.Action("PendingReceipts", "Purchases")">
+                    <i class="fas fa-truck-loading"></i> Pending Receipts
+                  </a>
+                </li>
 
                 <!-- Vendor Management -->
                 <li>
@@ -363,6 +368,8 @@
                     <i class="fas fa-plus-circle"></i> New Service Order
                   </a>
                 </li>
+                <li><a class="dropdown-item" href="@Url.Action("ServiceHistory", "Services")"> <i class="fas fa-history"></i>Service History</a></li>
+                <li><hr class="dropdown-divider"></li>
                 <li>
                   <a class="dropdown-item" href="@Url.Action("ServiceTypes", "Services")">
                     <i class="fas fa-cogs"></i> Service Types
@@ -1353,7 +1360,8 @@
                 }, 2000);
             }
         };
-  </script>
+
+    </script>
 
   @await RenderSectionAsync("Scripts", required: false)
 </body>

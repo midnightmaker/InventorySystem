@@ -229,6 +229,8 @@
               <th>Status</th>
               <th>Technician</th>
               <th>Est. Cost</th>
+              <!-- ✅ NEW: Sales Column -->
+              <th>Related Sale</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -241,7 +243,6 @@
                   @if (service.IsOverdue)
                   {
                     <br>
-              
                     <span class="badge bg-danger">Overdue</span>
                   }
                 </td>
@@ -252,7 +253,6 @@
                   @if (!string.IsNullOrEmpty(service.EquipmentDetails))
                   {
                     <br>
-              
                     <small class="text-muted">@service.EquipmentDetails</small>
                   }
                 </td>
@@ -265,7 +265,6 @@
                     @if (service.IsOverdue)
                     {
                       <br>
-              
                       <small class="text-danger">@service.DaysSinceRequest days late</small>
                     }
                   }
@@ -295,6 +294,24 @@
                   }
                 </td>
                 <td class="text-end">@service.EstimatedCost.ToString("C")</td>
+                <!-- ✅ NEW: Related Sale Column -->
+                <td onclick="event.stopPropagation();">
+                  @if (service.Sale != null)
+                  {
+                    <a href="/Sales/Details/@service.Sale.Id" class="text-decoration-none" title="View Related Sale">
+                      <i class="fas fa-shopping-cart text-primary"></i>
+                      @service.Sale.SaleNumber
+                    </a>
+                    <br>
+                    <small class="text-muted">@service.Sale.TotalAmount.ToString("C")</small>
+                  }
+                  else
+                  {
+                    <span class="text-muted">
+                      <i class="fas fa-minus"></i> No Sale
+                    </span>
+                  }
+                </td>
                 <td onclick="event.stopPropagation();">
                   <div class="btn-group btn-group-sm">
                     <a href="@Url.Action("Details", new { id = service.Id })" class="btn btn-outline-primary" title="View Details">

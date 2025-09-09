@@ -110,6 +110,7 @@ namespace InventorySystem.Models
     // Navigation Properties
     public virtual ICollection<Purchase> Purchases { get; set; } = new List<Purchase>();
     public virtual ICollection<VendorItem> VendorItems { get; set; } = new List<VendorItem>();
+    public virtual ICollection<VendorShortage> VendorShortages { get; set; } = new List<VendorShortage>();
 
     // Computed Properties
     [NotMapped]

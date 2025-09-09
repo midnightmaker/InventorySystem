@@ -1,0 +1,93 @@
+@model CreatePrepaymentViewModel
+
+<h2><i class="fas fa-money-bill-wave"></i> Setup Prepayment</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <form asp-action="CreatePrepayment" method="post">
+            <input asp-for="PurchaseId" type="hidden" />
+            <input asp-for="VendorId" type="hidden" />
+            <input asp-for="PurchaseOrderNumber" type="hidden" />
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>Prepayment Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Prepayment for:</strong> @Model.PurchaseOrderNumber<br>
+                        <strong>Vendor:</strong> @Model.VendorName<br>
+                        <strong>Item:</strong> @Model.ItemDescription<br>
+                        <strong>Total PO Amount:</strong> @Model.TotalPurchaseAmount.ToString("C")
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="PrepaymentAmount" class="form-label">
+                                    Prepayment Amount <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="PrepaymentAmount" class="form-control" 
+                                       type="number" step="0.01" min="0.01" 
+                                       max="@Model.TotalPurchaseAmount" />
+                                <span asp-validation-for="PrepaymentAmount" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="PrepaymentDate" class="form-label">
+                                    Payment Date <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="PrepaymentDate" class="form-control" type="date" />
+                                <span asp-validation-for="PrepaymentDate" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+                        <select asp-for="PaymentMethod" class="form-select">
+                            @foreach (PaymentMethod method in Enum.GetValues<PaymentMethod>())
+                            {
+                                <option value="@method">@GetPaymentMethodDisplayName(method)</option>
+                            }
+                        </select>
+                        <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label">Notes</label>
+                        <textarea asp-for="Notes" class="form-control" rows="3" 
+                                  placeholder="Optional notes about this prepayment"></textarea>
+                    </div>
+                </div>
+                
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-money-bill-wave"></i> Create Prepayment
+                    </button>
+                    <a asp-controller="Purchases" asp-action="Details" 
+                       asp-route-id="@Model.PurchaseId" class="btn btn-secondary ms-2">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@functions {
+    string GetPaymentMethodDisplayName(PaymentMethod method)
+    {
+        return method switch
+        {
+            PaymentMethod.Check => "Check",
+            PaymentMethod.ACH => "ACH/Wire Transfer", 
+            PaymentMethod.CreditCard => "Credit Card",
+            PaymentMethod.Cash => "Cash",
+            PaymentMethod.Wire => "Wire Transfer",
+            _ => method.ToString()
+        };
+    }
+}

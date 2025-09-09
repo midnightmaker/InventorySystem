@@ -3,29 +3,31 @@ using InventorySystem.Data;
 using InventorySystem.Domain.Enums;
 using InventorySystem.Models;
 using InventorySystem.Models.Accounting;
-using InventorySystem.Models.Enums;
+using InventorySystem.Models.Enums;  
 using InventorySystem.Services;
 using InventorySystem.ViewModels.Accounting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;      
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InventorySystem.Controllers
 {
 	public class AccountingController : Controller
 	{
 		private readonly IAccountingService _accountingService;
-		private readonly IFinancialPeriodService _financialPeriodService; // ADD THIS
+		private readonly IFinancialPeriodService _financialPeriodService;
 		private readonly InventoryContext _context;
 		private readonly ILogger<AccountingController> _logger;
 
 		public AccountingController(
-			IAccountingService accountingService, 
-			IFinancialPeriodService financialPeriodService, // ADD THIS PARAMETER
-			InventoryContext context, 
+			IAccountingService accountingService,
+			IFinancialPeriodService financialPeriodService,
+			InventoryContext context,
 			ILogger<AccountingController> logger)
 		{
 			_accountingService = accountingService;
-			_financialPeriodService = financialPeriodService; // ADD THIS
+			_financialPeriodService = financialPeriodService;
 			_context = context;
 			_logger = logger;
 		}
@@ -343,7 +345,7 @@ namespace InventorySystem.Controllers
 							entry.EnhancedReferenceText = $"Sale {sale.SaleNumber}";
 						}
 						break;
-					// Add other cases as needed
+						// Add other cases as needed
 				}
 			}
 			catch
@@ -384,11 +386,11 @@ namespace InventorySystem.Controllers
 				}
 
 				var trialBalance = await _accountingService.GetTrialBalanceAsync(defaultDate);
-				
+
 				// Add financial period info
 				trialBalance.CurrentFinancialPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
 				trialBalance.SelectedPeriod = period;
-				
+
 				return View(trialBalance);
 			}
 			catch (Exception ex)
@@ -428,11 +430,11 @@ namespace InventorySystem.Controllers
 				}
 
 				var balanceSheet = await _accountingService.GetBalanceSheetAsync(defaultDate);
-				
+
 				// Add financial period info
 				balanceSheet.CurrentFinancialPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
 				balanceSheet.SelectedPeriod = period;
-				
+
 				return View(balanceSheet);
 			}
 			catch (Exception ex)
@@ -474,11 +476,11 @@ namespace InventorySystem.Controllers
 				}
 
 				var incomeStatement = await _accountingService.GetIncomeStatementAsync(defaultStartDate, defaultEndDate);
-				
+
 				// Add financial period info
 				incomeStatement.CurrentFinancialPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
 				incomeStatement.SelectedPeriod = period;
-				
+
 				return View(incomeStatement);
 			}
 			catch (Exception ex)
@@ -1230,7 +1232,7 @@ namespace InventorySystem.Controllers
 						creditAccountId = creditAccount?.Id,
 						debitDescription = template.DebitDescription,
 						creditDescription = template.CreditDescription,
-						referenceNumber = $"{request.AdjustmentType.Replace(" ", "").ToUpper()}-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+						referenceNumber = $"ADJ-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
 						description = template.Description
 					}
 				};
@@ -1365,7 +1367,7 @@ namespace InventorySystem.Controllers
 
 				await _financialPeriodService.UpdateCompanySettingsAsync(settings);
 				TempData["SuccessMessage"] = "Company settings updated successfully";
-				
+
 				return RedirectToAction(nameof(ManageFinancialPeriods));
 			}
 			catch (Exception ex)
@@ -1474,7 +1476,7 @@ namespace InventorySystem.Controllers
 		{
 			try
 			{
-				var currentPeriod = periodId.HasValue 
+				var currentPeriod = periodId.HasValue
 					? await _financialPeriodService.GetFinancialPeriodByIdAsync(periodId.Value)
 					: await _financialPeriodService.GetCurrentFinancialPeriodAsync();
 
@@ -1521,7 +1523,7 @@ namespace InventorySystem.Controllers
 			}
 		}
 
-		
+
 		// Enhanced CloseFinancialYear POST method
 		[HttpPost]
 		[ValidateAntiForgeryToken]
@@ -1608,6 +1610,313 @@ namespace InventorySystem.Controllers
 		public class ToggleAccountStatusRequest
 		{
 			public bool IsActive { get; set; }
+		}
+
+		// ============= ENHANCED ACCOUNTS PAYABLE MANAGEMENT =============
+
+		// GET: Accounting/EditInvoiceDetails/5
+		[HttpGet]
+		public async Task<IActionResult> EditInvoiceDetails(int id)
+		{
+			try
+			{
+				var accountsPayable = await _accountingService.GetAccountsPayableByIdAsync(id);
+				if (accountsPayable == null)
+				{
+					TempData["ErrorMessage"] = "Invoice not found";
+					return RedirectToAction(nameof(AccountsPayable));
+				}
+
+				var viewModel = new EditInvoiceDetailsViewModel
+				{
+					Id = accountsPayable.Id,
+					VendorName = accountsPayable.Vendor?.CompanyName ?? "Unknown",
+					PurchaseOrderNumber = accountsPayable.PurchaseOrderNumber,
+					VendorInvoiceNumber = accountsPayable.VendorInvoiceNumber,
+					InvoiceDate = accountsPayable.InvoiceDate,
+					DueDate = accountsPayable.DueDate,
+					ExpectedPaymentDate = accountsPayable.ExpectedPaymentDate,
+					InvoiceAmount = accountsPayable.InvoiceAmount,
+					PaymentTerms = accountsPayable.PaymentTerms,
+					EarlyPaymentDiscountPercent = accountsPayable.EarlyPaymentDiscountPercent,
+					EarlyPaymentDiscountDate = accountsPayable.EarlyPaymentDiscountDate,
+					InvoiceReceived = accountsPayable.InvoiceReceived,
+					InvoiceReceivedDate = accountsPayable.InvoiceReceivedDate,
+					ApprovalStatus = accountsPayable.ApprovalStatus,
+					Notes = accountsPayable.Notes
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading invoice details for {InvoiceId}", id);
+				TempData["ErrorMessage"] = "Error loading invoice details";
+				return RedirectToAction(nameof(AccountsPayable));
+			}
+		}
+
+		// POST: Accounting/EditInvoiceDetails/5
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> EditInvoiceDetails(int id, EditInvoiceDetailsViewModel model)
+		{
+			if (id != model.Id)
+			{
+				return NotFound();
+			}
+
+			if (!ModelState.IsValid)
+			{
+				return View(model);
+			}
+
+			try
+			{
+				var accountsPayable = await _accountingService.GetAccountsPayableByIdAsync(id);
+				if (accountsPayable == null)
+				{
+					TempData["ErrorMessage"] = "Invoice not found";
+					return RedirectToAction(nameof(AccountsPayable));
+				}
+
+				// Update the invoice details
+				accountsPayable.VendorInvoiceNumber = model.VendorInvoiceNumber;
+				accountsPayable.InvoiceDate = model.InvoiceDate;
+				accountsPayable.DueDate = model.DueDate;
+				accountsPayable.ExpectedPaymentDate = model.ExpectedPaymentDate;
+				accountsPayable.InvoiceAmount = model.InvoiceAmount;
+				accountsPayable.PaymentTerms = model.PaymentTerms;
+				accountsPayable.EarlyPaymentDiscountPercent = model.EarlyPaymentDiscountPercent;
+				accountsPayable.EarlyPaymentDiscountDate = model.EarlyPaymentDiscountDate;
+				accountsPayable.InvoiceReceived = model.InvoiceReceived;
+				accountsPayable.InvoiceReceivedDate = model.InvoiceReceived ? (model.InvoiceReceivedDate ?? DateTime.Today) : null;
+				accountsPayable.ApprovalStatus = model.ApprovalStatus;
+				accountsPayable.Notes = model.Notes;
+				accountsPayable.LastModifiedDate = DateTime.Now;
+				accountsPayable.LastModifiedBy = User.Identity?.Name ?? "System";
+
+				// If approved, set approval details
+				if (model.ApprovalStatus == InvoiceApprovalStatus.Approved && accountsPayable.ApprovalDate == null)
+				{
+					accountsPayable.ApprovalDate = DateTime.Now;
+					accountsPayable.ApprovedBy = User.Identity?.Name ?? "System";
+				}
+
+				await _accountingService.UpdateAccountsPayableAsync(accountsPayable);
+
+				TempData["SuccessMessage"] = "Invoice details updated successfully";
+				return RedirectToAction(nameof(AccountsPayable));
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error updating invoice details for {InvoiceId}", id);
+				TempData["ErrorMessage"] = $"Error updating invoice details: {ex.Message}";
+				return View(model);
+			}
+		}
+
+		// GET: Accounting/CreateUpfrontPayment
+		[HttpGet]
+		public async Task<IActionResult> CreateUpfrontPayment()
+		{
+			try
+			{
+				var vendors = await _context.Vendors
+					.Where(v => v.IsActive)
+					.OrderBy(v => v.CompanyName)
+					.ToListAsync();
+
+				var viewModel = new CreateUpfrontPaymentViewModel
+				{
+					PaymentDate = DateTime.Today,
+					AvailableVendors = vendors
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading upfront payment form");
+				TempData["ErrorMessage"] = "Error loading upfront payment form";
+				return RedirectToAction(nameof(AccountsPayable));
+			}
+		}
+
+		// POST: Accounting/CreateUpfrontPayment
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreateUpfrontPayment(CreateUpfrontPaymentViewModel model)
+		{
+			if (!ModelState.IsValid)
+			{
+				// Reload vendors
+				model.AvailableVendors = await _context.Vendors
+					.Where(v => v.IsActive)
+					.OrderBy(v => v.CompanyName)
+					.ToListAsync();
+				return View(model);
+			}
+
+			try
+			{
+				// Create a placeholder purchase for the upfront payment
+				// First, get or create a special "Prepayment" item
+				var prepaymentItem = await _context.Items
+					.FirstOrDefaultAsync(i => i.PartNumber == "PREPAYMENT");
+				
+				if (prepaymentItem == null)
+				{
+					// Create a special prepayment item if it doesn't exist
+					prepaymentItem = new Item
+					{
+						PartNumber = "PREPAYMENT",
+						Description = "Vendor Prepayment Placeholder",
+						ItemType = ItemType.Consumable,
+						UnitOfMeasure = UnitOfMeasure.Each,
+						CurrentStock = 0,
+						MinimumStock = 0,
+						SalePrice = 0,
+						CreatedDate = DateTime.Now
+					};
+					_context.Items.Add(prepaymentItem);
+					await _context.SaveChangesAsync();
+				}
+
+				var purchase = new Purchase
+				{
+					VendorId = model.VendorId,
+					ItemId = prepaymentItem.Id, // Use the prepayment item
+					PurchaseDate = model.PaymentDate,
+					QuantityPurchased = 1, // Nominal quantity for prepayment
+					CostPerUnit = model.PaymentAmount, // Cost is the payment amount
+					Notes = $"Upfront payment: {model.Purpose}",
+					Status = PurchaseStatus.Received, // Mark as received since payment is made
+					CreatedDate = DateTime.Now,
+					PurchaseOrderNumber = $"PREP-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}"
+				};
+
+				_context.Purchases.Add(purchase);
+				await _context.SaveChangesAsync();
+
+				// Create accounts payable record for the upfront payment
+				var accountsPayable = new AccountsPayable
+				{
+					VendorId = model.VendorId,
+					PurchaseId = purchase.Id,
+					PurchaseOrderNumber = purchase.PurchaseOrderNumber,
+					VendorInvoiceNumber = model.ReferenceNumber,
+					InvoiceDate = model.PaymentDate,
+					DueDate = model.PaymentDate, // Due immediately since it's prepaid
+					InvoiceAmount = 0, // No invoice amount yet
+					PrepaymentAmount = model.PaymentAmount,
+					PaymentTerms = "Prepayment",
+					InvoiceReceived = false,
+					ApprovalStatus = InvoiceApprovalStatus.Approved, // Auto-approve upfront payments
+					ApprovedBy = User.Identity?.Name ?? "System",
+					ApprovalDate = DateTime.Now,
+					Notes = $"Upfront payment: {model.Purpose}",
+					CreatedBy = User.Identity?.Name ?? "System",
+					CreatedDate = DateTime.Now
+				};
+
+				var createdAP = await _accountingService.CreateAccountsPayableAsync(accountsPayable);
+
+				// Create the payment record
+				var payment = new VendorPayment
+				{
+					AccountsPayableId = createdAP.Id,
+					PaymentDate = model.PaymentDate,
+					PaymentAmount = model.PaymentAmount,
+					PaymentMethod = model.PaymentMethod,
+					PaymentType = PaymentType.Prepayment,
+					Notes = model.Notes,
+					CreatedBy = User.Identity?.Name ?? "System"
+				};
+
+				// Set payment method specific fields
+				switch (model.PaymentMethod)
+				{
+					case PaymentMethod.CreditCard:
+						payment.CreditCardLast4 = model.CreditCardLast4;
+						payment.CreditCardType = model.CreditCardType;
+						payment.ReferenceNumber = model.ReferenceNumber;
+						break;
+					case PaymentMethod.Wire:
+						payment.WireConfirmationNumber = model.ReferenceNumber;
+						payment.ReceivingBank = model.ReceivingBank;
+						break;
+					case PaymentMethod.ACH:
+						payment.ReferenceNumber = model.ReferenceNumber;
+						payment.BankAccount = model.BankAccount;
+						break;
+				}
+
+				await _accountingService.CreateVendorPaymentAsync(payment);
+
+				TempData["SuccessMessage"] = $"Upfront payment of {model.PaymentAmount:C} to {model.VendorName} recorded successfully";
+				return RedirectToAction(nameof(AccountsPayable));
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating upfront payment");
+				TempData["ErrorMessage"] = $"Error creating upfront payment: {ex.Message}";
+
+				// Reload vendors
+				model.AvailableVendors = await _context.Vendors
+					.Where(v => v.IsActive)
+					.OrderBy(v => v.CompanyName)
+					.ToListAsync();
+				return View(model);
+			}
+		}
+
+		// POST: Accounting/RecordInvoiceReceipt
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<JsonResult> RecordInvoiceReceipt([FromBody] RecordInvoiceReceiptRequest request)
+		{
+			try
+			{
+				var accountsPayable = await _accountingService.GetAccountsPayableByIdAsync(request.AccountsPayableId);
+				if (accountsPayable == null)
+				{
+					return Json(new { success = false, message = "Invoice not found" });
+				}
+
+				// Simple invoice receipt - just update invoice details
+				accountsPayable.VendorInvoiceNumber = request.VendorInvoiceNumber;
+				accountsPayable.InvoiceReceived = true;
+				accountsPayable.InvoiceReceivedDate = DateTime.Today;
+				accountsPayable.InvoiceDate = request.InvoiceDate;
+				accountsPayable.InvoiceAmount = request.InvoiceAmount;
+				accountsPayable.DueDate = request.DueDate;
+				accountsPayable.ExpectedPaymentDate = request.ExpectedPaymentDate;
+				accountsPayable.PaymentTerms = request.PaymentTerms;
+				accountsPayable.LastModifiedDate = DateTime.Now;
+				accountsPayable.LastModifiedBy = User.Identity?.Name ?? "System";
+
+				await _accountingService.UpdateAccountsPayableAsync(accountsPayable);
+
+				return Json(new { success = true, message = "Invoice receipt recorded successfully" });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error recording invoice receipt");
+				return Json(new { success = false, message = ex.Message });
+			}
+		}
+
+		public class RecordInvoiceReceiptRequest
+		{
+			public int AccountsPayableId { get; set; }
+			public string VendorInvoiceNumber { get; set; } = string.Empty;
+			public DateTime InvoiceDate { get; set; }
+			public decimal InvoiceAmount { get; set; }
+			public DateTime DueDate { get; set; }
+			public DateTime? ExpectedPaymentDate { get; set; }
+			public string? PaymentTerms { get; set; }
+			public string? Notes { get; set; }
 		}
 	}
 }

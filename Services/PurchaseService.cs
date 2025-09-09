@@ -404,15 +404,12 @@ namespace InventorySystem.Services
 				}
 
 				var dueDate = CalculateDueDateFromPaymentTerms(purchase.PurchaseDate, vendor.PaymentTerms);
-				var invoiceNumber = !string.IsNullOrEmpty(purchase.InvoiceNumber)
-						? purchase.InvoiceNumber
-						: purchase.PurchaseOrderNumber;
 
 				var accountsPayable = new AccountsPayable
 				{
 					VendorId = purchase.VendorId,
 					PurchaseId = purchase.Id,
-					InvoiceNumber = invoiceNumber,
+					PurchaseOrderNumber = purchase.PurchaseOrderNumber, // Fix: Use PurchaseOrderNumber instead of InvoiceNumber
 					InvoiceDate = purchase.ActualDeliveryDate ?? purchase.PurchaseDate,
 					DueDate = dueDate,
 					InvoiceAmount = purchase.ExtendedTotal, // Includes shipping and tax

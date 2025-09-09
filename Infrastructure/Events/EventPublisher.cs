@@ -20,17 +20,31 @@ namespace InventorySystem.Infrastructure.Services
       // Get the actual type of the domain event
       var eventType = domainEvent.GetType();
 
-      // Create the generic method to call PublishAsync<T>
-      var method = typeof(EventPublisher).GetMethod(nameof(PublishAsync), new[] { eventType });
-      if (method != null)
+      try
       {
-        var genericMethod = method.MakeGenericMethod(eventType);
-        var task = (Task)genericMethod.Invoke(this, new object[] { domainEvent })!;
-        await task;
+        // ✅ FIXED: Get the generic method definition first, then make it generic
+        var genericMethodDefinition = typeof(EventPublisher)
+          .GetMethods()
+          .FirstOrDefault(m => m.Name == nameof(PublishAsync) && 
+                               m.IsGenericMethodDefinition && 
+                               m.GetParameters().Length == 1);
+
+        if (genericMethodDefinition != null)
+        {
+          var genericMethod = genericMethodDefinition.MakeGenericMethod(eventType);
+          var task = (Task)genericMethod.Invoke(this, new object[] { domainEvent })!;
+          await task;
+        }
+        else
+        {
+          // Fallback to direct type checking
+          await PublishByTypeAsync(domainEvent);
+        }
       }
-      else
+      catch (Exception ex)
       {
-        // Fallback to direct type checking
+        _logger.LogError(ex, "Failed to publish event {EventType}", domainEvent.EventType);
+        // Don't rethrow - use fallback method
         await PublishByTypeAsync(domainEvent);
       }
     }

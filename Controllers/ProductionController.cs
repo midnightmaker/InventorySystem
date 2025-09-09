@@ -1439,7 +1439,7 @@ namespace InventorySystem.Controllers
                         VendorId = vendorId,
                         PurchaseOrderNumber = purchaseOrderNumber,
                         Notes = BuildPurchaseNotes(model.Notes, item.Notes, vendorItems.Count, vendor.CompanyName),
-                        PurchaseDate = DateTime.Today,
+                        PurchaseDate = DateTime.Now,
                         RemainingQuantity = item.QuantityToPurchase,
                         CreatedDate = DateTime.Now,
                         

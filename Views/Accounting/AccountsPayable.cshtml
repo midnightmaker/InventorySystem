@@ -9,6 +9,12 @@
     <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
     </a>
+    <a href="@Url.Action("CreateUpfrontPayment")" class="btn btn-warning">
+      <i class="fas fa-credit-card"></i> Record Upfront Payment
+    </a>
+    <a href="@Url.Action("PendingReceipts", "Purchases")" class="btn btn-info">
+      <i class="fas fa-truck-loading"></i> Goods Receiving
+    </a>
     <button class="btn btn-success" onclick="paySelectedInvoices()">
       <i class="fas fa-credit-card"></i> Pay Selected
     </button>
@@ -85,7 +91,7 @@
     </div>
   </div>
   <div class="col-md-3">
-    <div class="card bg-info text-white">
+    <div class="card bg-success text-white">
       <div class="card-body">
         <div class="d-flex justify-content-between">
           <div>
@@ -102,97 +108,27 @@
   </div>
 </div>
 
-<!-- Overdue Invoices (Priority) -->
-@if (Model.OverdueAccountsPayable.Any())
-{
-  <div class="card border-danger mb-4">
-    <div class="card-header bg-danger text-white">
-      <h5><i class="fas fa-exclamation-triangle"></i> Overdue Invoices - Immediate Attention Required</h5>
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>
-                <input type="checkbox" id="selectAllOverdue" onchange="toggleAllOverdue(this)">
-              </th>
-              <th>Vendor</th>
-              <th>Invoice #</th>
-              <th>Invoice Date</th>
-              <th>Due Date</th>
-              <th class="text-end">Amount</th>
-              <th class="text-end">Balance</th>
-              <th>Days Overdue</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var ap in Model.OverdueAccountsPayable.OrderByDescending(a => a.DaysOverdue))
-            {
-              <tr class="table-danger">
-                <td>
-                  <input type="checkbox" name="selectedInvoices" value="@ap.Id" class="overdue-invoice">
-                </td>
-                <td>
-                  <strong>@ap.Vendor.CompanyName</strong>
-                  @if (!string.IsNullOrEmpty(ap.Vendor.ContactPhone))
-                  {
-                    <br>
-              
-                    <small class="text-muted">@ap.Vendor.ContactPhone</small>
-                  }
-                </td>
-                <td>
-                  <strong>@ap.InvoiceNumber</strong>
-                </td>
-                <td>@ap.InvoiceDate.ToString("MM/dd/yyyy")</td>
-                <td>@ap.DueDate.ToString("MM/dd/yyyy")</td>
-                <td class="text-end">@ap.GetFormattedInvoiceAmount()</td>
-                <td class="text-end">
-                  <strong class="text-danger">@ap.GetFormattedBalance()</strong>
-                </td>
-                <td>
-                  <span class="badge bg-danger">@ap.DaysOverdue days</span>
-                </td>
-                <td>
-                  <div class="btn-group btn-group-sm">
-                    <button class="btn btn-success" onclick="payInvoice(@ap.Id, '@ap.GetFormattedBalance()')">
-                      <i class="fas fa-credit-card"></i> Pay
-                    </button>
-                    <button class="btn btn-outline-info" onclick="viewInvoiceDetails(@ap.Id)">
-                      <i class="fas fa-eye"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Current Unpaid Invoices -->
-@if (Model.UnpaidAccountsPayable.Where(ap => !ap.IsOverdue).Any())
+<!-- Enhanced Invoices Table -->
+@if (Model.UnpaidAccountsPayable.Any())
 {
   <div class="card">
     <div class="card-header">
-      <h5><i class="fas fa-file-invoice"></i> Current Unpaid Invoices</h5>
+      <h5><i class="fas fa-file-invoice"></i> Accounts Payable</h5>
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0" id="apTable">
           <thead class="table-light">
             <tr>
               <th>
-                <input type="checkbox" id="selectAllCurrent" onchange="toggleAllCurrent(this)">
+                <input type="checkbox" id="selectAll" onchange="toggleAll(this)">
               </th>
               <th>Vendor</th>
+              <th>PO #</th>
               <th>Invoice #</th>
               <th>Invoice Date</th>
               <th>Due Date</th>
+              <th>Expected Payment</th>
               <th class="text-end">Amount</th>
               <th class="text-end">Balance</th>
               <th>Status</th>
@@ -200,64 +136,145 @@
             </tr>
           </thead>
           <tbody>
-            @foreach (var ap in Model.UnpaidAccountsPayable.Where(ap => !ap.IsOverdue).OrderBy(a => a.DueDate))
+            @foreach (var ap in Model.UnpaidAccountsPayable.OrderBy(a => a.EffectivePaymentDate))
             {
-              var daysUntilDue = (ap.DueDate - DateTime.Today).Days;
-              var rowClass = daysUntilDue <= 7 ? "table-warning" : "";
+              var daysUntilDue = (ap.EffectivePaymentDate - DateTime.Today).Days;
+              var rowClass = ap.IsOverdue ? "table-danger" : 
+                           daysUntilDue <= 7 ? "table-warning" : 
+                           ap.IsUpfrontPayment ? "table-info" : "";
+              var hasInvoice = !string.IsNullOrEmpty(ap.VendorInvoiceNumber);
 
               <tr class="@rowClass">
                 <td>
-                  <input type="checkbox" name="selectedInvoices" value="@ap.Id" class="current-invoice">
+                  <input type="checkbox" name="selectedInvoices" value="@ap.Id" class="invoice-checkbox">
                 </td>
                 <td>
                   <strong>@ap.Vendor.CompanyName</strong>
-                  @if (!string.IsNullOrEmpty(ap.Vendor.ContactEmail))
+                  @if (!string.IsNullOrEmpty(ap.Vendor.ContactPhone))
                   {
                     <br>
-              
-                    <small class="text-muted">@ap.Vendor.ContactEmail</small>
+                    <small class="text-muted">@ap.Vendor.ContactPhone</small>
                   }
                 </td>
                 <td>
-                  <strong>@ap.InvoiceNumber</strong>
+                  @if (!string.IsNullOrEmpty(ap.PurchaseOrderNumber))
+                  {
+                    <a href="@Url.Action("Details", "Purchases", new { id = ap.PurchaseId })" 
+                       class="text-decoration-none" title="View Purchase Order">
+                      @ap.PurchaseOrderNumber
+                    </a>
+                  }
+                  else
+                  {
+                    <span class="text-muted">N/A</span>
+                  }
+                </td>
+                <td>
+                  @if (!string.IsNullOrWhiteSpace(ap.VendorInvoiceNumber))
+                  {
+                    <strong>@ap.VendorInvoiceNumber</strong>
+                    <br>
+                    <small class="text-muted">Invoice received</small>
+                  }
+                  else
+                  {
+                    <span class="text-muted fst-italic">No invoice yet</span>
+                    @if (!ap.IsUpfrontPayment)
+                    {
+                      <br>
+                      <button class="btn btn-sm btn-outline-primary" 
+                              onclick="recordSimpleInvoiceReceipt(@ap.Id, '@ap.Vendor.CompanyName')">
+                        <i class="fas fa-envelope"></i> Record Invoice
+                      </button>
+                    }
+                  }
                 </td>
                 <td>@ap.InvoiceDate.ToString("MM/dd/yyyy")</td>
+                <td>@ap.DueDate.ToString("MM/dd/yyyy")</td>
                 <td>
-                  @ap.DueDate.ToString("MM/dd/yyyy")
-                  @if (daysUntilDue <= 7 && daysUntilDue > 0)
+                  @if (ap.ExpectedPaymentDate.HasValue)
                   {
-                    <br>
-              
-                    <small class="text-warning">Due in @daysUntilDue days</small>
+                    @ap.ExpectedPaymentDate.Value.ToString("MM/dd/yyyy")
+                    @if (daysUntilDue <= 7 && daysUntilDue > 0)
+                    {
+                      <br>
+                      <small class="text-warning">Pay in @daysUntilDue days</small>
+                    }
+                    else if (daysUntilDue == 0)
+                    {
+                      <br>
+                      <small class="text-danger">Pay Today!</small>
+                    }
                   }
-                  else if (daysUntilDue == 0)
+                  else
                   {
-                    <br>
-              
-                    <small class="text-danger">Due Today!</small>
+                    <span class="text-muted">Not Set</span>
                   }
                 </td>
                 <td class="text-end">@ap.GetFormattedInvoiceAmount()</td>
                 <td class="text-end">
-                  <strong>@ap.GetFormattedBalance()</strong>
+                  <strong class="@(ap.IsOverdue ? "text-danger" : "")">
+                    @ap.GetFormattedBalance()
+                  </strong>
+                  @if (ap.IsEarlyPaymentDiscountAvailable())
+                  {
+                    <br>
+                    <small class="text-success">
+                      <i class="fas fa-percentage"></i> @ap.GetEarlyPaymentDiscountAmount().ToString("C") discount
+                    </small>
+                  }
                 </td>
                 <td>
-                  @if (ap.AmountPaid > 0)
+                  @if (ap.IsUpfrontPayment)
                   {
-                    <span class="badge bg-warning">Partial</span>
+                    <span class="badge bg-info">
+                      <i class="fas fa-credit-card"></i> Prepaid
+                    </span>
+                  }
+                  else if (ap.IsOverdue)
+                  {
+                    <span class="badge bg-danger">
+                      <i class="fas fa-clock"></i> @ap.DaysOverdue days overdue
+                    </span>
+                  }
+                  else if (ap.AmountPaid > 0)
+                  {
+                    <span class="badge bg-warning">
+                      <i class="fas fa-coins"></i> Partial Payment
+                    </span>
+                  }
+                  else if (string.IsNullOrWhiteSpace(ap.VendorInvoiceNumber))
+                  {
+                    <span class="badge bg-secondary">
+                      <i class="fas fa-clock"></i> Awaiting Invoice
+                    </span>
+                  }
+                  else if (!ap.InvoiceReceived)
+                  {
+                    <span class="badge bg-info">
+                      <i class="fas fa-envelope"></i> Invoice Pending
+                    </span>
                   }
                   else
                   {
-                    <span class="badge bg-primary">Pending</span>
+                    <span class="badge bg-primary">
+                      <i class="fas fa-hourglass-half"></i> Pending Payment
+                    </span>
                   }
                 </td>
                 <td>
                   <div class="btn-group btn-group-sm">
-                    <button class="btn btn-success" onclick="payInvoice(@ap.Id, '@ap.GetFormattedBalance()')">
-                      <i class="fas fa-credit-card"></i> Pay
+                    @if (!ap.IsUpfrontPayment && ap.BalanceRemaining > 0)
+                    {
+                      <button class="btn btn-success" onclick="payInvoice(@ap.Id, '@ap.GetFormattedBalance()')">
+                        <i class="fas fa-credit-card"></i> Pay
+                      </button>
+                    }
+                    <button class="btn btn-outline-primary" onclick="editInvoiceDetails(@ap.Id)">
+                      <i class="fas fa-edit"></i> Edit
                     </button>
                     <button class="btn btn-outline-info" onclick="viewInvoiceDetails(@ap.Id)">
-                      <i class="fas fa-eye"></i>
+                      <i class="fas fa-eye"></i> View
                     </button>
                   </div>
                 </td>
@@ -276,15 +293,23 @@
     <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
     <h4 class="text-success">No Outstanding Invoices</h4>
     <p class="text-muted">All vendor invoices have been paid. Great job staying on top of your accounts payable!</p>
-    <a href="@Url.Action("Index")" class="btn btn-primary">
-      <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </a>
+    <div class="mt-3">
+      <a href="@Url.Action("CreateUpfrontPayment")" class="btn btn-warning me-2">
+        <i class="fas fa-credit-card"></i> Record Upfront Payment
+      </a>
+      <a href="@Url.Action("PendingReceipts", "Purchases")" class="btn btn-info me-2">
+        <i class="fas fa-truck-loading"></i> Receive Goods
+      </a>
+      <a href="@Url.Action("Index")" class="btn btn-primary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
   </div>
 }
 
-<!-- Payment Modal -->
+<!-- Enhanced Payment Modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="fas fa-credit-card"></i> Record Payment</h5>
@@ -294,39 +319,99 @@
         <div class="modal-body">
           <input type="hidden" id="paymentAccountsPayableId" name="accountsPayableId">
 
-          <div class="mb-3">
-            <label class="form-label">Payment Amount</label>
-            <div class="input-group">
-              <span class="input-group-text">$</span>
-              <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount" required>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Payment Amount</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount" required>
+              </div>
+              <div class="form-text">
+                Balance Due: <span id="balanceDue" class="fw-bold"></span>
+              </div>
             </div>
-            <div class="form-text">
-              Balance Due: <span id="balanceDue" class="fw-bold"></span>
+            <div class="col-md-6">
+              <label class="form-label">Payment Date</label>
+              <input type="date" class="form-control" id="paymentDate" name="paymentDate" required>
             </div>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label">Payment Date</label>
-            <input type="date" class="form-control" id="paymentDate" name="paymentDate" required>
+          <div class="row g-3 mt-2">
+            <div class="col-md-6">
+              <label class="form-label">Payment Method</label>
+              <select class="form-select" id="paymentMethod" name="paymentMethod" required>
+                <option value="1">Check</option>
+                <option value="2">ACH Transfer</option>
+                <option value="3">Wire Transfer</option>
+                <option value="4">Credit Card</option>
+                <option value="5">Cash</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Payment Type</label>
+              <select class="form-select" id="paymentType" name="paymentType">
+                <option value="1">Standard Payment</option>
+                <option value="2">Prepayment</option>
+                <option value="3">Deposit</option>
+                <option value="4">Cash on Delivery</option>
+              </select>
+            </div>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label">Payment Method</label>
-            <select class="form-select" id="paymentMethod" name="paymentMethod" required>
-              <option value="1">Check</option>
-              <option value="2">ACH Transfer</option>
-              <option value="3">Wire Transfer</option>
-              <option value="4">Credit Card</option>
-              <option value="5">Cash</option>
-            </select>
+          <!-- Payment Method Specific Fields -->
+          <div id="checkFields" class="mt-3" style="display: none;">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Check Number</label>
+                <input type="text" class="form-control" id="checkNumber" name="checkNumber">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Bank Account</label>
+                <input type="text" class="form-control" id="bankAccount" name="bankAccount">
+              </div>
+            </div>
           </div>
 
-          <div class="mb-3" id="checkNumberDiv">
-            <label class="form-label">Check Number</label>
-            <input type="text" class="form-control" id="checkNumber" name="checkNumber">
+          <div id="creditCardFields" class="mt-3" style="display: none;">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Credit Card Type</label>
+                <input type="text" class="form-control" id="creditCardType" name="creditCardType" placeholder="Visa, Mastercard, etc.">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Last 4 Digits</label>
+                <input type="text" class="form-control" id="creditCardLast4" name="creditCardLast4" maxlength="4">
+              </div>
+            </div>
           </div>
 
-          <div class="mb-3">
+          <div id="wireFields" class="mt-3" style="display: none;">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Wire Confirmation Number</label>
+                <input type="text" class="form-control" id="wireConfirmationNumber" name="wireConfirmationNumber">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Receiving Bank</label>
+                <input type="text" class="form-control" id="receivingBank" name="receivingBank">
+              </div>
+            </div>
+          </div>
+
+          <div id="achFields" class="mt-3" style="display: none;">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">ACH Reference Number</label>
+                <input type="text" class="form-control" id="achReferenceNumber" name="referenceNumber">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Bank Account</label>
+                <input type="text" class="form-control" id="achBankAccount" name="bankAccount">
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
             <label class="form-label">Notes</label>
             <textarea class="form-control" id="paymentNotes" name="notes" rows="2"></textarea>
           </div>
@@ -342,26 +427,128 @@
   </div>
 </div>
 
+<!-- SIMPLIFIED Invoice Receipt Modal - Just Basic Details -->
+<div class="modal fade" id="simpleInvoiceReceiptModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-envelope"></i> Record Invoice Receipt
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="simpleInvoiceReceiptForm">
+        <div class="modal-body">
+          <input type="hidden" id="simpleInvoiceReceiptAPId" name="accountsPayableId">
+          
+          <!-- Alert for goods receiving -->
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> For quantity adjustments and goods receiving, please use the 
+            <a href="@Url.Action("PendingReceipts", "Purchases")" class="alert-link">Goods Receiving</a> page.
+            This form is for basic invoice details only.
+          </div>
+          
+          <!-- Vendor and PO Information -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Vendor</label>
+              <input type="text" class="form-control" id="simpleInvoiceReceiptVendor" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Purchase Order Number</label>
+              <input type="text" class="form-control" id="simpleInvoiceReceiptPO" readonly>
+            </div>
+          </div>
+
+          <!-- Basic Invoice Details -->
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Vendor Invoice Number <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="simpleVendorInvoiceNumber" name="vendorInvoiceNumber" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Invoice Date <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="simpleInvoiceDate" name="invoiceDate" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Invoice Amount <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" step="0.01" class="form-control" id="simpleInvoiceAmount" name="invoiceAmount" required>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Due Date <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="simpleInvoiceDueDate" name="dueDate" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Expected Payment Date</label>
+              <input type="date" class="form-control" id="simpleExpectedPaymentDate" name="expectedPaymentDate">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Payment Terms</label>
+              <input type="text" class="form-control" id="simplePaymentTerms" name="paymentTerms" placeholder="Net 30, 2/10 Net 30, etc.">
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="mt-3">
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" id="simpleInvoiceNotes" name="notes" rows="3" 
+                      placeholder="Any notes about the invoice"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Record Invoice
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
-  // Initialize payment date to today
+  // Initialize on page load
   document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('simpleInvoiceDate').value = new Date().toISOString().split('T')[0];
 
-      // Show/hide check number field based on payment method
+      // Setup payment method change handler
       document.getElementById('paymentMethod').addEventListener('change', function() {
-          const checkDiv = document.getElementById('checkNumberDiv');
-          checkDiv.style.display = this.value === '1' ? 'block' : 'none';
+          showPaymentMethodFields(this.value);
       });
   });
 
-  function toggleAllOverdue(checkbox) {
-      const overdueCheckboxes = document.querySelectorAll('.overdue-invoice');
-      overdueCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+  function showPaymentMethodFields(paymentMethod) {
+      // Hide all method-specific fields
+      document.getElementById('checkFields').style.display = 'none';
+      document.getElementById('creditCardFields').style.display = 'none';
+      document.getElementById('wireFields').style.display = 'none';
+      document.getElementById('achFields').style.display = 'none';
+
+      // Show relevant fields
+      switch(paymentMethod) {
+          case '1': // Check
+              document.getElementById('checkFields').style.display = 'block';
+              break;
+          case '2': // ACH
+              document.getElementById('achFields').style.display = 'block';
+              break;
+          case '3': // Wire
+              document.getElementById('wireFields').style.display = 'block';
+              break;
+          case '4': // Credit Card
+              document.getElementById('creditCardFields').style.display = 'block';
+              break;
+      }
   }
 
-  function toggleAllCurrent(checkbox) {
-      const currentCheckboxes = document.querySelectorAll('.current-invoice');
-      currentCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+  function toggleAll(checkbox) {
+      const checkboxes = document.querySelectorAll('.invoice-checkbox');
+      checkboxes.forEach(cb => cb.checked = checkbox.checked);
   }
 
   function payInvoice(accountsPayableId, balanceAmount) {
@@ -373,56 +560,79 @@
       modal.show();
   }
 
-  function paySelectedInvoices() {
-      const selected = document.querySelectorAll('input[name="selectedInvoices"]:checked');
-      if (selected.length === 0) {
-          alert('Please select at least one invoice to pay.');
-          return;
-      }
-
-      // For now, just show a message - you'd implement batch payment functionality
-      alert(`Selected ${selected.length} invoice(s) for payment. Batch payment functionality would be implemented here.`);
+  function editInvoiceDetails(accountsPayableId) {
+      window.location.href = `@Url.Action("EditInvoiceDetails")?id=${accountsPayableId}`;
   }
 
   function viewInvoiceDetails(accountsPayableId) {
-      // Navigate to invoice details page
-      window.location.href = `@Url.Action("InvoiceDetails")?id=${accountsPayableId}`;
+      window.location.href = `@Url.Action("EditInvoiceDetails")?id=${accountsPayableId}`;
   }
 
-  function exportAP() {
-      const form = document.createElement('form');
-      form.method = 'GET';
-      form.action = '@Url.Action("ExportAccountsPayable")';
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
+  // SIMPLIFIED invoice receipt function - no complex quantity adjustments
+  function recordSimpleInvoiceReceipt(accountsPayableId, vendorName) {
+      // For now, just redirect to the edit page or show a simple modal
+      document.getElementById('simpleInvoiceReceiptAPId').value = accountsPayableId;
+      document.getElementById('simpleInvoiceReceiptVendor').value = vendorName;
+      
+      // You might want to load more data here via AJAX if needed
+      
+      const modal = new bootstrap.Modal(document.getElementById('simpleInvoiceReceiptModal'));
+      modal.show();
   }
 
-  // Handle payment form submission
-  document.getElementById('paymentForm').addEventListener('submit', function(e) {
+  // Handle simple invoice receipt form submission
+  document.getElementById('simpleInvoiceReceiptForm').addEventListener('submit', function(e) {
       e.preventDefault();
 
       const formData = new FormData(this);
+      const data = {
+          accountsPayableId: parseInt(formData.get('accountsPayableId')),
+          vendorInvoiceNumber: formData.get('vendorInvoiceNumber'),
+          invoiceDate: formData.get('invoiceDate'),
+          invoiceAmount: parseFloat(formData.get('invoiceAmount')),
+          dueDate: formData.get('dueDate'),
+          expectedPaymentDate: formData.get('expectedPaymentDate') || null,
+          paymentTerms: formData.get('paymentTerms'),
+          notes: formData.get('notes')
+      };
 
-      fetch('@Url.Action("RecordPayment")', {
+      const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+      fetch('/Accounting/RecordInvoiceReceipt', {
           method: 'POST',
-          body: formData,
           headers: {
-              'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-          }
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              '__RequestVerificationToken': token
+          },
+          body: JSON.stringify(data)
       })
       .then(response => response.json())
       .then(data => {
           if (data.success) {
-              location.reload(); // Refresh the page to show updated data
+              location.reload();
           } else {
-              alert('Error recording payment: ' + data.message);
+              alert('Error recording invoice: ' + data.message);
           }
       })
       .catch(error => {
-          alert('Error recording payment: ' + error.message);
+          alert('Error recording invoice: ' + error.message);
       });
   });
+
+  // Placeholder functions for features to be implemented
+  function paySelectedInvoices() {
+      const selectedInvoices = document.querySelectorAll('.invoice-checkbox:checked');
+      if (selectedInvoices.length === 0) {
+          alert('Please select at least one invoice to pay.');
+          return;
+      }
+      alert('Bulk payment feature coming soon!');
+  }
+
+  function exportAP() {
+      alert('Export feature coming soon!');
+  }
 </script>
 
 @Html.AntiForgeryToken()

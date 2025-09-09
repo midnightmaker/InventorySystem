@@ -44,7 +44,7 @@
         </li>
         <li><hr class="dropdown-divider"></li>
         <li>
-          <a class="dropdown-item" href="#" 
+          <a class="dropdown-item" href="#"
              onclick="statusUpdateModal.show(@Model.ServiceOrder.Id, '@Model.ServiceOrder.Status', '@Model.ServiceOrder.ServiceOrderNumber')">
             <i class="fas fa-flag"></i> Update Status
           </a>
@@ -103,7 +103,7 @@
         <div class="row">
           <div class="col-md-6">
             <div class="mb-3">
-              <span class="fw-bold text-muted">Service Order Number:</span> 
+              <span class="fw-bold text-muted">Service Order Number:</span>
               <span class="fw-bold">@Model.ServiceOrder.ServiceOrderNumber</span>
             </div>
             <div class="mb-3">
@@ -140,22 +140,51 @@
                 }
               </div>
             </div>
+            <!-- ✅ ENHANCED: More prominent Related Sale section -->
             @if (Model.RelatedSale != null)
             {
               <div class="mb-3">
                 <span class="fw-bold text-muted">Related Sale:</span>
                 <div class="ms-3">
-                  <a href="/Sales/Details/@Model.RelatedSale.Id" class="text-decoration-none">
-                    @Model.RelatedSale.SaleNumber
-                  </a>
-                  <small class="text-muted"> - @Model.RelatedSale.TotalAmount.ToString("C")</small>
+                  <div class="d-flex align-items-center gap-2">
+                    <a href="/Sales/Details/@Model.RelatedSale.Id" class="text-decoration-none fw-bold text-primary">
+                      <i class="fas fa-shopping-cart"></i> @Model.RelatedSale.SaleNumber
+                    </a>
+                    <span class="badge bg-success">@Model.RelatedSale.TotalAmount.ToString("C")</span>
+                  </div>
+                  <small class="text-muted ms-3">
+                    Sale Date: @Model.RelatedSale.SaleDate.ToString("MM/dd/yyyy") | 
+                    Status: @Model.RelatedSale.SaleStatus
+                    @if (!string.IsNullOrEmpty(Model.RelatedSale.OrderNumber))
+                    {
+                      <span> | Order: @Model.RelatedSale.OrderNumber</span>
+                    }
+                  </small>
+                  <div class="mt-1">
+                    <a href="/Sales/Details/@Model.RelatedSale.Id" class="btn btn-sm btn-outline-primary">
+                      <i class="fas fa-external-link-alt"></i> View Full Sale
+                    </a>
+                  </div>
+                </div>
+              </div>
+            }
+            else
+            {
+              <div class="mb-3">
+                <span class="fw-bold text-muted">Related Sale:</span>
+                <div class="ms-3">
+                  <span class="text-muted">
+                    <i class="fas fa-minus"></i> No related sale
+                  </span>
+                  <br>
+                  <small class="text-muted">This service order was created independently</small>
                 </div>
               </div>
             }
           </div>
           <div class="col-md-6">
             <div class="mb-3">
-              <span class="fw-bold text-muted">Request Date:</span> 
+              <span class="fw-bold text-muted">Request Date:</span>
               <span>@Model.ServiceOrder.RequestDate.ToString("MMMM dd, yyyy")</span>
             </div>
             @if (Model.ServiceOrder.PromisedDate.HasValue)
@@ -175,7 +204,7 @@
             @if (Model.ServiceOrder.ScheduledDate.HasValue)
             {
               <div class="mb-3">
-                <span class="fw-bold text-muted">Scheduled Date:</span> 
+                <span class="fw-bold text-muted">Scheduled Date:</span>
                 <span>@Model.ServiceOrder.ScheduledDate.Value.ToString("MMMM dd, yyyy HH:mm")</span>
               </div>
             }
@@ -195,7 +224,7 @@
             @if (!string.IsNullOrEmpty(Model.ServiceOrder.WorkLocation))
             {
               <div class="mb-3">
-                <span class="fw-bold text-muted">Work Location:</span> 
+                <span class="fw-bold text-muted">Work Location:</span>
                 <span>@Model.ServiceOrder.WorkLocation</span>
               </div>
             }
@@ -221,7 +250,7 @@
               @if (!string.IsNullOrEmpty(Model.ServiceOrder.SerialNumber))
               {
                 <div class="mb-3">
-                  <span class="fw-bold text-muted">Serial Number:</span> 
+                  <span class="fw-bold text-muted">Serial Number:</span>
                   @Model.ServiceOrder.SerialNumber
                 </div>
               }
@@ -230,7 +259,7 @@
               @if (!string.IsNullOrEmpty(Model.ServiceOrder.ModelNumber))
               {
                 <div class="mb-3">
-                  <span class="fw-bold text-muted">Model Number:</span> 
+                  <span class="fw-bold text-muted">Model Number:</span>
                   @Model.ServiceOrder.ModelNumber
                 </div>
               }
@@ -261,9 +290,9 @@
     </div>
 
     <!-- Shipment Readiness Card -->
-    @if (Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Completed || 
-         Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.QualityCheck ||
-         Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
+    @if (Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Completed ||
+        Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.QualityCheck ||
+        Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
     {
       <div class="card mb-4 @(GetShipmentReadinessCardClass(Model.ServiceOrder))">
         <div class="card-header">
@@ -295,8 +324,8 @@
                     <i class="fas fa-wrench me-2"></i>
                     <span class="fw-bold">Service Work Completed</span>
                   </div>
-                  @if (Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Completed || 
-                       Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
+                  @if (Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Completed ||
+                                  Model.ServiceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
                   {
                     <span class="badge bg-success">
                       <i class="fas fa-check"></i> Complete
@@ -426,8 +455,8 @@
               {
                 <div class="mt-3">
                   <small class="text-muted">
-                    <strong>QC Details:</strong> 
-                    Completed @Model.ServiceOrder.QcDate?.ToString("MM/dd/yyyy") 
+                    <strong>QC Details:</strong>
+                    Completed @Model.ServiceOrder.QcDate?.ToString("MM/dd/yyyy")
                     @if (!string.IsNullOrEmpty(Model.ServiceOrder.QcTechnician))
                     {
                       <span>by @Model.ServiceOrder.QcTechnician</span>
@@ -635,9 +664,161 @@
 
     <!-- Documents -->
     @await Html.PartialAsync("_DocumentManager", Model.ServiceOrder.Id)
-  </div>
 
-  <!-- Sidebar -->
+    <!-- Add this section to your existing Details view -->
+    <!-- Update your existing document upload section -->
+    <!-- Updated Service Documentation Upload Section -->
+    <!-- Updated Service Documentation Upload Section -->
+    @if (Model.ServiceOrder.ServiceType?.ServiceCategory == "Calibration")
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5>
+            <i class="fas fa-file-alt"></i> Service Documentation
+            <small class="text-muted">(Any document type accepted)</small>
+            @if (Model.ServiceOrder.WorksheetRequired && !Model.ServiceOrder.WorksheetUploaded)
+            {
+              <span class="badge bg-warning ms-2">Worksheet Required</span>
+            }
+            @if (Model.ServiceOrder.CertificateRequired && !Model.ServiceOrder.CertificateGenerated)
+            {
+              <span class="badge bg-warning ms-2">Certificate Required</span>
+            }
+          </h5>
+        </div>
+        <div class="card-body">
+          @if (Model.ServiceOrder.WorksheetRequired && !Model.ServiceOrder.WorksheetUploaded)
+          {
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Required:</strong> A "Calibration Worksheet" document is required for completion, but you can upload any document type.
+            </div>
+          }
+
+          @if (Model.ServiceOrder.CertificateRequired && !Model.ServiceOrder.CertificateGenerated)
+          {
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Required:</strong> A certificate document is required for completion, but you can upload any document type.
+            </div>
+          }
+
+          <form id="documentUploadForm" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="serviceOrderId" value="@Model.ServiceOrder.Id" />
+
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="documentFile" class="form-label">
+                    <i class="fas fa-file"></i> Select File
+                  </label>
+                  <input type="file" class="form-control" name="file" id="documentFile"
+                         accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.doc,.docx,.txt,.xls,.xlsx,.dwg,.zip"
+                         required>
+                  <div class="form-text">
+                    <strong>Any file type accepted</strong> - Upload worksheets, certificates, photos, videos, drawings, etc. (Max 50MB)
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="documentType" class="form-label">
+                    Document Type <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select" name="documentType" id="documentType" required>
+                    <option value="">Select document type...</option>
+                    <!-- ✅ All options loaded dynamically - no restrictions -->
+                  </select>
+                  <div class="form-text">
+                    Choose the document type
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="documentName" class="form-label">Document Name (Optional)</label>
+              <input type="text" class="form-control" name="documentName" id="documentName"
+                     placeholder="Leave blank for auto-generated name">
+            </div>
+
+            <div class="mb-3">
+              <label for="description" class="form-label">Notes/Description</label>
+              <textarea class="form-control" name="description" id="description" rows="2"
+                      placeholder="Optional notes about the document..."></textarea>
+            </div>
+
+            <button type="button" class="btn btn-primary" onclick="uploadDocument()">
+              <i class="fas fa-upload"></i> Upload Document
+            </button>
+          </form>
+        </div>
+      </div>
+    }
+    else
+    {
+      <!-- ✅ NEW: Non-calibration services also get full document type access -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5>
+            <i class="fas fa-file-alt"></i> Service Documentation
+            <small class="text-muted">(Any document type accepted)</small>
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="documentUploadForm" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="serviceOrderId" value="@Model.ServiceOrder.Id" />
+
+            <!-- Same form as above -->
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="documentFile" class="form-label">
+                    <i class="fas fa-file"></i> Select File
+                  </label>
+                  <input type="file" class="form-control" name="file" id="documentFile"
+                         accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.doc,.docx,.txt,.xls,.xlsx,.dwg,.zip"
+                         required>
+                  <div class="form-text">
+                    Any file type accepted (Max 50MB)
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="documentType" class="form-label">
+                    Document Type <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select" name="documentType" id="documentType" required>
+                    <option value="">Select document type...</option>
+                    <!-- All options loaded dynamically -->
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="documentName" class="form-label">Document Name (Optional)</label>
+              <input type="text" class="form-control" name="documentName" id="documentName"
+                     placeholder="Leave blank for auto-generated name">
+            </div>
+
+            <div class="mb-3">
+              <label for="description" class="form-label">Notes/Description</label>
+              <textarea class="form-control" name="description" id="description" rows="2"
+                      placeholder="Optional notes about the document..."></textarea>
+            </div>
+
+            <button type="button" class="btn btn-primary" onclick="uploadDocument()">
+              <i class="fas fa-upload"></i> Upload Document
+            </button>
+          </form>
+        </div>
+      </div>
+    }
+    <!-- Sidebar -->
   <div class="col-lg-4">
     <!-- Cost Summary Card -->
     <div class="card mb-4">
@@ -734,13 +915,13 @@
             <span class="badge bg-@(GetStatusBadgeColor(Model.ServiceOrder.Status)) fs-6 px-3 py-2">
               @Model.ServiceOrder.StatusDisplay
             </span>
-            <button class="btn btn-outline-primary btn-sm" 
+            <button class="btn btn-outline-primary btn-sm"
                     onclick="statusUpdateModal.show(@Model.ServiceOrder.Id, '@Model.ServiceOrder.Status', '@Model.ServiceOrder.ServiceOrderNumber')">
               <i class="fas fa-edit"></i> Update Status
             </button>
           </div>
         </div>
-        
+
         <!-- Other Actions -->
         <div class="d-grid gap-2">
           @if (Model.CanStart)
@@ -829,10 +1010,10 @@
   {
     if (serviceOrder.Status == InventorySystem.Models.ServiceOrderStatus.Delivered)
       return "border-success";
-    
+
     if (IsReadyForShipment(serviceOrder))
       return "border-success";
-    
+
     return "border-warning";
   }
 }
@@ -913,12 +1094,82 @@
         console.log('Service Order ID:', @Model.ServiceOrder.Id);
 
         documentManager = new DocumentManager(@Model.ServiceOrder.Id);
+        
+        // ✅ NEW: Load document types for the dropdown
+        loadDocumentTypes(@Model.ServiceOrder.Id);
 
         setTimeout(() => {
             console.log('Testing document load...');
             documentManager.loadDocumentsList();
         }, 1000);
     });
+
+    // ✅ NEW: Function to load document types
+    async function loadDocumentTypes(serviceOrderId) {
+        try {
+            const response = await fetch(`/Services/GetDocumentTypes?serviceOrderId=${serviceOrderId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const select = document.getElementById('documentType');
+                
+                // Clear existing options except the first one and any required ones
+                const existingOptions = select.querySelectorAll('option:not([value=""]):not(.bg-warning)');
+                existingOptions.forEach(option => option.remove());
+                
+                // Add the document types
+                result.documentTypes.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    select.appendChild(option);
+                });
+                
+                console.log('Document types loaded:', result.documentTypes);
+            } else {
+                console.error('Failed to load document types:', result.message);
+            }
+        } catch (error) {
+            console.error('Error loading document types:', error);
+        }
+    }
+
+    // ✅ UPDATED: Use the standard document upload form instead of calibration-specific
+    async function uploadDocument() {
+        const form = document.getElementById('documentUploadForm');
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('/Services/UploadDocument', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('Document uploaded successfully!', 'success');
+                
+                // Reset form
+                form.reset();
+                
+                // Refresh documents list
+                if (typeof documentManager !== 'undefined' && documentManager.loadDocumentsList) {
+                    documentManager.loadDocumentsList();
+                }
+                
+                // Reload the page to refresh worksheet status
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showToast(result.message || 'Upload failed', 'error');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            showToast('Error uploading document', 'error');
+        }
+    }
 
     function addTimeLog(serviceOrderId) {
         fetch('@Url.Action("AddTimeLog", "Services")?serviceOrderId=' + serviceOrderId)
@@ -958,6 +1209,134 @@
         } else {
             alert('Customer email not available. Please contact customer directly.');
         }
+    }
+
+    function previewFile() {
+        const fileInput = document.getElementById('calibrationFile');
+        const preview = document.getElementById('filePreview');
+        const previewText = document.getElementById('previewText');
+
+        if (fileInput.files && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            previewText.textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            preview.style.display = 'block';
+
+            // Auto-select document type based on file extension
+            const extension = file.name.toLowerCase().split('.').pop();
+            const documentType = document.getElementById('documentType');
+
+            switch(extension) {
+                case 'jpg':
+                case 'jpeg':
+                case 'png':
+                case 'gif':
+                    documentType.value = 'Condition Photo';
+                    break;
+                case 'pdf':
+                    // ✅ UPDATED: Default to "Periodic" for most calibrations
+                    documentType.value = 'Periodic Calibration Certificate';
+                    break;
+                case 'mp4':
+                case 'avi':
+                case 'mov':
+                    documentType.value = 'Condition Video';
+                    break;
+            }
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    function capturePhoto() {
+        const fileInput = document.getElementById('calibrationFile');
+
+        // Create camera input for mobile devices
+        const cameraInput = document.createElement('input');
+        cameraInput.type = 'file';
+        cameraInput.accept = 'image/*';
+        cameraInput.capture = 'environment'; // Use back camera
+        cameraInput.style.display = 'none';
+
+        cameraInput.onchange = function(e) {
+            if (e.target.files && e.target.files[0]) {
+                // Transfer file to main input
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(e.target.files[0]);
+                fileInput.files = dataTransfer.files;
+
+                // Trigger preview
+                previewFile();
+            }
+            document.body.removeChild(cameraInput);
+        };
+
+        document.body.appendChild(cameraInput);
+        cameraInput.click();
+    }
+
+    async function uploadCalibrationDoc() {
+        const form = document.getElementById('calibrationUploadForm');
+        const formData = new FormData(form);
+        const progress = document.getElementById('uploadProgress');
+        const progressBar = progress.querySelector('.progress-bar');
+
+        // Show progress
+        progress.style.display = 'block';
+        progressBar.style.width = '10%';
+
+        try {
+            const response = await fetch('/Services/UploadDocument', {
+                method: 'POST',
+                body: formData
+            });
+
+            progressBar.style.width = '100%';
+            const result = await response.json();
+
+            if (result.success) {
+                // Show success message
+                showToast('Document uploaded successfully!', 'success');
+
+                // Reset form
+                form.reset();
+                document.getElementById('filePreview').style.display = 'none';
+
+                // Refresh documents list if it exists
+                if (typeof loadDocuments === 'function') {
+                    loadDocuments();
+                }
+            } else {
+                showToast(result.message || 'Upload failed', 'error');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            showToast('Error uploading document', 'error');
+        } finally {
+            setTimeout(() => {
+                progress.style.display = 'none';
+                progressBar.style.width = '0%';
+            }, 1000);
+        }
+    }
+
+    function showToast(message, type) {
+        // Simple toast notification
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+            ${message}
+            <button type="button" class="btn-close float-end" onclick="this.parentElement.remove()"></button>
+        `;
+        document.body.appendChild(toast);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 3000);
     }
   </script>
 }

@@ -1,4 +1,6 @@
 ﻿// File: Models/FinishedGood.cs
+using InventorySystem.Data;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -39,7 +41,35 @@ namespace InventorySystem.Models
     [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
     [Display(Name = "Notes")]
     public string? Notes { get; set; }
-    
+
+		[Display(Name = "Calibration Interval (Months)")]
+		public int? CalibrationIntervalMonths { get; set; } = 12;
+
+		// Helper method for calibration history (using existing ServiceOrders)
+		public async Task<IEnumerable<ServiceOrder>> GetCalibrationHistoryAsync(InventoryContext context, string serialNumber)
+		{
+			return await context.ServiceOrders
+					.Include(so => so.Documents)
+					.Include(so => so.ServiceType)
+					.Include(so => so.Customer)
+					.Where(so => so.SerialNumber == serialNumber &&
+											 so.ServiceTypeId == this.CalibrationServiceTypeId)
+					.OrderByDescending(so => so.CompletedDate ?? so.RequestDate)
+					.ToListAsync();
+		}
+
+		// Alternative method to get all calibration history for this finished good (all serial numbers)
+		public async Task<IEnumerable<ServiceOrder>> GetAllCalibrationHistoryAsync(InventoryContext context)
+		{
+			return await context.ServiceOrders
+					.Include(so => so.Documents)
+					.Include(so => so.ServiceType)
+					.Include(so => so.Customer)
+					.Where(so => so.ServiceTypeId == this.CalibrationServiceTypeId)
+					.OrderByDescending(so => so.CompletedDate ?? so.RequestDate)
+					.ToListAsync();
+		}
+
 		// Image properties for Finished Goods
 		public byte[]? ImageData { get; set; }
 		public string? ImageContentType { get; set; }
@@ -48,7 +78,7 @@ namespace InventorySystem.Models
 		[NotMapped]
 		public bool HasImage => ImageData != null && ImageData.Length > 0;
 
-		// ✅ NEW: Serial Number and Model Number Requirements
+		// Serial Number and Model Number Requirements
 		[Display(Name = "Requires Serial Number")]
     public bool RequiresSerialNumber { get; set; } = true; // Default TRUE for Finished Goods
 
@@ -76,14 +106,32 @@ namespace InventorySystem.Models
     [Display(Name = "BOM")]
     public virtual Bom? Bom { get; set; }
 
-    // Navigation properties
-    [Display(Name = "Productions")]
+		[Display(Name = "Requires Initial Calibration")]
+		public bool RequiresInitialCalibration { get; set; } = false;
+
+		[Display(Name = "Calibration Service Type")]
+		public int? CalibrationServiceTypeId { get; set; }
+
+		[Display(Name = "Quality Check Required")]
+		public bool QcRequired { get; set; } = false;
+
+		[Display(Name = "Certificate Required")]
+		public bool CertificateRequired { get; set; } = false;
+
+		[Display(Name = "Worksheet Required")]
+		public bool WorksheetRequired { get; set; } = false;
+
+		// Navigation property to the calibration service type
+		public virtual ServiceType? CalibrationServiceType { get; set; }
+
+		// Navigation properties
+		[Display(Name = "Productions")]
     public virtual ICollection<Production> Productions { get; set; } = new List<Production>();
 
     [Display(Name = "Sale Items")]
     public virtual ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
 
-    // ✅ NEW: Helper properties for requirements
+    // Helper properties for requirements
     [NotMapped]
     [Display(Name = "Serial/Model Requirements")]
     public string RequirementsDisplay
@@ -365,5 +413,103 @@ namespace InventorySystem.Models
     {
       return PartNumber.GetHashCode(StringComparison.OrdinalIgnoreCase);
     }
-  }
+
+		// ✅ NEW: Helper properties for documentation requirements
+		[NotMapped]
+		[Display(Name = "Has Documentation Requirements")]
+		public bool HasDocumentationRequirements => RequiresInitialCalibration &&
+				(QcRequired || CertificateRequired || WorksheetRequired);
+
+		[NotMapped]
+		[Display(Name = "Documentation Requirements")]
+		public string DocumentationRequirementsDisplay
+		{
+			get
+			{
+				if (!RequiresInitialCalibration) return "No calibration required";
+
+				var requirements = new List<string>();
+				if (QcRequired) requirements.Add("Quality Check");
+				if (CertificateRequired) requirements.Add("Certificate");
+				if (WorksheetRequired) requirements.Add("Worksheet");
+
+				return requirements.Any()
+						? $"Initial Calibration: {string.Join(", ", requirements)}"
+						: "Initial Calibration Required";
+			}
+		}
+
+		// ✅ NEW: Validation method for finished good documentation
+		public async Task<FinishedGoodDocumentationValidationResult> ValidateDocumentationAsync(
+				string serialNumber, string? modelNumber, InventoryContext context)
+		{
+			var result = new FinishedGoodDocumentationValidationResult
+			{
+				SerialNumber = serialNumber,
+				ModelNumber = modelNumber,
+				FinishedGoodId = Id,
+				FinishedGoodPartNumber = PartNumber,
+				IsValid = true
+			};
+
+			// If no documentation requirements, validation passes
+			if (!HasDocumentationRequirements)
+			{
+				result.ValidationMessage = "No documentation requirements for this finished good";
+				return result;
+			}
+
+			// Check if initial calibration service order exists
+			var calibrationServiceOrder = await context.ServiceOrders
+					.Include(so => so.Documents)
+					.FirstOrDefaultAsync(so =>
+							so.ServiceTypeId == CalibrationServiceTypeId &&
+							so.SerialNumber == serialNumber &&
+							so.ModelNumber == modelNumber &&
+							so.Status == ServiceOrderStatus.Completed);
+
+			if (calibrationServiceOrder == null)
+			{
+				result.IsValid = false;
+				result.RequiredServiceOrderId = CalibrationServiceTypeId;
+				result.RequiredServiceTypeName = CalibrationServiceType?.ServiceName ?? "Unknown";
+				result.ValidationMessage = $"Initial calibration service order must be completed for {PartNumber} S/N: {serialNumber}";
+				result.MissingDocuments.Add("Completed Calibration Service Order");
+				return result;
+			}
+
+			// Check document requirements if service order exists
+			var uploadedDocumentTypes = calibrationServiceOrder.Documents
+					.Select(d => d.DocumentType.ToLowerInvariant())
+					.ToHashSet();
+
+			var missingDocs = new List<string>();
+
+			if (QcRequired && !uploadedDocumentTypes.Contains("quality check"))
+				missingDocs.Add("Quality Check Document");
+
+			if (CertificateRequired && !uploadedDocumentTypes.Contains("certificate"))
+				missingDocs.Add("Calibration Certificate");
+
+			if (WorksheetRequired && !uploadedDocumentTypes.Contains("worksheet"))
+				missingDocs.Add("Calibration Worksheet");
+
+			if (missingDocs.Any())
+			{
+				result.IsValid = false;
+				result.ServiceOrderId = calibrationServiceOrder.Id;
+				result.ServiceOrderNumber = calibrationServiceOrder.ServiceOrderNumber;
+				result.MissingDocuments.AddRange(missingDocs);
+				result.ValidationMessage = $"Missing calibration documents for {PartNumber} S/N: {serialNumber}: {string.Join(", ", missingDocs)}";
+			}
+			else
+			{
+				result.ServiceOrderId = calibrationServiceOrder.Id;
+				result.ServiceOrderNumber = calibrationServiceOrder.ServiceOrderNumber;
+				result.ValidationMessage = $"All calibration documentation complete for {PartNumber} S/N: {serialNumber}";
+			}
+
+			return result;
+		}
+	}
 }

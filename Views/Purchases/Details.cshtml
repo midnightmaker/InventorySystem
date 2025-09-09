@@ -1,6 +1,7 @@
 ﻿@* Views/Purchases/Details.cshtml - Updated to show vendor information *@
 @model InventorySystem.Models.Purchase
 @using System.IO
+@using InventorySystem.Models.Accounting
 
 @{
   ViewData["Title"] = $"Purchase Details - {Model.Id}";
@@ -377,102 +378,6 @@
               </div>
           </div>
       </div>
-
-      @section Scripts {
-          <script>
-              let currentZoom = 1;
-              let currentDocumentId = null;
-
-              function previewDocument(documentId, documentName) {
-                  currentDocumentId = documentId;
-                  const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
-                  const iframe = document.getElementById('previewIframe');
-                  const modalTitle = document.getElementById('previewModalTitle');
-                  const downloadLink = document.getElementById('downloadLink');
-                  const loading = document.getElementById('previewLoading');
-                  
-                  modalTitle.textContent = `Preview: ${documentName}`;
-                  downloadLink.href = `/PurchaseDocuments/Download/${documentId}`;
-                  
-                  // Show loading, hide iframe
-                  loading.style.display = 'block';
-                  iframe.style.display = 'none';
-                  
-                  // Set iframe source
-                  iframe.src = `/PurchaseDocuments/GetPreviewData/${documentId}`;
-                  
-                  // Show modal
-                  modal.show();
-                  
-                  // Handle iframe load
-                  iframe.onload = function() {
-                      loading.style.display = 'none';
-                      iframe.style.display = 'block';
-                  };
-                  
-                  // Handle iframe error
-                  iframe.onerror = function() {
-                      loading.innerHTML = `
-                          <div class="text-center p-4">
-                              <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                              <h5>Preview Not Available</h5>
-                              <p class="text-muted">This document cannot be previewed in your browser.</p>
-                              <a href="/PurchaseDocuments/Download/${documentId}" class="btn btn-primary">
-                                  <i class="fas fa-download"></i> Download Document
-                              </a>
-                          </div>
-                      `;
-                  };
-              }
-
-              function zoomIn() {
-                  currentZoom += 0.25;
-                  applyZoom();
-              }
-
-              function zoomOut() {
-                  if (currentZoom > 0.5) {
-                      currentZoom -= 0.25;
-                      applyZoom();
-                  }
-              }
-
-              function resetZoom() {
-                  currentZoom = 1;
-                  applyZoom();
-              }
-
-              function applyZoom() {
-                  const iframe = document.getElementById('previewIframe');
-                  iframe.style.transform = `scale(${currentZoom})`;
-                  iframe.style.transformOrigin = 'top left';
-              }
-
-              // Reset zoom when modal is closed
-              document.getElementById('documentPreviewModal').addEventListener('hidden.bs.modal', function () {
-                  currentZoom = 1;
-                  applyZoom();
-                  document.getElementById('previewIframe').src = '';
-              });
-          </script>
-
-          <style>
-              .btn-group-sm .btn {
-                  padding: 0.25rem 0.5rem;
-                  font-size: 0.875rem;
-              }
-              
-              .table th {
-                  border-top: none;
-                  font-weight: 600;
-                  font-size: 0.875rem;
-              }
-
-              .badge {
-                  font-size: 0.75rem;
-              }
-          </style>
-      }
     </div>
 
     <!-- Purchase Summary -->
@@ -551,11 +456,18 @@
             <a href="@Url.Action("Details", "Vendors", new { id = Model.VendorId })" class="btn btn-outline-info btn-sm">
               <i class="fas fa-building"></i> View Vendor Details
             </a>
-            @if (Model.Status != InventorySystem.Models.Enums.PurchaseStatus.Cancelled)
+            @if (Model.Status != InventorySystem.Models.Enums.PurchaseStatus.Cancelled && 
+                 Model.Status != InventorySystem.Models.Enums.PurchaseStatus.Received)
             {
-              <button type="button" class="btn btn-outline-warning btn-sm">
-                <i class="fas fa-edit"></i> Update Status
-              </button>
+                <button type="button" class="btn btn-outline-warning btn-sm" onclick="openUpdateStatusModal(@Model.Id)">
+                    <i class="fas fa-edit"></i> Update Status
+                </button>
+            }
+            else if (Model.Status == InventorySystem.Models.Enums.PurchaseStatus.Received)
+            {
+                <span class="badge bg-success">
+                    <i class="fas fa-check-circle"></i> Received
+                </span>
             }
           </div>
         </div>
@@ -579,4 +491,544 @@
       </div>
     </div>
   </div>
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5>Purchase Order Details</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-4">PO Number:</dt>
+                <dd class="col-sm-8">@Model.PurchaseOrderNumber</dd>
+
+                <dt class="col-sm-4">Purchase Date:</dt>
+                <dd class="col-sm-8">@Model.PurchaseDate.ToString("MM/dd/yyyy")</dd>
+
+                <dt class="col-sm-4">Vendor:</dt>
+                <dd class="col-sm-8">@Model.Vendor?.CompanyName</dd>
+
+                <dt class="col-sm-4">Item:</dt>
+                <dd class="col-sm-8">
+                  @Model.Item?.PartNumber - @Model.Item?.Description
+                </dd>
+              </dl>
+            </div>
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-4">Quantity:</dt>
+                <dd class="col-sm-8">@Model.QuantityPurchased</dd>
+
+                <dt class="col-sm-4">Unit Cost:</dt>
+                <dd class="col-sm-8">@Model.CostPerUnit.ToString("C")</dd>
+
+                <dt class="col-sm-4">Total Amount:</dt>
+                <dd class="col-sm-8">@Model.ExtendedTotal.ToString("C")</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+      @{
+        var accountsPayable = ViewBag.AccountsPayable as AccountsPayable;
+      }
+
+      <!-- Replace the existing payment status card with this: -->
+      <div class="card">
+        <div class="card-header">
+          <h6>Payment Information</h6>
+        </div>
+        <div class="card-body">
+          @if (accountsPayable != null)
+          {
+            <div class="mb-2">
+              <strong>Payment Status:</strong>
+              <span class="badge @GetPaymentStatusBadgeClass(accountsPayable.PaymentStatus) fs-6">
+                @accountsPayable.PaymentStatus.ToString().Replace("_", " ")
+              </span>
+            </div>
+
+            <div class="mb-2">
+              <strong>Invoice Amount:</strong> @accountsPayable.InvoiceAmount.ToString("C")
+            </div>
+
+            @if (accountsPayable.PrepaymentAmount > 0)
+            {
+              <div class="mb-2">
+                <strong>Prepayment:</strong> @accountsPayable.PrepaymentAmount.ToString("C")
+              </div>
+            }
+
+            <div class="mb-2">
+              <strong>Amount Paid:</strong> @accountsPayable.AmountPaid.ToString("C")
+            </div>
+
+            @if (accountsPayable.BalanceRemaining > 0)
+            {
+              <div class="mb-2">
+                <strong>Balance Due:</strong> @accountsPayable.BalanceRemaining.ToString("C")
+              </div>
+            }
+
+            <hr>
+            <small class="text-muted">
+              <strong>Payment Terms:</strong> @accountsPayable.PaymentTerms<br>
+              @if (!string.IsNullOrEmpty(accountsPayable.Notes))
+              {
+                <strong>Notes:</strong> 
+                @accountsPayable.Notes
+              }
+            </small>
+          }
+          else
+          {
+            <span class="badge bg-light text-dark fs-6">No Accounts Payable</span>
+            <div class="mt-2">
+              @if (Model.Status == PurchaseStatus.Pending || Model.Status == PurchaseStatus.Ordered)
+              {
+                <a asp-controller="AccountsPayable" asp-action="CreatePrepayment"
+                   asp-route-purchaseId="@Model.Id" class="btn btn-warning btn-sm">
+                  <i class="fas fa-money-bill-wave"></i> Setup Prepayment
+                </a>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h6>Status Information</h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Goods Status:</label>
+            <span class="badge @GetGoodsStatusBadgeClass(Model.Status) fs-6">
+              @Model.Status.ToString().Replace("_", " ")
+            </span>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Payment Status:</label>
+            @if (Model.PaymentStatus.HasValue)
+            {
+              <span class="badge @GetPaymentStatusBadgeClass(Model.PaymentStatus.Value) fs-6">
+                @Model.PaymentStatus.Value.ToString().Replace("_", " ")
+              </span>
+            }
+            else
+            {
+              <span class="badge bg-light text-dark fs-6">No Accounts Payable</span>
+              <small class="text-muted d-block">A/P will be created when goods are received</small>
+            }
+          </div>
+
+          @if (Model.Status == PurchaseStatus.Ordered || Model.Status == PurchaseStatus.Shipped)
+          {
+            <button class="btn btn-success w-100" onclick="openReceiveModal(@Model.Id)">
+              <i class="fas fa-truck me-1"></i>Receive Goods
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
+@functions {
+  string GetGoodsStatusBadgeClass(PurchaseStatus status)
+  {
+    return status switch
+    {
+      PurchaseStatus.Pending => "bg-secondary",
+      PurchaseStatus.Ordered => "bg-primary",
+      PurchaseStatus.Shipped => "bg-info",
+      PurchaseStatus.Received => "bg-success",
+      PurchaseStatus.PartiallyReceived => "bg-warning",
+      PurchaseStatus.Cancelled => "bg-danger",
+      _ => "bg-light text-dark"
+    };
+  }
+
+  string GetPaymentStatusBadgeClass(PaymentStatus status)
+  {
+    return status switch
+    {
+      PaymentStatus.Pending => "bg-warning text-dark",
+      PaymentStatus.PartiallyPaid => "bg-info",
+      PaymentStatus.Paid => "bg-success",
+      PaymentStatus.Overdue => "bg-danger",
+      PaymentStatus.Failed => "bg-danger",
+      PaymentStatus.Refunded => "bg-secondary",
+      _ => "bg-light text-dark"
+    };
+  }
+}
+@section Scripts {
+    <script>
+    // ===== DOCUMENT PREVIEW FUNCTIONALITY =====
+    let currentZoom = 1;
+    let currentDocumentId = null;
+
+    function previewDocument(documentId, documentName) {
+        currentDocumentId = documentId;
+        const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
+        const iframe = document.getElementById('previewIframe');
+        const modalTitle = document.getElementById('previewModalTitle');
+        const downloadLink = document.getElementById('downloadLink');
+        const loading = document.getElementById('previewLoading');
+        
+        modalTitle.textContent = `Preview: ${documentName}`;
+        downloadLink.href = `/PurchaseDocuments/Download/${documentId}`;
+        
+        // Show loading, hide iframe
+        loading.style.display = 'block';
+        iframe.style.display = 'none';
+        
+        // Set iframe source
+        iframe.src = `/PurchaseDocuments/GetPreviewData/${documentId}`;
+        
+        // Show modal
+        modal.show();
+        
+        // Handle iframe load
+        iframe.onload = function() {
+            loading.style.display = 'none';
+            iframe.style.display = 'block';
+        };
+        
+        // Handle iframe error
+        iframe.onerror = function() {
+            loading.innerHTML = `
+                <div class="text-center p-4">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h5>Preview Not Available</h5>
+                    <p class="text-muted">This document cannot be previewed in your browser.</p>
+                    <a href="/PurchaseDocuments/Download/${documentId}" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Download Document
+                    </a>
+                </div>
+            `;
+        };
+    }
+
+    function zoomIn() {
+        currentZoom += 0.25;
+        applyZoom();
+    }
+
+    function zoomOut() {
+        if (currentZoom > 0.5) {
+            currentZoom -= 0.25;
+            applyZoom();
+        }
+    }
+
+    function resetZoom() {
+        currentZoom = 1;
+        applyZoom();
+    }
+
+    function applyZoom() {
+        const iframe = document.getElementById('previewIframe');
+        if (iframe) {
+            iframe.style.transform = `scale(${currentZoom})`;
+            iframe.style.transformOrigin = 'top left';
+        }
+    }
+
+    // Reset zoom when modal is closed
+    document.addEventListener('DOMContentLoaded', function() {
+        const previewModal = document.getElementById('documentPreviewModal');
+        if (previewModal) {
+            previewModal.addEventListener('hidden.bs.modal', function () {
+                currentZoom = 1;
+                applyZoom();
+                const iframe = document.getElementById('previewIframe');
+                if (iframe) {
+                    iframe.src = '';
+                }
+            });
+        }
+    });
+    
+    // ===== PURCHASE STATUS UPDATE FUNCTIONALITY =====
+    async function openUpdateStatusModal(purchaseId) {
+        try {
+            console.log('Opening status update modal for purchase:', purchaseId);
+            
+            const response = await fetch(`/Purchases/GetStatusUpdateModal?id=${purchaseId}`);
+            
+            if (response.ok) {
+                const html = await response.text();
+                console.log('Modal HTML received, length:', html.length);
+                
+                // Remove existing modal if any
+                const existingModal = document.getElementById('updatePurchaseStatusModal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Add new modal to page
+                document.body.insertAdjacentHTML('beforeend', html);
+                console.log('Modal HTML inserted into DOM');
+                
+                // ✅ CRITICAL: Initialize modal functionality after inserting HTML
+                setTimeout(() => {
+                    initializeStatusModal();
+                }, 50);
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('updatePurchaseStatusModal'));
+                modal.show();
+            } else {
+                showToast('Error loading status update form', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading status update modal:', error);
+            showToast('Error loading status update form', 'error');
+        }
+    }
+    
+    // ✅ NEW: Initialize modal functionality after HTML is loaded
+    function initializeStatusModal() {
+        console.log('Initializing status modal...');
+        
+        const updateBtn = document.getElementById('updateStatusBtn');
+        const newStatusSelect = document.getElementById('newStatus');
+        const receivedFields = document.getElementById('receivedFields');
+        const shippedFields = document.getElementById('shippedFields');
+        const cancelledFields = document.getElementById('cancelledFields');
+        const cancelReason = document.getElementById('cancelReason');
+
+        console.log('Modal elements found:', {
+            updateBtn: !!updateBtn,
+            newStatusSelect: !!newStatusSelect,
+            receivedFields: !!receivedFields,
+            shippedFields: !!shippedFields,
+            cancelledFields: !!cancelledFields,
+            cancelReason: !!cancelReason
+        });
+
+        // Initialize button
+        if (updateBtn && !updateBtn.hasAttribute('data-initialized')) {
+            updateBtn.setAttribute('data-initialized', 'true');
+            console.log('Attaching click handler to update button');
+            
+            updateBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Update button clicked!');
+                
+                handleStatusUpdate();
+            });
+        }
+
+        // Initialize status dropdown
+        if (newStatusSelect && !newStatusSelect.hasAttribute('data-initialized')) {
+            newStatusSelect.setAttribute('data-initialized', 'true');
+            console.log('Attaching change handler to status select');
+            
+            newStatusSelect.addEventListener('change', function() {
+                console.log('Status changed to:', this.value);
+                handleStatusChange(this.value);
+            });
+        }
+    }
+    
+    async function handleStatusUpdate() {
+        console.log('Handling status update...');
+        
+        const newStatusSelect = document.getElementById('newStatus');
+        const cancelReason = document.getElementById('cancelReason');
+        const updateBtn = document.getElementById('updateStatusBtn');
+        
+        const selectedStatus = newStatusSelect ? newStatusSelect.value : '';
+        console.log('Selected status:', selectedStatus);
+        
+        if (!selectedStatus) {
+            showToast('Please select a status', 'error');
+            return;
+        }
+        
+        // Validation for cancelled status
+        if (selectedStatus === 'Cancelled') {
+            const reasonValue = cancelReason ? cancelReason.value.trim() : '';
+            if (!reasonValue) {
+                showToast('Please provide a reason for cancellation', 'error');
+                if (cancelReason) cancelReason.focus();
+                return;
+            }
+        }
+        
+        const originalText = updateBtn.innerHTML;
+        
+        try {
+            updateBtn.disabled = true;
+            updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+            
+            const form = document.getElementById('updateStatusForm');
+            const formData = new FormData(form);
+            
+            console.log('Form data being sent:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key, value);
+            }
+            
+            const url = '/Purchases/UpdatePurchaseStatus';
+            console.log('Posting to URL:', url);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            console.log('Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            console.log('Response content-type:', contentType);
+            
+            let result;
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                console.error('Non-JSON response received:', text);
+                throw new Error('Server returned non-JSON response');
+            }
+            
+            console.log('Response result:', result);
+            
+            if (result.success) {
+                showToast(result.message, 'success');
+                
+                // Close modal and refresh page
+                const modal = bootstrap.Modal.getInstance(document.getElementById('updatePurchaseStatusModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                if (result.redirectToDetails) {
+                    setTimeout(() => {
+                        console.log('Reloading page...');
+                        location.reload();
+                    }, 1500);
+                }
+            } else {
+                showToast(result.message || 'Update failed', 'error');
+            }
+        } catch (error) {
+            console.error('Error updating status:', error);
+            showToast(`Error updating purchase status: ${error.message}`, 'error');
+        } finally {
+            updateBtn.disabled = false;
+            updateBtn.innerHTML = originalText;
+        }
+    }
+    
+    function handleStatusChange(selectedStatus) {
+        console.log('Handling status change to:', selectedStatus);
+        
+        const receivedFields = document.getElementById('receivedFields');
+        const shippedFields = document.getElementById('shippedFields');
+        const cancelledFields = document.getElementById('cancelledFields');
+        const cancelReason = document.getElementById('cancelReason');
+        
+        // Hide all status-specific fields
+        if (receivedFields) receivedFields.style.display = 'none';
+        if (shippedFields) shippedFields.style.display = 'none';
+        if (cancelledFields) cancelledFields.style.display = 'none';
+        
+        // Remove required attribute from cancel reason
+        if (cancelReason) {
+            cancelReason.removeAttribute('required');
+        }
+
+        // Show relevant fields based on selected status
+        switch (selectedStatus) {
+            case 'Received':
+                if (receivedFields) {
+                    receivedFields.style.display = 'block';
+                    console.log('Showing received fields');
+                }
+                break;
+            case 'Shipped':
+                if (shippedFields) {
+                    shippedFields.style.display = 'block';
+                    console.log('Showing shipped fields');
+                }
+                break;
+            case 'Cancelled':
+                if (cancelledFields) {
+                    cancelledFields.style.display = 'block';
+                    console.log('Showing cancelled fields');
+                }
+                if (cancelReason) {
+                    cancelReason.setAttribute('required', 'required');
+                }
+                break;
+        }
+    }
+    
+    function showToast(message, type) {
+        const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+        
+        const toastElement = document.createElement('div');
+        toastElement.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+        toastElement.setAttribute('role', 'alert');
+        toastElement.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toastElement);
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+        
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+    }
+    
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+        return container;
+    }
+    </script>
+    
+    <style>
+        .btn-group-sm .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+    </style>
+}

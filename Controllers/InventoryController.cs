@@ -5,6 +5,7 @@ using InventorySystem.Models;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
 using InventorySystem.Models.Accounting;
+using InventorySystem.Models.Enums; // Add this for AdjustmentType enum
 using Microsoft.Extensions.Logging;
 
 namespace InventorySystem.Controllers
@@ -92,16 +93,18 @@ namespace InventorySystem.Controllers
                 var adjustment = new InventoryAdjustment
                 {
                     ItemId = viewModel.ItemId,
-                    AdjustmentType = viewModel.AdjustmentType,
+                    AdjustmentType = Enum.Parse<InventorySystem.Models.Enums.AdjustmentType>(viewModel.AdjustmentType), // Fix: Parse string to enum
                     QuantityAdjusted = viewModel.QuantityAdjusted,
-                    StockBefore = item.CurrentStock - viewModel.QuantityAdjusted,
-                    StockAfter = item.CurrentStock,
                     AdjustmentDate = viewModel.AdjustmentDate,
                     Reason = viewModel.Reason,
                     ReferenceNumber = viewModel.ReferenceNumber,
                     AdjustedBy = viewModel.AdjustedBy,
                     CostImpact = costImpact
                 };
+
+                // Set computed properties for UI display
+                adjustment.StockBefore = item.CurrentStock - viewModel.QuantityAdjusted;
+                adjustment.StockAfter = item.CurrentStock;
                 
                 _context.InventoryAdjustments.Add(adjustment);
                 await _context.SaveChangesAsync();
@@ -169,10 +172,10 @@ namespace InventorySystem.Controllers
                     // Determine the source account based on adjustment type
                     var sourceAccountCode = adjustment.AdjustmentType switch
                     {
-                        "Found" => "6000",      // Operating Expenses (found items reduce expenses)
-                        "Return" => "4900",     // Sales Allowances (if customer return)
-                        "Correction" => "6000", // Operating Expenses (count correction)
-                        _ => "6000"             // Default to operating expenses
+                        InventorySystem.Models.Enums.AdjustmentType.CycleCount => "6000",       // Operating Expenses (found items reduce expenses)
+                        InventorySystem.Models.Enums.AdjustmentType.PhysicalCount => "4900",   // Sales Allowances (if customer return)
+                        InventorySystem.Models.Enums.AdjustmentType.Other => "6000",           // Operating Expenses (count correction)
+                        _ => "6000"                                // Default to operating expenses
                     };
 
                     // Debit: Inventory Account
@@ -244,18 +247,18 @@ namespace InventorySystem.Controllers
             };
         }
 
-        // ? NEW: Helper method to get expense account code based on adjustment type
-        private string GetAdjustmentExpenseAccountCode(string adjustmentType)
+        // Helper method to get expense account code based on adjustment type
+        private string GetAdjustmentExpenseAccountCode(InventorySystem.Models.Enums.AdjustmentType adjustmentType)
         {
             return adjustmentType switch
             {
-                "Damage" => "6710",        // Manufacturing Supplies (damage expense)
-                "Loss" => "6000",          // General Operating Expenses
-                "Theft" => "6000",         // General Operating Expenses
-                "Obsolete" => "6000",      // General Operating Expenses
-                "Scrap" => "6710",         // Manufacturing Supplies
-                "Correction" => "6000",    // General Operating Expenses
-                _ => "6000"                // Default to operating expenses
+                InventorySystem.Models.Enums.AdjustmentType.Damaged => "6710",        // Manufacturing Supplies (damage expense)
+                InventorySystem.Models.Enums.AdjustmentType.Shrinkage => "6000",      // General Operating Expenses
+                InventorySystem.Models.Enums.AdjustmentType.Other => "6000",          // General Operating Expenses
+                InventorySystem.Models.Enums.AdjustmentType.CycleCount => "6000",     // General Operating Expenses
+                InventorySystem.Models.Enums.AdjustmentType.PhysicalCount => "6000",  // General Operating Expenses
+                InventorySystem.Models.Enums.AdjustmentType.ReturnToVendor => "6710", // Manufacturing Supplies
+                _ => "6000"                              // Default to operating expenses
             };
         }
         

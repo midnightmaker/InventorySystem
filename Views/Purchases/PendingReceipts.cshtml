@@ -1,0 +1,259 @@
+@model InventorySystem.ViewModels.PendingReceiptsViewModel
+@{
+    ViewData["Title"] = "Pending Receipts";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-truck-loading"></i> Pending Receipts</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Purchases
+        </a>
+        <button class="btn btn-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print List
+        </button>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TotalPendingCount</h4>
+                        <p class="mb-0">Pending Orders</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+                <small>Awaiting receipt</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.OverdueCount</h4>
+                        <p class="mb-0">Overdue</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+                <small>Past expected delivery</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@Model.TotalPendingValue.ToString("C0")</h4>
+                        <p class="mb-0">Total Value</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                </div>
+                <small>Outstanding orders</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>@((Model.TotalPendingValue / Math.Max(Model.TotalPendingCount, 1)).ToString("C0"))</h4>
+                        <p class="mb-0">Avg Value</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calculator fa-2x"></i>
+                    </div>
+                </div>
+                <small>Per order</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Purchases Table -->
+@if (Model.PendingPurchases.Any())
+{
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-list"></i> Purchase Orders Awaiting Receipt</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>PO Number</th>
+                            <th>Vendor</th>
+                            <th>Item</th>
+                            <th>Ordered</th>
+                            <th>Expected Delivery</th>
+                            <th>Days Late</th>
+                            <th class="text-end">Value</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var purchase in Model.PendingPurchases.OrderBy(p => p.ExpectedDeliveryDate ?? p.PurchaseDate))
+                        {
+                            var daysLate = (DateTime.Today - (purchase.ExpectedDeliveryDate ?? purchase.PurchaseDate.AddDays(7))).Days;
+                            var isOverdue = daysLate > 0;
+                            var rowClass = isOverdue ? "table-warning" : "";
+
+                            <tr class="@rowClass">
+                                <td>
+                                    <strong>@purchase.PurchaseOrderNumber</strong>
+                                    <br>
+                                    <small class="text-muted">@purchase.PurchaseDate.ToString("MM/dd/yyyy")</small>
+                                </td>
+                                <td>
+                                    @purchase.Vendor.CompanyName
+                                    <br>
+                                    @if (!string.IsNullOrEmpty(purchase.Vendor.ContactPhone))
+                                    {
+                                        <small class="text-muted">@purchase.Vendor.ContactPhone</small>
+                                    }
+                                </td>
+                                <td>
+                                    <strong>@purchase.Item.PartNumber</strong>
+                                    <br>
+                                    <small class="text-muted">@purchase.Item.Description</small>
+                                </td>
+                                <td>
+                                    <strong>@purchase.QuantityPurchased</strong>
+                                    @if (purchase.Status == PurchaseStatus.PartiallyReceived)
+                                    {
+                                        <br>
+                                        <small class="text-warning">@purchase.RemainingQuantity remaining</small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (purchase.ExpectedDeliveryDate.HasValue)
+                                    {
+                                        @purchase.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not set</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (isOverdue)
+                                    {
+                                        <span class="text-danger">
+                                            <i class="fas fa-exclamation-triangle"></i> @daysLate days
+                                        </span>
+                                    }
+                                    else if (daysLate > -3)
+                                    {
+                                        <span class="text-warning">
+                                            <i class="fas fa-clock"></i> Due soon
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success">
+                                            <i class="fas fa-check"></i> On time
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <strong>@purchase.ExtendedTotal.ToString("C")</strong>
+                                </td>
+                                <td>
+                                    @if (purchase.Status == PurchaseStatus.PartiallyReceived)
+                                    {
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock"></i> Partial
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-hourglass-half"></i> Ordered
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-success" onclick="openReceiveGoodsModal(@purchase.Id)" 
+                                                title="Receive Goods">
+                                            <i class="fas fa-truck"></i> Receive
+                                        </button>
+                                        <a href="@Url.Action("Details", new { id = purchase.Id })" 
+                                           class="btn btn-outline-primary" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="text-center py-5">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h4 class="text-success">All Caught Up!</h4>
+        <p class="text-muted">There are no purchase orders awaiting receipt.</p>
+        <a href="@Url.Action("Index")" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Purchases
+        </a>
+    </div>
+}
+
+@* Include the receive goods modal JavaScript *@
+<script>
+    async function openReceiveGoodsModal(purchaseId) {
+        try {
+            const response = await fetch(`/Purchases/GetReceiveGoodsModal?id=${purchaseId}`);
+            
+            if (response.ok) {
+                const html = await response.text();
+                
+                // Remove any existing modal
+                const existingModal = document.getElementById('receiveGoodsModal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Add new modal to body
+                document.body.insertAdjacentHTML('beforeend', html);
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('receiveGoodsModal'));
+                modal.show();
+            } else {
+                const result = await response.json();
+                alert(result.message || 'Error loading receive goods modal');
+            }
+        } catch (error) {
+            alert('Error loading receive goods modal: ' + error.message);
+        }
+    }
+</script>

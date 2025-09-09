@@ -10,48 +10,48 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Data
 {
-  public class InventoryContext : DbContext
-  {
-    public InventoryContext(DbContextOptions<InventoryContext> options) : base(options)
-    {
-    }
+	public class InventoryContext : DbContext
+	{
+		public InventoryContext(DbContextOptions<InventoryContext> options) : base(options)
+		{
+		}
 
-    // Existing DbSets
-    public DbSet<Item> Items { get; set; }
-    public DbSet<Purchase> Purchases { get; set; }
-    public DbSet<PurchaseDocument> PurchaseDocuments { get; set; }
-    public DbSet<Bom> Boms { get; set; }
-    public DbSet<BomItem> BomItems { get; set; }
-    public DbSet<InventoryAdjustment> InventoryAdjustments { get; set; }
-    public DbSet<FinishedGood> FinishedGoods { get; set; }
-    public DbSet<Production> Productions { get; set; }
-    public DbSet<ProductionConsumption> ProductionConsumptions { get; set; }
-    public DbSet<Sale> Sales { get; set; }
-    public DbSet<SaleItem> SaleItems { get; set; }
-    public DbSet<ChangeOrder> ChangeOrders { get; set; } = null!;
-    public DbSet<ChangeOrderDocument> ChangeOrderDocuments { get; set; }
+		// Existing DbSets
+		public DbSet<Item> Items { get; set; }
+		public DbSet<Purchase> Purchases { get; set; }
+		public DbSet<PurchaseDocument> PurchaseDocuments { get; set; }
+		public DbSet<Bom> Boms { get; set; }
+		public DbSet<BomItem> BomItems { get; set; }
+		public DbSet<InventoryAdjustment> InventoryAdjustments { get; set; }
+		public DbSet<FinishedGood> FinishedGoods { get; set; }
+		public DbSet<Production> Productions { get; set; }
+		public DbSet<ProductionConsumption> ProductionConsumptions { get; set; }
+		public DbSet<Sale> Sales { get; set; }
+		public DbSet<SaleItem> SaleItems { get; set; }
+		public DbSet<ChangeOrder> ChangeOrders { get; set; } = null!;
+		public DbSet<ChangeOrderDocument> ChangeOrderDocuments { get; set; }
 
-    // New Workflow DbSets
-    public DbSet<ProductionWorkflow> ProductionWorkflows { get; set; }
-    public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
+		// New Workflow DbSets
+		public DbSet<ProductionWorkflow> ProductionWorkflows { get; set; }
+		public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
 
-    // Additional DbSet for ItemDocument
-    public DbSet<ItemDocument> ItemDocuments { get; set; }
+		// Additional DbSet for ItemDocument
+		public DbSet<ItemDocument> ItemDocuments { get; set; }
 
-    // Additional DbSet for Vendor and VendorItem
-    public DbSet<Vendor> Vendors { get; set; }
-    public DbSet<VendorItem> VendorItems { get; set; }
+		// Additional DbSet for Vendor and VendorItem
+		public DbSet<Vendor> Vendors { get; set; }
+		public DbSet<VendorItem> VendorItems { get; set; }
 
-    // Add CompanyInfo
-    public DbSet<CompanyInfo> CompanyInfo { get; set; } = null!;
+		// Add CompanyInfo
+		public DbSet<CompanyInfo> CompanyInfo { get; set; } = null!;
 
 		// Customers
 		public DbSet<Customer> Customers { get; set; }
 		public DbSet<CustomerDocument> CustomerDocuments { get; set; }
-    public DbSet<CustomerPayment> CustomerPayments { get; set; }
+		public DbSet<CustomerPayment> CustomerPayments { get; set; }
 
-    // Add Projects DbSet for R&D project tracking
-    public DbSet<Project> Projects { get; set; }
+		// Add Projects DbSet for R&D project tracking
+		public DbSet<Project> Projects { get; set; }
 
 		// Chart of Accounts
 		public DbSet<Account> Accounts { get; set; } = null!;
@@ -89,6 +89,8 @@ namespace InventorySystem.Data
 		public DbSet<CaseUpdate> CaseUpdates { get; set; }
 		public DbSet<CaseDocument> CaseDocuments { get; set; }
 		public DbSet<CaseEscalation> CaseEscalations { get; set; }
+
+		public DbSet<VendorShortage> VendorShortages { get; set; } = null!;
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -144,7 +146,7 @@ namespace InventorySystem.Data
 				entity.Property(e => e.ContactName).HasMaxLength(100);
 				entity.Property(e => e.ContactEmail).HasMaxLength(150);
 				entity.Property(e => e.ContactPhone).HasMaxLength(20);
-				
+
 
 				// Vendor relationships
 				entity.HasMany(v => v.VendorItems)
@@ -186,10 +188,10 @@ namespace InventorySystem.Data
 			{
 				entity.HasKey(e => e.Id);
 
-				// Decimal properties
-				entity.Property(p => p.CostPerUnit).HasColumnType("decimal(18,2)").IsRequired();
-				entity.Property(p => p.ShippingCost).HasColumnType("decimal(18,2)").HasDefaultValue(0);
-				entity.Property(p => p.TaxAmount).HasColumnType("decimal(18,2)").HasDefaultValue(0);
+				// FIXED: Decimal properties with 6 decimal places precision
+				entity.Property(p => p.CostPerUnit).HasColumnType("decimal(18,6)").IsRequired();
+				entity.Property(p => p.ShippingCost).HasColumnType("decimal(18,6)").HasDefaultValue(0);
+				entity.Property(p => p.TaxAmount).HasColumnType("decimal(18,6)").HasDefaultValue(0);
 
 				// String properties
 				entity.Property(p => p.PurchaseOrderNumber).HasMaxLength(100);
@@ -454,27 +456,27 @@ namespace InventorySystem.Data
 			modelBuilder.Entity<SaleItem>(entity =>
 			{
 				entity.HasKey(e => e.Id);
-				
+
 				// Item relationship (optional)
 				entity.HasOne(si => si.Item)
-					  .WithMany()
-					  .HasForeignKey(si => si.ItemId)
-					  .OnDelete(DeleteBehavior.Restrict);
+						.WithMany()
+						.HasForeignKey(si => si.ItemId)
+						.OnDelete(DeleteBehavior.Restrict);
 
 				// ServiceType relationship (optional)
 				entity.HasOne(si => si.ServiceType)
-					  .WithMany()
-					  .HasForeignKey(si => si.ServiceTypeId)
-					  .OnDelete(DeleteBehavior.Restrict);
+						.WithMany()
+						.HasForeignKey(si => si.ServiceTypeId)
+						.OnDelete(DeleteBehavior.Restrict);
 
 				// FinishedGood relationship (optional) - ADDED
 				entity.HasOne(si => si.FinishedGood)
-					  .WithMany(fg => fg.SaleItems)
-					  .HasForeignKey(si => si.FinishedGoodId)
-					  .OnDelete(DeleteBehavior.Restrict);
+						.WithMany(fg => fg.SaleItems)
+						.HasForeignKey(si => si.FinishedGoodId)
+						.OnDelete(DeleteBehavior.Restrict);
 
 				// Ensure exactly one relationship is set
-				entity.HasCheckConstraint("CK_SaleItem_OneEntity", 
+				entity.HasCheckConstraint("CK_SaleItem_OneEntity",
 					"(ItemId IS NOT NULL AND ServiceTypeId IS NULL AND FinishedGoodId IS NULL) OR " +
 					"(ItemId IS NULL AND ServiceTypeId IS NOT NULL AND FinishedGoodId IS NULL) OR " +
 					"(ItemId IS NULL AND ServiceTypeId IS NULL AND FinishedGoodId IS NOT NULL)");
@@ -623,7 +625,7 @@ namespace InventorySystem.Data
 			modelBuilder.Entity<AccountsPayable>(entity =>
 			{
 				entity.HasKey(e => e.Id);
-				entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(50);
+
 				entity.Property(e => e.InvoiceAmount).HasColumnType("decimal(18,2)");
 				entity.Property(e => e.AmountPaid).HasColumnType("decimal(18,2)").HasDefaultValue(0);
 				entity.Property(e => e.DiscountTaken).HasColumnType("decimal(18,2)").HasDefaultValue(0);
@@ -631,7 +633,6 @@ namespace InventorySystem.Data
 				entity.Property(e => e.CreatedBy).HasMaxLength(100);
 				entity.Property(e => e.LastModifiedBy).HasMaxLength(100);
 
-				entity.HasIndex(e => e.InvoiceNumber);
 				entity.HasIndex(e => e.DueDate);
 				entity.HasIndex(e => e.PaymentStatus);
 
@@ -651,7 +652,7 @@ namespace InventorySystem.Data
 							.OnDelete(DeleteBehavior.Cascade);
 			});
 
-			// VendorPayment configuration
+			// Vendor Payment configuration
 			modelBuilder.Entity<VendorPayment>(entity =>
 			{
 				entity.HasKey(e => e.Id);
@@ -945,45 +946,76 @@ namespace InventorySystem.Data
 							.HasForeignKey(e => e.CurrentFinancialPeriodId)
 							.OnDelete(DeleteBehavior.SetNull);
 			});
+
+			// Configure VendorShortage relationships
+			modelBuilder.Entity<VendorShortage>(entity =>
+			{
+				entity.HasKey(vs => vs.Id);
+
+				entity.HasOne(vs => vs.Vendor)
+						.WithMany()
+						.HasForeignKey(vs => vs.VendorId)
+						.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasOne(vs => vs.Purchase)
+						.WithMany()
+						.HasForeignKey(vs => vs.PurchaseId)
+						.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasOne(vs => vs.Item)
+						.WithMany()
+						.HasForeignKey(vs => vs.ItemId)
+						.OnDelete(DeleteBehavior.Restrict);
+
+				entity.Property(vs => vs.UnitCost)
+						.HasColumnType("decimal(18,6)");
+
+				entity.Property(vs => vs.TotalCostImpact)
+						.HasColumnType("decimal(18,2)");
+
+				entity.HasIndex(vs => vs.Status);
+				entity.HasIndex(vs => vs.ShortageDate);
+				entity.HasIndex(vs => new { vs.VendorId, vs.Status });
+			});
 		}
 
 
 		private void ConfigureExistingEntities(ModelBuilder modelBuilder)
-    {
-      // Item configuration
-      modelBuilder.Entity<Item>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.PartNumber).IsRequired().HasMaxLength(100);
-        entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
-        entity.HasIndex(e => e.PartNumber).IsUnique();
+		{
+			// Item configuration
+			modelBuilder.Entity<Item>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.PartNumber).IsRequired().HasMaxLength(100);
+				entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
+				entity.HasIndex(e => e.PartNumber).IsUnique();
 
-        // Configure SalePrice as decimal with proper precision
-        entity.Property(e => e.SalePrice)
-              .HasColumnType("decimal(18,2)");
+				// Configure SalePrice as decimal with proper precision
+				entity.Property(e => e.SalePrice)
+							.HasColumnType("decimal(18,2)");
 
-        // Configure self-referencing relationships for Item versioning
-        entity.HasOne(i => i.BaseItem)
-              .WithMany(i => i.Versions)
-              .HasForeignKey(i => i.BaseItemId)
-              .OnDelete(DeleteBehavior.Restrict);
+				// Configure self-referencing relationships for Item versioning
+				entity.HasOne(i => i.BaseItem)
+							.WithMany(i => i.Versions)
+							.HasForeignKey(i => i.BaseItemId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        // Configure relationships
-        entity.HasMany(i => i.Purchases)
-              .WithOne(p => p.Item)
-              .HasForeignKey(p => p.ItemId)
-              .OnDelete(DeleteBehavior.Restrict);
+				// Configure relationships
+				entity.HasMany(i => i.Purchases)
+							.WithOne(p => p.Item)
+							.HasForeignKey(p => p.ItemId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        entity.HasMany(i => i.DesignDocuments)
-              .WithOne(d => d.Item)
-              .HasForeignKey(d => d.ItemId)
-              .OnDelete(DeleteBehavior.Cascade);
+				entity.HasMany(i => i.DesignDocuments)
+							.WithOne(d => d.Item)
+							.HasForeignKey(d => d.ItemId)
+							.OnDelete(DeleteBehavior.Cascade);
 
-        // Configure relationship with ChangeOrder for Items
-        entity.HasOne(i => i.CreatedFromChangeOrder)
-              .WithOne(c => c.NewItem)
-              .HasForeignKey<Item>(i => i.CreatedFromChangeOrderId)
-              .OnDelete(DeleteBehavior.SetNull);
+				// Configure relationship with ChangeOrder for Items
+				entity.HasOne(i => i.CreatedFromChangeOrder)
+							.WithOne(c => c.NewItem)
+							.HasForeignKey<Item>(i => i.CreatedFromChangeOrderId)
+							.OnDelete(DeleteBehavior.SetNull);
 
 				// VendorItem relationships - NoAction to prevent circular cascades
 				entity.HasMany(i => i.VendorItems)
@@ -993,155 +1025,155 @@ namespace InventorySystem.Data
 
 			});
 
-    
-      // BOM configuration with explicit self-referencing relationships
-      modelBuilder.Entity<Bom>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.BomNumber).IsRequired().HasMaxLength(100);
-        entity.Property(e => e.AssemblyPartNumber).IsRequired().HasMaxLength(100);
-        entity.HasIndex(e => e.BomNumber).IsUnique();
 
-        // Configure self-referencing relationships explicitly
-        entity.HasOne(b => b.ParentBom)
-              .WithMany(b => b.SubAssemblies)
-              .HasForeignKey(b => b.ParentBomId)
-              .OnDelete(DeleteBehavior.Restrict);
+			// BOM configuration with explicit self-referencing relationships
+			modelBuilder.Entity<Bom>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.BomNumber).IsRequired().HasMaxLength(100);
+				entity.Property(e => e.AssemblyPartNumber).IsRequired().HasMaxLength(100);
+				entity.HasIndex(e => e.BomNumber).IsUnique();
 
-        entity.HasOne(b => b.BaseBom)
-              .WithMany(b => b.Versions)
-              .HasForeignKey(b => b.BaseBomId)
-              .OnDelete(DeleteBehavior.Restrict);
+				// Configure self-referencing relationships explicitly
+				entity.HasOne(b => b.ParentBom)
+							.WithMany(b => b.SubAssemblies)
+							.HasForeignKey(b => b.ParentBomId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        // Configure relationship with ChangeOrder
-        entity.HasOne(b => b.CreatedFromChangeOrder)
-              .WithOne(c => c.NewBom)
-              .HasForeignKey<Bom>(b => b.CreatedFromChangeOrderId)
-              .OnDelete(DeleteBehavior.SetNull);
+				entity.HasOne(b => b.BaseBom)
+							.WithMany(b => b.Versions)
+							.HasForeignKey(b => b.BaseBomId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        entity.HasMany(b => b.Documents)
-              .WithOne(d => d.Bom)
-              .HasForeignKey(d => d.BomId)
-              .OnDelete(DeleteBehavior.Cascade);
-      });
+				// Configure relationship with ChangeOrder
+				entity.HasOne(b => b.CreatedFromChangeOrder)
+							.WithOne(c => c.NewBom)
+							.HasForeignKey<Bom>(b => b.CreatedFromChangeOrderId)
+							.OnDelete(DeleteBehavior.SetNull);
 
-      // ChangeOrder configuration with explicit relationships
-      modelBuilder.Entity<ChangeOrder>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.ChangeOrderNumber).IsRequired().HasMaxLength(100);
-        entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
-        entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
-        entity.HasIndex(e => e.ChangeOrderNumber).IsUnique();
+				entity.HasMany(b => b.Documents)
+							.WithOne(d => d.Bom)
+							.HasForeignKey(d => d.BomId)
+							.OnDelete(DeleteBehavior.Cascade);
+			});
 
-        // Configure explicit relationships to avoid ambiguity
-        entity.HasOne(c => c.BaseBom)
-              .WithMany()
-              .HasForeignKey(c => c.BaseBomId)
-              .OnDelete(DeleteBehavior.Restrict);
+			// ChangeOrder configuration with explicit relationships
+			modelBuilder.Entity<ChangeOrder>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.ChangeOrderNumber).IsRequired().HasMaxLength(100);
+				entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
+				entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
+				entity.HasIndex(e => e.ChangeOrderNumber).IsUnique();
 
-        entity.HasOne(c => c.NewBom)
-              .WithOne(b => b.CreatedFromChangeOrder)
-              .HasForeignKey<ChangeOrder>(c => c.NewBomId)
-              .OnDelete(DeleteBehavior.Restrict);
+				// Configure explicit relationships to avoid ambiguity
+				entity.HasOne(c => c.BaseBom)
+							.WithMany()
+							.HasForeignKey(c => c.BaseBomId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        entity.HasOne(c => c.BaseItem)
-              .WithMany()
-              .HasForeignKey(c => c.BaseItemId)
-              .OnDelete(DeleteBehavior.Restrict);
+				entity.HasOne(c => c.NewBom)
+							.WithOne(b => b.CreatedFromChangeOrder)
+							.HasForeignKey<ChangeOrder>(c => c.NewBomId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        entity.HasOne(c => c.NewItem)
-              .WithOne(i => i.CreatedFromChangeOrder)
-              .HasForeignKey<ChangeOrder>(c => c.NewItemId)
-              .OnDelete(DeleteBehavior.Restrict);
-      });
+				entity.HasOne(c => c.BaseItem)
+							.WithMany()
+							.HasForeignKey(c => c.BaseItemId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-      // BOM Item configuration
-      modelBuilder.Entity<BomItem>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.HasOne(bi => bi.Bom)
-              .WithMany(b => b.BomItems)
-              .HasForeignKey(bi => bi.BomId)
-              .OnDelete(DeleteBehavior.Cascade);
-        entity.HasOne(bi => bi.Item)
-              .WithMany()
-              .HasForeignKey(bi => bi.ItemId)
-              .OnDelete(DeleteBehavior.Restrict);
-      });
+				entity.HasOne(c => c.NewItem)
+							.WithOne(i => i.CreatedFromChangeOrder)
+							.HasForeignKey<ChangeOrder>(c => c.NewItemId)
+							.OnDelete(DeleteBehavior.Restrict);
+			});
 
-      // ItemDocument configuration
-      modelBuilder.Entity<ItemDocument>(entity =>
-      {
-        entity.HasKey(e => e.Id);
+			// BOM Item configuration
+			modelBuilder.Entity<BomItem>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.HasOne(bi => bi.Bom)
+							.WithMany(b => b.BomItems)
+							.HasForeignKey(bi => bi.BomId)
+							.OnDelete(DeleteBehavior.Cascade);
+				entity.HasOne(bi => bi.Item)
+							.WithMany()
+							.HasForeignKey(bi => bi.ItemId)
+							.OnDelete(DeleteBehavior.Restrict);
+			});
 
-        entity.HasOne(d => d.Item)
-              .WithMany(i => i.DesignDocuments)
-              .HasForeignKey(d => d.ItemId)
-              .OnDelete(DeleteBehavior.Cascade);
+			// ItemDocument configuration
+			modelBuilder.Entity<ItemDocument>(entity =>
+			{
+				entity.HasKey(e => e.Id);
 
-        entity.HasOne(d => d.Bom)
-              .WithMany(b => b.Documents)
-              .HasForeignKey(d => d.BomId)
-              .OnDelete(DeleteBehavior.Cascade);
-      });
+				entity.HasOne(d => d.Item)
+							.WithMany(i => i.DesignDocuments)
+							.HasForeignKey(d => d.ItemId)
+							.OnDelete(DeleteBehavior.Cascade);
 
-      // Production configuration
-      modelBuilder.Entity<Production>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.MaterialCost).HasColumnType("decimal(18,2)");
-        entity.Property(e => e.LaborCost).HasColumnType("decimal(18,2)");
-        entity.Property(e => e.OverheadCost).HasColumnType("decimal(18,2)");
-        entity.HasOne(p => p.FinishedGood)
-              .WithMany(fg => fg.Productions)
-              .HasForeignKey(p => p.FinishedGoodId)
-              .OnDelete(DeleteBehavior.Restrict);
-        entity.HasOne(p => p.Bom)
-              .WithMany()
-              .HasForeignKey(p => p.BomId)
-              .OnDelete(DeleteBehavior.Restrict);
-      });
+				entity.HasOne(d => d.Bom)
+							.WithMany(b => b.Documents)
+							.HasForeignKey(d => d.BomId)
+							.OnDelete(DeleteBehavior.Cascade);
+			});
 
-      // Production Consumption configuration
-      modelBuilder.Entity<ProductionConsumption>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.UnitCostAtConsumption).HasColumnType("decimal(18,2)");
-        entity.HasOne(pc => pc.Production)
-              .WithMany(p => p.MaterialConsumptions)
-              .HasForeignKey(pc => pc.ProductionId)
-              .OnDelete(DeleteBehavior.Cascade);
-        entity.HasOne(pc => pc.Item)
-              .WithMany()
-              .HasForeignKey(pc => pc.ItemId)
-              .OnDelete(DeleteBehavior.Restrict);
-      });
+			// Production configuration
+			modelBuilder.Entity<Production>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.MaterialCost).HasColumnType("decimal(18,2)");
+				entity.Property(e => e.LaborCost).HasColumnType("decimal(18,2)");
+				entity.Property(e => e.OverheadCost).HasColumnType("decimal(18,2)");
+				entity.HasOne(p => p.FinishedGood)
+							.WithMany(fg => fg.Productions)
+							.HasForeignKey(p => p.FinishedGoodId)
+							.OnDelete(DeleteBehavior.Restrict);
+				entity.HasOne(p => p.Bom)
+							.WithMany()
+							.HasForeignKey(p => p.BomId)
+							.OnDelete(DeleteBehavior.Restrict);
+			});
 
-      
-      // FinishedGood configurations
-      modelBuilder.Entity<FinishedGood>(entity =>
-      {
-        entity.HasIndex(e => e.PartNumber).IsUnique();
-        entity.Property(e => e.PartNumber).HasMaxLength(50);
-        entity.Property(e => e.Description).HasMaxLength(200);
+			// Production Consumption configuration
+			modelBuilder.Entity<ProductionConsumption>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.UnitCostAtConsumption).HasColumnType("decimal(18,2)");
+				entity.HasOne(pc => pc.Production)
+							.WithMany(p => p.MaterialConsumptions)
+							.HasForeignKey(pc => pc.ProductionId)
+							.OnDelete(DeleteBehavior.Cascade);
+				entity.HasOne(pc => pc.Item)
+							.WithMany()
+							.HasForeignKey(pc => pc.ItemId)
+							.OnDelete(DeleteBehavior.Restrict);
+			});
 
-        // Configure relationships
-        entity.HasOne(e => e.Bom)
-              .WithMany()
-              .HasForeignKey(e => e.BomId)
-              .OnDelete(DeleteBehavior.SetNull);
 
-        entity.HasMany(e => e.Productions)
-              .WithOne(p => p.FinishedGood)
-              .HasForeignKey(p => p.FinishedGoodId)
-              .OnDelete(DeleteBehavior.Restrict);
+			// FinishedGood configurations
+			modelBuilder.Entity<FinishedGood>(entity =>
+			{
+				entity.HasIndex(e => e.PartNumber).IsUnique();
+				entity.Property(e => e.PartNumber).HasMaxLength(50);
+				entity.Property(e => e.Description).HasMaxLength(200);
 
-        entity.HasMany(e => e.SaleItems)
-              .WithOne(si => si.FinishedGood)
-              .HasForeignKey(si => si.FinishedGoodId)
-              .OnDelete(DeleteBehavior.Restrict);
-      });
+				// Configure relationships
+				entity.HasOne(e => e.Bom)
+							.WithMany()
+							.HasForeignKey(e => e.BomId)
+							.OnDelete(DeleteBehavior.SetNull);
+
+				entity.HasMany(e => e.Productions)
+							.WithOne(p => p.FinishedGood)
+							.HasForeignKey(p => p.FinishedGoodId)
+							.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasMany(e => e.SaleItems)
+							.WithOne(si => si.FinishedGood)
+							.HasForeignKey(si => si.FinishedGoodId)
+							.OnDelete(DeleteBehavior.Restrict);
+			});
 
 			// Sales configuration
 			modelBuilder.Entity<Sale>(entity =>
@@ -1221,107 +1253,107 @@ namespace InventorySystem.Data
 			});
 			// Vendor unique constraint on company name
 			modelBuilder.Entity<Vendor>()
-          .HasIndex(v => v.CompanyName)
-          .IsUnique()
-          .HasDatabaseName("IX_Vendors_CompanyName");
+					.HasIndex(v => v.CompanyName)
+					.IsUnique()
+					.HasDatabaseName("IX_Vendors_CompanyName");
 
-      // VendorItem composite key and relationships
-      modelBuilder.Entity<VendorItem>()
-          .HasIndex(vi => new { vi.VendorId, vi.ItemId })
-          .IsUnique()
-          .HasDatabaseName("IX_VendorItems_VendorId_ItemId");
+			// VendorItem composite key and relationships
+			modelBuilder.Entity<VendorItem>()
+					.HasIndex(vi => new { vi.VendorId, vi.ItemId })
+					.IsUnique()
+					.HasDatabaseName("IX_VendorItems_VendorId_ItemId");
 
-      // VendorItem relationships
-      modelBuilder.Entity<VendorItem>()
-          .HasOne(vi => vi.Vendor)
-          .WithMany(v => v.VendorItems)
-          .HasForeignKey(vi => vi.VendorId)
-          .OnDelete(DeleteBehavior.Cascade);
+			// VendorItem relationships
+			modelBuilder.Entity<VendorItem>()
+					.HasOne(vi => vi.Vendor)
+					.WithMany(v => v.VendorItems)
+					.HasForeignKey(vi => vi.VendorId)
+					.OnDelete(DeleteBehavior.Cascade);
 
-      modelBuilder.Entity<VendorItem>()
-          .HasOne(vi => vi.Item)
-          .WithMany() // Items don't need to track their vendors directly
-          .HasForeignKey(vi => vi.ItemId)
-          .OnDelete(DeleteBehavior.Cascade);
+			modelBuilder.Entity<VendorItem>()
+					.HasOne(vi => vi.Item)
+					.WithMany() // Items don't need to track their vendors directly
+					.HasForeignKey(vi => vi.ItemId)
+					.OnDelete(DeleteBehavior.Cascade);
 
-      // Purchase entity configuration
-      modelBuilder.Entity<Purchase>(entity =>
-      {
-        entity.HasKey(e => e.Id);
+			// Purchase entity configuration
+			modelBuilder.Entity<Purchase>(entity =>
+			{
+				entity.HasKey(e => e.Id);
 
-        // Item relationship
-        entity.HasOne(p => p.Item)
-              .WithMany()
-              .HasForeignKey(p => p.ItemId)
-              .OnDelete(DeleteBehavior.Restrict);
+				// Item relationship
+				entity.HasOne(p => p.Item)
+							.WithMany()
+							.HasForeignKey(p => p.ItemId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        // Vendor relationship - REQUIRED (not nullable)
-        entity.HasOne(p => p.Vendor)
-              .WithMany(v => v.Purchases)
-              .HasForeignKey(p => p.VendorId)
-              .OnDelete(DeleteBehavior.Restrict); // Don't delete purchases if vendor is deleted
+				// Vendor relationship - REQUIRED (not nullable)
+				entity.HasOne(p => p.Vendor)
+							.WithMany(v => v.Purchases)
+							.HasForeignKey(p => p.VendorId)
+							.OnDelete(DeleteBehavior.Restrict); // Don't delete purchases if vendor is deleted
 
-        // Configure decimal properties
-        entity.Property(p => p.CostPerUnit)
-              .HasColumnType("decimal(18,2)")
-              .IsRequired();
+				// Configure decimal properties
+				entity.Property(p => p.CostPerUnit)
+							.HasColumnType("decimal(18,2)")
+							.IsRequired();
 
-        entity.Property(p => p.ShippingCost)
-              .HasColumnType("decimal(18,2)")
-              .HasDefaultValue(0);
+				entity.Property(p => p.ShippingCost)
+							.HasColumnType("decimal(18,2)")
+							.HasDefaultValue(0);
 
-        entity.Property(p => p.TaxAmount)
-              .HasColumnType("decimal(18,2)")
-              .HasDefaultValue(0);
+				entity.Property(p => p.TaxAmount)
+							.HasColumnType("decimal(18,2)")
+							.HasDefaultValue(0);
 
-        // Configure string properties
-        entity.Property(p => p.PurchaseOrderNumber)
-              .HasMaxLength(100);
+				// Configure string properties
+				entity.Property(p => p.PurchaseOrderNumber)
+							.HasMaxLength(100);
 
-        entity.Property(p => p.Notes)
-              .HasMaxLength(1000);
+				entity.Property(p => p.Notes)
+							.HasMaxLength(1000);
 
-        entity.Property(p => p.ItemVersion)
-              .HasMaxLength(10);
+				entity.Property(p => p.ItemVersion)
+							.HasMaxLength(10);
 
-        // Configure enum
-        entity.Property(p => p.Status)
-              .HasConversion<int>()
-              .HasDefaultValue(PurchaseStatus.Pending);
+				// Configure enum
+				entity.Property(p => p.Status)
+							.HasConversion<int>()
+							.HasDefaultValue(PurchaseStatus.Pending);
 
-        // Configure required fields
-        entity.Property(p => p.PurchaseDate)
-              .IsRequired();
+				// Configure required fields
+				entity.Property(p => p.PurchaseDate)
+							.IsRequired();
 
-        entity.Property(p => p.QuantityPurchased)
-              .IsRequired();
+				entity.Property(p => p.QuantityPurchased)
+							.IsRequired();
 
-        entity.Property(p => p.RemainingQuantity)
-              .IsRequired();
+				entity.Property(p => p.RemainingQuantity)
+							.IsRequired();
 
-        entity.Property(p => p.CreatedDate)
-              .IsRequired();
-              
+				entity.Property(p => p.CreatedDate)
+							.IsRequired();
 
-        // ItemVersion relationship (optional)
-        entity.HasOne(p => p.ItemVersionReference)
-              .WithMany()
-              .HasForeignKey(p => p.ItemVersionId)
-              .OnDelete(DeleteBehavior.SetNull);
 
-        // Indexes for performance
-        entity.HasIndex(p => p.ItemId)
-              .HasDatabaseName("IX_Purchases_ItemId");
+				// ItemVersion relationship (optional)
+				entity.HasOne(p => p.ItemVersionReference)
+							.WithMany()
+							.HasForeignKey(p => p.ItemVersionId)
+							.OnDelete(DeleteBehavior.SetNull);
 
-        entity.HasIndex(p => p.VendorId)
-              .HasDatabaseName("IX_Purchases_VendorId");
+				// Indexes for performance
+				entity.HasIndex(p => p.ItemId)
+							.HasDatabaseName("IX_Purchases_ItemId");
 
-        entity.HasIndex(p => p.PurchaseDate)
-              .HasDatabaseName("IX_Purchases_PurchaseDate");
+				entity.HasIndex(p => p.VendorId)
+							.HasDatabaseName("IX_Purchases_VendorId");
 
-        entity.HasIndex(p => new { p.ItemId, p.PurchaseDate })
-              .HasDatabaseName("IX_Purchases_ItemId_PurchaseDate");
-      });
+				entity.HasIndex(p => p.PurchaseDate)
+							.HasDatabaseName("IX_Purchases_PurchaseDate");
+
+				entity.HasIndex(p => new { p.ItemId, p.PurchaseDate })
+							.HasDatabaseName("IX_Purchases_ItemId_PurchaseDate");
+			});
 			// ENHANCED CUSTOMER PAYMENT CONFIGURATION
 			modelBuilder.Entity<CustomerPayment>(entity =>
 			{
@@ -1439,74 +1471,74 @@ namespace InventorySystem.Data
 
 		}
 
-    private void ConfigureWorkflowEntities(ModelBuilder modelBuilder)
-    {
-      // ProductionWorkflow configuration
-      modelBuilder.Entity<ProductionWorkflow>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.ProductionId).IsRequired();
-        entity.Property(e => e.Status)
-              .IsRequired()
-              .HasConversion<int>();
-        entity.Property(e => e.PreviousStatus)
-              .HasConversion<int>();
-        entity.Property(e => e.Priority)
-              .IsRequired()
-              .HasConversion<int>()
-              .HasDefaultValue(Priority.Normal);
-        entity.Property(e => e.AssignedTo).HasMaxLength(100);
-        entity.Property(e => e.AssignedBy).HasMaxLength(100);
-        entity.Property(e => e.Notes).HasMaxLength(500);
-        entity.Property(e => e.QualityCheckNotes).HasMaxLength(500);
-        entity.Property(e => e.OnHoldReason).HasMaxLength(200);
-        entity.Property(e => e.LastModifiedBy).HasMaxLength(100);
-        entity.Property(e => e.QualityCheckPassed).HasDefaultValue(true);
+		private void ConfigureWorkflowEntities(ModelBuilder modelBuilder)
+		{
+			// ProductionWorkflow configuration
+			modelBuilder.Entity<ProductionWorkflow>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.ProductionId).IsRequired();
+				entity.Property(e => e.Status)
+							.IsRequired()
+							.HasConversion<int>();
+				entity.Property(e => e.PreviousStatus)
+							.HasConversion<int>();
+				entity.Property(e => e.Priority)
+							.IsRequired()
+							.HasConversion<int>()
+							.HasDefaultValue(Priority.Normal);
+				entity.Property(e => e.AssignedTo).HasMaxLength(100);
+				entity.Property(e => e.AssignedBy).HasMaxLength(100);
+				entity.Property(e => e.Notes).HasMaxLength(500);
+				entity.Property(e => e.QualityCheckNotes).HasMaxLength(500);
+				entity.Property(e => e.OnHoldReason).HasMaxLength(200);
+				entity.Property(e => e.LastModifiedBy).HasMaxLength(100);
+				entity.Property(e => e.QualityCheckPassed).HasDefaultValue(true);
 
-        // Relationships
-        entity.HasOne(w => w.Production)
-              .WithOne()
-              .HasForeignKey<ProductionWorkflow>(w => w.ProductionId)
-              .OnDelete(DeleteBehavior.Cascade);
+				// Relationships
+				entity.HasOne(w => w.Production)
+							.WithOne()
+							.HasForeignKey<ProductionWorkflow>(w => w.ProductionId)
+							.OnDelete(DeleteBehavior.Cascade);
 
-        entity.HasMany(w => w.WorkflowTransitions)
-              .WithOne(t => t.ProductionWorkflow)
-              .HasForeignKey(t => t.ProductionWorkflowId)
-              .OnDelete(DeleteBehavior.Cascade);
+				entity.HasMany(w => w.WorkflowTransitions)
+							.WithOne(t => t.ProductionWorkflow)
+							.HasForeignKey(t => t.ProductionWorkflowId)
+							.OnDelete(DeleteBehavior.Cascade);
 
-        // Indexes
-        entity.HasIndex(e => e.ProductionId).IsUnique();
-        entity.HasIndex(e => e.Status);
-        entity.HasIndex(e => e.AssignedTo);
-        entity.HasIndex(e => e.CreatedDate);
-        entity.HasIndex(e => e.EstimatedCompletionDate);
-      });
+				// Indexes
+				entity.HasIndex(e => e.ProductionId).IsUnique();
+				entity.HasIndex(e => e.Status);
+				entity.HasIndex(e => e.AssignedTo);
+				entity.HasIndex(e => e.CreatedDate);
+				entity.HasIndex(e => e.EstimatedCompletionDate);
+			});
 
-      // WorkflowTransition configuration
-      modelBuilder.Entity<WorkflowTransition>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.Property(e => e.ProductionWorkflowId).IsRequired();
-        entity.Property(e => e.FromStatus)
-              .IsRequired()
-              .HasConversion<int>();
-        entity.Property(e => e.ToStatus)
-              .IsRequired()
-              .HasConversion<int>();
-        entity.Property(e => e.EventType)
-              .IsRequired()
-              .HasConversion<int>();
-        entity.Property(e => e.TransitionDate).IsRequired();
-        entity.Property(e => e.TriggeredBy).HasMaxLength(100);
-        entity.Property(e => e.Reason).HasMaxLength(500);
-        entity.Property(e => e.Notes).HasMaxLength(1000);
-        entity.Property(e => e.SystemInfo).HasMaxLength(200);
+			// WorkflowTransition configuration
+			modelBuilder.Entity<WorkflowTransition>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.Property(e => e.ProductionWorkflowId).IsRequired();
+				entity.Property(e => e.FromStatus)
+							.IsRequired()
+							.HasConversion<int>();
+				entity.Property(e => e.ToStatus)
+							.IsRequired()
+							.HasConversion<int>();
+				entity.Property(e => e.EventType)
+							.IsRequired()
+							.HasConversion<int>();
+				entity.Property(e => e.TransitionDate).IsRequired();
+				entity.Property(e => e.TriggeredBy).HasMaxLength(100);
+				entity.Property(e => e.Reason).HasMaxLength(500);
+				entity.Property(e => e.Notes).HasMaxLength(1000);
+				entity.Property(e => e.SystemInfo).HasMaxLength(200);
 
-        // Indexes
-        entity.HasIndex(e => e.ProductionWorkflowId);
-        entity.HasIndex(e => e.TransitionDate);
-        entity.HasIndex(e => e.EventType);
-      });
+				// Indexes
+				entity.HasIndex(e => e.ProductionWorkflowId);
+				entity.HasIndex(e => e.TransitionDate);
+				entity.HasIndex(e => e.EventType);
+			});
 
 			// Configure the relationship between Production and ProductionWorkflow
 			modelBuilder.Entity<Models.Production>()
@@ -1515,194 +1547,174 @@ namespace InventorySystem.Data
 					.HasForeignKey<Domain.Entities.Production.ProductionWorkflow>(pw => pw.ProductionId);
 		}
 
-   
-    public static void ConfigureAccountingEntities(ModelBuilder modelBuilder)
-    {
-      // ============= ACCOUNT CONFIGURATION =============
-      modelBuilder.Entity<Account>(entity =>
-      {
-        entity.HasKey(e => e.Id);
-        entity.HasIndex(e => e.AccountCode).IsUnique();
 
-        entity.Property(e => e.AccountCode)
-            .IsRequired()
-            .HasMaxLength(10);
+		public static void ConfigureAccountingEntities(ModelBuilder modelBuilder)
+		{
+			// ============= ACCOUNT CONFIGURATION =============
+			modelBuilder.Entity<Account>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+				entity.HasIndex(e => e.AccountCode).IsUnique();
 
-        entity.Property(e => e.AccountName)
-            .IsRequired()
-            .HasMaxLength(100);
+				entity.Property(e => e.AccountCode)
+						.IsRequired()
+						.HasMaxLength(10);
 
-        entity.Property(e => e.Description)
-            .HasMaxLength(200);
+				entity.Property(e => e.AccountName)
+						.IsRequired()
+						.HasMaxLength(100);
 
-        entity.Property(e => e.CurrentBalance)
-            .HasColumnType("decimal(18,2)")
-            .HasDefaultValue(0);
+				entity.Property(e => e.Description)
+						.HasMaxLength(200);
 
-        entity.Property(e => e.CreatedBy)
-            .HasMaxLength(100);
+				entity.Property(e => e.CurrentBalance)
+						.HasColumnType("decimal(18,2)")
+						.HasDefaultValue(0);
 
-        // Self-referencing relationship for account hierarchy
-        entity.HasOne(a => a.ParentAccount)
-            .WithMany(a => a.SubAccounts)
-            .HasForeignKey(a => a.ParentAccountId)
-            .OnDelete(DeleteBehavior.Restrict);
+				entity.Property(e => e.CreatedBy)
+						.HasMaxLength(100);
 
-        // Relationship with ledger entries
-        entity.HasMany(a => a.LedgerEntries)
-            .WithOne(le => le.Account)
-            .HasForeignKey(le => le.AccountId)
-            .OnDelete(DeleteBehavior.Restrict);
-      });
+				// Self-referencing relationship for account hierarchy
+				entity.HasOne(a => a.ParentAccount)
+						.WithMany(a => a.SubAccounts)
+						.HasForeignKey(a => a.ParentAccountId)
+						.OnDelete(DeleteBehavior.Restrict);
 
-      // ============= GENERAL LEDGER ENTRY CONFIGURATION =============
-      modelBuilder.Entity<GeneralLedgerEntry>(entity =>
-      {
-        entity.HasKey(e => e.Id);
+				// Relationship with ledger entries
+				entity.HasMany(a => a.LedgerEntries)
+						.WithOne(le => le.Account)
+						.HasForeignKey(le => le.AccountId)
+						.OnDelete(DeleteBehavior.Restrict);
+			});
 
-        entity.Property(e => e.TransactionNumber)
-            .IsRequired()
-            .HasMaxLength(50);
+			// ============= GENERAL LEDGER ENTRY CONFIGURATION =============
+			modelBuilder.Entity<GeneralLedgerEntry>(entity =>
+			{
+				entity.HasKey(e => e.Id);
 
-        entity.Property(e => e.Description)
-            .HasMaxLength(200);
+				entity.Property(e => e.TransactionNumber)
+						.IsRequired()
+						.HasMaxLength(50);
 
-        entity.Property(e => e.DebitAmount)
-            .HasColumnType("decimal(18,2)")
-            .HasDefaultValue(0);
+				entity.Property(e => e.Description)
+						.HasMaxLength(200);
 
-        entity.Property(e => e.CreditAmount)
-            .HasColumnType("decimal(18,2)")
-            .HasDefaultValue(0);
+				entity.Property(e => e.DebitAmount)
+						.HasColumnType("decimal(18,2)")
+						.HasDefaultValue(0);
 
-        entity.Property(e => e.ReferenceType)
-            .HasMaxLength(50);
+				entity.Property(e => e.CreditAmount)
+						.HasColumnType("decimal(18,2)")
+						.HasDefaultValue(0);
 
-        entity.Property(e => e.CreatedBy)
-            .HasMaxLength(100);
+				entity.Property(e => e.ReferenceType)
+						.HasMaxLength(50);
 
-        // Index for performance
-        entity.HasIndex(e => e.TransactionDate);
-        entity.HasIndex(e => e.TransactionNumber);
-        entity.HasIndex(e => new { e.ReferenceType, e.ReferenceId });
+				entity.Property(e => e.CreatedBy)
+						.HasMaxLength(100);
 
-        // Relationship with Account
-        entity.HasOne(le => le.Account)
-            .WithMany(a => a.LedgerEntries)
-            .HasForeignKey(le => le.AccountId)
-            .OnDelete(DeleteBehavior.Restrict);
-      });
+				// Index for performance
+				entity.HasIndex(e => e.TransactionDate);
+				entity.HasIndex(e => e.TransactionNumber);
+				entity.HasIndex(e => new { e.ReferenceType, e.ReferenceId });
 
-      // ============= ACCOUNTS PAYABLE CONFIGURATION =============
-      modelBuilder.Entity<AccountsPayable>(entity =>
-      {
-        entity.HasKey(e => e.Id);
+				// Relationship with Account
+				entity.HasOne(le => le.Account)
+						.WithMany(a => a.LedgerEntries)
+						.HasForeignKey(le => le.AccountId)
+						.OnDelete(DeleteBehavior.Restrict);
+			});
 
-        entity.Property(e => e.InvoiceNumber)
-            .IsRequired()
-            .HasMaxLength(50);
+			// ============= ACCOUNTS PAYABLE CONFIGURATION =============
+			modelBuilder.Entity<AccountsPayable>(entity =>
+			{
+				entity.HasKey(e => e.Id);
 
-        entity.Property(e => e.InvoiceAmount)
-            .HasColumnType("decimal(18,2)");
+				entity.Property(e => e.InvoiceAmount).HasColumnType("decimal(18,2)");
+				entity.Property(e => e.AmountPaid).HasColumnType("decimal(18,2)").HasDefaultValue(0);
+				entity.Property(e => e.DiscountTaken).HasColumnType("decimal(18,2)").HasDefaultValue(0);
+				entity.Property(e => e.Notes).HasMaxLength(200);
+				entity.Property(e => e.CreatedBy).HasMaxLength(100);
+				entity.Property(e => e.LastModifiedBy).HasMaxLength(100);
 
-        entity.Property(e => e.AmountPaid)
-            .HasColumnType("decimal(18,2)")
-            .HasDefaultValue(0);
+				entity.HasIndex(e => e.DueDate);
+				entity.HasIndex(e => e.PaymentStatus);
 
-        entity.Property(e => e.DiscountTaken)
-            .HasColumnType("decimal(18,2)")
-            .HasDefaultValue(0);
+				entity.HasOne(ap => ap.Vendor)
+							.WithMany()
+							.HasForeignKey(ap => ap.VendorId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        entity.Property(e => e.Notes)
-            .HasMaxLength(200);
+				entity.HasOne(ap => ap.Purchase)
+							.WithMany()
+							.HasForeignKey(ap => ap.PurchaseId)
+							.OnDelete(DeleteBehavior.Restrict);
 
-        entity.Property(e => e.CreatedBy)
-            .HasMaxLength(100);
+				entity.HasMany(ap => ap.Payments)
+							.WithOne(p => p.AccountsPayable)
+							.HasForeignKey(p => p.AccountsPayableId)
+							.OnDelete(DeleteBehavior.Cascade);
+			});
 
-        entity.Property(e => e.LastModifiedBy)
-            .HasMaxLength(100);
+			// ============= VENDOR PAYMENT CONFIGURATION =============
+			modelBuilder.Entity<VendorPayment>(entity =>
+			{
+				entity.HasKey(e => e.Id);
 
-        // Indexes for performance
-        entity.HasIndex(e => e.InvoiceNumber);
-        entity.HasIndex(e => e.DueDate);
-        entity.HasIndex(e => e.PaymentStatus);
+				entity.Property(e => e.PaymentAmount)
+						.HasColumnType("decimal(18,2)");
 
-        // Relationships
-        entity.HasOne(ap => ap.Vendor)
-            .WithMany()
-            .HasForeignKey(ap => ap.VendorId)
-            .OnDelete(DeleteBehavior.Restrict);
+				entity.Property(e => e.DiscountAmount)
+						.HasColumnType("decimal(18,2)")
+						.HasDefaultValue(0);
 
-        entity.HasOne(ap => ap.Purchase)
-            .WithMany()
-            .HasForeignKey(ap => ap.PurchaseId)
-            .OnDelete(DeleteBehavior.Restrict);
+				entity.Property(e => e.CheckNumber)
+						.HasMaxLength(50);
 
-        entity.HasMany(ap => ap.Payments)
-            .WithOne(p => p.AccountsPayable)
-            .HasForeignKey(p => p.AccountsPayableId)
-            .OnDelete(DeleteBehavior.Cascade);
-      });
+				entity.Property(e => e.BankAccount)
+						.HasMaxLength(50);
 
-      // ============= VENDOR PAYMENT CONFIGURATION =============
-      modelBuilder.Entity<VendorPayment>(entity =>
-      {
-        entity.HasKey(e => e.Id);
+				entity.Property(e => e.Notes)
+						.HasMaxLength(200);
 
-        entity.Property(e => e.PaymentAmount)
-            .HasColumnType("decimal(18,2)");
+				entity.Property(e => e.ReferenceNumber)
+						.HasMaxLength(50);
 
-        entity.Property(e => e.DiscountAmount)
-            .HasColumnType("decimal(18,2)")
-            .HasDefaultValue(0);
+				entity.Property(e => e.CreatedBy)
+						.HasMaxLength(100);
 
-        entity.Property(e => e.CheckNumber)
-            .HasMaxLength(50);
+				// Indexes
+				entity.HasIndex(e => e.PaymentDate);
+				entity.HasIndex(e => e.CheckNumber);
 
-        entity.Property(e => e.BankAccount)
-            .HasMaxLength(50);
+				// Relationship
+				entity.HasOne(p => p.AccountsPayable)
+						.WithMany(ap => ap.Payments)
+						.HasForeignKey(p => p.AccountsPayableId)
+						.OnDelete(DeleteBehavior.Cascade);
+			});
+		}
 
-        entity.Property(e => e.Notes)
-            .HasMaxLength(200);
+		// Override SaveChanges to handle automatic timestamps
+		public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+		{
+			var entries = ChangeTracker
+					.Entries()
+					.Where(e => e.Entity is ProductionWorkflow && (e.State == EntityState.Added || e.State == EntityState.Modified));
 
-        entity.Property(e => e.ReferenceNumber)
-            .HasMaxLength(50);
+			foreach (var entityEntry in entries)
+			{
+				var workflow = (ProductionWorkflow)entityEntry.Entity;
 
-        entity.Property(e => e.CreatedBy)
-            .HasMaxLength(100);
+				if (entityEntry.State == EntityState.Added)
+				{
+					workflow.CreatedDate = DateTime.UtcNow;
+				}
 
-        // Indexes
-        entity.HasIndex(e => e.PaymentDate);
-        entity.HasIndex(e => e.CheckNumber);
+				workflow.LastModifiedDate = DateTime.UtcNow;
+			}
 
-        // Relationship
-        entity.HasOne(p => p.AccountsPayable)
-            .WithMany(ap => ap.Payments)
-            .HasForeignKey(p => p.AccountsPayableId)
-            .OnDelete(DeleteBehavior.Cascade);
-      });
-    }
-    
-			// Override SaveChanges to handle automatic timestamps
-			public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-      var entries = ChangeTracker
-          .Entries()
-          .Where(e => e.Entity is ProductionWorkflow && (e.State == EntityState.Added || e.State == EntityState.Modified));
-
-      foreach (var entityEntry in entries)
-      {
-        var workflow = (ProductionWorkflow)entityEntry.Entity;
-
-        if (entityEntry.State == EntityState.Added)
-        {
-          workflow.CreatedDate = DateTime.UtcNow;
-        }
-
-        workflow.LastModifiedDate = DateTime.UtcNow;
-      }
-
-      return await base.SaveChangesAsync(cancellationToken);
-    }
-  }
+			return await base.SaveChangesAsync(cancellationToken);
+		}
+	}
 }

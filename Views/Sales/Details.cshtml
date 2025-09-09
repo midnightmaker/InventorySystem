@@ -1558,7 +1558,7 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
 <div class="modal fade" id="processSaleModal" tabindex="-1" aria-labelledby="processSaleModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <form method="post" action="/Sales/ProcessSaleWithShipping">
+      <form method="post" action="/Sales/ProcessSaleWithShipping" data-requires-validation="true">
         @Html.AntiForgeryToken()
         <input type="hidden" name="SaleId" value="@Model.Sale.Id" />
         <input type="hidden" name="SaleNumber" value="@Model.Sale.SaleNumber" />
@@ -1701,6 +1701,33 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
     </div>
   </div>
 </div>
+
+<!-- Add this script reference in the head section or before closing body tag -->
+<script src="~/js/sale-document-validation.js"></script>
+
+<!-- Update the Process Sale button to include validation -->
+@if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
+{
+  <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal" data-requires-validation="true" data-sale-id="@Model.Sale.Id">
+        <i class="fas fa-shipping-fast"></i> Process & Ship Sale
+    </button>
+}
+
+<!-- Update the shipping form to include document validation -->
+<form asp-action="ProcessSaleWithShipping" 
+      method="post" 
+      data-validate-documents="true"
+      class="needs-validation" 
+      novalidate>
+    <input type="hidden" asp-for="Sale.Id" />
+    <!-- ... rest of the shipping form ... -->
+    
+    <button type="submit" 
+            class="btn btn-primary" 
+            data-sale-id="@Model.Sale.Id">
+        <i class="fas fa-truck"></i> Ship Sale
+    </button>
+</form>
 
 @functions {
   private string GetStatusBadgeClass(SaleStatus status)

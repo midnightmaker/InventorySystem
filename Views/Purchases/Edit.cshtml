@@ -285,16 +285,7 @@
 
           <!-- UPDATED: Add Invoice Number field -->
           <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label asp-for="InvoiceNumber" class="form-label">
-                  <i class="fas fa-file-invoice text-info"></i>
-                  Vendor Invoice Number
-                </label>
-                <input asp-for="InvoiceNumber" class="form-control" placeholder="Invoice number from vendor" />
-                <span asp-validation-for="InvoiceNumber" class="text-danger"></span>
-              </div>
-            </div>
+            
             <div class="col-md-6">
               <!-- Project field for R&D items -->
               @if (Model.Item?.ItemType == ItemType.RnDMaterials)

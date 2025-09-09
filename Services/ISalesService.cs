@@ -1,5 +1,6 @@
 ﻿using InventorySystem.Models;
 using InventorySystem.Models.Enums;
+using InventorySystem.ViewModels;
 
 namespace InventorySystem.Services
 {
@@ -17,10 +18,14 @@ namespace InventorySystem.Services
     Task<SaleItem> AddSaleItemAsync(SaleItem saleItem);
     Task<SaleItem> UpdateSaleItemAsync(SaleItem saleItem);
     Task DeleteSaleItemAsync(int saleItemId);
+    Task<bool> CanModifySaleItemsAsync(int saleId);
 
     // Process sales (reduce inventory)
     Task<bool> ProcessSaleAsync(int saleId);
     Task<bool> CanProcessSaleAsync(int saleId);
+    
+    // NEW: Enhanced validation method including document requirements
+    Task<SaleProcessingValidationResult> ValidateSaleForProcessingAsync(int saleId);
 
     // Backorder management methods
     Task<IEnumerable<Sale>> GetBackorderedSalesAsync();

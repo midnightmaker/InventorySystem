@@ -29,6 +29,7 @@
     <input asp-for="ProductType" type="hidden" />
     <input asp-for="ItemId" type="hidden" />
     <input asp-for="FinishedGoodId" type="hidden" />
+    <input asp-for="ServiceTypeId" type="hidden" /> 
     <input asp-for="ProductPartNumber" type="hidden" />
     <input asp-for="ProductName" type="hidden" />
     <input asp-for="RequiresSerialNumber" type="hidden" />
@@ -115,8 +116,8 @@
                 </div>
             </div>
 
-            <!-- Product Identification -->
-            @if (Model.RequiresSerialNumber || Model.RequiresModelNumber)
+            <!-- Product Identification (only for items/finished goods, not services) -->
+            @if ((Model.RequiresSerialNumber || Model.RequiresModelNumber) && Model.ProductType != "ServiceType")
             {
                 <div class="card mb-4">
                     <div class="card-header">
@@ -206,7 +207,7 @@
                         </tr>
                     </table>
 
-                    @if (Model.RequiresSerialNumber || Model.RequiresModelNumber)
+                    @if ((Model.RequiresSerialNumber || Model.RequiresModelNumber) && Model.ProductType != "ServiceType")
                     {
                         <hr>
                         <h6>Product Identification</h6>
@@ -216,7 +217,7 @@
                                 <tr>
                                     <td>Serial Number:</td>
                                     <td class="text-end">
-                                        <code id="displaySerial">@(string.IsNullOrWhiteSpace(Model.SerialNumber) ? "Not Set" : Model.SerialNumber)
+                                        <code id="displaySerial">@(string.IsNullOrWhiteSpace(Model.SerialNumber) ? "Not Set" : Model.SerialNumber)</code>
                                     </td>
                                 </tr>
                             }
@@ -225,19 +226,30 @@
                                 <tr>
                                     <td>Model Number:</td>
                                     <td class="text-end">
-                                        <code id="displayModel">@(string.IsNullOrWhiteSpace(Model.ModelNumber) ? "Not Set" : Model.ModelNumber)
+                                        <code id="displayModel">@(string.IsNullOrWhiteSpace(Model.ModelNumber) ? "Not Set" : Model.ModelNumber)</code>
                                     </td>
                                 </tr>
                             }
                         </table>
+                        
+                        @if (!Model.HasRequiredInfo)
+                        {
+                            <div class="alert alert-warning">
+                                <small>
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Note:</strong> This item is missing required identification information.
+                                </small>
+                            </div>
+                        }
                     }
 
-                    @if (!Model.HasRequiredInfo)
+                    @if (Model.ProductType == "ServiceType")
                     {
-                        <div class="alert alert-warning">
+                        <hr>
+                        <div class="alert alert-info">
                             <small>
-                                <i class="fas fa-info-circle"></i>
-                                <strong>Note:</strong> This item is missing required identification information.
+                                <i class="fas fa-cog"></i>
+                                <strong>Service Item:</strong> Serial and model numbers are not required for services.
                             </small>
                         </div>
                     }

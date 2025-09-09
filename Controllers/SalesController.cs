@@ -900,6 +900,34 @@ namespace InventorySystem.Controllers
 				_logger.LogInformation("Processing sale with shipping - SaleId: {SaleId}, Courier: {Courier}, Tracking: {Tracking}",
 						model.SaleId, model.CourierService, model.TrackingNumber);
 
+				// NEW: Enhanced validation including document requirements
+				var validationResult = await _salesService.ValidateSaleForProcessingAsync(model.SaleId);
+				
+				if (!validationResult.CanProcess)
+				{
+					// If there are document issues, provide specific error message
+					if (validationResult.HasDocumentIssues)
+					{
+						var documentErrors = string.Join("; ", validationResult.MissingServiceDocuments.Select(msd => msd.GetFormattedMessage()));
+						SetErrorMessage($"Cannot process sale due to missing service documents: {documentErrors}. Please upload the required documents before shipping.");
+
+						// Set TempData for JavaScript handling of document issues
+						TempData["DocumentValidationErrors"] = JsonSerializer.Serialize(validationResult.MissingServiceDocuments);
+						TempData["ValidationErrorType"] = "DocumentRequirements";
+					}
+					else if (validationResult.HasInventoryIssues)
+					{
+						SetErrorMessage($"Cannot process sale due to inventory issues: {string.Join("; ", validationResult.Errors)}");
+						TempData["ValidationErrorType"] = "InventoryShortage";
+					}
+					else
+					{
+						SetErrorMessage($"Cannot process sale: {string.Join("; ", validationResult.Errors)}");
+						TempData["ValidationErrorType"] = "General";
+					}
+					return RedirectToAction("Details", new { id = model.SaleId });
+				}
+
 				// Validate the model
 				if (!ModelState.IsValid)
 				{
@@ -939,7 +967,7 @@ namespace InventorySystem.Controllers
 						var processed = await _salesService.ProcessSaleAsync(model.SaleId);
 						if (!processed)
 						{
-							SetErrorMessage("Failed to process sale. Please check inventory levels.");
+							SetErrorMessage("Failed to process sale. Please check inventory levels and document requirements.");
 							return RedirectToAction("Details", new { id = model.SaleId });
 						}
 					}
@@ -1022,6 +1050,10 @@ namespace InventorySystem.Controllers
 							: $"Sale {sale.SaleNumber} shipped successfully. Packing Slip: {shipment.PackingSlipNumber}, Tracking: {model.TrackingNumber}";
 
 					SetSuccessMessage(successMessage);
+
+					// Clear any validation error flags
+					TempData.Remove("DocumentValidationErrors");
+					TempData.Remove("ValidationErrorType");
 
 					// Redirect based on whether packing slip was requested
 					if (model.GeneratePackingSlip)
@@ -1970,6 +2002,7 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		
 		// POST: Sales/CreateAdditionalShipment
 		[HttpPost]
 		[ValidateAntiForgeryToken]
@@ -1978,6 +2011,28 @@ namespace InventorySystem.Controllers
 			try
 			{
 				_logger.LogInformation("Creating additional shipment for Sale ID: {SaleId}", model.SaleId);
+
+				// NEW: Enhanced validation including document requirements BEFORE processing
+				var validationResult = await _salesService.ValidateSaleForProcessingAsync(model.SaleId);
+
+				if (!validationResult.CanProcess)
+				{
+					// If there are document issues, provide specific error message
+					if (validationResult.HasDocumentIssues)
+					{
+						var documentErrors = string.Join("; ", validationResult.MissingServiceDocuments.Select(msd => msd.GetFormattedMessage()));
+						SetErrorMessage($"Cannot create additional shipment due to missing service documents: {documentErrors}. Please upload the required documents before shipping.");
+					}
+					else if (validationResult.HasInventoryIssues)
+					{
+						SetErrorMessage($"Cannot create additional shipment due to inventory issues: {string.Join("; ", validationResult.Errors)}");
+					}
+					else
+					{
+						SetErrorMessage($"Cannot create additional shipment: {string.Join("; ", validationResult.Errors)}");
+					}
+					return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
+				}
 
 				// Basic validation
 				if (string.IsNullOrEmpty(model.CourierService))
@@ -2101,17 +2156,51 @@ namespace InventorySystem.Controllers
 						return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
 					}
 
-					// Update sale status
+					// UPDATED: Re-validate before updating sale status to ensure all requirements are still met
+					var finalValidationResult = await _salesService.ValidateSaleForProcessingAsync(model.SaleId);
+					if (!finalValidationResult.CanProcess)
+					{
+						await transaction.RollbackAsync();
+						var documentErrors = string.Join("; ", finalValidationResult.MissingServiceDocuments.Select(msd => msd.GetFormattedMessage()));
+						SetErrorMessage($"Cannot complete shipment due to unresolved validation issues: {documentErrors}");
+						return RedirectToAction("CreateAdditionalShipment", new { saleId = model.SaleId });
+					}
+
+					// Update sale status - ONLY if all validation passes
 					var remainingBackorders = sale.SaleItems.Sum(si => si.QuantityBackordered);
 					if (remainingBackorders == 0)
 					{
-						sale.SaleStatus = SaleStatus.Shipped;
-						_logger.LogInformation("Sale {SaleNumber} fully shipped - no remaining backorders", sale.SaleNumber);
+						// Final check: Make sure ALL service types have required documents before marking as shipped
+						bool allServiceTypesValidated = true;
+						foreach (var saleItem in sale.SaleItems.Where(si => si.ServiceTypeId.HasValue))
+						{
+							var serviceType = await _context.ServiceTypes
+								.Include(st => st.Documents)
+								.FirstOrDefaultAsync(st => st.Id == saleItem.ServiceTypeId.Value);
+
+							if (serviceType != null && !serviceType.HasRequiredDocuments)
+							{
+								allServiceTypesValidated = false;
+								_logger.LogWarning("Service type {ServiceTypeName} is missing required documents - cannot mark sale as shipped", serviceType.ServiceName);
+								break;
+							}
+						}
+
+						if (allServiceTypesValidated)
+						{
+							sale.SaleStatus = SaleStatus.Shipped;
+							_logger.LogInformation("Sale {SaleNumber} fully shipped - no remaining backorders and all requirements validated", sale.SaleNumber);
+						}
+						else
+						{
+							sale.SaleStatus = SaleStatus.PartiallyShipped;
+							_logger.LogWarning("Sale {SaleNumber} set to partially shipped due to missing service documents", sale.SaleNumber);
+						}
 					}
 					else
 					{
 						sale.SaleStatus = SaleStatus.PartiallyShipped;
-						_logger.LogInformation("Sale {SaleNumber} partially shipped - {RemainingBackorders} units still backordered", 
+						_logger.LogInformation("Sale {SaleNumber} partially shipped - {RemainingBackorders} units still backordered",
 							sale.SaleNumber, remainingBackorders);
 					}
 
@@ -2400,5 +2489,352 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		
+		// API endpoint to validate sale processing with document requirements
+		[HttpPost]
+		public async Task<JsonResult> ValidateSaleProcessing(int saleId)
+		{
+			try
+			{
+				// Get the sales service - no need to cast to concrete type
+				var validationResult = await _salesService.ValidateSaleForProcessingAsync(saleId);
+				
+				return Json(new 
+				{ 
+					success = true,
+					canProcess = validationResult.CanProcess,
+					hasInventoryIssues = validationResult.HasInventoryIssues,
+					hasDocumentIssues = validationResult.HasDocumentIssues,
+					errors = validationResult.Errors,
+					warnings = validationResult.Warnings,
+					missingServiceDocuments = validationResult.MissingServiceDocuments.Select(msd => new 
+					{
+						serviceTypeId = msd.ServiceTypeId,
+						serviceTypeName = msd.ServiceTypeName,
+						serviceCode = msd.ServiceCode,
+						missingDocuments = msd.MissingDocuments,
+						formattedMessage = msd.GetFormattedMessage()
+					}).ToList(),
+					errorSummary = validationResult.GetErrorSummary()
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error validating sale processing for sale {SaleId}", saleId);
+				return Json(new 
+				{ 
+					success = false, 
+					message = $"Error validating sale: {ex.Message}",
+					canProcess = false 
+				});
+			}
+		}
+
+		// GET: Sales/EditSaleItem/5
+		[HttpGet]
+		public async Task<IActionResult> EditSaleItem(int id)
+		{
+			try
+			{
+				var saleItem = await _context.SaleItems
+					.Include(si => si.Sale)
+						.ThenInclude(s => s.Customer)
+					.Include(si => si.Item)
+					.Include(si => si.FinishedGood)
+					.Include(si => si.ServiceType)
+					.FirstOrDefaultAsync(si => si.Id == id);
+
+				if (saleItem == null)
+				{
+					SetErrorMessage("Sale item not found.");
+					return RedirectToAction("Index");
+				}
+
+				// Check if sale item can be edited
+				if (saleItem.Sale.SaleStatus != SaleStatus.Processing && saleItem.Sale.SaleStatus != SaleStatus.Backordered)
+				{
+					SetErrorMessage($"Cannot edit items in a sale with status '{saleItem.Sale.SaleStatus}'. Only sales with 'Processing' or 'Backordered' status can be modified.");
+					return RedirectToAction("Details", new { id = saleItem.SaleId });
+				}
+
+				var viewModel = new EditSaleItemViewModel
+				{
+					Id = saleItem.Id,
+					SaleId = saleItem.SaleId,
+					Quantity = saleItem.QuantitySold,
+					UnitPrice = saleItem.UnitPrice,
+					Notes = saleItem.Notes,
+					SerialNumber = saleItem.SerialNumber,
+					ModelNumber = saleItem.ModelNumber
+				};
+
+				// Determine product type and get product information
+				if (saleItem.ItemId.HasValue && saleItem.Item != null)
+				{
+					viewModel.ProductType = "Item";
+					viewModel.ItemId = saleItem.ItemId;
+					viewModel.ProductPartNumber = saleItem.Item.PartNumber;
+					viewModel.ProductName = saleItem.Item.Description;
+					viewModel.RequiresSerialNumber = saleItem.Item.RequiresSerialNumber;
+					viewModel.RequiresModelNumber = saleItem.Item.RequiresModelNumber;
+				}
+				else if (saleItem.FinishedGoodId.HasValue && saleItem.FinishedGood != null)
+				{
+					viewModel.ProductType = "FinishedGood";
+					viewModel.FinishedGoodId = saleItem.FinishedGoodId;
+					viewModel.ProductPartNumber = saleItem.FinishedGood.PartNumber ?? "Unknown";
+					viewModel.ProductName = saleItem.FinishedGood.Description ?? "Unknown";
+					viewModel.RequiresSerialNumber = saleItem.FinishedGood.RequiresSerialNumber;
+					viewModel.RequiresModelNumber = saleItem.FinishedGood.RequiresModelNumber;
+				}
+				else if (saleItem.ServiceTypeId.HasValue && saleItem.ServiceType != null)
+				{
+					viewModel.ProductType = "ServiceType";
+					viewModel.ServiceTypeId = saleItem.ServiceTypeId;
+					viewModel.ProductPartNumber = saleItem.ServiceType.ServiceCode ?? "N/A";
+					viewModel.ProductName = saleItem.ServiceType.ServiceName;
+					// Services typically don't require serial/model numbers
+					viewModel.RequiresSerialNumber = false;
+					viewModel.RequiresModelNumber = false;
+				}
+				else
+				{
+					SetErrorMessage("Sale item has invalid product reference.");
+					return RedirectToAction("Details", new { id = saleItem.SaleId });
+				}
+
+				// Set ViewBag data for display
+				ViewBag.SaleNumber = saleItem.Sale.SaleNumber;
+				ViewBag.CustomerName = saleItem.Sale.Customer?.CustomerName ?? "Unknown Customer";
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading edit form for sale item: {SaleItemId}", id);
+				SetErrorMessage($"Error loading edit form: {ex.Message}");
+				return RedirectToAction("Index");
+			}
+		}
+
+		// POST: Sales/EditSaleItem
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> EditSaleItem(EditSaleItemViewModel model)
+		{
+			try
+			{
+				// Remove navigation properties from model validation
+				ModelState.Remove("Sale");
+
+				if (!ModelState.IsValid)
+				{
+					// Reload ViewBag data
+					var sale = await _context.Sales
+						.Include(s => s.Customer)
+						.FirstOrDefaultAsync(s => s.Id == model.SaleId);
+					ViewBag.SaleNumber = sale?.SaleNumber ?? "Unknown";
+					ViewBag.CustomerName = sale?.Customer?.CustomerName ?? "Unknown Customer";
+					return View(model);
+				}
+
+				// Get the existing sale item
+				var saleItem = await _context.SaleItems
+					.Include(si => si.Sale)
+					.Include(si => si.Item)
+					.Include(si => si.FinishedGood)
+					.Include(si => si.ServiceType)
+					.FirstOrDefaultAsync(si => si.Id == model.Id);
+
+				if (saleItem == null)
+				{
+					SetErrorMessage("Sale item not found.");
+					return RedirectToAction("Index");
+				}
+
+				// Verify sale can still be modified
+				if (saleItem.Sale.SaleStatus != SaleStatus.Processing && saleItem.Sale.SaleStatus != SaleStatus.Backordered)
+				{
+					SetErrorMessage($"Cannot edit items in a sale with status '{saleItem.Sale.SaleStatus}'. Only sales with 'Processing' or 'Backordered' status can be modified.");
+					return RedirectToAction("Details", new { id = saleItem.SaleId });
+				}
+
+				// Validate required fields for items/finished goods that require them
+				if (model.RequiresSerialNumber && string.IsNullOrWhiteSpace(model.SerialNumber))
+				{
+					ModelState.AddModelError(nameof(model.SerialNumber), "Serial number is required for this product.");
+				}
+
+				if (model.RequiresModelNumber && string.IsNullOrWhiteSpace(model.ModelNumber))
+				{
+					ModelState.AddModelError(nameof(model.ModelNumber), "Model number is required for this product.");
+				}
+
+				if (!ModelState.IsValid)
+				{
+					ViewBag.SaleNumber = saleItem.Sale.SaleNumber;
+					ViewBag.CustomerName = saleItem.Sale.Customer?.CustomerName ?? "Unknown Customer";
+					return View(model);
+				}
+
+				// Update the sale item
+				var originalQuantity = saleItem.QuantitySold;
+                
+				saleItem.QuantitySold = model.Quantity;
+				saleItem.Quantity = model.Quantity; // Keep both in sync
+				saleItem.UnitPrice = model.UnitPrice;
+				saleItem.Notes = model.Notes;
+				saleItem.SerialNumber = model.SerialNumber;
+				saleItem.ModelNumber = model.ModelNumber;
+
+				// Recalculate backorder if quantity changed
+				if (originalQuantity != model.Quantity)
+				{
+					// Enhanced logic to handle backorders - only for inventory-tracked items
+					int availableQuantity = 0;
+					bool tracksInventory = false;
+
+					if (saleItem.ItemId.HasValue && saleItem.Item != null)
+					{
+						tracksInventory = saleItem.Item.TrackInventory;
+						if (tracksInventory)
+						{
+							availableQuantity = saleItem.Item.CurrentStock;
+						}
+					}
+					else if (saleItem.FinishedGoodId.HasValue && saleItem.FinishedGood != null)
+					{
+						tracksInventory = true;
+						availableQuantity = saleItem.FinishedGood.CurrentStock;
+					}
+					// ServiceType items don't track inventory
+
+					// Calculate backorder quantity only for inventory-tracked items
+					if (tracksInventory)
+					{
+						if (availableQuantity < saleItem.QuantitySold)
+						{
+							saleItem.QuantityBackordered = saleItem.QuantitySold - availableQuantity;
+						}
+						else
+						{
+							saleItem.QuantityBackordered = 0;
+						}
+					}
+					else
+					{
+						// Non-inventory items (including services) never have backorders
+						saleItem.QuantityBackordered = 0;
+					}
+				}
+
+				// Update the sale item
+				await _salesService.UpdateSaleItemAsync(saleItem);
+
+				// Check and update sale backorder status
+				await _salesService.CheckAndUpdateBackorderStatusAsync(saleItem.SaleId);
+
+				var productName = model.ProductPartNumber ?? "Product";
+				SetSuccessMessage($"Sale item '{productName}' updated successfully!");
+				
+				return RedirectToAction("Details", new { id = model.SaleId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error updating sale item: {SaleItemId}", model.Id);
+				SetErrorMessage($"Error updating sale item: {ex.Message}");
+
+				// Reload view with error
+				try
+				{
+					var sale = await _context.Sales
+						.Include(s => s.Customer)
+						.FirstOrDefaultAsync(s => s.Id == model.SaleId);
+					ViewBag.SaleNumber = sale?.SaleNumber ?? "Unknown";
+					ViewBag.CustomerName = sale?.Customer?.CustomerName ?? "Unknown Customer";
+				}
+				catch
+				{
+					// If we can't load the data, redirect to sale details
+					return RedirectToAction("Details", new { id = model.SaleId });
+				}
+
+				return View(model);
+			}
+		}
+		
+		// API endpoint for getting sale inventory information
+		[HttpGet]
+		public async Task<JsonResult> GetSaleInventoryInfo(int id)
+		{
+			try
+			{
+				var sale = await _context.Sales
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.Item)
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.FinishedGood)
+					.Include(s => s.SaleItems)
+						.ThenInclude(si => si.ServiceType)
+					.FirstOrDefaultAsync(s => s.Id == id);
+
+				if (sale == null)
+				{
+					return Json(new { success = false, message = "Sale not found" });
+				}
+
+				var inventoryItems = new List<object>();
+				int inventoryItemsCount = 0;
+
+				foreach (var saleItem in sale.SaleItems)
+				{
+					// Only include items that track inventory
+					if (saleItem.ItemId.HasValue && saleItem.Item != null)
+					{
+						if (saleItem.Item.TrackInventory)
+						{
+							inventoryItems.Add(new
+							{
+								partNumber = saleItem.Item.PartNumber,
+								description = saleItem.Item.Description,
+								quantity = saleItem.QuantitySold,
+								currentStock = saleItem.Item.CurrentStock,
+								tracksInventory = true,
+								productType = "Item"
+							});
+							inventoryItemsCount++;
+						}
+					}
+					else if (saleItem.FinishedGoodId.HasValue && saleItem.FinishedGood != null)
+					{
+						// Finished goods always track inventory
+						inventoryItems.Add(new
+						{
+							partNumber = saleItem.FinishedGood.PartNumber ?? "Unknown",
+							description = saleItem.FinishedGood.Description ?? "Unknown",
+							quantity = saleItem.QuantitySold,
+							currentStock = saleItem.FinishedGood.CurrentStock,
+							tracksInventory = true,
+							productType = "FinishedGood"
+						});
+						inventoryItemsCount++;
+					}
+					// ServiceType items don't track inventory and are not included
+				}
+
+				return Json(new
+				{
+					success = true,
+					inventoryItemsCount = inventoryItemsCount,
+					inventoryItems = inventoryItems,
+					hasInventoryItems = inventoryItemsCount > 0
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting sale inventory info for sale: {SaleId}", id);
+				return Json(new { success = false, message = "Error retrieving sale inventory information" });
+			}
+		}
 	}
 }

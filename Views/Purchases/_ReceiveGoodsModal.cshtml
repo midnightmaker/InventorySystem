@@ -1,0 +1,289 @@
+@model InventorySystem.ViewModels.ReceivePurchaseViewModel
+
+<div class="modal fade" id="receiveGoodsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-truck"></i> Receive Goods - @Model.PurchaseOrderNumber
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="receiveGoodsForm">
+                @Html.AntiForgeryToken()
+                @Html.HiddenFor(m => m.PurchaseId)
+                
+                <div class="modal-body">
+                    <!-- Purchase Order Information -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Purchase Order Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-5">PO Number:</dt>
+                                        <dd class="col-sm-7"><strong>@Model.PurchaseOrderNumber</strong></dd>
+                                        <dt class="col-sm-5">Vendor:</dt>
+                                        <dd class="col-sm-7">@Model.VendorName</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-5">Item:</dt>
+                                        <dd class="col-sm-7">
+                                            <strong>@Model.ItemPartNumber</strong>
+                                            <br><small class="text-muted">@Model.ItemDescription</small>
+                                        </dd>
+                                        <dt class="col-sm-5">Ordered Qty:</dt>
+                                        <dd class="col-sm-7"><strong>@Model.QuantityOrdered</strong></dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Receipt Information -->
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="fas fa-truck-loading"></i> Receipt Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label asp-for="ReceivedDate" class="form-label"></label>
+                                        <input asp-for="ReceivedDate" class="form-control" type="date" />
+                                        <span asp-validation-for="ReceivedDate" class="text-danger"></span>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label asp-for="QuantityReceived" class="form-label"></label>
+                                        <input asp-for="QuantityReceived" class="form-control" type="number" min="0" 
+                                               id="quantityReceived" onchange="updateReceiptType()" />
+                                        <span asp-validation-for="QuantityReceived" class="text-danger"></span>
+                                        <div class="form-text">
+                                            Ordered: <strong>@Model.QuantityOrdered</strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="receiptType" class="form-label">Receipt Type</label>
+                                        <select id="receiptType" name="receiptType" class="form-select" onchange="updateReceiptTypeInfo()">
+                                            <option value="complete">Complete Receipt</option>
+                                            <option value="partial">Partial Receipt (more coming)</option>
+                                            <option value="short">Short Shipment (close PO)</option>
+                                            <option value="overage">Overage Received</option>
+                                        </select>
+                                        <div id="receiptTypeInfo" class="form-text"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label asp-for="InvoiceNumber" class="form-label"></label>
+                                        <input asp-for="InvoiceNumber" class="form-control" placeholder="Enter vendor invoice number" />
+                                        <span asp-validation-for="InvoiceNumber" class="text-danger"></span>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label asp-for="ReceivedBy" class="form-label"></label>
+                                        <input asp-for="ReceivedBy" class="form-control" />
+                                        <span asp-validation-for="ReceivedBy" class="text-danger"></span>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label asp-for="Notes" class="form-label"></label>
+                                        <textarea asp-for="Notes" class="form-control" rows="3" 
+                                                  placeholder="Notes about condition, packaging, etc."></textarea>
+                                        <span asp-validation-for="Notes" class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Receipt Summary -->
+                            <div id="receiptSummary" class="alert alert-info" style="display: none;">
+                                <h6><i class="fas fa-info-circle"></i> Receipt Summary</h6>
+                                <div id="summaryContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="receiveButton">
+                        <i class="fas fa-check"></i> Receive Goods
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let orderedQuantity = @Model.QuantityOrdered;
+    
+    function updateReceiptType() {
+        const received = parseInt(document.getElementById('quantityReceived').value) || 0;
+        const receiptType = document.getElementById('receiptType');
+        
+        if (received === orderedQuantity) {
+            receiptType.value = 'complete';
+        } else if (received < orderedQuantity) {
+            receiptType.value = 'partial';
+        } else if (received > orderedQuantity) {
+            receiptType.value = 'overage';
+        }
+        
+        updateReceiptTypeInfo();
+    }
+    
+    function updateReceiptTypeInfo() {
+        const received = parseInt(document.getElementById('quantityReceived').value) || 0;
+        const receiptType = document.getElementById('receiptType').value;
+        const info = document.getElementById('receiptTypeInfo');
+        const summary = document.getElementById('receiptSummary');
+        const summaryContent = document.getElementById('summaryContent');
+        const receiveButton = document.getElementById('receiveButton');
+        
+        let infoText = '';
+        let summaryText = '';
+        let buttonText = '<i class="fas fa-check"></i> Receive Goods';
+        
+        switch (receiptType) {
+            case 'complete':
+                infoText = 'Full quantity received, PO will be marked as complete';
+                summaryText = `Receiving ${received} units - Purchase order will be completed`;
+                break;
+            case 'partial':
+                const remaining = orderedQuantity - received;
+                infoText = 'Partial quantity received, PO remains open for remaining items';
+                summaryText = `Receiving ${received} units - ${remaining} units still expected`;
+                break;
+            case 'short':
+                const shortage = orderedQuantity - received;
+                infoText = 'Short shipment, PO will be closed and shortage recorded';
+                summaryText = `Receiving ${received} units - ${shortage} units will be written off as vendor shortage`;
+                buttonText = '<i class="fas fa-exclamation-triangle"></i> Receive & Close PO';
+                break;
+            case 'overage':
+                const overage = received - orderedQuantity;
+                infoText = 'More than ordered quantity received, PO will be updated';
+                summaryText = `Receiving ${received} units - ${overage} units over ordered quantity`;
+                buttonText = '<i class="fas fa-plus"></i> Receive Overage';
+                break;
+        }
+        
+        info.textContent = infoText;
+        summaryContent.innerHTML = summaryText;
+        receiveButton.innerHTML = buttonText;
+        
+        if (received > 0) {
+            summary.style.display = 'block';
+        } else {
+            summary.style.display = 'none';
+        }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        updateReceiptTypeInfo();
+    });
+    
+    // Handle form submission
+    document.getElementById('receiveGoodsForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = {
+            purchaseId: parseInt(formData.get('PurchaseId')),
+            quantityReceived: parseInt(formData.get('QuantityReceived')),
+            receivedDate: formData.get('ReceivedDate'),
+            receiptType: formData.get('receiptType'),
+            invoiceNumber: formData.get('InvoiceNumber'),
+            receivedBy: formData.get('ReceivedBy'),
+            notes: formData.get('Notes')
+        };
+        
+        const submitButton = document.getElementById('receiveButton');
+        const originalText = submitButton.innerHTML;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...';
+        submitButton.disabled = true;
+        
+        try {
+            const response = await fetch('/Purchases/ReceiveGoods', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    '__RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Show success message and reload page
+                if (result.redirectToIndex) {
+                    window.location.reload();
+                } else {
+                    bootstrap.Modal.getInstance(document.getElementById('receiveGoodsModal')).hide();
+                    showSuccessMessage(result.message);
+                }
+            } else {
+                showErrorMessage(result.message);
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            }
+        } catch (error) {
+            showErrorMessage('Error processing receipt: ' + error.message);
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+        }
+    });
+    
+    function showSuccessMessage(message) {
+        // Bootstrap 5 toast implementation
+        const toastHtml = `
+            <div class="toast-container position-fixed top-0 end-0 p-3">
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong class="me-auto">Success</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">${message}</div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', toastHtml);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            const toastContainer = document.querySelector('.toast-container');
+            if (toastContainer) toastContainer.remove();
+        }, 5000);
+    }
+    
+    function showErrorMessage(message) {
+        // Bootstrap 5 toast implementation
+        const toastHtml = `
+            <div class="toast-container position-fixed top-0 end-0 p-3">
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                        <strong class="me-auto">Error</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">${message}</div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', toastHtml);
+        
+        // Auto-remove after 8 seconds
+        setTimeout(() => {
+            const toastContainer = document.querySelector('.toast-container');
+            if (toastContainer) toastContainer.remove();
+        }, 8000);
+    }
+</script>

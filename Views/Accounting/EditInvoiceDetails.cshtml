@@ -1,0 +1,240 @@
+@model InventorySystem.ViewModels.Accounting.EditInvoiceDetailsViewModel
+@{
+    ViewData["Title"] = "Edit Invoice Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-edit"></i> Edit Invoice Details</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("AccountsPayable")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Accounts Payable
+        </a>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-file-invoice"></i> Invoice Information</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="EditInvoiceDetails" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    
+                    @Html.HiddenFor(m => m.Id)
+                    
+                    <!-- Vendor Information (Read-only) -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="VendorName" class="form-label"></label>
+                            <input asp-for="VendorName" class="form-control" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="PurchaseOrderNumber" class="form-label"></label>
+                            <input asp-for="PurchaseOrderNumber" class="form-control" readonly />
+                        </div>
+                    </div>
+                    
+                    <!-- Invoice Details -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="VendorInvoiceNumber" class="form-label"></label>
+                            <input asp-for="VendorInvoiceNumber" class="form-control" />
+                            <span asp-validation-for="VendorInvoiceNumber" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="InvoiceAmount" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input asp-for="InvoiceAmount" class="form-control" />
+                            </div>
+                            <span asp-validation-for="InvoiceAmount" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Dates -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label asp-for="InvoiceDate" class="form-label"></label>
+                            <input asp-for="InvoiceDate" class="form-control" type="date" />
+                            <span asp-validation-for="InvoiceDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="DueDate" class="form-label"></label>
+                            <input asp-for="DueDate" class="form-control" type="date" />
+                            <span asp-validation-for="DueDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="ExpectedPaymentDate" class="form-label"></label>
+                            <input asp-for="ExpectedPaymentDate" class="form-control" type="date" />
+                            <span asp-validation-for="ExpectedPaymentDate" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Terms and Discounts -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label asp-for="PaymentTerms" class="form-label"></label>
+                            <input asp-for="PaymentTerms" class="form-control" placeholder="Net 30, 2/10 Net 30, etc." />
+                            <span asp-validation-for="PaymentTerms" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="EarlyPaymentDiscountPercent" class="form-label"></label>
+                            <div class="input-group">
+                                <input asp-for="EarlyPaymentDiscountPercent" class="form-control" />
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <span asp-validation-for="EarlyPaymentDiscountPercent" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="EarlyPaymentDiscountDate" class="form-label"></label>
+                            <input asp-for="EarlyPaymentDiscountDate" class="form-control" type="date" />
+                            <span asp-validation-for="EarlyPaymentDiscountDate" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Invoice Receipt Status -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input asp-for="InvoiceReceived" class="form-check-input" />
+                                <label asp-for="InvoiceReceived" class="form-check-label"></label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="InvoiceReceivedDate" class="form-label"></label>
+                            <input asp-for="InvoiceReceivedDate" class="form-control" type="date" />
+                            <span asp-validation-for="InvoiceReceivedDate" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Approval Status -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="ApprovalStatus" class="form-label"></label>
+                            <select asp-for="ApprovalStatus" class="form-select">
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
+                                <option value="RequiresReview">Requires Review</option>
+                            </select>
+                            <span asp-validation-for="ApprovalStatus" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label"></label>
+                        <textarea asp-for="Notes" class="form-control" rows="4" 
+                                  placeholder="Any notes about this invoice..."></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="@Url.Action("AccountsPayable")" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Invoice Summary Card -->
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Invoice Summary</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-6">Vendor:</dt>
+                    <dd class="col-sm-6">@Model.VendorName</dd>
+                    
+                    <dt class="col-sm-6">PO Number:</dt>
+                    <dd class="col-sm-6">@(Model.PurchaseOrderNumber ?? "N/A")</dd>
+                    
+                    <dt class="col-sm-6">Current Amount:</dt>
+                    <dd class="col-sm-6"><strong>@Model.InvoiceAmount.ToString("C")</strong></dd>
+                </dl>
+                
+                @if (Model.EarlyPaymentDiscountPercent > 0 && Model.EarlyPaymentDiscountDate.HasValue)
+                {
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            <i class="fas fa-percentage"></i>
+                            <strong>Early Payment Discount:</strong> @Model.EarlyPaymentDiscountPercent% 
+                            if paid by @Model.EarlyPaymentDiscountDate.Value.ToString("MM/dd/yyyy")
+                        </small>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <!-- Quick Actions Card -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-bolt"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="setInvoiceReceived()">
+                        <i class="fas fa-envelope"></i> Mark Invoice Received
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="approveInvoice()">
+                        <i class="fas fa-check"></i> Approve Invoice
+                    </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setPaymentTerms('Net 30')">
+                        <i class="fas fa-calendar"></i> Set Net 30
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        function setInvoiceReceived() {
+            document.getElementById('InvoiceReceived').checked = true;
+            document.getElementById('InvoiceReceivedDate').value = new Date().toISOString().split('T')[0];
+        }
+        
+        function approveInvoice() {
+            document.getElementById('ApprovalStatus').value = 'Approved';
+        }
+        
+        function setPaymentTerms(terms) {
+            document.getElementById('PaymentTerms').value = terms;
+            
+            // Calculate due date based on payment terms
+            const invoiceDate = new Date(document.getElementById('InvoiceDate').value);
+            if (terms === 'Net 30') {
+                const dueDate = new Date(invoiceDate);
+                dueDate.setDate(dueDate.getDate() + 30);
+                document.getElementById('DueDate').value = dueDate.toISOString().split('T')[0];
+            }
+        }
+        
+        // Auto-populate received date when invoice received is checked
+        document.getElementById('InvoiceReceived').addEventListener('change', function() {
+            if (this.checked && !document.getElementById('InvoiceReceivedDate').value) {
+                document.getElementById('InvoiceReceivedDate').value = new Date().toISOString().split('T')[0];
+            }
+        });
+    </script>
+}

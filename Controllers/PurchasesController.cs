@@ -1,6 +1,7 @@
 ﻿// Controllers/PurchasesController.cs - CLEANED: Only operational purchases (Inventoried, Consumable, RnDMaterials)
 using InventorySystem.Data;
 using InventorySystem.Models;
+using InventorySystem.Models.Accounting;
 using InventorySystem.Models.Enums;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
@@ -43,7 +44,7 @@ namespace InventorySystem.Controllers
 		// Fix the Index method - Add missing VendorId to the Select projection
 		public async Task<IActionResult> Index(
 				string search,
-				string vendorFilter,
+				string vendorFilter, 
 				string itemTypeFilter,
 				DateTime? startDate,
 				DateTime? endDate,
@@ -61,39 +62,45 @@ namespace InventorySystem.Controllers
 					page, pageSize, search);
 
 				// Start with base query - ONLY operational purchases
+				// ✅ UPDATE the Index method to include payment status data
 				var query = _context.Purchases
-						.Include(p => p.Item)
-						.Include(p => p.Vendor)
-						.Include(p => p.Project) // Include project for R&D materials
-						.Where(p => p.Item.ItemType == ItemType.Inventoried ||
-									p.Item.ItemType == ItemType.Consumable ||
-									p.Item.ItemType == ItemType.RnDMaterials)
-						.Select(p => new
-						{
-							p.Id,
-							p.VendorId, // ADDED: Missing VendorId property
-							p.PurchaseDate,
-							p.QuantityPurchased,
-							p.CostPerUnit,
-							p.ShippingCost,
-							p.TaxAmount,
-							p.PurchaseOrderNumber,
-							p.InvoiceNumber,
-							p.Status,
-							p.RemainingQuantity,
-							p.CreatedDate,
-							p.ProjectId,
-							ItemPartNumber = p.Item.PartNumber,
-							ItemDescription = p.Item.Description,
-							ItemType = p.Item.ItemType,
-							VendorCompanyName = p.Vendor.CompanyName,
-							ProjectCode = p.Project != null ? p.Project.ProjectCode : null,
-							p.Notes,
-							p.AccountCode,
-							p.IsInventoryPurchase,
-							p.IsExpensePurchase
-						})
-						.AsQueryable();
+					.Include(p => p.Item)
+					.Include(p => p.Vendor)
+					.Include(p => p.Project)
+					.Where(p => p.Item.ItemType == ItemType.Inventoried ||
+								p.Item.ItemType == ItemType.Consumable ||
+								p.Item.ItemType == ItemType.RnDMaterials)
+					.Select(p => new
+					{
+						p.Id,
+						p.VendorId,
+						p.PurchaseDate,
+						p.QuantityPurchased,
+						p.CostPerUnit,
+						p.ShippingCost,
+						p.TaxAmount,
+						p.PurchaseOrderNumber,
+						p.Status,
+						p.RemainingQuantity,
+						p.CreatedDate,
+						p.ProjectId,
+						ItemPartNumber = p.Item.PartNumber,
+						ItemDescription = p.Item.Description,
+						ItemType = p.Item.ItemType,
+						VendorCompanyName = p.Vendor.CompanyName,
+						ProjectCode = p.Project != null ? p.Project.ProjectCode : null,
+						p.Notes,
+						p.AccountCode,
+						p.IsInventoryPurchase,
+						p.IsExpensePurchase,
+						
+						// Payment status - completely separate from goods status
+						PaymentStatus = _context.AccountsPayable
+							.Where(ap => ap.PurchaseId == p.Id)
+							.Select(ap => ap.PaymentStatus)
+							.FirstOrDefault()
+					})
+					.AsQueryable();
 
 				// Apply search filter
 				if (!string.IsNullOrWhiteSpace(search))
@@ -109,7 +116,6 @@ namespace InventorySystem.Controllers
 								EF.Functions.Like(p.ItemDescription.ToLower(), likePattern) ||
 								EF.Functions.Like(p.VendorCompanyName.ToLower(), likePattern) ||
 								(p.PurchaseOrderNumber != null && EF.Functions.Like(p.PurchaseOrderNumber.ToLower(), likePattern)) ||
-								(p.InvoiceNumber != null && EF.Functions.Like(p.InvoiceNumber.ToLower(), likePattern)) ||
 								(p.Notes != null && EF.Functions.Like(p.Notes.ToLower(), likePattern)) ||
 								EF.Functions.Like(p.Id.ToString(), likePattern)
 						);
@@ -121,7 +127,6 @@ namespace InventorySystem.Controllers
 								p.ItemDescription.ToLower().Contains(searchTerm) ||
 								p.VendorCompanyName.ToLower().Contains(searchTerm) ||
 								(p.PurchaseOrderNumber != null && p.PurchaseOrderNumber.ToLower().Contains(searchTerm)) ||
-								(p.InvoiceNumber != null && p.InvoiceNumber.ToLower().Contains(searchTerm)) ||
 								(p.Notes != null && p.Notes.ToLower().Contains(searchTerm)) ||
 								p.Id.ToString().Contains(searchTerm)
 						);
@@ -196,20 +201,20 @@ namespace InventorySystem.Controllers
 				var purchases = paginatedResults.Select(p => new Purchase
 				{
 					Id = p.Id,
-					VendorId = p.VendorId, // ADDED: Set VendorId
+					VendorId = p.VendorId,
 					PurchaseDate = p.PurchaseDate,
 					QuantityPurchased = p.QuantityPurchased,
 					CostPerUnit = p.CostPerUnit,
 					ShippingCost = p.ShippingCost,
 					TaxAmount = p.TaxAmount,
 					PurchaseOrderNumber = p.PurchaseOrderNumber,
-					InvoiceNumber = p.InvoiceNumber,
 					Status = p.Status,
 					RemainingQuantity = p.RemainingQuantity,
 					CreatedDate = p.CreatedDate,
 					ProjectId = p.ProjectId,
 					Notes = p.Notes,
 					AccountCode = p.AccountCode,
+					PaymentStatus = p.PaymentStatus, // ADD this line
 					Item = new Item
 					{
 						PartNumber = p.ItemPartNumber,
@@ -218,7 +223,7 @@ namespace InventorySystem.Controllers
 					},
 					Vendor = new Vendor
 					{
-						Id = p.VendorId, // ADDED: Set Vendor.Id as well
+						Id = p.VendorId,
 						CompanyName = p.VendorCompanyName
 					},
 					Project = p.ProjectCode != null ? new Project { ProjectCode = p.ProjectCode } : null
@@ -319,7 +324,7 @@ namespace InventorySystem.Controllers
 
 				var viewModel = new CreatePurchaseViewModel
 				{
-					PurchaseDate = DateTime.Today,
+					PurchaseDate = DateTime.Now,
 					QuantityPurchased = 1,
 					Status = PurchaseStatus.Pending
 				};
@@ -387,6 +392,246 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		// Add these methods to your existing PurchasesController
+
+		// GET: Update Status Modal
+		[HttpGet]
+		public async Task<IActionResult> GetStatusUpdateModal(int id)
+		{
+			try
+			{
+				var purchase = await _context.Purchases
+						.Include(p => p.Item)
+						.Include(p => p.Vendor)
+						.FirstOrDefaultAsync(p => p.Id == id);
+
+				if (purchase == null)
+				{
+					return Json(new { success = false, message = "Purchase not found" });
+				}
+
+				var viewModel = new UpdatePurchaseStatusViewModel
+				{
+					PurchaseId = purchase.Id,
+					CurrentStatus = purchase.Status,
+					PurchaseOrderNumber = purchase.PurchaseOrderNumber,
+					ItemName = $"{purchase.Item.PartNumber} - {purchase.Item.Description}",
+					VendorName = purchase.Vendor.CompanyName,
+					QuantityPurchased = purchase.QuantityPurchased,
+					ExpectedDeliveryDate = purchase.ExpectedDeliveryDate,
+					ActualDeliveryDate = purchase.ActualDeliveryDate,
+					CanReceive = purchase.Status == PurchaseStatus.Ordered || purchase.Status == PurchaseStatus.Shipped,
+					CanCancel = purchase.Status != PurchaseStatus.Received && purchase.Status != PurchaseStatus.Cancelled
+				};
+
+				// ✅ POPULATE AVAILABLE STATUSES
+				viewModel.PopulateAvailableStatuses();
+
+				return PartialView("_UpdatePurchaseStatusModal", viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading status update modal for purchase {PurchaseId}", id);
+				return Json(new { success = false, message = "Error loading status update form" });
+			}
+		}
+
+		
+		// POST: Update Purchase Status
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> UpdatePurchaseStatus(UpdatePurchaseStatusViewModel model)
+		{
+			if (!ModelState.IsValid)
+			{
+				var errors = ModelState.Where(x => x.Value.Errors.Count > 0)
+															.Select(x => new { Field = x.Key, Errors = x.Value.Errors.Select(e => e.ErrorMessage) });
+				_logger.LogWarning("UpdatePurchaseStatus ModelState validation failed: {Errors}",
+													System.Text.Json.JsonSerializer.Serialize(errors));
+				return Json(new { success = false, message = "Invalid data provided" });
+			}
+
+			try
+			{
+				_logger.LogInformation("Attempting to update purchase status for PurchaseId: {PurchaseId} to {NewStatus}",
+															model.PurchaseId, model.NewStatus);
+
+				var purchase = await _context.Purchases
+								.Include(p => p.Item)
+								.Include(p => p.Vendor)
+								.FirstOrDefaultAsync(p => p.Id == model.PurchaseId);
+
+				if (purchase == null)
+				{
+					_logger.LogWarning("Purchase not found for PurchaseId: {PurchaseId}", model.PurchaseId);
+					return Json(new { success = false, message = "Purchase not found" });
+				}
+
+				var oldStatus = purchase.Status;
+				_logger.LogInformation("Current purchase status: {OldStatus}, updating to: {NewStatus}", oldStatus, model.NewStatus);
+
+				// ✅ CRITICAL FIX: Use a database transaction for consistency
+				using var transaction = await _context.Database.BeginTransactionAsync();
+
+				try
+				{
+					// Update basic status
+					purchase.Status = model.NewStatus;
+
+					// Handle status-specific updates
+					switch (model.NewStatus)
+					{
+						case PurchaseStatus.Shipped:
+							if (model.ShippedDate.HasValue)
+							{
+								purchase.ExpectedDeliveryDate = model.ShippedDate.Value.AddDays(model.EstimatedDeliveryDays ?? 3);
+								_logger.LogInformation("Updated expected delivery date to {ExpectedDelivery}", purchase.ExpectedDeliveryDate);
+							}
+							break;
+
+						case PurchaseStatus.Received:
+							purchase.ActualDeliveryDate = model.ReceivedDate ?? DateTime.Now;
+							_logger.LogInformation("Setting actual delivery date to {ActualDelivery}", purchase.ActualDeliveryDate);
+
+							// ✅ ENHANCED: Update inventory using a separate query to ensure tracking
+							var itemToUpdate = await _context.Items.FindAsync(purchase.ItemId);
+							if (itemToUpdate != null)
+							{
+								var oldStock = itemToUpdate.CurrentStock;
+								itemToUpdate.CurrentStock += purchase.QuantityPurchased;
+								_logger.LogInformation("Updated inventory for item {ItemId}: {OldStock} + {Quantity} = {NewStock}",
+																			purchase.ItemId, oldStock, purchase.QuantityPurchased, itemToUpdate.CurrentStock);
+							}
+							else
+							{
+								_logger.LogError("Item not found for ItemId: {ItemId}", purchase.ItemId);
+								throw new InvalidOperationException($"Item {purchase.ItemId} not found");
+							}
+
+							// Create Accounts Payable if not exists
+							await CreateAccountsPayableIfNeeded(purchase);
+							break;
+
+						case PurchaseStatus.Cancelled:
+							if (string.IsNullOrEmpty(model.Reason))
+							{
+								_logger.LogWarning("Cancellation attempted without reason for PurchaseId: {PurchaseId}", model.PurchaseId);
+								return Json(new { success = false, message = "Reason is required for cancellation" });
+							}
+							_logger.LogInformation("Cancelling purchase with reason: {Reason}", model.Reason);
+							break;
+					}
+
+					// Add notes if provided
+					if (!string.IsNullOrEmpty(model.Notes))
+					{
+						var timestamp = DateTime.Now.ToString("MM/dd/yyyy HH:mm");
+						var statusNote = $"[{timestamp}] Status changed from {oldStatus} to {model.NewStatus}: {model.Notes}";
+
+						purchase.Notes = string.IsNullOrEmpty(purchase.Notes)
+										? statusNote
+										: $"{purchase.Notes}\n{statusNote}";
+
+						_logger.LogInformation("Added status note to purchase");
+					}
+
+					// ✅ GENERATE JOURNAL ENTRIES INSIDE THE TRANSACTION
+					// This ensures the vendor information is still available
+					if (model.NewStatus == PurchaseStatus.Received && oldStatus != PurchaseStatus.Received)
+					{
+						try
+						{
+							_logger.LogInformation("Generating journal entries for received purchase");
+							await _accountingService.GenerateJournalEntriesForPurchaseAsync(purchase);
+							_logger.LogInformation("Journal entries generated successfully");
+						}
+						catch (Exception ex)
+						{
+							_logger.LogError(ex, "Failed to generate journal entries for purchase {PurchaseId}", purchase.Id);
+							throw; // Re-throw to rollback the transaction
+						}
+					}
+
+					// ✅ CRITICAL: Save all changes within the transaction
+					var saveResult = await _context.SaveChangesAsync();
+					_logger.LogInformation("SaveChanges returned: {SaveResult} entities affected", saveResult);
+
+					// Commit the transaction
+					await transaction.CommitAsync();
+					_logger.LogInformation("Transaction committed successfully");
+
+					_logger.LogInformation("Purchase {PurchaseOrderNumber} status updated successfully from {OldStatus} to {NewStatus}",
+									purchase.PurchaseOrderNumber, oldStatus, model.NewStatus);
+
+					var successMessage = model.NewStatus switch
+					{
+						PurchaseStatus.Received => $"Purchase order {purchase.PurchaseOrderNumber} has been marked as received. Inventory updated.",
+						PurchaseStatus.Shipped => $"Purchase order {purchase.PurchaseOrderNumber} has been marked as shipped.",
+						PurchaseStatus.Cancelled => $"Purchase order {purchase.PurchaseOrderNumber} has been cancelled.",
+						_ => $"Purchase order {purchase.PurchaseOrderNumber} status updated to {model.NewStatus}."
+					};
+
+					return Json(new
+					{
+						success = true,
+						message = successMessage,
+						newStatus = model.NewStatus.ToString(),
+						redirectToDetails = true
+					});
+				}
+				catch (Exception ex)
+				{
+					await transaction.RollbackAsync();
+					_logger.LogError(ex, "Transaction rolled back due to error updating purchase status");
+					throw;
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error updating purchase status for purchase {PurchaseId}", model.PurchaseId);
+				return Json(new { success = false, message = $"Error updating status: {ex.Message}" });
+			}
+		}
+		// ✅ ENHANCED: Helper method with better error handling
+		private async Task CreateAccountsPayableIfNeeded(Purchase purchase)
+		{
+			try
+			{
+				var existingAP = await _context.AccountsPayable
+								.FirstOrDefaultAsync(ap => ap.PurchaseId == purchase.Id);
+
+				if (existingAP != null)
+				{
+					_logger.LogInformation("Accounts Payable already exists for purchase {PurchaseId}", purchase.Id);
+					return; // Already exists
+				}
+
+				var dueDate = purchase.ActualDeliveryDate?.AddDays(30) ?? DateTime.Now.AddDays(30);
+
+				var accountsPayable = new AccountsPayable
+				{
+					VendorId = purchase.VendorId,
+					PurchaseId = purchase.Id,
+					PurchaseOrderNumber = purchase.PurchaseOrderNumber, // ✅ Fixed: Use PurchaseOrderNumber instead of InvoiceNumber
+					InvoiceDate = purchase.ActualDeliveryDate ?? DateTime.Now,
+					DueDate = dueDate,
+					InvoiceAmount = purchase.ExtendedTotal,
+					AmountPaid = 0,
+					DiscountTaken = 0,
+					PaymentStatus = PaymentStatus.Pending,
+					CreatedDate = DateTime.Now,
+					CreatedBy = User.Identity?.Name ?? "System"
+				};
+
+				_context.AccountsPayable.Add(accountsPayable);
+				_logger.LogInformation("Created Accounts Payable for purchase {PurchaseOrderNumber}", purchase.PurchaseOrderNumber);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Failed to create Accounts Payable for purchase {PurchaseId}", purchase.Id);
+				// Don't rethrow - log the error but continue with the main operation
+			}
+		}
 		[HttpPost]
 		[ValidateAntiForgeryToken]
 		public async Task<IActionResult> Create(CreatePurchaseViewModel viewModel)
@@ -429,7 +674,6 @@ namespace InventorySystem.Controllers
 					ShippingCost = viewModel.ShippingCost,
 					TaxAmount = viewModel.TaxAmount,
 					PurchaseOrderNumber = viewModel.PurchaseOrderNumber,
-					InvoiceNumber = viewModel.InvoiceNumber,
 					Notes = viewModel.Notes,
 					Status = viewModel.Status,
 					ExpectedDeliveryDate = viewModel.ExpectedDeliveryDate,
@@ -573,24 +817,31 @@ namespace InventorySystem.Controllers
 			try
 			{
 				var purchase = await _context.Purchases
-						.Include(p => p.Item)
-						.Include(p => p.Vendor)
-						.Include(p => p.Project)
-						.Include(p => p.PurchaseDocuments)
-						.FirstOrDefaultAsync(p => p.Id == id);
+								.Include(p => p.Item)
+								.Include(p => p.Vendor)
+								.Include(p => p.Project)
+								.Include(p => p.PurchaseDocuments)
+								.FirstOrDefaultAsync(p => p.Id == id);
 
 				if (purchase == null)
 				{
-					SetErrorMessage("Purchase not found."); // ✅ Using BaseController method
+					SetErrorMessage("Purchase not found.");
 					return RedirectToAction("Index");
 				}
+
+				// Load payment information
+				var accountsPayable = await _context.AccountsPayable
+						.Include(ap => ap.Payments)
+						.FirstOrDefaultAsync(ap => ap.PurchaseId == id);
+
+				ViewBag.AccountsPayable = accountsPayable;
 
 				return View(purchase);
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error loading purchase details: {PurchaseId}", id);
-				SetErrorMessage($"Error loading purchase details: {ex.Message}"); // ✅ Using BaseController method
+				SetErrorMessage($"Error loading purchase details: {ex.Message}");
 				return RedirectToAction("Index");
 			}
 		}
@@ -749,7 +1000,7 @@ namespace InventorySystem.Controllers
 
 				var viewModel = new MultiLinePurchaseViewModel
 				{
-					PurchaseDate = DateTime.Today,
+					PurchaseDate = DateTime.Now,
 					ExpectedDeliveryDate = DateTime.Today.AddDays(7),
 					Status = PurchaseStatus.Pending,
 					LineItems = new List<PurchaseLineItemViewModel>()
@@ -1069,6 +1320,7 @@ namespace InventorySystem.Controllers
 				//if (emailSuccess)
 				//{
 				//  SetSuccessMessage($"Purchase Order {model.PurchaseOrderNumber} emailed successfully to {model.VendorEmail}");
+
 				//}
 				//else
 				//{
@@ -1219,15 +1471,14 @@ namespace InventorySystem.Controllers
                         <td>{item.PartNumber}</td>
                         <td>{item.Description}</td>
                         <td>{item.Quantity}</td>
-                        <td>${item.UnitCost:F2}</td>
-                        <td>${item.LineTotal:F2}</td>
+                        <td>${item.LineTotal:F6}</td>
                     </tr>";
 			}
 
 			html += $@"
                     <tr class='total-row'>
                         <td colspan='4'><strong>TOTAL</strong></td>
-                        <td><strong>${viewModel.SubtotalAmount:F2}</strong></td>
+                        <td><strong>${viewModel.SubtotalAmount:F6}</strong></td>
                     </tr>
                 </tbody>
             </table>
@@ -1391,6 +1642,321 @@ namespace InventorySystem.Controllers
 				ItemType.RnDMaterials => "R&D Material",
 				_ => itemType.ToString()
 			};
+		}
+
+		// ============= GOODS RECEIVING FUNCTIONALITY =============
+
+		// GET: Purchases/ReceiveGoods/5 - Load the receiving modal
+		[HttpGet]
+		public async Task<IActionResult> GetReceiveGoodsModal(int id)
+		{
+			try
+			{
+				var purchase = await _context.Purchases
+					.Include(p => p.Item)
+					.Include(p => p.Vendor)
+					.FirstOrDefaultAsync(p => p.Id == id);
+
+				if (purchase == null)
+				{
+					return Json(new { success = false, message = "Purchase order not found" });
+				}
+
+				if (purchase.Status == PurchaseStatus.Received)
+				{
+					return Json(new { success = false, message = "Purchase order has already been received" });
+				}
+
+				if (purchase.Status == PurchaseStatus.Cancelled)
+				{
+					return Json(new { success = false, message = "Cannot receive a cancelled purchase order" });
+				}
+
+				var viewModel = new ReceivePurchaseViewModel
+				{
+					PurchaseId = purchase.Id,
+					PurchaseOrderNumber = purchase.PurchaseOrderNumber ?? "N/A",
+					VendorName = purchase.Vendor.CompanyName,
+					ItemPartNumber = purchase.Item.PartNumber,
+					ItemDescription = purchase.Item.Description,
+					QuantityOrdered = purchase.QuantityPurchased,
+					QuantityReceived = purchase.QuantityPurchased, // Default to full quantity
+					ReceivedDate = DateTime.Today,
+					ExpectedDeliveryDate = purchase.ExpectedDeliveryDate,
+					ReceivedBy = User.Identity?.Name ?? "User"
+				};
+
+				return PartialView("_ReceiveGoodsModal", viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading receive goods modal for purchase {PurchaseId}", id);
+				return Json(new { success = false, message = "Error loading receive modal" });
+			}
+		}
+
+		// POST: Purchases/ReceiveGoods - Process goods receipt
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<JsonResult> ReceiveGoods([FromBody] ReceiveGoodsRequest request)
+		{
+			try
+			{
+				var purchase = await _context.Purchases
+					.Include(p => p.Item)
+					.Include(p => p.Vendor)
+					.FirstOrDefaultAsync(p => p.Id == request.PurchaseId);
+
+				if (purchase == null)
+				{
+					return Json(new { success = false, message = "Purchase order not found" });
+				}
+
+				if (purchase.Status == PurchaseStatus.Received)
+				{
+					return Json(new { success = false, message = "Purchase order has already been received" });
+				}
+
+				// Validate received quantity
+				if (request.QuantityReceived <= 0)
+				{
+					return Json(new { success = false, message = "Received quantity must be greater than 0" });
+				}
+
+				if (request.QuantityReceived > purchase.QuantityPurchased && request.ReceiptType != "overage")
+				{
+					return Json(new { success = false, message = "Received quantity cannot exceed ordered quantity without selecting overage handling" });
+				}
+
+				// Handle different receiving scenarios
+				var result = request.ReceiptType.ToLower() switch
+				{
+					"complete" => await ReceiveComplete(purchase, request),
+					"partial" => await ReceivePartial(purchase, request),
+					"short" => await ReceiveShortClose(purchase, request),
+					"overage" => await ReceiveOverage(purchase, request),
+					_ => await ReceiveComplete(purchase, request) // Default to complete
+				};
+
+				if (result.Success)
+				{
+					return Json(new { 
+						success = true, 
+						message = result.Message,
+						redirectToIndex = true
+					});
+				}
+				else
+				{
+					return Json(new { success = false, message = result.Message });
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error receiving goods for purchase {PurchaseId}", request.PurchaseId);
+				return Json(new { success = false, message = $"Error processing receipt: {ex.Message}" });
+			}
+		}
+
+		// In ReceiveComplete method, REMOVE invoice number handling:
+		private async Task<(bool Success, string Message)> ReceiveComplete(Purchase purchase, ReceiveGoodsRequest request)
+		{
+			await _purchaseService.ReceivePurchaseAsync(
+					request.PurchaseId,
+					request.ReceivedDate,
+					request.ReceivedBy,
+					request.Notes);
+
+			// REMOVE this entire block:
+			// if (!string.IsNullOrEmpty(request.InvoiceNumber))
+			// {
+			//     purchase.InvoiceNumber = request.InvoiceNumber;
+			//     await _context.SaveChangesAsync();
+			// }
+
+			return (true, $"Purchase order {purchase.PurchaseOrderNumber} received successfully - {request.QuantityReceived} units");
+		}
+
+		// In ReceivePartial method, REMOVE invoice number handling:
+		private async Task<(bool Success, string Message)> ReceivePartial(Purchase purchase, ReceiveGoodsRequest request)
+		{
+			purchase.Item.CurrentStock += request.QuantityReceived;
+			purchase.ActualDeliveryDate = request.ReceivedDate;
+			purchase.RemainingQuantity = purchase.QuantityPurchased - request.QuantityReceived;
+			purchase.Status = PurchaseStatus.PartiallyReceived;
+
+			
+
+			var timestamp = DateTime.Now.ToString("MM/dd/yyyy HH:mm");
+			var receiveNote = $"[{timestamp}] Partially received {request.QuantityReceived} of {purchase.QuantityPurchased} units by {request.ReceivedBy}";
+			if (!string.IsNullOrEmpty(request.Notes)) receiveNote += $" - {request.Notes}";
+
+			purchase.Notes = string.IsNullOrEmpty(purchase.Notes) ? receiveNote : $"{purchase.Notes}\n{receiveNote}";
+
+			await _context.SaveChangesAsync();
+			await CreateSimpleAccountsPayable(purchase, request.QuantityReceived);
+
+			return (true, $"Partial receipt processed - {request.QuantityReceived} of {purchase.QuantityPurchased} units received. Remaining: {purchase.RemainingQuantity}");
+		}
+
+		// Helper method for short shipment (close PO)
+		private async Task<(bool Success, string Message)> ReceiveShortClose(Purchase purchase, ReceiveGoodsRequest request)
+		{
+			// Update inventory for received quantity
+			purchase.Item.CurrentStock += request.QuantityReceived;
+			purchase.ActualDeliveryDate = request.ReceivedDate;
+			purchase.Status = PurchaseStatus.Received; // Mark as complete even though short
+			
+			var shortageQty = purchase.QuantityPurchased - request.QuantityReceived;
+			
+			var timestamp = DateTime.Now.ToString("MM/dd/yyyy HH:mm");
+			var receiveNote = $"[{timestamp}] Short shipment: Received {request.QuantityReceived}, {shortageQty} units short. PO closed by {request.ReceivedBy}.";
+			if (!string.IsNullOrEmpty(request.Notes)) receiveNote += $" - {request.Notes}";
+			
+			purchase.Notes = string.IsNullOrEmpty(purchase.Notes) ? receiveNote : $"{purchase.Notes}\n{receiveNote}";
+			
+			await _context.SaveChangesAsync();
+			
+			// Create vendor shortage record
+			if (shortageQty > 0)
+			{
+				var shortage = new VendorShortage
+				{
+					VendorId = purchase.VendorId,
+					PurchaseId = purchase.Id,
+					ItemId = purchase.ItemId,
+					ShortageQuantity = shortageQty,
+					UnitCost = purchase.CostPerUnit,
+					TotalCostImpact = shortageQty * purchase.CostPerUnit,
+					ShortageDate = request.ReceivedDate,
+					Reason = "Short shipment - PO closed",
+					Status = "Open",
+					CreatedBy = request.ReceivedBy ?? "System"
+				};
+				
+				_context.VendorShortages.Add(shortage);
+				await _context.SaveChangesAsync();
+			}
+			
+			// Create A/P for received portion
+			await CreateSimpleAccountsPayable(purchase, request.QuantityReceived);
+			
+			return (true, $"Short shipment processed - {request.QuantityReceived} units received, {shortageQty} units written off as vendor shortage. PO closed.");
+		}
+
+		// Helper method for overage receipt
+		private async Task<(bool Success, string Message)> ReceiveOverage(Purchase purchase, ReceiveGoodsRequest request)
+		{
+			// Update inventory for received quantity (including overage)
+			purchase.Item.CurrentStock += request.QuantityReceived;
+			purchase.ActualDeliveryDate = request.ReceivedDate;
+			purchase.Status = PurchaseStatus.Received;
+			
+			var overageQty = request.QuantityReceived - purchase.QuantityPurchased;
+			
+			// Update purchase quantity to match received
+			purchase.QuantityPurchased = request.QuantityReceived;
+			purchase.RemainingQuantity = 0;
+			
+			
+			var timestamp = DateTime.Now.ToString("MM/dd/yyyy HH:mm");
+			var receiveNote = $"[{timestamp}] Overage received: {request.QuantityReceived} units (+{overageQty} over ordered) by {request.ReceivedBy}.";
+			if (!string.IsNullOrEmpty(request.Notes)) receiveNote += $" - {request.Notes}";
+			
+			purchase.Notes = string.IsNullOrEmpty(purchase.Notes) ? receiveNote : $"{purchase.Notes}\n{receiveNote}";
+			
+			await _context.SaveChangesAsync();
+			
+			// Create A/P for full received amount
+			await CreateSimpleAccountsPayable(purchase, request.QuantityReceived);
+			
+			return (true, $"Overage received - {request.QuantityReceived} units received (+{overageQty} overage). Purchase order updated.");
+		}
+
+		// Helper method to create simple A/P entry
+		private async Task CreateSimpleAccountsPayable(Purchase purchase, int actualQuantityReceived)
+		{
+			var existingAP = await _context.AccountsPayable
+				.FirstOrDefaultAsync(ap => ap.PurchaseId == purchase.Id);
+
+			if (existingAP != null) return;
+
+			try
+			{
+				var actualAmount = actualQuantityReceived * purchase.CostPerUnit + 
+				  (purchase.ShippingCost + purchase.TaxAmount) * (actualQuantityReceived / (decimal)purchase.QuantityPurchased);
+
+				var accountsPayable = new AccountsPayable
+				{
+					VendorId = purchase.VendorId,
+					PurchaseId = purchase.Id,
+					PurchaseOrderNumber = purchase.PurchaseOrderNumber ?? $"PO-{purchase.Id}",
+					// Handle invoice number from the receiving request if provided
+					VendorInvoiceNumber = null, // Will be updated later when actual invoice arrives
+					InvoiceDate = purchase.ActualDeliveryDate ?? DateTime.Today,
+					DueDate = DateTime.Today.AddDays(30),
+					InvoiceAmount = actualAmount,
+					PaymentStatus = PaymentStatus.Pending,
+					InvoiceReceived = false, // No invoice at receipt time
+					ApprovalStatus = InvoiceApprovalStatus.Pending,
+					Notes = "Auto-created from goods receipt",
+					CreatedBy = User.Identity?.Name ?? "System",
+					CreatedDate = DateTime.Now
+				};
+
+				await _accountingService.CreateAccountsPayableAsync(accountsPayable);
+				
+				_logger.LogInformation("Created A/P for purchase {PurchaseOrderNumber}, amount {Amount}",
+					purchase.PurchaseOrderNumber, accountsPayable.InvoiceAmount);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Failed to create A/P for purchase {PurchaseId}", purchase.Id);
+			}
+		}
+
+		// GET: Purchases/PendingReceipts - Show purchase orders awaiting receipt
+		[HttpGet]
+		public async Task<IActionResult> PendingReceipts()
+		{
+			try
+			{
+				var pendingPurchases = await _context.Purchases
+					.Include(p => p.Item)
+					.Include(p => p.Vendor)
+					.Where(p => p.Status == PurchaseStatus.Ordered || p.Status == PurchaseStatus.PartiallyReceived)
+					.OrderBy(p => p.ExpectedDeliveryDate ?? p.PurchaseDate)
+					.ToListAsync();
+
+				var viewModel = new PendingReceiptsViewModel
+				{
+					PendingPurchases = pendingPurchases,
+					TotalPendingValue = pendingPurchases.Sum(p => p.ExtendedTotal),
+					OverduePurchases = pendingPurchases
+						.Where(p => (p.ExpectedDeliveryDate ?? p.PurchaseDate.AddDays(7)) < DateTime.Today)
+						.ToList()
+				};
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading pending receipts");
+				SetErrorMessage("Error loading pending receipts");
+				return View(new PendingReceiptsViewModel());
+			}
+		}
+
+		// Request model for goods receiving
+		public class ReceiveGoodsRequest
+		{
+			public int PurchaseId { get; set; }
+			public int QuantityReceived { get; set; }
+			public DateTime ReceivedDate { get; set; } = DateTime.Today;
+			public string ReceiptType { get; set; } = "complete";
+			public string? VendorInvoiceNumber { get; set; } // RENAMED from InvoiceNumber
+			public string? ReceivedBy { get; set; }
+			public string? Notes { get; set; }
 		}
 	}
 }

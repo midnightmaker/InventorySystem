@@ -44,10 +44,6 @@ namespace InventorySystem.Models
 		[StringLength(100, ErrorMessage = "PO number cannot exceed 100 characters")]
 		public string? PurchaseOrderNumber { get; set; }
 
-		[Display(Name = "Vendor Invoice Number")]
-		[StringLength(100, ErrorMessage = "Invoice number cannot exceed 100 characters")]
-		public string? InvoiceNumber { get; set; }
-
 		[StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
 		public string? Notes { get; set; }
 
@@ -226,5 +222,9 @@ namespace InventorySystem.Models
 			ItemType.RnDMaterials => "warning",
 			_ => "secondary"
 		};
+
+		[NotMapped]
+		[Display(Name = "Payment Status")]
+		public PaymentStatus? PaymentStatus { get; set; }
 	}
 }

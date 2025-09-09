@@ -1,0 +1,299 @@
+@model InventorySystem.ViewModels.Accounting.CreateUpfrontPaymentViewModel
+@{
+    ViewData["Title"] = "Record Upfront Payment";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-credit-card"></i> Record Upfront Payment</h1>
+    <div class="btn-group">
+        <a href="@Url.Action("AccountsPayable")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Accounts Payable
+        </a>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-money-bill-wave"></i> Payment Information</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="CreateUpfrontPayment" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    
+                    <!-- Vendor Selection -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="VendorId" class="form-label">
+                                <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.VendorId)
+                            </label>
+                            <select asp-for="VendorId" class="form-select" onchange="updateVendorName()">
+                                <option value="">-- Select Vendor --</option>
+                                @foreach (var vendor in Model.AvailableVendors)
+                                {
+                                    <option value="@vendor.Id" data-name="@vendor.CompanyName">@vendor.CompanyName</option>
+                                }
+                            </select>
+                            <span asp-validation-for="VendorId" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="PaymentAmount" class="form-label">
+                                <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.PaymentAmount)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input asp-for="PaymentAmount" class="form-control" placeholder="0.00" />
+                            </div>
+                            <span asp-validation-for="PaymentAmount" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Date and Method -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="PaymentDate" class="form-label">
+                                <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.PaymentDate)
+                            </label>
+                            <input asp-for="PaymentDate" class="form-control" type="date" />
+                            <span asp-validation-for="PaymentDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="PaymentMethod" class="form-label">
+                                <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.PaymentMethod)
+                            </label>
+                            <select asp-for="PaymentMethod" class="form-select" onchange="showPaymentMethodFields()">
+                                <option value="Check">Check</option>
+                                <option value="ACH">ACH Transfer</option>
+                                <option value="Wire">Wire Transfer</option>
+                                <option value="CreditCard">Credit Card</option>
+                                <option value="Cash">Cash</option>
+                            </select>
+                            <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Purpose -->
+                    <div class="mb-3">
+                        <label asp-for="Purpose" class="form-label">
+                            <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Purpose)
+                        </label>
+                        <input asp-for="Purpose" class="form-control" placeholder="e.g., Deposit for future orders, Retainer payment, etc." />
+                        <span asp-validation-for="Purpose" class="text-danger"></span>
+                    </div>
+                    
+                    <!-- Payment Method Specific Fields -->
+                    
+                    <!-- Check Fields -->
+                    <div id="checkFields" class="payment-method-fields">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="ReferenceNumber" class="form-label">Check Number</label>
+                                <input asp-for="ReferenceNumber" class="form-control" placeholder="Check number" />
+                                <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="BankAccount" class="form-label">Bank Account</label>
+                                <input asp-for="BankAccount" class="form-control" placeholder="Account name or number" />
+                                <span asp-validation-for="BankAccount" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Credit Card Fields -->
+                    <div id="creditCardFields" class="payment-method-fields" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="CreditCardType" class="form-label">Card Type</label>
+                                <input asp-for="CreditCardType" class="form-control" placeholder="Visa, Mastercard, etc." />
+                                <span asp-validation-for="CreditCardType" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="CreditCardLast4" class="form-label">Last 4 Digits</label>
+                                <input asp-for="CreditCardLast4" class="form-control" placeholder="1234" maxlength="4" />
+                                <span asp-validation-for="CreditCardLast4" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="ReferenceNumber" class="form-label">Transaction ID</label>
+                                <input asp-for="ReferenceNumber" class="form-control" placeholder="Transaction reference" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Wire Transfer Fields -->
+                    <div id="wireFields" class="payment-method-fields" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="ReferenceNumber" class="form-label">Wire Confirmation Number</label>
+                                <input asp-for="ReferenceNumber" class="form-control" placeholder="Wire confirmation number" />
+                                <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="ReceivingBank" class="form-label">Receiving Bank</label>
+                                <input asp-for="ReceivingBank" class="form-control" placeholder="Bank name" />
+                                <span asp-validation-for="ReceivingBank" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ACH Fields -->
+                    <div id="achFields" class="payment-method-fields" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="ReferenceNumber" class="form-label">ACH Reference Number</label>
+                                <input asp-for="ReferenceNumber" class="form-control" placeholder="ACH reference" />
+                                <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="BankAccount" class="form-label">Bank Account</label>
+                                <input asp-for="BankAccount" class="form-control" placeholder="Account name or number" />
+                                <span asp-validation-for="BankAccount" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        <label asp-for="Notes" class="form-label">@Html.DisplayNameFor(m => m.Notes)</label>
+                        <textarea asp-for="Notes" class="form-control" rows="3" 
+                                  placeholder="Any additional notes about this payment..."></textarea>
+                        <span asp-validation-for="Notes" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="@Url.Action("AccountsPayable")" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Record Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Payment Summary -->
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Payment Summary</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-5">Vendor:</dt>
+                    <dd class="col-sm-7" id="selectedVendorName">Not selected</dd>
+                    
+                    <dt class="col-sm-5">Amount:</dt>
+                    <dd class="col-sm-7" id="paymentAmountDisplay">$0.00</dd>
+                    
+                    <dt class="col-sm-5">Method:</dt>
+                    <dd class="col-sm-7" id="paymentMethodDisplay">Check</dd>
+                    
+                    <dt class="col-sm-5">Date:</dt>
+                    <dd class="col-sm-7" id="paymentDateDisplay">@DateTime.Today.ToString("MM/dd/yyyy")</dd>
+                </dl>
+            </div>
+        </div>
+        
+        <!-- Information Card -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> About Upfront Payments</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    Upfront payments are advance payments made to vendors before receiving goods or services. 
+                    These can include deposits, retainers, or prepayments for future orders.
+                </p>
+                <p class="small text-muted">
+                    The system will create a placeholder purchase order and accounts payable entry 
+                    to track this payment until it's applied to actual invoices.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        function updateVendorName() {
+            const vendorSelect = document.getElementById('VendorId');
+            const selectedOption = vendorSelect.options[vendorSelect.selectedIndex];
+            const vendorName = selectedOption.getAttribute('data-name') || 'Not selected';
+            document.getElementById('selectedVendorName').textContent = vendorName;
+        }
+        
+        function showPaymentMethodFields() {
+            // Hide all payment method fields
+            document.querySelectorAll('.payment-method-fields').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            const paymentMethod = document.getElementById('PaymentMethod').value;
+            const methodDisplay = document.getElementById('paymentMethodDisplay');
+            
+            // Clear reference number and other fields
+            document.getElementById('ReferenceNumber').value = '';
+            document.getElementById('BankAccount').value = '';
+            document.getElementById('CreditCardType').value = '';
+            document.getElementById('CreditCardLast4').value = '';
+            document.getElementById('ReceivingBank').value = '';
+            
+            // Show appropriate fields and update display
+            switch (paymentMethod) {
+                case 'Check':
+                    document.getElementById('checkFields').style.display = 'block';
+                    methodDisplay.textContent = 'Check';
+                    break;
+                case 'CreditCard':
+                    document.getElementById('creditCardFields').style.display = 'block';
+                    methodDisplay.textContent = 'Credit Card';
+                    break;
+                case 'Wire':
+                    document.getElementById('wireFields').style.display = 'block';
+                    methodDisplay.textContent = 'Wire Transfer';
+                    break;
+                case 'ACH':
+                    document.getElementById('achFields').style.display = 'block';
+                    methodDisplay.textContent = 'ACH Transfer';
+                    break;
+                case 'Cash':
+                    methodDisplay.textContent = 'Cash';
+                    break;
+                default:
+                    methodDisplay.textContent = paymentMethod;
+            }
+        }
+        
+        // Update payment amount display
+        document.getElementById('PaymentAmount').addEventListener('input', function() {
+            const amount = parseFloat(this.value) || 0;
+            document.getElementById('paymentAmountDisplay').textContent = 
+                new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+        });
+        
+        // Update payment date display
+        document.getElementById('PaymentDate').addEventListener('change', function() {
+            const date = new Date(this.value);
+            document.getElementById('paymentDateDisplay').textContent = 
+                date.toLocaleDateString('en-US');
+        });
+        
+        // Initialize displays
+        showPaymentMethodFields();
+        updateVendorName();
+    </script>
+}

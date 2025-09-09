@@ -8,9 +8,10 @@ namespace InventorySystem.ViewModels
         public int SaleId { get; set; }
         
         // Product identification (read-only in edit)
-        public string ProductType { get; set; } = string.Empty; // "Item" or "FinishedGood"
+        public string ProductType { get; set; } = string.Empty; // "Item", "FinishedGood", or "ServiceType"
         public int? ItemId { get; set; }
         public int? FinishedGoodId { get; set; }
+        public int? ServiceTypeId { get; set; } // ADDED: Missing ServiceType support
         
         // Display information (read-only)
         public string ProductPartNumber { get; set; } = string.Empty;
@@ -30,7 +31,7 @@ namespace InventorySystem.ViewModels
         [Display(Name = "Notes")]
         public string? Notes { get; set; }
 
-        // ? Serial Number and Model Number fields
+        // Serial Number and Model Number fields
         [StringLength(100, ErrorMessage = "Serial number cannot exceed 100 characters")]
         [Display(Name = "Serial Number")]
         public string? SerialNumber { get; set; }

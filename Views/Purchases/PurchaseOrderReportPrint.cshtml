@@ -377,8 +377,8 @@
                     <td><strong>@item.PartNumber</strong></td>
                     <td>@item.Description</td>
                     <td class="text-center">@item.Quantity</td>
-                    <td class="text-right">$@item.UnitCost.ToString("N2")</td>
-                    <td class="text-right">$@item.LineTotal.ToString("N2")</td>
+                    <td class="text-right">$@item.UnitCost.ToString("N6")</td>
+                    <td class="text-right">$@item.LineTotal.ToString("N6")</td>
                     <td class="text-center">
                         <span class="status-badge status-@(item.Status.ToString().ToLower())">
                             @item.Status.ToString().Substring(0, 1)
@@ -394,14 +394,14 @@
                 <td colspan="5" class="text-right">
                     <strong>Subtotal (@Model.LineItemCount items, @Model.TotalQuantity total qty):</strong>
                 </td>
-                <td class="text-right"><strong>$@Model.SubtotalAmount.ToString("N2")</strong></td>
+                <td class="text-right"><strong>$@Model.SubtotalAmount.ToString("N6")</strong></td>
                 <td colspan="2"></td>
             </tr>
             @if (Model.TotalShipping > 0)
             {
                 <tr class="total-row">
                     <td colspan="5" class="text-right"><strong>Shipping:</strong></td>
-                    <td class="text-right"><strong>$@Model.TotalShipping.ToString("N2")</strong></td>
+                    <td class="text-right"><strong>$@Model.TotalShipping.ToString("N6")</strong></td>
                     <td colspan="2"></td>
                 </tr>
             }
@@ -409,13 +409,13 @@
             {
                 <tr class="total-row">
                     <td colspan="5" class="text-right"><strong>Tax:</strong></td>
-                    <td class="text-right"><strong>$@Model.TotalTax.ToString("N2")</strong></td>
+                    <td class="text-right"><strong>$@Model.TotalTax.ToString("N6")</strong></td>
                     <td colspan="2"></td>
                 </tr>
             }
             <tr class="grand-total-row">
                 <td colspan="5" class="text-right"><strong>GRAND TOTAL:</strong></td>
-                <td class="text-right"><strong>$@Model.GrandTotal.ToString("N2")</strong></td>
+                <td class="text-right"><strong>$@Model.GrandTotal.ToString("N6")</strong></td>
                 <td colspan="2"></td>
             </tr>
         </tfoot>

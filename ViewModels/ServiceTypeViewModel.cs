@@ -1,12 +1,13 @@
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
+using InventorySystem.Models.Interfaces;
 using InventorySystem.Services;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
 
 namespace InventorySystem.ViewModels
 {
-    public class ServiceTypeViewModel
+    public class ServiceTypeViewModel : ISellableEntity
     {
         public int Id { get; set; }
 
@@ -29,7 +30,7 @@ namespace InventorySystem.ViewModels
 
         [Display(Name = "Description")]
         [StringLength(500)]
-        public string? Description { get; set; }
+        public string? Description { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Standard hours is required")]
         [Display(Name = "Standard Hours")]
@@ -57,7 +58,6 @@ namespace InventorySystem.ViewModels
 		    [StringLength(10)]
 		    public string? PreferredRevenueAccountCode { get; set; }
 
-
 		    // NEW: Vendor options for dropdown
 		    public SelectList? VendorOptions { get; set; }
 
@@ -82,7 +82,6 @@ namespace InventorySystem.ViewModels
 				    ? $"{ServiceCode} - {ServiceName}"
 				    : ServiceName;
 
-		
 		    public decimal SalePrice => StandardHours * StandardRate;
 
 		    public bool IsSellable => IsActive;

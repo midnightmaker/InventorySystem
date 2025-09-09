@@ -315,6 +315,41 @@
       </div>
     }
 
+    <!-- Calibration History (if applicable) -->
+    @if (Model.RequiresInitialCalibration)
+    {
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5>Calibration History</h5>
+        </div>
+        <div class="card-body">
+          <div id="calibrationHistory">
+            <p>Loading calibration history...</p>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      // Simple AJAX call to load calibration history
+      fetch(`/Services/GetCalibrationHistory?serialNumber=${serialNumber}&finishedGoodId=${finishedGoodId}`)
+          .then(response => response.json())
+          .then(data => {
+              // Render calibration history with document links
+              document.getElementById('calibrationHistory').innerHTML = 
+                  data.calibrationHistory.map(cal => 
+                    `<div class="border-bottom py-2">
+                        <strong>${cal.ServiceOrderNumber}</strong> - ${cal.ServiceName} 
+                        (${new Date(cal.ServiceDate).toLocaleDateString()})
+                        <br>Documents: ${cal.DocumentCount}
+                        ${cal.Documents.map(doc => 
+                            `<a href="/Services/ViewDocument/${doc.Id}" target="_blank">${doc.DocumentName}</a>`
+                        ).join(', ')}
+                    </div>`
+                  ).join('');
+          });
+      </script>
+    }
+
   </div>
 </div>
 
