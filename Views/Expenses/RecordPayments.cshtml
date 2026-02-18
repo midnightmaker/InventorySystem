@@ -65,6 +65,11 @@
                         </div>
                     </div>
 
+                    <div class="alert alert-light border mb-3">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        <strong>Tip:</strong> Check the box next to each expense you want to record a payment for, then enter the amount paid and optionally attach a receipt.
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-hover" id="expensesTable">
                             <thead>
@@ -87,6 +92,8 @@
                                     var expense = Model.AvailableExpenses[i];
                                     var isSelected = Model.SelectedExpenses?.Any(s => s.ExpenseId == expense.Id && s.IsSelected) == true;
                                     var selectedExpense = Model.SelectedExpenses?.FirstOrDefault(s => s.ExpenseId == expense.Id);
+                                    var defaultVendorId = selectedExpense?.VendorId ?? expense.DefaultVendorId;
+                                    var defaultAmount = selectedExpense?.Amount ?? expense.DefaultAmount ?? 0;
 
                                     <tr data-vendor-id="@expense.DefaultVendorId" data-category="@expense.CategoryDisplayName">
                                         <td>
@@ -96,7 +103,7 @@
                                                    value="true" 
                                                    @(isSelected ? "checked" : "") 
                                                    onchange="toggleExpenseRow(this)" 
-                                                   class="expense-checkbox" />
+                                                   class="expense-checkbox form-check-input" />
                                             <input type="hidden" name="SelectedExpenses[@i].IsSelected" value="false" />
                                         </td>
                                         <td>
@@ -122,21 +129,22 @@
                                         </td>
                                         <td>
                                             <select name="SelectedExpenses[@i].VendorId" 
-                                                    class="form-select form-select-sm vendor-select"
-                                                    @(isSelected ? "" : "disabled")>
+                                                    class="form-select form-select-sm vendor-select">
                                                 <option value="">-- Select Vendor --</option>
                                                 @foreach (var vendor in Model.AvailableVendors)
                                                 {
-                                                    
-                                                    var isVendorSelected = (selectedExpense?.VendorId ?? expense.DefaultVendorId) == vendor.Id;
-                                                    
-                                                    <option value="@vendor.Id" selected="@isVendorSelected">
-                                                        @vendor.CompanyName
-                                                    </option>
+                                                    if (defaultVendorId == vendor.Id)
+                                                    {
+                                                        <option value="@vendor.Id" selected>@vendor.CompanyName</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@vendor.Id">@vendor.CompanyName</option>
+                                                    }
                                                 }
                                             </select>
                                         </td>
-                                        <td>
+                                        <td style="min-width: 140px;">
                                             <div class="input-group input-group-sm">
                                                 <span class="input-group-text">$</span>
                                                 <input type="number" 
@@ -144,8 +152,8 @@
                                                        class="form-control amount-input"
                                                        step="0.01" 
                                                        min="0.01"
-                                                       value="@(selectedExpense?.Amount ?? expense.DefaultAmount ?? 0)"
-                                                       @(isSelected ? "" : "disabled") />
+                                                       placeholder="0.00"
+                                                       value="@(defaultAmount > 0 ? defaultAmount.ToString("F2") : "")" />
                                             </div>
                                         </td>
                                         <td>
@@ -153,30 +161,26 @@
                                                    name="SelectedExpenses[@i].Notes" 
                                                    class="form-control form-control-sm notes-input"
                                                    placeholder="Payment notes..."
-                                                   value="@(selectedExpense?.Notes ?? "")"
-                                                   @(isSelected ? "" : "disabled") />
+                                                   value="@(selectedExpense?.Notes ?? "")" />
                                         </td>
                                         <td>
-                                            <div class="document-upload-section" @(isSelected ? "" : "style=display:none")>
+                                            <div class="document-upload-section" style="display: @(isSelected ? "block" : "none");">
                                                 <div class="mb-1">
                                                     <input type="file" 
                                                            name="SelectedExpenses[@i].DocumentFile" 
                                                            class="form-control form-control-sm document-file"
-                                                           accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.txt"
-                                                           @(isSelected ? "" : "disabled") />
+                                                           accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx,.txt" />
                                                 </div>
                                                 <div class="row">
                                                     <div class="col-6">
                                                         <input type="text" 
                                                                name="SelectedExpenses[@i].DocumentName" 
                                                                class="form-control form-control-sm document-name"
-                                                               placeholder="Document name"
-                                                               @(isSelected ? "" : "disabled") />
+                                                               placeholder="Document name" />
                                                     </div>
                                                     <div class="col-6">
                                                         <select name="SelectedExpenses[@i].DocumentType" 
-                                                                class="form-select form-select-sm document-type"
-                                                                @(isSelected ? "" : "disabled")>
+                                                                class="form-select form-select-sm document-type">
                                                             <option value="Receipt">Receipt</option>
                                                             <option value="Invoice">Invoice</option>
                                                             <option value="Bill">Bill</option>
@@ -187,6 +191,9 @@
                                                         </select>
                                                     </div>
                                                 </div>
+                                            </div>
+                                            <div class="document-placeholder text-muted small" style="display: @(isSelected ? "none" : "block");">
+                                                <i class="fas fa-upload"></i> Select row to upload
                                             </div>
                                         </td>
                                     </tr>
@@ -230,12 +237,13 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span id="selectedCount" class="text-muted">0 expenses selected</span>
+                            <span class="ms-3 fw-bold" id="selectedTotal"></span>
                         </div>
                         <div>
-                            <button type="submit" class="btn btn-success">
+                            <button type="submit" class="btn btn-success" id="submitBtn">
                                 <i class="fas fa-save"></i> Record Payments
                             </button>
                             <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
@@ -261,6 +269,16 @@
                     <p class="mb-0">Upload receipts, invoices, or other supporting documents for each payment.</p>
                 </div>
 
+                <h6><i class="fas fa-list-ol"></i> How to Use</h6>
+                <ol class="small">
+                    <li>Check the box next to each expense you want to record</li>
+                    <li>Select the vendor you paid</li>
+                    <li>Enter the amount paid</li>
+                    <li>Optionally attach a receipt or document</li>
+                    <li>Set the payment date and method below</li>
+                    <li>Click <strong>Record Payments</strong></li>
+                </ol>
+
                 <h6><i class="fas fa-file-upload"></i> Document Guidelines</h6>
                 <ul class="list-unstyled small">
                     <li><i class="fas fa-check text-success"></i> PDF files preferred</li>
@@ -274,7 +292,7 @@
                     <li><i class="fas fa-money-bill"></i> Cash</li>
                     <li><i class="fas fa-money-check"></i> Check</li>
                     <li><i class="fas fa-credit-card"></i> Credit Card</li>
-                    <li class="fas fa-university"></i> Bank Transfer</li>
+                    <li><i class="fas fa-university"></i> Bank Transfer</li>
                     <li><i class="fas fa-globe"></i> Online Payment</li>
                 </ul>
             </div>
@@ -288,26 +306,51 @@
             const row = checkbox.closest('tr');
             const isChecked = checkbox.checked;
             
-            // Enable/disable all inputs in the row
-            const inputs = row.querySelectorAll('select, input:not([type="checkbox"]):not([type="hidden"])');
-            inputs.forEach(input => {
+            // Enable/disable vendor select, amount input, notes input
+            const vendorSelect = row.querySelector('.vendor-select');
+            const amountInput = row.querySelector('.amount-input');
+            const notesInput = row.querySelector('.notes-input');
+            
+            if (vendorSelect) vendorSelect.disabled = !isChecked;
+            if (amountInput) amountInput.disabled = !isChecked;
+            if (notesInput) notesInput.disabled = !isChecked;
+
+            // Enable/disable document inputs
+            const docInputs = row.querySelectorAll('.document-file, .document-name, .document-type');
+            docInputs.forEach(input => {
                 input.disabled = !isChecked;
             });
             
             // Show/hide document upload section
             const documentSection = row.querySelector('.document-upload-section');
+            const documentPlaceholder = row.querySelector('.document-placeholder');
             if (documentSection) {
                 documentSection.style.display = isChecked ? 'block' : 'none';
             }
+            if (documentPlaceholder) {
+                documentPlaceholder.style.display = isChecked ? 'none' : 'block';
+            }
+
+            // Highlight selected row
+            if (isChecked) {
+                row.classList.add('table-active');
+            } else {
+                row.classList.remove('table-active');
+            }
             
             updateSelectedCount();
+            updateSelectedTotal();
         }
 
         function toggleAll(checkbox) {
             const expenseCheckboxes = document.querySelectorAll('.expense-checkbox');
             expenseCheckboxes.forEach(cb => {
-                cb.checked = checkbox.checked;
-                toggleExpenseRow(cb);
+                // Only toggle visible rows (respect filters)
+                const row = cb.closest('tr');
+                if (row.style.display !== 'none') {
+                    cb.checked = checkbox.checked;
+                    toggleExpenseRow(cb);
+                }
             });
         }
 
@@ -328,6 +371,24 @@
             document.getElementById('selectedCount').textContent = `${selectedCount} expense${selectedCount !== 1 ? 's' : ''} selected`;
         }
 
+        function updateSelectedTotal() {
+            let total = 0;
+            document.querySelectorAll('.expense-checkbox:checked').forEach(cb => {
+                const row = cb.closest('tr');
+                const amountInput = row.querySelector('.amount-input');
+                if (amountInput && amountInput.value) {
+                    total += parseFloat(amountInput.value) || 0;
+                }
+            });
+
+            const totalEl = document.getElementById('selectedTotal');
+            if (total > 0) {
+                totalEl.textContent = `Total: $${total.toFixed(2)}`;
+            } else {
+                totalEl.textContent = '';
+            }
+        }
+
         // Auto-populate document name from file name
         document.addEventListener('change', function(e) {
             if (e.target.classList.contains('document-file') && e.target.files.length > 0) {
@@ -339,6 +400,18 @@
                     const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
                     documentNameInput.value = fileName;
                 }
+            }
+
+            // Update total when amount changes
+            if (e.target.classList.contains('amount-input')) {
+                updateSelectedTotal();
+            }
+        });
+
+        // Also update total on input (for typing)
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('amount-input')) {
+                updateSelectedTotal();
             }
         });
 
@@ -364,12 +437,13 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            updateSelectedCount();
-            
-            // Initialize row states
+            // Initialize row states based on checkbox status
             document.querySelectorAll('.expense-checkbox').forEach(checkbox => {
                 toggleExpenseRow(checkbox);
             });
+
+            updateSelectedCount();
+            updateSelectedTotal();
         });
     </script>
 
@@ -399,6 +473,20 @@
 
         .input-group-sm > .input-group-text {
             font-size: 0.875rem;
+        }
+
+        tr.table-active {
+            background-color: #e8f4fd !important;
+        }
+
+        .expense-checkbox {
+            cursor: pointer;
+            width: 1.2em;
+            height: 1.2em;
+        }
+
+        .document-placeholder {
+            font-style: italic;
         }
     </style>
 }
