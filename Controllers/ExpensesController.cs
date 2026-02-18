@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Controllers
 {
-    public class ExpensesController : BaseController // ✅ Changed from Controller to BaseController
+    public class ExpensesController : BaseController
     {
         private readonly InventoryContext _context;
         private readonly ILogger<ExpensesController> _logger;
@@ -21,10 +21,10 @@ namespace InventorySystem.Controllers
         {
             _context = context;
             _logger = logger;
-            _accountingService = accountingService; // Add this
+            _accountingService = accountingService;
         }
 
-        // ✅ FIXED: GET: /Expenses/Pay (Route alias for PayExpenses)
+        // GET: /Expenses/Pay (Route alias for PayExpenses)
         [HttpGet]
         public async Task<IActionResult> Pay()
         {
@@ -55,7 +55,6 @@ namespace InventorySystem.Controllers
                     PaymentMethod = "Check"
                 };
 
-                // ✅ Explicitly specify to use the PayExpenses view
                 return View("PayExpenses", viewModel);
             }
             catch (Exception ex)
@@ -78,13 +77,11 @@ namespace InventorySystem.Controllers
         {
             try
             {
-                // ✅ FIXED: Include DefaultVendor navigation property
                 var query = _context.Expenses
                     .Include(e => e.DefaultVendor)
                     .Where(e => e.IsActive)
                     .AsQueryable();
 
-                // Apply search filter
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     var searchTerm = search.Trim();
@@ -95,14 +92,12 @@ namespace InventorySystem.Controllers
                     );
                 }
 
-                // Apply category filter
-                if (!string.IsNullOrWhiteSpace(categoryFilter) && 
+                if (!string.IsNullOrWhiteSpace(categoryFilter) &&
                     Enum.TryParse<ExpenseCategory>(categoryFilter, out var category))
                 {
                     query = query.Where(e => e.Category == category);
                 }
 
-                // Apply sorting
                 query = sortOrder switch
                 {
                     "code_asc" => query.OrderBy(e => e.ExpenseCode),
@@ -123,7 +118,6 @@ namespace InventorySystem.Controllers
                     .Take(pageSize)
                     .ToListAsync();
 
-                // Prepare ViewBag data
                 ViewBag.CurrentPage = page;
                 ViewBag.TotalPages = totalPages;
                 ViewBag.TotalCount = totalCount;
@@ -134,7 +128,6 @@ namespace InventorySystem.Controllers
                 ViewBag.ShowingFrom = totalCount > 0 ? skip + 1 : 0;
                 ViewBag.ShowingTo = Math.Min(skip + pageSize, totalCount);
 
-                // Category options for dropdown
                 var categories = Enum.GetValues<ExpenseCategory>().ToList();
                 ViewBag.CategoryOptions = new SelectList(categories.Select(c => new
                 {
@@ -147,7 +140,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading expenses");
-                SetErrorMessage("Error loading expenses."); // ✅ Using BaseController method
+                SetErrorMessage("Error loading expenses.");
                 return View(new List<Expense>());
             }
         }
@@ -176,7 +169,6 @@ namespace InventorySystem.Controllers
                         Text = tc.GetDisplayName()
                     }).ToList();
 
-                // ✅ NEW: Get expense accounts and create category-to-account mapping
                 var expenseAccounts = await _accountingService.GetExpenseAccountsAsync();
                 var expenseAccountList = expenseAccounts.Select(a => new SelectListItem
                 {
@@ -184,7 +176,6 @@ namespace InventorySystem.Controllers
                     Text = $"{a.AccountCode} - {a.AccountName}"
                 }).ToList();
 
-                // Create suggestions mapping for JavaScript
                 var accountSuggestions = new Dictionary<string, int?>();
                 foreach (ExpenseCategory category in Enum.GetValues<ExpenseCategory>())
                 {
@@ -203,7 +194,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading create expense form");
-                SetErrorMessage("Error loading form."); // ✅ Using BaseController method
+                SetErrorMessage("Error loading form.");
                 return RedirectToAction("Index");
             }
         }
@@ -215,7 +206,6 @@ namespace InventorySystem.Controllers
         {
             if (ModelState.IsValid)
             {
-                // Validate that the selected account is an expense account
                 var selectedAccount = await _accountingService.GetAccountByIdAsync(model.LedgerAccountId);
                 if (selectedAccount == null || selectedAccount.AccountType != AccountType.Expense)
                 {
@@ -228,7 +218,7 @@ namespace InventorySystem.Controllers
                         ExpenseCode = model.ExpenseCode,
                         Description = model.Description,
                         Category = model.Category,
-                        LedgerAccountId = model.LedgerAccountId, // ✅ NEW
+                        LedgerAccountId = model.LedgerAccountId,
                         TaxCategory = model.TaxCategory,
                         UnitOfMeasure = model.UnitOfMeasure,
                         DefaultAmount = model.DefaultAmount,
@@ -248,7 +238,6 @@ namespace InventorySystem.Controllers
                 }
             }
 
-            // Reload ViewBag data on validation failure
             await LoadCreateViewBagData();
             return View(model);
         }
@@ -303,15 +292,14 @@ namespace InventorySystem.Controllers
                 var defaultStartDate = startDate ?? new DateTime(DateTime.Now.Year, 1, 1);
                 var defaultEndDate = endDate ?? DateTime.Now;
 
-                _logger.LogInformation("Generating expense reports from {StartDate} to {EndDate}, Category: {Category}", 
+                _logger.LogInformation("Generating expense reports from {StartDate} to {EndDate}, Category: {Category}",
                     defaultStartDate, defaultEndDate, expenseCategory);
 
-                // Include Documents in the query
                 var expensePaymentsQuery = _context.ExpensePayments
                     .Include(ep => ep.Expense)
                     .Include(ep => ep.Vendor)
                     .Include(ep => ep.Project)
-                    .Include(ep => ep.Documents) // Add this line
+                    .Include(ep => ep.Documents)
                     .Where(ep => ep.PaymentDate >= defaultStartDate && ep.PaymentDate <= defaultEndDate);
 
                 if (expenseCategory != "All")
@@ -324,10 +312,9 @@ namespace InventorySystem.Controllers
 
                 var expensePayments = await expensePaymentsQuery.ToListAsync();
 
-                // Add document status analysis
                 var paymentsWithoutDocuments = expensePayments.Where(ep => !ep.Documents.Any()).ToList();
-                var documentComplianceRate = expensePayments.Count > 0 
-                    ? ((double)(expensePayments.Count - paymentsWithoutDocuments.Count) / expensePayments.Count) * 100 
+                var documentComplianceRate = expensePayments.Count > 0
+                    ? ((double)(expensePayments.Count - paymentsWithoutDocuments.Count) / expensePayments.Count) * 100
                     : 0;
 
                 var totalExpenses = expensePayments.Sum(ep => ep.TotalAmount);
@@ -392,8 +379,6 @@ namespace InventorySystem.Controllers
                     MonthlyExpenses = monthlyExpenses,
                     TopVendors = topVendors,
                     RecentExpensePayments = recentExpenses,
-                    
-                    // Add new properties for document tracking
                     PaymentsWithoutDocuments = paymentsWithoutDocuments,
                     DocumentComplianceRate = documentComplianceRate,
                     TotalPaymentsNeedingDocuments = paymentsWithoutDocuments.Count
@@ -404,7 +389,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating expense reports");
-                SetErrorMessage("An error occurred while generating the expense report."); // ✅ Using BaseController method
+                SetErrorMessage("An error occurred while generating the expense report.");
                 return View(new ExpenseReportsViewModel());
             }
         }
@@ -414,40 +399,31 @@ namespace InventorySystem.Controllers
         {
             try
             {
-                // Default to current year if no dates provided
                 var defaultStartDate = startDate ?? new DateTime(DateTime.Now.Year, 1, 1);
                 var defaultEndDate = endDate ?? DateTime.Now;
 
-                _logger.LogInformation("Generating income statement from {StartDate} to {EndDate}", 
+                _logger.LogInformation("Generating income statement from {StartDate} to {EndDate}",
                     defaultStartDate, defaultEndDate);
 
-                // Get all sales within date range
                 var sales = await _context.Sales
                     .Include(s => s.SaleItems)
                     .ThenInclude(si => si.Item)
                     .Where(s => s.SaleDate >= defaultStartDate && s.SaleDate <= defaultEndDate)
                     .ToListAsync();
 
-                // Calculate revenue
                 var totalRevenue = sales.Sum(s => s.TotalAmount);
                 var totalProfit = sales.Sum(s => s.SaleItems?.Sum(si => si.Profit) ?? 0);
-
-                // Calculate Cost of Goods Sold (COGS)
                 var cogs = sales.Sum(s => s.SaleItems?.Sum(si => si.UnitCost * si.QuantitySold) ?? 0);
 
-                // UPDATED: Get operating expenses from ExpensePayments table
                 var operatingExpenses = await _context.ExpensePayments
                     .Include(ep => ep.Expense)
                     .Where(ep => ep.PaymentDate >= defaultStartDate && ep.PaymentDate <= defaultEndDate)
                     .ToListAsync();
 
                 var totalOperatingExpenses = operatingExpenses.Sum(ep => ep.TotalAmount);
-
-                // Calculate net income
                 var grossProfit = totalRevenue - cogs;
                 var netIncome = grossProfit - totalOperatingExpenses;
 
-                // UPDATED: Break down operating expenses by ExpenseCategory
                 var expenseBreakdown = operatingExpenses
                     .GroupBy(ep => ep.Expense.Category)
                     .Select(g => new ExpenseCategoryData
@@ -478,12 +454,12 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating income statement");
-                SetErrorMessage("An error occurred while generating the income statement."); // ✅ Using BaseController method
+                SetErrorMessage("An error occurred while generating the income statement.");
                 return View(new IncomeStatementViewModel());
             }
         }
 
-        // GET: /Expenses/TaxReports  
+        // GET: /Expenses/TaxReports
         public async Task<IActionResult> TaxReports(int year = 0)
         {
             try
@@ -507,7 +483,7 @@ namespace InventorySystem.Controllers
                         TaxCategory = g.Key,
                         TotalAmount = g.Sum(ep => ep.TotalAmount),
                         TransactionCount = g.Count(),
-                        ExpensePayments = g.ToList() // Store ExpensePayment objects directly
+                        ExpensePayments = g.ToList()
                     })
                     .OrderByDescending(x => x.TotalAmount)
                     .ToList();
@@ -543,7 +519,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating tax reports");
-                SetErrorMessage("An error occurred while generating the tax report."); // ✅ Using BaseController method
+                SetErrorMessage("An error occurred while generating the tax report.");
                 return View(new TaxReportsViewModel());
             }
         }
@@ -583,7 +559,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading pay expenses page");
-                SetErrorMessage("Error loading expenses for payment."); // ✅ Using BaseController method
+                SetErrorMessage("Error loading expenses for payment.");
                 return RedirectToAction("Index");
             }
         }
@@ -602,10 +578,10 @@ namespace InventorySystem.Controllers
             try
             {
                 var selectedExpenses = model.SelectedExpenses?.Where(e => e.IsSelected) ?? Enumerable.Empty<SelectedExpenseViewModel>();
-                
+
                 if (!selectedExpenses.Any())
                 {
-                    SetErrorMessage("Please select at least one expense to pay."); // ✅ Using BaseController method
+                    SetErrorMessage("Please select at least one expense to pay.");
                     await ReloadPayExpensesData(model);
                     return View("PayExpenses", model);
                 }
@@ -634,14 +610,12 @@ namespace InventorySystem.Controllers
                         };
 
                         _context.ExpensePayments.Add(expensePayment);
-                        await _context.SaveChangesAsync(); // Save to get the ID
+                        await _context.SaveChangesAsync();
 
-                        // ✅ Generate journal entries for the expense payment
                         var journalSuccess = await _accountingService.GenerateJournalEntriesForExpensePaymentAsync(expensePayment);
                         if (!journalSuccess)
                         {
                             _logger.LogWarning("Failed to generate journal entries for expense payment {PaymentId}", expensePayment.Id);
-                            // Continue anyway - don't fail the payment recording due to journal entry issues
                         }
 
                         paymentsCreated++;
@@ -649,7 +623,7 @@ namespace InventorySystem.Controllers
 
                     await transaction.CommitAsync();
 
-                    SetSuccessMessage($"Successfully processed {paymentsCreated} expense payment(s)!"); // ✅ Using BaseController method
+                    SetSuccessMessage($"Successfully processed {paymentsCreated} expense payment(s)!");
                     return RedirectToAction("Index");
                 }
                 catch
@@ -661,13 +635,13 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing expense payments");
-                SetErrorMessage("Error processing payments. Please try again."); // ✅ Using BaseController method
+                SetErrorMessage("Error processing payments. Please try again.");
                 await ReloadPayExpensesData(model);
                 return View("PayExpenses", model);
             }
         }
 
-        // GET: /Expenses/Details/5 - Use correct navigation property name
+        // GET: /Expenses/Details/5
         public async Task<IActionResult> Details(int id)
         {
             try
@@ -677,7 +651,7 @@ namespace InventorySystem.Controllers
                     .Include(e => e.Payments)
                         .ThenInclude(ep => ep.Vendor)
                     .Include(e => e.Payments)
-                        .ThenInclude(ep => ep.Documents) // Add this line to include documents
+                        .ThenInclude(ep => ep.Documents)
                     .FirstOrDefaultAsync(e => e.Id == id);
 
                 if (expense == null)
@@ -704,7 +678,7 @@ namespace InventorySystem.Controllers
                 var expense = await _context.Expenses.FindAsync(id);
                 if (expense == null)
                 {
-                    SetErrorMessage("Expense not found."); // ✅ Using BaseController method
+                    SetErrorMessage("Expense not found.");
                     return RedirectToAction("Index");
                 }
 
@@ -726,7 +700,7 @@ namespace InventorySystem.Controllers
                     RecurringFrequency = expense.RecurringFrequency,
                     Comments = expense.Comments,
                     IsActive = expense.IsActive,
-                    CreatedDate = expense.CreatedDate // ✅ Add this for display
+                    CreatedDate = expense.CreatedDate
                 };
 
                 ViewBag.Categories = new SelectList(Enum.GetValues<ExpenseCategory>().Select(c => new
@@ -742,7 +716,7 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading expense for edit: {ExpenseId}", id);
-                SetErrorMessage("Error loading expense."); // ✅ Using BaseController method
+                SetErrorMessage("Error loading expense.");
                 return RedirectToAction("Index");
             }
         }
@@ -768,7 +742,7 @@ namespace InventorySystem.Controllers
                 var expense = await _context.Expenses.FindAsync(id);
                 if (expense == null)
                 {
-                    SetErrorMessage("Expense not found."); // ✅ Using BaseController method
+                    SetErrorMessage("Expense not found.");
                     return RedirectToAction("Index");
                 }
 
@@ -786,25 +760,24 @@ namespace InventorySystem.Controllers
 
                 await _context.SaveChangesAsync();
 
-                SetSuccessMessage("Expense updated successfully!"); // ✅ Using BaseController method
+                SetSuccessMessage("Expense updated successfully!");
                 return RedirectToAction("Details", new { id });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating expense: {ExpenseId}", id);
-                SetErrorMessage("Error updating expense."); // ✅ Using BaseController method
+                SetErrorMessage("Error updating expense.");
                 await ReloadEditViewData(model);
                 return View(model);
             }
         }
 
-        // GET: /Expenses/RecordPayment?expenseId=1 (Record payment for a specific expense)
+        // GET: /Expenses/RecordPayment?expenseId=1
         [HttpGet]
         public async Task<IActionResult> RecordPayment(int expenseId)
         {
             try
             {
-                // Get the specific expense to record payment for
                 var expense = await _context.Expenses
                     .Include(e => e.DefaultVendor)
                     .FirstOrDefaultAsync(e => e.Id == expenseId && e.IsActive);
@@ -815,7 +788,6 @@ namespace InventorySystem.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // Get all vendors for the dropdown
                 var vendors = await _context.Vendors
                     .Where(v => v.IsActive)
                     .OrderBy(v => v.CompanyName)
@@ -826,7 +798,6 @@ namespace InventorySystem.Controllers
                     .Distinct()
                     .ToList();
 
-                // Create view model with just this one expense pre-selected
                 var selectedExpenses = new List<SelectedExpenseViewModel>
                 {
                     new SelectedExpenseViewModel
@@ -849,7 +820,6 @@ namespace InventorySystem.Controllers
                     SelectedExpenses = selectedExpenses
                 };
 
-                // Use the RecordPayments view with pre-populated data
                 return View("RecordPayments", viewModel);
             }
             catch (Exception ex)
@@ -915,8 +885,9 @@ namespace InventorySystem.Controllers
 
             try
             {
-                var selectedExpenses = model.SelectedExpenses?.Where(e => e.IsSelected) ?? Enumerable.Empty<SelectedExpenseViewModel>();
-                
+                var selectedExpenses = model.SelectedExpenses?.Where(e => e.IsSelected).ToList()
+                    ?? new List<SelectedExpenseViewModel>();
+
                 if (!selectedExpenses.Any())
                 {
                     SetErrorMessage("Please select at least one expense to record payment for.");
@@ -924,13 +895,31 @@ namespace InventorySystem.Controllers
                     return View(model);
                 }
 
-                var paymentsCreated = 0;
-                using var transaction = await _context.Database.BeginTransactionAsync();
+                // Bug Fix 1: Pre-read all IFormFile streams BEFORE the transaction starts.
+                // IFormFile streams can only be read once and may be exhausted or disposed
+                // by the time SaveChangesAsync flushes inside the transaction.
+                var documentDataCache = new Dictionary<int, (byte[] Data, string FileName, string ContentType, long FileSize)>();
+                for (int i = 0; i < selectedExpenses.Count; i++)
+                {
+                    var se = selectedExpenses[i];
+                    if (se.DocumentFile != null && se.DocumentFile.Length > 0)
+                    {
+                        using var ms = new MemoryStream();
+                        await se.DocumentFile.CopyToAsync(ms);
+                        documentDataCache[i] = (ms.ToArray(), se.DocumentFile.FileName, se.DocumentFile.ContentType, se.DocumentFile.Length);
+                    }
+                }
 
+                var paymentsCreated = 0;
+                // Track index → payment so we can attach documents after the transaction commits.
+                var createdPayments = new List<(int SelectedIndex, ExpensePayment Payment)>();
+
+                using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    foreach (var selectedExpense in selectedExpenses)
+                    for (int i = 0; i < selectedExpenses.Count; i++)
                     {
+                        var selectedExpense = selectedExpenses[i];
                         if (!selectedExpense.VendorId.HasValue || selectedExpense.Amount <= 0)
                             continue;
 
@@ -950,33 +939,45 @@ namespace InventorySystem.Controllers
                         _context.ExpensePayments.Add(expensePayment);
                         await _context.SaveChangesAsync(); // Save to get the ID
 
-                        // ✅ Generate journal entries for the expense payment
                         var journalSuccess = await _accountingService.GenerateJournalEntriesForExpensePaymentAsync(expensePayment);
                         if (!journalSuccess)
                         {
                             _logger.LogWarning("Failed to generate journal entries for expense payment {PaymentId}", expensePayment.Id);
-                            // Continue anyway - don't fail the payment recording due to journal entry issues
                         }
 
-                        // Handle document upload if provided
-                        if (selectedExpense.DocumentFile != null && selectedExpense.DocumentFile.Length > 0)
-                        {
-                            await ProcessDocumentUpload(selectedExpense.DocumentFile, expensePayment.Id, selectedExpense.DocumentName, selectedExpense.DocumentType);
-                        }
-
+                        createdPayments.Add((i, expensePayment));
                         paymentsCreated++;
                     }
 
                     await transaction.CommitAsync();
-
-                    SetSuccessMessage($"Successfully recorded {paymentsCreated} expense payment(s)!");
-                    return RedirectToAction("Index");
                 }
                 catch
                 {
                     await transaction.RollbackAsync();
                     throw;
                 }
+
+                // Bug Fix 1 (continued): Attach documents AFTER the transaction has committed
+                // using pre-read byte arrays so the file-stream-already-read issue is avoided.
+                foreach (var (selectedIndex, expensePayment) in createdPayments)
+                {
+                    if (documentDataCache.TryGetValue(selectedIndex, out var docData))
+                    {
+                        var se = selectedExpenses[selectedIndex];
+                        await ProcessDocumentUploadFromBytes(
+                            docData.Data, docData.FileName, docData.ContentType, docData.FileSize,
+                            expensePayment.Id, se.DocumentName, se.DocumentType);
+                    }
+                }
+
+                SetSuccessMessage($"Successfully recorded {paymentsCreated} expense payment(s)!");
+
+                // Bug Fix 3: Redirect to Details of the first recorded expense instead of Index.
+                var firstExpenseId = createdPayments.FirstOrDefault().Payment?.ExpenseId;
+                if (firstExpenseId.HasValue && firstExpenseId.Value > 0)
+                    return RedirectToAction("Details", new { id = firstExpenseId.Value });
+
+                return RedirectToAction("Index");
             }
             catch (Exception ex)
             {
@@ -986,8 +987,6 @@ namespace InventorySystem.Controllers
                 return View(model);
             }
         }
-
-        // Add these methods to the ExpensesController class (after the RecordPayments methods)
 
         // GET: /Expenses/UploadDocument?expensePaymentId=1
         [HttpGet]
@@ -1052,20 +1051,14 @@ namespace InventorySystem.Controllers
                     return View(viewModel);
                 }
 
-                // Validate file size (25MB limit)
                 var maxFileSize = 25 * 1024 * 1024;
                 if (viewModel.DocumentFile.Length > maxFileSize)
-                {
                     ModelState.AddModelError("DocumentFile", "File size cannot exceed 25MB.");
-                }
 
-                // Validate file type
                 var fileExtension = Path.GetExtension(viewModel.DocumentFile.FileName).ToLowerInvariant();
                 var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".zip" };
                 if (!allowedExtensions.Contains(fileExtension))
-                {
                     ModelState.AddModelError("DocumentFile", "File type not allowed. Please check the supported file types.");
-                }
 
                 if (!ModelState.IsValid)
                 {
@@ -1075,7 +1068,6 @@ namespace InventorySystem.Controllers
                     return View(viewModel);
                 }
 
-                // Read file data
                 byte[] fileData;
                 using (var memoryStream = new MemoryStream())
                 {
@@ -1083,10 +1075,9 @@ namespace InventorySystem.Controllers
                     fileData = memoryStream.ToArray();
                 }
 
-                // Create document using existing PurchaseDocument model
                 var document = new PurchaseDocument
                 {
-                    ExpensePaymentId = viewModel.ExpensePaymentId, // Link to expense payment
+                    ExpensePaymentId = viewModel.ExpensePaymentId,
                     DocumentName = viewModel.DocumentName,
                     DocumentType = viewModel.DocumentType,
                     Description = viewModel.Description,
@@ -1104,7 +1095,10 @@ namespace InventorySystem.Controllers
                     document.Id, viewModel.ExpensePaymentId);
 
                 SetSuccessMessage($"Document '{viewModel.DocumentName}' uploaded successfully!");
-                return RedirectToAction("Reports");
+
+                // Bug Fix 2: Redirect to the expense Details page so the user sees
+                // the uploaded document, instead of the generic Reports page.
+                return RedirectToAction("Details", new { id = expensePayment.ExpenseId });
             }
             catch (Exception ex)
             {
@@ -1127,7 +1121,6 @@ namespace InventorySystem.Controllers
                     return RedirectToAction("Reports");
                 }
 
-                // Check if the document is previewable
                 var fileExtension = Path.GetExtension(document.FileName).ToLowerInvariant();
                 var previewableTypes = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" };
 
@@ -1137,16 +1130,14 @@ namespace InventorySystem.Controllers
                     return RedirectToAction("Reports");
                 }
 
-                // For images, return the image directly
                 if (new[] { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }.Contains(fileExtension))
                 {
                     return File(document.DocumentData, document.ContentType);
                 }
 
-                // For PDFs, return with inline disposition
                 if (document.ContentType == "application/pdf")
                 {
-                    Response.Headers.Add("Content-Disposition", "inline");
+                    Response.Headers.Append("Content-Disposition", "inline");
                 }
 
                 return File(document.DocumentData, document.ContentType);
@@ -1197,8 +1188,7 @@ namespace InventorySystem.Controllers
                 }
 
                 var expensePaymentId = document.ExpensePaymentId;
-                
-                // Get the expense ID for redirect
+
                 var expensePayment = await _context.ExpensePayments
                     .FirstOrDefaultAsync(ep => ep.Id == expensePaymentId);
 
@@ -1207,13 +1197,12 @@ namespace InventorySystem.Controllers
 
                 _logger.LogInformation("Expense document deleted: {DocumentId} from ExpensePaymentId: {ExpensePaymentId}", id, expensePaymentId);
                 SetSuccessMessage("Document deleted successfully.");
-                
-                // Redirect back to the expense details if we have an expense, otherwise to reports
+
                 if (expensePayment?.ExpenseId != null)
                 {
                     return RedirectToAction("Details", new { id = expensePayment.ExpenseId });
                 }
-                
+
                 return RedirectToAction("Reports");
             }
             catch (Exception ex)
@@ -1224,20 +1213,21 @@ namespace InventorySystem.Controllers
             }
         }
 
-        // Helper method for document processing
-        private async Task ProcessDocumentUpload(IFormFile documentFile, int expensePaymentId, string? documentName, string? documentType)
+        // Helper: upload a document using pre-read byte array (safe to call outside a DB transaction)
+        private async Task ProcessDocumentUploadFromBytes(
+            byte[] fileData, string fileName, string contentType, long fileSize,
+            int expensePaymentId, string? documentName, string? documentType)
         {
             try
             {
-                // Validate file
-                var maxFileSize = 25 * 1024 * 1024; // 25MB
-                if (documentFile.Length > maxFileSize)
+                var maxFileSize = 25 * 1024 * 1024; // 25 MB
+                if (fileSize > maxFileSize)
                 {
-                    _logger.LogWarning("Document file too large: {Size} bytes", documentFile.Length);
+                    _logger.LogWarning("Document file too large: {Size} bytes", fileSize);
                     return;
                 }
 
-                var fileExtension = Path.GetExtension(documentFile.FileName).ToLowerInvariant();
+                var fileExtension = Path.GetExtension(fileName).ToLowerInvariant();
                 var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".doc", ".docx", ".xls", ".xlsx", ".txt" };
                 if (!allowedExtensions.Contains(fileExtension))
                 {
@@ -1245,23 +1235,14 @@ namespace InventorySystem.Controllers
                     return;
                 }
 
-                // Read file data
-                byte[] fileData;
-                using (var memoryStream = new MemoryStream())
-                {
-                    await documentFile.CopyToAsync(memoryStream);
-                    fileData = memoryStream.ToArray();
-                }
-
-                // Create document
                 var document = new PurchaseDocument
                 {
                     ExpensePaymentId = expensePaymentId,
-                    DocumentName = documentName ?? Path.GetFileNameWithoutExtension(documentFile.FileName),
+                    DocumentName = documentName ?? Path.GetFileNameWithoutExtension(fileName),
                     DocumentType = documentType ?? "Receipt",
-                    FileName = documentFile.FileName,
-                    ContentType = documentFile.ContentType,
-                    FileSize = documentFile.Length,
+                    FileName = fileName,
+                    ContentType = contentType,
+                    FileSize = fileSize,
                     DocumentData = fileData,
                     UploadedDate = DateTime.Now
                 };
@@ -1274,11 +1255,32 @@ namespace InventorySystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error uploading document for expense payment: {ExpensePaymentId}", expensePaymentId);
-                // Don't throw - we don't want document upload issues to fail the payment recording
+                // Don't throw — document upload failure must not fail the payment recording.
             }
         }
 
-        // Update the helper method name
+        // Helper method for document processing
+        private async Task ProcessDocumentUpload(IFormFile documentFile, int expensePaymentId, string? documentName, string? documentType)
+        {
+            try
+            {
+                byte[] fileData;
+                using (var memoryStream = new MemoryStream())
+                {
+                    await documentFile.CopyToAsync(memoryStream);
+                    fileData = memoryStream.ToArray();
+                }
+
+                await ProcessDocumentUploadFromBytes(
+                    fileData, documentFile.FileName, documentFile.ContentType, documentFile.Length,
+                    expensePaymentId, documentName, documentType);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reading document file for expense payment: {ExpensePaymentId}", expensePaymentId);
+            }
+        }
+
         private async Task ReloadRecordPaymentsData(RecordExpensePaymentsViewModel model)
         {
             model.AvailableExpenses = await _context.Expenses
@@ -1298,32 +1300,6 @@ namespace InventorySystem.Controllers
                 .ToList();
         }
 
-        //// Keep the legacy methods for backward compatibility but mark as obsolete
-        //[Obsolete("Use RecordPayment instead")]
-        //public async Task<IActionResult> PayExpense(int expenseId) => await RecordPayment(expenseId);
-
-        //[Obsolete("Use RecordPayments instead")]
-        //public async Task<IActionResult> PayExpenses() => await RecordPayments();
-
-        //[Obsolete("Use RecordPayments instead")]
-        //public async Task<IActionResult> ProcessPayments(PayExpensesViewModel model)
-        //{
-        //    // Convert old model to new model and redirect
-        //    var newModel = new RecordExpensePaymentsViewModel
-        //    {
-        //        AvailableExpenses = model.AvailableExpenses,
-        //        AvailableVendors = model.AvailableVendors,
-        //        AvailableCategories = model.AvailableCategories,
-        //        PaymentDate = model.PaymentDate,
-        //        PaymentMethod = model.PaymentMethod,
-        //        PaymentReference = model.PaymentReference,
-        //        SelectedExpenses = model.SelectedExpenses
-        //    };
-            
-        //    return await RecordPayments(newModel);
-        //}
-
-        // Helper methods
         private string GetCategoryDisplayName(ExpenseCategory category)
         {
             return category switch
@@ -1376,7 +1352,6 @@ namespace InventorySystem.Controllers
             ViewBag.Vendors = new SelectList(vendors, "Id", "CompanyName");
         }
 
-        // Helper method to reload pay expenses data
         private async Task ReloadPayExpensesData(PayExpensesViewModel model)
         {
             model.AvailableExpenses = await _context.Expenses
@@ -1396,7 +1371,6 @@ namespace InventorySystem.Controllers
                 .ToList();
         }
 
-        // Helper method to reload edit view data  
         private async Task ReloadEditViewData(EditExpenseViewModel model)
         {
             var vendors = await _context.Vendors
