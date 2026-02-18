@@ -182,6 +182,70 @@
                 }
             </div>
         </div>
+
+        <!-- Invoice Documents Card -->
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-paperclip"></i> Invoice Documents</h6>
+                <a href="/PurchaseDocuments/Upload?purchaseId=@Model.PurchaseId" class="btn btn-sm btn-outline-success" title="Upload Document">
+                    <i class="fas fa-upload"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                @if (Model.InvoiceDocuments.Any())
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var doc in Model.InvoiceDocuments)
+                        {
+                            var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
+                                .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
+
+                            <div class="list-group-item px-0">
+                                <div class="d-flex align-items-start">
+                                    <i class="@doc.FileTypeIcon me-2 mt-1"></i>
+                                    <div class="flex-grow-1">
+                                        <strong class="d-block">@doc.DocumentName</strong>
+                                        @if (!string.IsNullOrEmpty(doc.Description))
+                                        {
+                                            <small class="text-muted d-block">@doc.Description</small>
+                                        }
+                                        <small class="text-muted">
+                                            @doc.FileSizeFormatted &middot; @doc.UploadedDate.ToString("MM/dd/yyyy")
+                                            @if (!string.IsNullOrEmpty(doc.DocumentType))
+                                            {
+                                                <span> &middot; </span>
+                                                <span class="badge bg-secondary">@doc.DocumentType</span>
+                                            }
+                                        </small>
+                                        <div class="mt-1">
+                                            @if (canPreview)
+                                            {
+                                                <a href="/PurchaseDocuments/Preview/@doc.Id" class="btn btn-sm btn-outline-info me-1" title="Preview" target="_blank">
+                                                    <i class="fas fa-eye"></i> View
+                                                </a>
+                                            }
+                                            <a href="/PurchaseDocuments/Download/@doc.Id" class="btn btn-sm btn-outline-primary" title="Download">
+                                                <i class="fas fa-download"></i> Download
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-3">
+                        <i class="fas fa-file-upload fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-2"><small>No documents uploaded</small></p>
+                        <a href="/PurchaseDocuments/Upload?purchaseId=@Model.PurchaseId" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-upload"></i> Upload Invoice Document
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
         
         <!-- Quick Actions Card -->
         <div class="card mt-3">

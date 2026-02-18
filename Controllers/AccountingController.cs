@@ -1627,9 +1627,16 @@ namespace InventorySystem.Controllers
 					return RedirectToAction(nameof(AccountsPayable));
 				}
 
+				// Load purchase documents associated with this invoice
+				var invoiceDocuments = await _context.PurchaseDocuments
+					.Where(pd => pd.PurchaseId == accountsPayable.PurchaseId)
+					.OrderByDescending(pd => pd.UploadedDate)
+					.ToListAsync();
+
 				var viewModel = new EditInvoiceDetailsViewModel
 				{
 					Id = accountsPayable.Id,
+					PurchaseId = accountsPayable.PurchaseId,
 					VendorName = accountsPayable.Vendor?.CompanyName ?? "Unknown",
 					PurchaseOrderNumber = accountsPayable.PurchaseOrderNumber,
 					VendorInvoiceNumber = accountsPayable.VendorInvoiceNumber,
@@ -1643,7 +1650,8 @@ namespace InventorySystem.Controllers
 					InvoiceReceived = accountsPayable.InvoiceReceived,
 					InvoiceReceivedDate = accountsPayable.InvoiceReceivedDate,
 					ApprovalStatus = accountsPayable.ApprovalStatus,
-					Notes = accountsPayable.Notes
+					Notes = accountsPayable.Notes,
+					InvoiceDocuments = invoiceDocuments
 				};
 
 				return View(viewModel);
@@ -1874,29 +1882,95 @@ namespace InventorySystem.Controllers
 		// POST: Accounting/RecordInvoiceReceipt
 		[HttpPost]
 		[ValidateAntiForgeryToken]
-		public async Task<JsonResult> RecordInvoiceReceipt([FromBody] RecordInvoiceReceiptRequest request)
+		[RequestSizeLimit(26214400)] // 25MB limit
+		public async Task<JsonResult> RecordInvoiceReceipt(
+				[FromForm] int accountsPayableId,
+				[FromForm] string vendorInvoiceNumber,
+				[FromForm] DateTime invoiceDate,
+				[FromForm] decimal invoiceAmount,
+				[FromForm] DateTime dueDate,
+				[FromForm] DateTime? expectedPaymentDate,
+				[FromForm] string? paymentTerms,
+				[FromForm] string? notes,
+				[FromForm] int? purchaseId,
+				[FromForm] IFormFile? invoiceFile)
 		{
 			try
 			{
-				var accountsPayable = await _accountingService.GetAccountsPayableByIdAsync(request.AccountsPayableId);
+				var accountsPayable = await _accountingService.GetAccountsPayableByIdAsync(accountsPayableId);
 				if (accountsPayable == null)
 				{
 					return Json(new { success = false, message = "Invoice not found" });
 				}
 
 				// Simple invoice receipt - just update invoice details
-				accountsPayable.VendorInvoiceNumber = request.VendorInvoiceNumber;
+				accountsPayable.VendorInvoiceNumber = vendorInvoiceNumber;
 				accountsPayable.InvoiceReceived = true;
 				accountsPayable.InvoiceReceivedDate = DateTime.Today;
-				accountsPayable.InvoiceDate = request.InvoiceDate;
-				accountsPayable.InvoiceAmount = request.InvoiceAmount;
-				accountsPayable.DueDate = request.DueDate;
-				accountsPayable.ExpectedPaymentDate = request.ExpectedPaymentDate;
-				accountsPayable.PaymentTerms = request.PaymentTerms;
+				accountsPayable.InvoiceDate = invoiceDate;
+				accountsPayable.InvoiceAmount = invoiceAmount;
+				accountsPayable.DueDate = dueDate;
+				accountsPayable.ExpectedPaymentDate = expectedPaymentDate;
+				accountsPayable.PaymentTerms = paymentTerms;
 				accountsPayable.LastModifiedDate = DateTime.Now;
 				accountsPayable.LastModifiedBy = User.Identity?.Name ?? "System";
 
+				if (!string.IsNullOrWhiteSpace(notes))
+				{
+					accountsPayable.Notes = string.IsNullOrEmpty(accountsPayable.Notes)
+						? notes
+						: $"{accountsPayable.Notes}\n{notes}";
+				}
+
 				await _accountingService.UpdateAccountsPayableAsync(accountsPayable);
+
+				// Handle optional invoice file upload
+				if (invoiceFile != null && invoiceFile.Length > 0)
+				{
+					var targetPurchaseId = purchaseId ?? accountsPayable.PurchaseId;
+
+					// Validate file type
+					var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".doc", ".docx", ".xls", ".xlsx" };
+					var fileExtension = Path.GetExtension(invoiceFile.FileName).ToLowerInvariant();
+					if (!allowedExtensions.Contains(fileExtension))
+					{
+						// Still save the invoice details but warn about the file
+						_logger.LogWarning("Invoice file type not allowed: {Extension}", fileExtension);
+						return Json(new { success = true, message = "Invoice receipt recorded successfully, but the file type is not allowed and was not uploaded." });
+					}
+
+					if (invoiceFile.Length > 25 * 1024 * 1024)
+					{
+						_logger.LogWarning("Invoice file too large: {Size} bytes", invoiceFile.Length);
+						return Json(new { success = true, message = "Invoice receipt recorded successfully, but the file exceeds 25 MB and was not uploaded." });
+					}
+
+					byte[] fileData;
+					using (var memoryStream = new MemoryStream())
+					{
+						await invoiceFile.CopyToAsync(memoryStream);
+						fileData = memoryStream.ToArray();
+					}
+
+					var document = new PurchaseDocument
+					{
+						PurchaseId = targetPurchaseId,
+						DocumentName = $"Vendor Invoice - {vendorInvoiceNumber}",
+						DocumentType = "Invoice",
+						Description = $"Vendor invoice {vendorInvoiceNumber} received {DateTime.Today:MM/dd/yyyy}",
+						FileName = invoiceFile.FileName,
+						ContentType = invoiceFile.ContentType,
+						FileSize = invoiceFile.Length,
+						DocumentData = fileData,
+						UploadedDate = DateTime.Now
+					};
+
+					_context.PurchaseDocuments.Add(document);
+					await _context.SaveChangesAsync();
+
+					_logger.LogInformation("Invoice document uploaded for AP {AccountsPayableId}, PurchaseId {PurchaseId}",
+						accountsPayableId, targetPurchaseId);
+				}
 
 				return Json(new { success = true, message = "Invoice receipt recorded successfully" });
 			}
@@ -1904,6 +1978,51 @@ namespace InventorySystem.Controllers
 			{
 				_logger.LogError(ex, "Error recording invoice receipt");
 				return Json(new { success = false, message = ex.Message });
+			}
+		}
+
+		// GET: Accounting/GetInvoiceDocuments/5
+		[HttpGet]
+		public async Task<JsonResult> GetInvoiceDocuments(int id)
+		{
+			try
+			{
+				var accountsPayable = await _context.AccountsPayable
+					.FirstOrDefaultAsync(ap => ap.Id == id);
+
+				if (accountsPayable == null)
+				{
+					return Json(new { success = false, message = "Invoice not found" });
+				}
+
+				var documents = await _context.PurchaseDocuments
+					.Where(pd => pd.PurchaseId == accountsPayable.PurchaseId)
+					.OrderByDescending(pd => pd.UploadedDate)
+					.Select(pd => new
+					{
+						pd.Id,
+						pd.DocumentName,
+						pd.DocumentType,
+						pd.FileName,
+						pd.ContentType,
+						pd.FileSize,
+						FileSizeFormatted = pd.FileSize < 1024 ? pd.FileSize + " B" :
+							pd.FileSize < 1024 * 1024 ? (pd.FileSize / 1024) + " KB" :
+							(pd.FileSize / (1024 * 1024)) + " MB",
+						UploadedDate = pd.UploadedDate.ToString("MM/dd/yyyy"),
+						pd.Description,
+						CanPreview = pd.ContentType.StartsWith("image/") || pd.ContentType == "application/pdf",
+						PreviewUrl = "/PurchaseDocuments/Preview/" + pd.Id,
+						DownloadUrl = "/PurchaseDocuments/Download/" + pd.Id
+					})
+					.ToListAsync();
+
+				return Json(new { success = true, documents, purchaseId = accountsPayable.PurchaseId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error fetching invoice documents for AP {AccountsPayableId}", id);
+				return Json(new { success = false, message = "Error fetching documents" });
 			}
 		}
 
@@ -1917,6 +2036,7 @@ namespace InventorySystem.Controllers
 			public DateTime? ExpectedPaymentDate { get; set; }
 			public string? PaymentTerms { get; set; }
 			public string? Notes { get; set; }
+			public int? PurchaseId { get; set; }
 		}
 	}
 }

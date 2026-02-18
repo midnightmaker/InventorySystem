@@ -183,7 +183,7 @@
                     {
                       <br>
                       <button class="btn btn-sm btn-outline-primary" 
-                              onclick="recordSimpleInvoiceReceipt(@ap.Id, '@ap.Vendor.CompanyName')">
+                              onclick="recordSimpleInvoiceReceipt(@ap.Id, '@ap.Vendor.CompanyName.Replace("'", "\\'")','@ap.PurchaseOrderNumber.Replace("'", "\\'")', @ap.InvoiceAmount.ToString(System.Globalization.CultureInfo.InvariantCulture), @ap.PurchaseId)">
                         <i class="fas fa-envelope"></i> Record Invoice
                       </button>
                     }
@@ -270,6 +270,9 @@
                         <i class="fas fa-credit-card"></i> Pay
                       </button>
                     }
+                    <button class="btn btn-outline-secondary" onclick="viewInvoiceDocuments(@ap.Id, '@ap.Vendor.CompanyName.Replace("'", "\\'")','@(ap.VendorInvoiceNumber?.Replace("'", "\\'") ?? ap.PurchaseOrderNumber.Replace("'", "\\'"))')" title="View Documents">
+                      <i class="fas fa-paperclip"></i>
+                    </button>
                     <button class="btn btn-outline-primary" onclick="editInvoiceDetails(@ap.Id)">
                       <i class="fas fa-edit"></i> Edit
                     </button>
@@ -437,9 +440,10 @@
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <form id="simpleInvoiceReceiptForm">
+      <form id="simpleInvoiceReceiptForm" enctype="multipart/form-data">
         <div class="modal-body">
           <input type="hidden" id="simpleInvoiceReceiptAPId" name="accountsPayableId">
+          <input type="hidden" id="simpleInvoiceReceiptPurchaseId" name="purchaseId">
           
           <!-- Alert for goods receiving -->
           <div class="alert alert-info">
@@ -477,6 +481,7 @@
                 <span class="input-group-text">$</span>
                 <input type="number" step="0.01" class="form-control" id="simpleInvoiceAmount" name="invoiceAmount" required>
               </div>
+              <small class="form-text text-muted" id="simpleInvoiceAmountHint"></small>
             </div>
             <div class="col-md-6">
               <label class="form-label">Due Date <span class="text-danger">*</span></label>
@@ -492,6 +497,16 @@
             </div>
           </div>
 
+          <!-- Invoice Document Upload (Optional) -->
+          <div class="mt-3">
+            <label class="form-label"><i class="fas fa-paperclip"></i> Attach Invoice Copy <small class="text-muted">(optional)</small></label>
+            <input type="file" class="form-control" id="simpleInvoiceFile" name="invoiceFile" 
+                   accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx">
+            <small class="form-text text-muted">
+              Accepted formats: PDF, images (JPG, PNG, GIF, BMP, TIFF), Word, Excel. Max 25 MB.
+            </small>
+          </div>
+
           <!-- Notes -->
           <div class="mt-3">
             <label class="form-label">Notes</label>
@@ -501,11 +516,49 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-primary" id="simpleInvoiceReceiptSubmitBtn">
             <i class="fas fa-save"></i> Record Invoice
           </button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Document Viewer Modal -->
+<div class="modal fade" id="invoiceDocumentsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-paperclip"></i> Invoice Documents - <span id="docModalVendorName"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="docModalLoading" class="text-center py-4">
+          <i class="fas fa-spinner fa-spin fa-2x"></i>
+          <p class="mt-2 text-muted">Loading documents...</p>
+        </div>
+        <div id="docModalContent" style="display: none;"></div>
+        <div id="docModalEmpty" class="text-center py-4" style="display: none;">
+          <i class="fas fa-file-upload fa-3x text-muted mb-3"></i>
+          <h6 class="text-muted">No Documents Uploaded</h6>
+          <p class="text-muted">No invoice documents have been uploaded for this record.</p>
+          <a id="docModalUploadLink" href="#" class="btn btn-outline-success btn-sm">
+            <i class="fas fa-upload"></i> Upload Invoice Document
+          </a>
+        </div>
+        <div id="docModalError" class="alert alert-danger" style="display: none;">
+          <i class="fas fa-exclamation-circle"></i> <span id="docModalErrorMessage"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a id="docModalUploadBtn" href="#" class="btn btn-outline-success" style="display: none;">
+          <i class="fas fa-upload"></i> Upload Document
+        </a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
     </div>
   </div>
 </div>
@@ -568,57 +621,148 @@
       window.location.href = `@Url.Action("EditInvoiceDetails")?id=${accountsPayableId}`;
   }
 
-  // SIMPLIFIED invoice receipt function - no complex quantity adjustments
-  function recordSimpleInvoiceReceipt(accountsPayableId, vendorName) {
-      // For now, just redirect to the edit page or show a simple modal
+  // SIMPLIFIED invoice receipt function - pre-populates PO number and amount
+  function recordSimpleInvoiceReceipt(accountsPayableId, vendorName, poNumber, invoiceAmount, purchaseId) {
       document.getElementById('simpleInvoiceReceiptAPId').value = accountsPayableId;
+      document.getElementById('simpleInvoiceReceiptPurchaseId').value = purchaseId;
       document.getElementById('simpleInvoiceReceiptVendor').value = vendorName;
-      
-      // You might want to load more data here via AJAX if needed
+      document.getElementById('simpleInvoiceReceiptPO').value = poNumber || '';
+
+      // Pre-populate invoice amount if available and greater than zero
+      var amountField = document.getElementById('simpleInvoiceAmount');
+      if (invoiceAmount && invoiceAmount > 0) {
+          amountField.value = invoiceAmount.toFixed(2);
+          document.getElementById('simpleInvoiceAmountHint').textContent = 'Pre-filled from PO amount (' + invoiceAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) + '). Adjust if the invoice amount differs.';
+      } else {
+          amountField.value = '';
+          document.getElementById('simpleInvoiceAmountHint').textContent = '';
+      }
+
+      // Reset other fields
+      document.getElementById('simpleVendorInvoiceNumber').value = '';
+      document.getElementById('simpleInvoiceDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('simpleInvoiceDueDate').value = '';
+      document.getElementById('simpleExpectedPaymentDate').value = '';
+      document.getElementById('simplePaymentTerms').value = '';
+      document.getElementById('simpleInvoiceNotes').value = '';
+      document.getElementById('simpleInvoiceFile').value = '';
       
       const modal = new bootstrap.Modal(document.getElementById('simpleInvoiceReceiptModal'));
       modal.show();
   }
 
-  // Handle simple invoice receipt form submission
+  // Handle simple invoice receipt form submission (supports file upload via FormData)
   document.getElementById('simpleInvoiceReceiptForm').addEventListener('submit', function(e) {
       e.preventDefault();
 
-      const formData = new FormData(this);
-      const data = {
-          accountsPayableId: parseInt(formData.get('accountsPayableId')),
-          vendorInvoiceNumber: formData.get('vendorInvoiceNumber'),
-          invoiceDate: formData.get('invoiceDate'),
-          invoiceAmount: parseFloat(formData.get('invoiceAmount')),
-          dueDate: formData.get('dueDate'),
-          expectedPaymentDate: formData.get('expectedPaymentDate') || null,
-          paymentTerms: formData.get('paymentTerms'),
-          notes: formData.get('notes')
-      };
+      var submitBtn = document.getElementById('simpleInvoiceReceiptSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
-      const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+      var formData = new FormData(this);
+      var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
       fetch('/Accounting/RecordInvoiceReceipt', {
           method: 'POST',
           headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest',
-              '__RequestVerificationToken': token
+              'RequestVerificationToken': token
           },
-          body: JSON.stringify(data)
+          body: formData
       })
-      .then(response => response.json())
+      .then(response => {
+          if (!response.ok) {
+              throw new Error('Server returned ' + response.status + ': ' + response.statusText);
+          }
+          return response.json();
+      })
       .then(data => {
           if (data.success) {
               location.reload();
           } else {
               alert('Error recording invoice: ' + data.message);
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = '<i class="fas fa-save"></i> Record Invoice';
           }
       })
       .catch(error => {
           alert('Error recording invoice: ' + error.message);
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-save"></i> Record Invoice';
       });
   });
+
+  function viewInvoiceDocuments(accountsPayableId, vendorName, invoiceRef) {
+      document.getElementById('docModalVendorName').textContent = vendorName + ' (' + invoiceRef + ')';
+      document.getElementById('docModalLoading').style.display = 'block';
+      document.getElementById('docModalContent').style.display = 'none';
+      document.getElementById('docModalEmpty').style.display = 'none';
+      document.getElementById('docModalError').style.display = 'none';
+      document.getElementById('docModalUploadBtn').style.display = 'none';
+
+      const modal = new bootstrap.Modal(document.getElementById('invoiceDocumentsModal'));
+      modal.show();
+
+      fetch('/Accounting/GetInvoiceDocuments?id=' + accountsPayableId)
+          .then(response => response.json())
+          .then(data => {
+              document.getElementById('docModalLoading').style.display = 'none';
+
+              if (!data.success) {
+                  document.getElementById('docModalError').style.display = 'block';
+                  document.getElementById('docModalErrorMessage').textContent = data.message;
+                  return;
+              }
+
+              var uploadUrl = '/PurchaseDocuments/Upload?purchaseId=' + data.purchaseId;
+              document.getElementById('docModalUploadLink').href = uploadUrl;
+              document.getElementById('docModalUploadBtn').href = uploadUrl;
+
+              if (!data.documents || data.documents.length === 0) {
+                  document.getElementById('docModalEmpty').style.display = 'block';
+                  return;
+              }
+
+              document.getElementById('docModalUploadBtn').style.display = 'inline-block';
+
+              var html = '<div class="list-group">';
+              data.documents.forEach(function(doc) {
+                  var iconClass = 'fas fa-file text-secondary';
+                  if (doc.contentType && doc.contentType.indexOf('pdf') >= 0) iconClass = 'fas fa-file-pdf text-danger';
+                  else if (doc.contentType && doc.contentType.indexOf('image') >= 0) iconClass = 'fas fa-file-image text-info';
+                  else if (doc.contentType && (doc.contentType.indexOf('word') >= 0 || doc.contentType.indexOf('officedocument') >= 0)) iconClass = 'fas fa-file-word text-primary';
+                  else if (doc.contentType && doc.contentType.indexOf('excel') >= 0) iconClass = 'fas fa-file-excel text-success';
+
+                  html += '<div class="list-group-item">';
+                  html += '<div class="d-flex align-items-start">';
+                  html += '<i class="' + iconClass + ' me-3 mt-1 fa-lg"></i>';
+                  html += '<div class="flex-grow-1">';
+                  html += '<strong>' + doc.documentName + '</strong>';
+                  if (doc.description) {
+                      html += '<br><small class="text-muted">' + doc.description + '</small>';
+                  }
+                  html += '<br><small class="text-muted">' + doc.fileSizeFormatted + ' &middot; ' + doc.uploadedDate;
+                  if (doc.documentType) {
+                      html += ' &middot; <span class="badge bg-secondary">' + doc.documentType + '</span>';
+                  }
+                  html += '</small>';
+                  html += '<div class="mt-2">';
+                  if (doc.canPreview) {
+                      html += '<a href="' + doc.previewUrl + '" class="btn btn-sm btn-outline-info me-1" target="_blank" title="Preview"><i class="fas fa-eye"></i> View</a>';
+                  }
+                  html += '<a href="' + doc.downloadUrl + '" class="btn btn-sm btn-outline-primary" title="Download"><i class="fas fa-download"></i> Download</a>';
+                  html += '</div></div></div></div>';
+              });
+              html += '</div>';
+
+              document.getElementById('docModalContent').innerHTML = html;
+              document.getElementById('docModalContent').style.display = 'block';
+          })
+          .catch(function(error) {
+              document.getElementById('docModalLoading').style.display = 'none';
+              document.getElementById('docModalError').style.display = 'block';
+              document.getElementById('docModalErrorMessage').textContent = 'Error loading documents: ' + error.message;
+          });
+  }
 
   // Placeholder functions for features to be implemented
   function paySelectedInvoices() {

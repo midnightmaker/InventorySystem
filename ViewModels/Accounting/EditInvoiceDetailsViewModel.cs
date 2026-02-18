@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using InventorySystem.Models;
 using InventorySystem.Models.Enums;
 
 namespace InventorySystem.ViewModels.Accounting
@@ -64,6 +65,16 @@ namespace InventorySystem.ViewModels.Accounting
         [Display(Name = "Notes")]
         [StringLength(1000)]
         public string? Notes { get; set; }
+
+        /// <summary>
+        /// The associated Purchase ID for linking to documents
+        /// </summary>
+        public int PurchaseId { get; set; }
+
+        /// <summary>
+        /// Documents associated with this invoice/purchase (especially invoice documents)
+        /// </summary>
+        public List<PurchaseDocument> InvoiceDocuments { get; set; } = new();
 
         // Validation: Due date should be after invoice date
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
