@@ -384,59 +384,67 @@
     <div class="col-lg-4">
       <div class="card">
         <div class="card-header">
-          <h5><i class="fas fa-calculator"></i> Purchase Summary</h5>
+          <h5><i class="fas fa-chart-line"></i> Purchase Summary</h5>
         </div>
         <div class="card-body">
-          <dl class="row">
-            <dt class="col-sm-6">Quantity:</dt>
-            <dd class="col-sm-6">
-              <span class="badge bg-info">@Model.QuantityPurchased</span>
-            </dd>
-
-            <dt class="col-sm-6">Cost Per Unit:</dt>
-            <dd class="col-sm-6">
-              <span class="text-success">$@Model.CostPerUnit.ToString("N6")</span>
-            </dd>
-
-            <dt class="col-sm-6">Subtotal:</dt>
-            <dd class="col-sm-6">
-              <span class="text-success">$@Model.TotalCost.ToString("N6")</span>
-            </dd>
-
-            @if (Model.ShippingCost > 0)
-            {
-              <dt class="col-sm-6">Shipping:</dt>
-              <dd class="col-sm-6">
-                <span class="text-info">$@Model.ShippingCost.ToString("N6")</span>
-              </dd>
-            }
-
-            @if (Model.TaxAmount > 0)
-            {
-              <dt class="col-sm-6">Tax:</dt>
-              <dd class="col-sm-6">
-                <span class="text-warning">$@Model.TaxAmount.ToString("N6")</span>
-              </dd>
-            }
-
-            <dt class="col-sm-6 border-top pt-2"><strong>Total Paid:</strong></dt>
-            <dd class="col-sm-6 border-top pt-2">
-              <strong class="text-success fs-5">$@Model.TotalCost.ToString("N6")</strong>
-            </dd>
-
-            @if (Model.RemainingQuantity != Model.QuantityPurchased)
-            {
-              <dt class="col-sm-6 mt-2">Remaining:</dt>
-              <dd class="col-sm-6 mt-2">
-                <span class="badge bg-warning">@Model.RemainingQuantity</span>
-              </dd>
-
-              <dt class="col-sm-6">Used:</dt>
-              <dd class="col-sm-6">
-                <span class="badge bg-secondary">@(Model.QuantityPurchased - Model.RemainingQuantity)</span>
-              </dd>
-            }
-          </dl>
+          <div class="row text-center">
+            <div class="col-6">
+              <h4 class="text-primary">@Model.QuantityPurchased</h4>
+              <small class="text-muted">Quantity</small>
+            </div>
+            <div class="col-6">
+              <h4 class="text-success">@((Model.QuantityPurchased * Model.CostPerUnit).ToString("C"))</h4>
+              <small class="text-muted">Subtotal</small>
+            </div>
+          </div>
+          <hr>
+          <div class="row text-center">
+            <div class="col-4">
+              <h5 class="text-info">@Model.ShippingCost.ToString("C")</h5>
+              <small class="text-muted">Shipping</small>
+            </div>
+            <div class="col-4">
+              <h5 class="text-warning">@Model.TaxAmount.ToString("C")</h5>
+              <small class="text-muted">Tax</small>
+            </div>
+            <div class="col-4">
+              <h5 class="text-success">@Model.ExtendedTotal.ToString("C")</h5>
+              <small class="text-muted">Total</small>
+            </div>
+          </div>
+          
+          @{
+              var accountsPayable = ViewBag.AccountsPayable as AccountsPayable;
+          }
+          
+          @if (accountsPayable != null)
+          {
+              <hr>
+              <div class="text-center">
+                  <h5 class="text-primary">Payment Information</h5>
+                  <div class="row text-center mt-2">
+                      <div class="col-6">
+                          <h6 class="text-info">@accountsPayable.AmountPaid.ToString("C")</h6>
+                          <small class="text-muted">Amount Paid</small>
+                      </div>
+                      <div class="col-6">
+                          <h6 class="text-danger">@accountsPayable.BalanceRemaining.ToString("C")</h6>
+                          <small class="text-muted">Balance Due</small>
+                      </div>
+                  </div>
+              </div>
+          }
+          
+          @if (!string.IsNullOrEmpty(Model.AccountCode))
+          {
+              <hr>
+              <div class="text-center">
+                  <small class="text-muted">
+                      <strong>GL Account:</strong><br>
+                      @Model.AccountCode - @Model.GetAccountName()
+                  </small>
+              </div>
+          }
         </div>
       </div>
 
@@ -522,18 +530,16 @@
                 <dd class="col-sm-8">@Model.QuantityPurchased</dd>
 
                 <dt class="col-sm-4">Unit Cost:</dt>
-                <dd class="col-sm-8">@Model.CostPerUnit.ToString("C")</dd>
+                <dd class="col-sm-8">@Model.CostPerUnit.ToString("C6")</dd>
 
                 <dt class="col-sm-4">Total Amount:</dt>
-                <dd class="col-sm-8">@Model.ExtendedTotal.ToString("C")</dd>
+                <dd class="col-sm-8">@Model.ExtendedTotal.ToString("C6")</dd>
               </dl>
             </div>
           </div>
         </div>
       </div>
-      @{
-        var accountsPayable = ViewBag.AccountsPayable as AccountsPayable;
-      }
+      
 
       <!-- Replace the existing payment status card with this: -->
       <div class="card">
@@ -756,6 +762,7 @@
         }
     });
     
+
     // ===== PURCHASE STATUS UPDATE FUNCTIONALITY =====
     async function openUpdateStatusModal(purchaseId) {
         try {
@@ -839,6 +846,28 @@
             });
         }
     }
+    function openReceiveModal(purchaseId) {
+    // Load the modal content via AJAX
+    $.get('@Url.Action("GetReceiveGoodsModal", "Purchases")', { id: purchaseId })
+        .done(function(data) {
+            if (data.success === false) {
+                alert(data.message);
+                return;
+            }
+
+            // Create modal if it doesn't exist
+            if ($('#receiveGoodsModal').length === 0) {
+                $('body').append('<div class="modal fade" id="receiveGoodsModal" tabindex="-1"></div>');
+            }
+
+            // Load the modal content and show it
+            $('#receiveGoodsModal').html(data).modal('show');
+        })
+        .fail(function() {
+            alert('Error loading receive goods modal. Please try again.');
+        });
+    }
+
     
     async function handleStatusUpdate() {
         console.log('Handling status update...');
@@ -1031,4 +1060,4 @@
             font-size: 0.75rem;
         }
     </style>
-}
+    }
