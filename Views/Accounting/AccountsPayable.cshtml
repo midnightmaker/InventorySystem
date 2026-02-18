@@ -691,6 +691,49 @@
       });
   });
 
+  // Handle payment form submission
+  document.getElementById('paymentForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      var submitBtn = this.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+      var formData = new FormData(this);
+      var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+      fetch('/Accounting/RecordVendorPayment', {
+          method: 'POST',
+          headers: {
+              'RequestVerificationToken': token
+          },
+          body: formData
+      })
+      .then(response => {
+          if (!response.ok) {
+              throw new Error('Server returned ' + response.status + ': ' + response.statusText);
+          }
+          return response.json();
+      })
+      .then(data => {
+          if (data.success) {
+              // Close the modal and reload the page to show updated data
+              var modal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+              if (modal) modal.hide();
+              location.reload();
+          } else {
+              alert('Error recording payment: ' + data.message);
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = '<i class="fas fa-save"></i> Record Payment';
+          }
+      })
+      .catch(error => {
+          alert('Error recording payment: ' + error.message);
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-save"></i> Record Payment';
+      });
+  });
+
   function viewInvoiceDocuments(accountsPayableId, vendorName, invoiceRef) {
       document.getElementById('docModalVendorName').textContent = vendorName + ' (' + invoiceRef + ')';
       document.getElementById('docModalLoading').style.display = 'block';

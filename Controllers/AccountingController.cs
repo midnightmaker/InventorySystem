@@ -1614,6 +1614,79 @@ namespace InventorySystem.Controllers
 
 		// ============= ENHANCED ACCOUNTS PAYABLE MANAGEMENT =============
 
+		// POST: Accounting/RecordVendorPayment
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<JsonResult> RecordVendorPayment(
+				[FromForm] int accountsPayableId,
+				[FromForm] decimal paymentAmount,
+				[FromForm] DateTime paymentDate,
+				[FromForm] PaymentMethod paymentMethod,
+				[FromForm] PaymentType paymentType,
+				[FromForm] string? checkNumber,
+				[FromForm] string? bankAccount,
+				[FromForm] string? referenceNumber,
+				[FromForm] string? creditCardLast4,
+				[FromForm] string? creditCardType,
+				[FromForm] string? wireConfirmationNumber,
+				[FromForm] string? receivingBank,
+				[FromForm] string? notes)
+		{
+			try
+			{
+				var accountsPayable = await _accountingService.GetAccountsPayableByIdAsync(accountsPayableId);
+				if (accountsPayable == null)
+				{
+					return Json(new { success = false, message = "Accounts payable record not found" });
+				}
+
+				if (accountsPayable.BalanceRemaining <= 0)
+				{
+					return Json(new { success = false, message = "This invoice has already been fully paid" });
+				}
+
+				if (paymentAmount <= 0)
+				{
+					return Json(new { success = false, message = "Payment amount must be greater than zero" });
+				}
+
+				if (paymentAmount > accountsPayable.BalanceRemaining + 0.01m)
+				{
+					return Json(new { success = false, message = $"Payment amount ({paymentAmount:C}) exceeds balance remaining ({accountsPayable.BalanceRemaining:C})" });
+				}
+
+				var payment = new VendorPayment
+				{
+					AccountsPayableId = accountsPayableId,
+					PaymentDate = paymentDate,
+					PaymentAmount = paymentAmount,
+					PaymentMethod = paymentMethod,
+					PaymentType = paymentType,
+					CheckNumber = checkNumber,
+					BankAccount = bankAccount,
+					ReferenceNumber = referenceNumber,
+					CreditCardLast4 = creditCardLast4,
+					CreditCardType = creditCardType,
+					WireConfirmationNumber = wireConfirmationNumber,
+					ReceivingBank = receivingBank,
+					Notes = notes,
+					CreatedBy = User.Identity?.Name ?? "System"
+				};
+
+				await _accountingService.CreateVendorPaymentAsync(payment);
+
+				_logger.LogInformation("Recorded vendor payment of {Amount} for AP {AccountsPayableId}",
+					paymentAmount, accountsPayableId);
+
+				return Json(new { success = true, message = $"Payment of {paymentAmount:C} recorded successfully" });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error recording vendor payment for AP {AccountsPayableId}", accountsPayableId);
+				return Json(new { success = false, message = $"Error recording payment: {ex.Message}" });
+			}
+		}
+
 		// GET: Accounting/EditInvoiceDetails/5
 		[HttpGet]
 		public async Task<IActionResult> EditInvoiceDetails(int id)
