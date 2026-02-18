@@ -9,7 +9,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="receiveGoodsForm">
+            <form id="receiveGoodsForm" data-ajax="true">
                 @Html.AntiForgeryToken()
                 @Html.HiddenFor(m => m.PurchaseId)
                 
@@ -55,14 +55,14 @@
                                     <div class="mb-3">
                                         <label asp-for="ReceivedDate" class="form-label"></label>
                                         <input asp-for="ReceivedDate" class="form-control" type="date" />
-                                        <span asp-validation-for="ReceivedDate" class="text-danger"></span>
+                                        <span asp-validation-for="ReceivedDate" class="field-validation-valid"></span>
                                     </div>
                                     
                                     <div class="mb-3">
                                         <label asp-for="QuantityReceived" class="form-label"></label>
                                         <input asp-for="QuantityReceived" class="form-control" type="number" min="0" 
                                                id="quantityReceived" onchange="updateReceiptType()" />
-                                        <span asp-validation-for="QuantityReceived" class="text-danger"></span>
+                                        <span asp-validation-for="QuantityReceived" class="field-validation-valid"></span>
                                         <div class="form-text">
                                             Ordered: <strong>@Model.QuantityOrdered</strong>
                                         </div>
@@ -83,20 +83,20 @@
                                     <div class="mb-3">
                                         <label asp-for="InvoiceNumber" class="form-label"></label>
                                         <input asp-for="InvoiceNumber" class="form-control" placeholder="Enter vendor invoice number" />
-                                        <span asp-validation-for="InvoiceNumber" class="text-danger"></span>
+                                        <span asp-validation-for="InvoiceNumber" class="field-validation-valid"></span>
                                     </div>
                                     
                                     <div class="mb-3">
                                         <label asp-for="ReceivedBy" class="form-label"></label>
                                         <input asp-for="ReceivedBy" class="form-control" />
-                                        <span asp-validation-for="ReceivedBy" class="text-danger"></span>
+                                        <span asp-validation-for="ReceivedBy" class="field-validation-valid"></span>
                                     </div>
                                     
                                     <div class="mb-3">
                                         <label asp-for="Notes" class="form-label"></label>
                                         <textarea asp-for="Notes" class="form-control" rows="3" 
                                                   placeholder="Notes about condition, packaging, etc."></textarea>
-                                        <span asp-validation-for="Notes" class="text-danger"></span>
+                                        <span asp-validation-for="Notes" class="field-validation-valid"></span>
                                     </div>
                                 </div>
                             </div>
@@ -186,14 +186,19 @@
         }
     }
     
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-        updateReceiptTypeInfo();
-    });
+    // Initialize immediately (not on DOMContentLoaded, since this script runs after the modal HTML
+    // is already in the DOM when loaded dynamically via jQuery .html())
+    updateReceiptTypeInfo();
     
     // Handle form submission
     document.getElementById('receiveGoodsForm').addEventListener('submit', async function(e) {
         e.preventDefault();
+        e.stopPropagation();
+        
+        // Hide the global loading indicator if it was triggered by the form submit event
+        if (window.LoadingIndicator && window.LoadingIndicator.isShowing) {
+            window.LoadingIndicator.hide(true);
+        }
         
         const formData = new FormData(this);
         const data = {
@@ -201,10 +206,24 @@
             quantityReceived: parseInt(formData.get('QuantityReceived')),
             receivedDate: formData.get('ReceivedDate'),
             receiptType: formData.get('receiptType'),
-            invoiceNumber: formData.get('InvoiceNumber'),
+            vendorInvoiceNumber: formData.get('InvoiceNumber'),
             receivedBy: formData.get('ReceivedBy'),
             notes: formData.get('Notes')
         };
+        
+        // Client-side validation
+        if (!data.quantityReceived || data.quantityReceived <= 0) {
+            showReceiveGoodsError('Received quantity must be greater than 0');
+            return;
+        }
+        if (!data.receivedDate) {
+            showReceiveGoodsError('Received date is required');
+            return;
+        }
+        if (!data.receivedBy || data.receivedBy.trim() === '') {
+            showReceiveGoodsError('Received By is required');
+            return;
+        }
         
         const submitButton = document.getElementById('receiveButton');
         const originalText = submitButton.innerHTML;
@@ -216,7 +235,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    '__RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]').value
+                    'RequestVerificationToken': document.querySelector('#receiveGoodsForm [name="__RequestVerificationToken"]').value
                 },
                 body: JSON.stringify(data)
             });
@@ -224,29 +243,33 @@
             const result = await response.json();
             
             if (result.success) {
-                // Show success message and reload page
-                if (result.redirectToIndex) {
-                    window.location.reload();
-                } else {
-                    bootstrap.Modal.getInstance(document.getElementById('receiveGoodsModal')).hide();
-                    showSuccessMessage(result.message);
+                // Close the modal
+                var modalEl = document.getElementById('receiveGoodsModal');
+                if (modalEl) {
+                    var bsModal = bootstrap.Modal.getInstance(modalEl);
+                    if (bsModal) bsModal.hide();
                 }
+                
+                // Show success and reload
+                showReceiveGoodsSuccess(result.message);
+                setTimeout(function() {
+                    window.location.reload();
+                }, 1500);
             } else {
-                showErrorMessage(result.message);
+                showReceiveGoodsError(result.message);
                 submitButton.innerHTML = originalText;
                 submitButton.disabled = false;
             }
         } catch (error) {
-            showErrorMessage('Error processing receipt: ' + error.message);
+            showReceiveGoodsError('Error processing receipt: ' + error.message);
             submitButton.innerHTML = originalText;
             submitButton.disabled = false;
         }
     });
     
-    function showSuccessMessage(message) {
-        // Bootstrap 5 toast implementation
+    function showReceiveGoodsSuccess(message) {
         const toastHtml = `
-            <div class="toast-container position-fixed top-0 end-0 p-3">
+            <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
                 <div class="toast show" role="alert">
                     <div class="toast-header">
                         <i class="fas fa-check-circle text-success me-2"></i>
@@ -258,17 +281,15 @@
             </div>`;
         document.body.insertAdjacentHTML('beforeend', toastHtml);
         
-        // Auto-remove after 5 seconds
         setTimeout(() => {
             const toastContainer = document.querySelector('.toast-container');
             if (toastContainer) toastContainer.remove();
         }, 5000);
     }
     
-    function showErrorMessage(message) {
-        // Bootstrap 5 toast implementation
+    function showReceiveGoodsError(message) {
         const toastHtml = `
-            <div class="toast-container position-fixed top-0 end-0 p-3">
+            <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
                 <div class="toast show" role="alert">
                     <div class="toast-header">
                         <i class="fas fa-exclamation-circle text-danger me-2"></i>
@@ -280,7 +301,6 @@
             </div>`;
         document.body.insertAdjacentHTML('beforeend', toastHtml);
         
-        // Auto-remove after 8 seconds
         setTimeout(() => {
             const toastContainer = document.querySelector('.toast-container');
             if (toastContainer) toastContainer.remove();

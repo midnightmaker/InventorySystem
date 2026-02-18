@@ -1729,7 +1729,7 @@ namespace InventorySystem.Controllers
 				}
 
 				// Handle different receiving scenarios
-				var result = request.ReceiptType.ToLower() switch
+				var result = (request.ReceiptType?.ToLower() ?? "complete") switch
 				{
 					"complete" => await ReceiveComplete(purchase, request),
 					"partial" => await ReceivePartial(purchase, request),
@@ -1914,7 +1914,134 @@ namespace InventorySystem.Controllers
 				_logger.LogError(ex, "Failed to create A/P for purchase {PurchaseId}", purchase.Id);
 			}
 		}
+		// Add these two actions to PurchasesController
 
+		// GET: Load the receive modal from OpenPurchaseOrders view
+		[HttpGet]
+		public async Task<IActionResult> ReceivePurchaseOrder(int id)
+		{
+			try
+			{
+				var purchase = await _context.Purchases
+						.Include(p => p.Item)
+						.Include(p => p.Vendor)
+						.FirstOrDefaultAsync(p => p.Id == id);
+
+				if (purchase == null)
+					return Json(new { success = false, message = "Purchase order not found" });
+
+				if (purchase.Status == PurchaseStatus.Received)
+					return Json(new { success = false, message = "Purchase order has already been received" });
+
+				if (purchase.Status == PurchaseStatus.Cancelled)
+					return Json(new { success = false, message = "Cannot receive a cancelled purchase order" });
+
+				var viewModel = new ReceivePurchaseViewModel
+				{
+					PurchaseId = purchase.Id,
+					PurchaseOrderNumber = purchase.PurchaseOrderNumber ?? "N/A",
+					VendorName = purchase.Vendor.CompanyName,
+					ItemPartNumber = purchase.Item.PartNumber,
+					ItemDescription = purchase.Item.Description,
+					QuantityOrdered = purchase.QuantityPurchased,
+					QuantityReceived = purchase.QuantityPurchased,
+					ReceivedDate = DateTime.Today,
+					ExpectedDeliveryDate = purchase.ExpectedDeliveryDate,
+					ReceivedBy = User.Identity?.Name ?? "User"
+				};
+
+				return PartialView("_ReceivePurchaseOrderModal", viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading receive PO modal for purchase {PurchaseId}", id);
+				return Json(new { success = false, message = "Error loading receive modal" });
+			}
+		}
+
+		// POST: Process the receive from OpenPurchaseOrders modal
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> ReceivePurchaseOrder(ReceivePurchaseViewModel model)
+		{
+			try
+			{
+				// Remove validation for display-only properties not submitted in the form
+				ModelState.Remove("PurchaseOrderNumber");
+				ModelState.Remove("VendorName");
+				ModelState.Remove("ItemPartNumber");
+				ModelState.Remove("ItemDescription");
+
+				if (!ModelState.IsValid)
+				{
+					var errors = ModelState.Where(x => x.Value?.Errors.Count > 0)
+						.Select(x => new { Field = x.Key, Errors = x.Value!.Errors.Select(e => e.ErrorMessage) });
+					_logger.LogWarning("ReceivePurchaseOrder ModelState validation failed: {Errors}",
+						System.Text.Json.JsonSerializer.Serialize(errors));
+					return Json(new { success = false, message = "Invalid data provided. Please check all required fields." });
+				}
+
+				var purchase = await _context.Purchases
+						.Include(p => p.Item)
+						.Include(p => p.Vendor)
+						.FirstOrDefaultAsync(p => p.Id == model.PurchaseId);
+
+				if (purchase == null)
+					return Json(new { success = false, message = "Purchase order not found" });
+
+				if (purchase.Status == PurchaseStatus.Received)
+					return Json(new { success = false, message = "Purchase order has already been received" });
+
+				using var transaction = await _context.Database.BeginTransactionAsync();
+
+				try
+				{
+					// Update purchase status
+					purchase.Status = PurchaseStatus.Received;
+					purchase.ActualDeliveryDate = model.ReceivedDate;
+					purchase.RemainingQuantity = 0;
+
+					// Add notes
+					var timestamp = DateTime.Now.ToString("MM/dd/yyyy HH:mm");
+					var receiveNote = $"[{timestamp}] Received {model.QuantityReceived} units by {model.ReceivedBy}";
+					if (!string.IsNullOrEmpty(model.Notes)) receiveNote += $" - {model.Notes}";
+					purchase.Notes = string.IsNullOrEmpty(purchase.Notes) ? receiveNote : $"{purchase.Notes}\n{receiveNote}";
+
+					// Update inventory
+					var item = await _context.Items.FindAsync(purchase.ItemId);
+					if (item != null)
+					{
+						item.CurrentStock += model.QuantityReceived;
+					}
+
+					// Create Accounts Payable
+					await CreateAccountsPayableIfNeeded(purchase);
+
+					// Generate journal entries
+					await _accountingService.GenerateJournalEntriesForPurchaseAsync(purchase);
+
+					await _context.SaveChangesAsync();
+					await transaction.CommitAsync();
+
+					return Json(new
+					{
+						success = true,
+						message = $"Purchase order {purchase.PurchaseOrderNumber} received successfully - {model.QuantityReceived} units"
+					});
+				}
+				catch (Exception ex)
+				{
+					await transaction.RollbackAsync();
+					_logger.LogError(ex, "Transaction rolled back for receive PO {PurchaseId}", model.PurchaseId);
+					throw;
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error receiving purchase order {PurchaseId}", model.PurchaseId);
+				return Json(new { success = false, message = $"Error receiving purchase order: {ex.Message}" });
+			}
+		}
 		// GET: Purchases/PendingReceipts - Show purchase orders awaiting receipt
 		[HttpGet]
 		public async Task<IActionResult> PendingReceipts()
@@ -1924,7 +2051,9 @@ namespace InventorySystem.Controllers
 				var pendingPurchases = await _context.Purchases
 					.Include(p => p.Item)
 					.Include(p => p.Vendor)
-					.Where(p => p.Status == PurchaseStatus.Ordered || p.Status == PurchaseStatus.PartiallyReceived)
+					.Where(p => p.Status == PurchaseStatus.Ordered || 
+								p.Status == PurchaseStatus.Shipped || 
+								p.Status == PurchaseStatus.PartiallyReceived)
 					.OrderBy(p => p.ExpectedDeliveryDate ?? p.PurchaseDate)
 					.ToListAsync();
 

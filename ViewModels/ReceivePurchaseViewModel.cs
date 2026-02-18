@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace InventorySystem.ViewModels
 {
@@ -7,18 +8,23 @@ namespace InventorySystem.ViewModels
         public int PurchaseId { get; set; }
         
         [Display(Name = "Purchase Order Number")]
+        [BindNever]
         public string PurchaseOrderNumber { get; set; } = string.Empty;
         
         [Display(Name = "Vendor")]
+        [BindNever]
         public string VendorName { get; set; } = string.Empty;
         
         [Display(Name = "Item Part Number")]
+        [BindNever]
         public string ItemPartNumber { get; set; } = string.Empty;
         
         [Display(Name = "Item Description")]
+        [BindNever]
         public string ItemDescription { get; set; } = string.Empty;
         
         [Display(Name = "Quantity Ordered")]
+        [BindNever]
         public int QuantityOrdered { get; set; }
         
         [Display(Name = "Quantity Received")]
@@ -32,6 +38,7 @@ namespace InventorySystem.ViewModels
         public DateTime ReceivedDate { get; set; } = DateTime.Today;
         
         [Display(Name = "Expected Delivery Date")]
+        [BindNever]
         [DataType(DataType.Date)]
         public DateTime? ExpectedDeliveryDate { get; set; }
         

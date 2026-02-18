@@ -145,7 +145,7 @@
                                     @if (purchase.Status == PurchaseStatus.PartiallyReceived)
                                     {
                                         <br>
-                                        <small class="text-warning">@purchase.RemainingQuantity remaining</small>
+                                        <small style="color: var(--bs-warning);">@purchase.RemainingQuantity remaining</small>
                                     }
                                 </td>
                                 <td>
@@ -161,19 +161,19 @@
                                 <td>
                                     @if (isOverdue)
                                     {
-                                        <span class="text-danger">
+                                        <span style="color: var(--bs-danger);">
                                             <i class="fas fa-exclamation-triangle"></i> @daysLate days
                                         </span>
                                     }
                                     else if (daysLate > -3)
                                     {
-                                        <span class="text-warning">
+                                        <span style="color: var(--bs-warning);">
                                             <i class="fas fa-clock"></i> Due soon
                                         </span>
                                     }
                                     else
                                     {
-                                        <span class="text-success">
+                                        <span style="color: var(--bs-success);">
                                             <i class="fas fa-check"></i> On time
                                         </span>
                                     }
@@ -228,32 +228,45 @@ else
 }
 
 @* Include the receive goods modal JavaScript *@
+
+<!-- Receive Goods Modal Container -->
+<div id="receiveGoodsModalPlaceholder"></div>
+
 <script>
-    async function openReceiveGoodsModal(purchaseId) {
-        try {
-            const response = await fetch(`/Purchases/GetReceiveGoodsModal?id=${purchaseId}`);
-            
-            if (response.ok) {
-                const html = await response.text();
-                
-                // Remove any existing modal
-                const existingModal = document.getElementById('receiveGoodsModal');
+    function openReceiveGoodsModal(purchaseId) {
+        // Use jQuery $.get + .html() so inline scripts in the partial view execute properly.
+        // The previous approach using fetch + insertAdjacentHTML did NOT execute inline <script> tags,
+        // which meant the form submission handler was never attached and ReceiveComplete was never called.
+        $.get('@Url.Action("GetReceiveGoodsModal", "Purchases")', { id: purchaseId })
+            .done(function(data) {
+                if (data.success === false) {
+                    alert(data.message || 'Error loading receive goods modal');
+                    return;
+                }
+
+                // Remove any existing modal instance
+                var existingModal = document.getElementById('receiveGoodsModal');
                 if (existingModal) {
+                    var bsModal = bootstrap.Modal.getInstance(existingModal);
+                    if (bsModal) bsModal.dispose();
                     existingModal.remove();
                 }
-                
-                // Add new modal to body
-                document.body.insertAdjacentHTML('beforeend', html);
-                
-                // Show modal
-                const modal = new bootstrap.Modal(document.getElementById('receiveGoodsModal'));
+
+                // Insert the partial view HTML (which includes the full modal structure)
+                // Using jQuery .html() ensures inline scripts are executed
+                $('#receiveGoodsModalPlaceholder').html(data);
+
+                // Show the modal
+                var modal = new bootstrap.Modal(document.getElementById('receiveGoodsModal'));
                 modal.show();
-            } else {
-                const result = await response.json();
-                alert(result.message || 'Error loading receive goods modal');
-            }
-        } catch (error) {
-            alert('Error loading receive goods modal: ' + error.message);
-        }
+            })
+            .fail(function(xhr) {
+                var errorMessage = 'Error loading receive goods modal. Please try again.';
+                try {
+                    var response = JSON.parse(xhr.responseText);
+                    errorMessage = response.message || errorMessage;
+                } catch(e) {}
+                alert(errorMessage);
+            });
     }
 </script>
