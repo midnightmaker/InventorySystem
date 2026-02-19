@@ -890,6 +890,7 @@ namespace InventorySystem.Controllers
 			return customer.CustomerName;
 		}
 
+		
 		// POST: Sales/ProcessSaleWithShipping
 		[HttpPost]
 		[ValidateAntiForgeryToken]
@@ -900,18 +901,15 @@ namespace InventorySystem.Controllers
 				_logger.LogInformation("Processing sale with shipping - SaleId: {SaleId}, Courier: {Courier}, Tracking: {Tracking}",
 						model.SaleId, model.CourierService, model.TrackingNumber);
 
-				// NEW: Enhanced validation including document requirements
+				// Enhanced validation including document requirements
 				var validationResult = await _salesService.ValidateSaleForProcessingAsync(model.SaleId);
-				
+
 				if (!validationResult.CanProcess)
 				{
-					// If there are document issues, provide specific error message
 					if (validationResult.HasDocumentIssues)
 					{
 						var documentErrors = string.Join("; ", validationResult.MissingServiceDocuments.Select(msd => msd.GetFormattedMessage()));
 						SetErrorMessage($"Cannot process sale due to missing service documents: {documentErrors}. Please upload the required documents before shipping.");
-
-						// Set TempData for JavaScript handling of document issues
 						TempData["DocumentValidationErrors"] = JsonSerializer.Serialize(validationResult.MissingServiceDocuments);
 						TempData["ValidationErrorType"] = "DocumentRequirements";
 					}
@@ -928,14 +926,12 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
-				// Validate the model
 				if (!ModelState.IsValid)
 				{
 					SetErrorMessage("Please fill in all required shipping information.");
 					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
-				// Get the sale
 				var sale = await _salesService.GetSaleByIdAsync(model.SaleId);
 				if (sale == null)
 				{
@@ -943,135 +939,92 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Index");
 				}
 
-				// Check if sale can be processed
 				if (sale.SaleStatus != SaleStatus.Processing && sale.SaleStatus != SaleStatus.Backordered)
 				{
 					SetErrorMessage($"Cannot process sale with status '{sale.SaleStatus}'. Only 'Processing' or 'Backordered' sales can be shipped.");
 					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
-				// Check if sale has backorders
 				bool hasBackorders = sale.SaleItems.Any(si => si.QuantityBackordered > 0);
 
-				using var transaction = await _context.Database.BeginTransactionAsync();
-				try
+				if (hasBackorders)
 				{
-					// Process inventory reduction for items being shipped
-					if (hasBackorders)
+					// Backorder path: process inventory + create shipment in a single transaction
+					using var transaction = await _context.Database.BeginTransactionAsync();
+					try
 					{
 						await ProcessSaleWithBackorders(sale);
-					}
-					else
-					{
-						// Normal processing - use existing service method
-						var processed = await _salesService.ProcessSaleAsync(model.SaleId);
-						if (!processed)
+
+						var shipment = await CreateShipmentRecordAsync(sale, model);
+						if (shipment == null)
 						{
-							SetErrorMessage("Failed to process sale. Please check inventory levels and document requirements.");
+							await transaction.RollbackAsync();
+							SetErrorMessage("No items available to ship.");
 							return RedirectToAction("Details", new { id = model.SaleId });
 						}
-					}
 
-					// Create shipment record with unique packing slip number
-					var shipment = new Shipment
-					{
-						SaleId = model.SaleId,
-						PackingSlipNumber = await GeneratePackingSlipNumberAsync(sale.SaleNumber),
-						ShipmentDate = DateTime.Now,
-						CourierService = model.CourierService,
-						TrackingNumber = model.TrackingNumber,
-						ExpectedDeliveryDate = model.ExpectedDeliveryDate,
-						PackageWeight = model.PackageWeight,
-						PackageDimensions = model.PackageDimensions,
-						ShippingInstructions = model.ShippingInstructions,
-						ShippedBy = User.Identity?.Name ?? "System"
-					};
+						UpdateSaleShippingInfo(sale, model);
+						sale.SaleStatus = SaleStatus.Backordered;
+						_logger.LogInformation("Sale {SaleNumber} marked as Backordered due to partial shipment", sale.SaleNumber);
 
-					// Add items to this shipment (only quantities that can be shipped)
-					foreach (var saleItem in sale.SaleItems)
-					{
-						var quantityToShip = saleItem.QuantitySold - saleItem.QuantityBackordered;
-						if (quantityToShip > 0)
-						{
-							shipment.ShipmentItems.Add(new ShipmentItem
-							{
-								SaleItemId = saleItem.Id,
-								QuantityShipped = quantityToShip
-							});
-						}
-					}
+						await _context.SaveChangesAsync();
+						await transaction.CommitAsync();
 
-					// Only create shipment if there are items to ship
-					if (shipment.ShipmentItems.Any())
-					{
-						_context.Shipments.Add(shipment);
-						await _context.SaveChangesAsync(); // Save to get shipment ID
+						return BuildShippingSuccessResult(sale, shipment, model, hasBackorders: true);
 					}
-					else
+					catch (Exception ex)
 					{
-						SetErrorMessage("No items available to ship.");
+						await transaction.RollbackAsync();
+						_logger.LogError(ex, "Error in transaction during sale processing: {SaleId}", model.SaleId);
+						throw;
+					}
+				}
+				else
+				{
+					// Normal path: ProcessSaleAsync manages its own transaction internally.
+					// Create the shipment in a separate sequential transaction afterwards.
+					var processed = await _salesService.ProcessSaleAsync(model.SaleId);
+					if (!processed)
+					{
+						SetErrorMessage("Failed to process sale. Please check inventory levels and document requirements.");
 						return RedirectToAction("Details", new { id = model.SaleId });
 					}
 
-					// Update sale shipping information (for backward compatibility)
-					sale.CourierService = model.CourierService;
-					sale.TrackingNumber = model.TrackingNumber;
-					sale.ExpectedDeliveryDate = model.ExpectedDeliveryDate;
-					sale.PackageWeight = model.PackageWeight;
-					sale.PackageDimensions = model.PackageDimensions;
-					sale.ShippingInstructions = model.ShippingInstructions;
-					sale.ShippedDate = DateTime.Now;
-					sale.ShippedBy = User.Identity?.Name ?? "System";
-
-					// Update sale status based on backorder situation
-					if (hasBackorders)
+					// Re-fetch sale after ProcessSaleAsync committed its transaction
+					sale = await _salesService.GetSaleByIdAsync(model.SaleId);
+					if (sale == null)
 					{
-						sale.SaleStatus = SaleStatus.Backordered; // Partial shipment
-						_logger.LogInformation("Sale {SaleNumber} marked as Backordered due to partial shipment", sale.SaleNumber);
-					}
-					else
-					{
-						sale.SaleStatus = SaleStatus.Shipped; // Complete shipment
-						_logger.LogInformation("Sale {SaleNumber} marked as Shipped - complete fulfillment", sale.SaleNumber);
+						SetErrorMessage("Sale not found after processing.");
+						return RedirectToAction("Index");
 					}
 
-					await _context.SaveChangesAsync();
-					await transaction.CommitAsync();
-
-					// Send email notification if requested
-					if (model.EmailCustomer)
+					// Create shipment in its own transaction
+					using var shipmentTransaction = await _context.Database.BeginTransactionAsync();
+					try
 					{
-						// TODO: Implement email notification
-						_logger.LogInformation("Email notification requested for sale {SaleId}", model.SaleId);
-					}
-
-					var successMessage = hasBackorders
-							? $"Sale {sale.SaleNumber} partially shipped with backorders. Packing Slip: {shipment.PackingSlipNumber}, Tracking: {model.TrackingNumber}"
-							: $"Sale {sale.SaleNumber} shipped successfully. Packing Slip: {shipment.PackingSlipNumber}, Tracking: {model.TrackingNumber}";
-
-					SetSuccessMessage(successMessage);
-
-					// Clear any validation error flags
-					TempData.Remove("DocumentValidationErrors");
-					TempData.Remove("ValidationErrorType");
-
-					// Redirect based on whether packing slip was requested
-					if (model.GeneratePackingSlip)
-					{
-						if (model.PrintPackingSlip)
+						var shipment = await CreateShipmentRecordAsync(sale, model);
+						if (shipment == null)
 						{
-							TempData["AutoPrintPackingSlip"] = true;
+							await shipmentTransaction.RollbackAsync();
+							SetErrorMessage("No items available to ship.");
+							return RedirectToAction("Details", new { id = model.SaleId });
 						}
-						return RedirectToAction("PackingSlip", new { shipmentId = shipment.Id });
-					}
 
-					return RedirectToAction("Details", new { id = model.SaleId });
-				}
-				catch (Exception ex)
-				{
-					await transaction.RollbackAsync();
-					_logger.LogError(ex, "Error in transaction during sale processing: {SaleId}", model.SaleId);
-					throw;
+						UpdateSaleShippingInfo(sale, model);
+						// Status already set to Shipped by ProcessSaleAsync
+						_logger.LogInformation("Sale {SaleNumber} marked as Shipped - complete fulfillment", sale.SaleNumber);
+
+						await _context.SaveChangesAsync();
+						await shipmentTransaction.CommitAsync();
+
+						return BuildShippingSuccessResult(sale, shipment, model, hasBackorders: false);
+					}
+					catch (Exception ex)
+					{
+						await shipmentTransaction.RollbackAsync();
+						_logger.LogError(ex, "Error creating shipment record after sale processing: {SaleId}", model.SaleId);
+						throw;
+					}
 				}
 			}
 			catch (Exception ex)
@@ -1080,6 +1033,87 @@ namespace InventorySystem.Controllers
 				SetErrorMessage($"Error processing sale: {ex.Message}");
 				return RedirectToAction("Details", new { id = model.SaleId });
 			}
+		}
+
+		// Extracted helper: builds and saves a shipment record (no transaction management)
+		private async Task<Shipment?> CreateShipmentRecordAsync(Sale sale, ProcessSaleViewModel model)
+		{
+			var shipment = new Shipment
+			{
+				SaleId = model.SaleId,
+				PackingSlipNumber = await GeneratePackingSlipNumberAsync(sale.SaleNumber),
+				ShipmentDate = DateTime.Now,
+				CourierService = model.CourierService,
+				TrackingNumber = model.TrackingNumber,
+				ExpectedDeliveryDate = model.ExpectedDeliveryDate,
+				PackageWeight = model.PackageWeight,
+				PackageDimensions = model.PackageDimensions,
+				ShippingInstructions = model.ShippingInstructions,
+				ShippedBy = User.Identity?.Name ?? "System"
+			};
+
+			foreach (var saleItem in sale.SaleItems)
+			{
+				var quantityToShip = saleItem.QuantitySold - saleItem.QuantityBackordered;
+				if (quantityToShip > 0)
+				{
+					shipment.ShipmentItems.Add(new ShipmentItem
+					{
+						SaleItemId = saleItem.Id,
+						QuantityShipped = quantityToShip
+					});
+				}
+			}
+
+			if (!shipment.ShipmentItems.Any())
+			{
+				return null;
+			}
+
+			_context.Shipments.Add(shipment);
+			await _context.SaveChangesAsync(); // Save to get shipment ID
+			return shipment;
+		}
+
+		// Extracted helper: updates sale shipping fields in-memory (caller saves changes)
+		private void UpdateSaleShippingInfo(Sale sale, ProcessSaleViewModel model)
+		{
+			sale.CourierService = model.CourierService;
+			sale.TrackingNumber = model.TrackingNumber;
+			sale.ExpectedDeliveryDate = model.ExpectedDeliveryDate;
+			sale.PackageWeight = model.PackageWeight;
+			sale.PackageDimensions = model.PackageDimensions;
+			sale.ShippingInstructions = model.ShippingInstructions;
+			sale.ShippedDate = DateTime.Now;
+			sale.ShippedBy = User.Identity?.Name ?? "System";
+		}
+
+		// Extracted helper: builds the success redirect after shipping
+		private IActionResult BuildShippingSuccessResult(Sale sale, Shipment shipment, ProcessSaleViewModel model, bool hasBackorders)
+		{
+			if (model.EmailCustomer)
+			{
+				_logger.LogInformation("Email notification requested for sale {SaleId}", model.SaleId);
+			}
+
+			var successMessage = hasBackorders
+				? $"Sale {sale.SaleNumber} partially shipped with backorders. Packing Slip: {shipment.PackingSlipNumber}, Tracking: {model.TrackingNumber}"
+				: $"Sale {sale.SaleNumber} shipped successfully. Packing Slip: {shipment.PackingSlipNumber}, Tracking: {model.TrackingNumber}";
+
+			SetSuccessMessage(successMessage);
+			TempData.Remove("DocumentValidationErrors");
+			TempData.Remove("ValidationErrorType");
+
+			if (model.GeneratePackingSlip)
+			{
+				if (model.PrintPackingSlip)
+				{
+					TempData["AutoPrintPackingSlip"] = true;
+				}
+				return RedirectToAction("PackingSlip", new { shipmentId = shipment.Id });
+			}
+
+			return RedirectToAction("Details", new { id = model.SaleId });
 		}
 
 		// Generate unique packing slip numbers for each shipment
