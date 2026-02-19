@@ -970,6 +970,13 @@ namespace InventorySystem.Controllers
                     }
                 }
 
+                // ── Phase 4: Link FreightOutExpensePaymentId for ShippingOut payments ──
+                // When a ShippingOut expense payment is recorded, match the tracking number
+                // (stored in ReferenceNumber) to Shipment.TrackingNumber and set the FK.
+                await LinkFreightOutPaymentsToShipmentsAsync(createdPayments
+                    .Select(x => x.Payment)
+                    .ToList());
+
                 SetSuccessMessage($"Successfully recorded {paymentsCreated} expense payment(s)!");
 
                 // Bug Fix 3: Redirect to Details of the first recorded expense instead of Index.
@@ -1326,7 +1333,7 @@ namespace InventorySystem.Controllers
                 ExpenseCategory.ProfessionalServices => "Professional Services",
                 ExpenseCategory.SoftwareLicenses => "Software & Technology",
                 ExpenseCategory.Utilities => "Utilities",
-                ExpenseCategory.GeneralBusiness => "General Business Expenses",
+                ExpenseCategory.GeneralBusiness => "Other Business Expenses",
                 ExpenseCategory.OfficeSupplies => "Office Supplies",
                 ExpenseCategory.Research => "Research & Development",
                 ExpenseCategory.Travel => "Travel & Transportation",
@@ -1354,39 +1361,86 @@ namespace InventorySystem.Controllers
             ViewBag.Vendors = new SelectList(vendors, "Id", "CompanyName");
         }
 
-        private async Task ReloadPayExpensesData(PayExpensesViewModel model)
+		private async Task ReloadPayExpensesData(PayExpensesViewModel model)
+		{
+			model.AvailableExpenses = await _context.Expenses
+					.Include(e => e.DefaultVendor)
+					.Where(e => e.IsActive)
+					.OrderBy(e => e.ExpenseCode)
+					.ToListAsync();
+
+			model.AvailableVendors = await _context.Vendors
+					.Where(v => v.IsActive)
+					.OrderBy(v => v.CompanyName)
+					.ToListAsync();
+
+			model.AvailableCategories = Enum.GetValues<ExpenseCategory>()
+					.Select(c => GetCategoryDisplayName(c))
+					.Distinct()
+					.ToList();
+		}
+
+		private async Task ReloadEditViewData(EditExpenseViewModel model)
+		{
+			var vendors = await _context.Vendors
+					.Where(v => v.IsActive)
+					.OrderBy(v => v.CompanyName)
+					.ToListAsync();
+
+			ViewBag.Categories = new SelectList(Enum.GetValues<ExpenseCategory>().Select(c => new
+			{
+				Value = c,
+				Text = GetCategoryDisplayName(c)
+			}), "Value", "Text", model.Category);
+
+			ViewBag.Vendors = new SelectList(vendors, "Id", "CompanyName", model.DefaultVendorId);
+		}
+
+		/// <summary>
+		/// After a ShippingOut expense payment is saved, attempts to link it back to the
+		/// Shipment record whose TrackingNumber matches the payment's PaymentReference.
+		/// This satisfies the cash-basis requirement from §4 of ShippingCostAccountingGuide.
+		/// </summary>
+		private async Task LinkFreightOutPaymentsToShipmentsAsync(List<ExpensePayment> payments)
         {
-            model.AvailableExpenses = await _context.Expenses
-                .Include(e => e.DefaultVendor)
-                .Where(e => e.IsActive)
-                .OrderBy(e => e.ExpenseCode)
-                .ToListAsync();
-
-            model.AvailableVendors = await _context.Vendors
-                .Where(v => v.IsActive)
-                .OrderBy(v => v.CompanyName)
-                .ToListAsync();
-
-            model.AvailableCategories = Enum.GetValues<ExpenseCategory>()
-                .Select(c => GetCategoryDisplayName(c))
-                .Distinct()
-                .ToList();
-        }
-
-        private async Task ReloadEditViewData(EditExpenseViewModel model)
-        {
-            var vendors = await _context.Vendors
-                .Where(v => v.IsActive)
-                .OrderBy(v => v.CompanyName)
-                .ToListAsync();
-
-            ViewBag.Categories = new SelectList(Enum.GetValues<ExpenseCategory>().Select(c => new
+            try
             {
-                Value = c,
-                Text = GetCategoryDisplayName(c)
-            }), "Value", "Text", model.Category);
+                foreach (var payment in payments)
+                {
+                    // Only relevant for ShippingOut category payments that have a reference number
+                    var expense = await _context.Expenses
+                        .FirstOrDefaultAsync(e => e.Id == payment.ExpenseId);
 
-            ViewBag.Vendors = new SelectList(vendors, "Id", "CompanyName", model.DefaultVendorId);
+                    if (expense?.Category != Models.Enums.ExpenseCategory.ShippingOut)
+                        continue;
+
+                    if (string.IsNullOrWhiteSpace(payment.PaymentReference))
+                        continue;
+
+                    // Match tracking number (case-insensitive)
+                    var trackingRef = payment.PaymentReference.Trim();
+                    var matchingShipment = await _context.Shipments
+                        .FirstOrDefaultAsync(s =>
+                            s.TrackingNumber != null &&
+                            s.TrackingNumber.ToLower() == trackingRef.ToLower() &&
+                            s.FreightOutExpensePaymentId == null);   // not yet linked
+
+                    if (matchingShipment != null)
+                    {
+                        matchingShipment.FreightOutExpensePaymentId = payment.Id;
+                        await _context.SaveChangesAsync();
+
+                        _logger.LogInformation(
+                            "Linked FreightOutExpensePaymentId={PaymentId} to Shipment {ShipmentId} (Tracking: {Tracking})",
+                            payment.Id, matchingShipment.Id, trackingRef);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: log but don't fail the overall payment recording
+                _logger.LogError(ex, "Error linking freight-out payments to shipments");
+            }
         }
     }
 }

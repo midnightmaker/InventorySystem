@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using InventorySystem.Models.Enums;
 
 namespace InventorySystem.Models
 {
@@ -40,15 +41,62 @@ namespace InventorySystem.Models
         
         public DateTime CreatedDate { get; set; } = DateTime.Now;
         
+        /// <summary>
+        /// Indicates who owns the carrier account for this shipment.
+        /// OurAccount = we pay the carrier (Freight-Out expense tracked).
+        /// CustomerAccount = carrier bills the customer directly (zero cost to us).
+        /// </summary>
+        [Display(Name = "Shipping Account")]
+        public ShippingAccountType ShippingAccountType { get; set; } = ShippingAccountType.OurAccount;
+
+        /// <summary>
+        /// The actual amount paid to the carrier (FedEx / UPS etc.) at time of shipment.
+        /// Only meaningful when ShippingAccountType == OurAccount.
+        /// No GL entry is created here — this is recorded for cash-basis tracking only.
+        /// The GL entry (Debit 6500 Freight-Out / Credit 1010 Checking) is made when the
+        /// carrier invoice is paid via Expenses ? Record Payment.
+        /// </summary>
+        [Display(Name = "Actual Carrier Cost")]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? ActualCarrierCost { get; set; }
+
+        /// <summary>
+        /// FK to the ExpensePayment record that settles the carrier invoice for this shipment.
+        /// Null until the carrier invoice has been paid through Expenses ? Record Payment.
+        /// Matched by ReferenceNumber == TrackingNumber.
+        /// </summary>
+        [Display(Name = "Freight-Out Expense Payment")]
+        public int? FreightOutExpensePaymentId { get; set; }
+
         // Navigation properties
         public virtual ICollection<ShipmentItem> ShipmentItems { get; set; } = new List<ShipmentItem>();
         
-        // Computed properties
+        // -----------------------------------------------------------
+        // Computed properties (not persisted)
+        // -----------------------------------------------------------
+
+        /// <summary>True when we paid the carrier but the invoice has not yet been recorded as paid.</summary>
         [NotMapped]
-        public int TotalItemsShipped => ShipmentItems.Sum(si => si.QuantityShipped);
-        
+        public bool HasUnpaidCarrierCost =>
+            ShippingAccountType == ShippingAccountType.OurAccount &&
+            ActualCarrierCost.GetValueOrDefault() > 0 &&
+            FreightOutExpensePaymentId == null;
+
+        /// <summary>
+        /// Net shipping P&amp;L for this shipment.
+        /// Positive = over-recovery (markup). Negative = subsidy / free shipping.
+        /// Only meaningful after FreightOutExpensePaymentId is set.
+        /// Sale.ShippingCost is the revenue side; ActualCarrierCost is the expense side.
+        /// </summary>
         [NotMapped]
-        public bool HasShippingInfo => !string.IsNullOrEmpty(CourierService) && !string.IsNullOrEmpty(TrackingNumber);
+        public decimal? ShippingPnL =>
+            ShippingAccountType == ShippingAccountType.OurAccount && ActualCarrierCost.HasValue
+                ? (Sale?.ShippingCost ?? 0) - ActualCarrierCost.Value
+                : (decimal?)null;
+
+        /// <summary>Total number of individual units across all shipment lines.</summary>
+        [NotMapped]
+        public int TotalItemsShipped => ShipmentItems?.Sum(si => si.QuantityShipped) ?? 0;
     }
 
     public class ShipmentItem

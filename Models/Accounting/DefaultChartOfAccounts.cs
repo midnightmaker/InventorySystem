@@ -5,6 +5,36 @@ namespace InventorySystem.Models.Accounting
 {
 	public static class DefaultChartOfAccounts
 	{
+		// Account code constants for programmatic use
+		public const string CashAccount = "1000";
+		public const string AccountsReceivable = "1100";
+		public const string InventoryAsset = "1200";
+		public const string RawMaterialsInventory = "1200";
+		public const string WorkInProcessInventory = "1210";
+		public const string FinishedGoodsInventory = "1220";
+		public const string SuppliesInventory = "1230";
+		public const string RDMaterialsInventory = "1240";
+
+		public const string ManufacturingEquipment = "1600";
+		public const string OfficeEquipment = "1700";
+		public const string SoftwareLicenses = "1900";
+
+		public const string AccountsPayable = "2000";
+		public const string SalesTaxPayable = "2300";
+
+		public const string OwnersEquity = "3000";
+		public const string RetainedEarnings = "3100";
+		public const string CurrentYearEarnings = "3200";
+
+		public const string ProductSales = "4000";
+		public const string ServiceRevenue = "4100";
+		public const string CustomManufacturing = "4200";
+		public const string ShippingRevenue = "4300"; // <-- New constant for shipping revenue
+
+		public const string CostOfGoodsSold = "5000";
+		public const string ManufacturingSupplies = "6700";
+
+
 		public static List<Account> GetDefaultAccounts()
 		{
 			return new List<Account>
@@ -247,6 +277,17 @@ namespace InventorySystem.Models.Accounting
 					AccountType = AccountType.Revenue,
 					AccountSubType = AccountSubType.SalesRevenue,
 					IsSystemAccount = true
+				},
+				new() {
+					AccountCode = "4300",
+					AccountName = "Shipping Revenue",
+					Description = "Income account for shipping and handling revenue. Credited when the customer pays the invoice and Sale.ShippingCost > 0.",
+					AccountType = AccountType.Revenue,
+					AccountSubType = AccountSubType.SalesRevenue,
+					IsSystemAccount = true,
+					IsActive = true,
+					CreatedDate = DateTime.Now,
+					CreatedBy = "System"
 				},
 				new() {
 					AccountCode = "4900",

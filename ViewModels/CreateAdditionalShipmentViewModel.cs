@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using InventorySystem.Models;
+using InventorySystem.Models.Enums;
 
 namespace InventorySystem.ViewModels
 {
@@ -29,6 +30,22 @@ namespace InventorySystem.ViewModels
         public string? ShippingInstructions { get; set; }
         
         public List<ShippableItemViewModel> AvailableItems { get; set; } = new();
+        
+        // ?? Freight-Out tracking (cash-basis, §2 / §4 of ShippingCostAccountingGuide) ??
+
+        /// <summary>
+        /// Indicates who owns the carrier account for this additional shipment.
+        /// </summary>
+        [Display(Name = "Shipping Account Type")]
+        public ShippingAccountType ShippingAccountType { get; set; } = ShippingAccountType.OurAccount;
+
+        /// <summary>
+        /// The actual amount paid to the carrier for this additional shipment.
+        /// Stored on the Shipment record; no GL entry at shipment time.
+        /// </summary>
+        [Display(Name = "Actual Carrier Cost")]
+        [Range(0, double.MaxValue, ErrorMessage = "Carrier cost cannot be negative.")]
+        public decimal? ActualCarrierCost { get; set; }
     }
 
     public class ShippableItemViewModel

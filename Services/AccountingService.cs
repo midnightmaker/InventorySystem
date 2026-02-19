@@ -420,7 +420,13 @@ namespace InventorySystem.Services
 				// Handle shipping and tax if present
 				if (sale.ShippingCost > 0)
 				{
-					var shippingAccount = await GetAccountByCodeAsync("4100"); // Service Revenue
+					// Use 4300 Shipping Revenue instead of 4100 Service Revenue
+					var shippingAccount = await GetAccountByCodeAsync(DefaultChartOfAccounts.ShippingRevenue); // "4300"
+					if (shippingAccount == null)
+					{
+						// Fallback to 4100 if 4300 hasn't been seeded yet
+						shippingAccount = await GetAccountByCodeAsync("4100");
+					}
 					if (shippingAccount != null)
 					{
 						entries.Add(new GeneralLedgerEntry
@@ -1557,7 +1563,7 @@ namespace InventorySystem.Services
 					return false;
 				}
 
-				// Debit: Cash/Bank Account
+				// Debit: Cash/Bank Account (full payment amount)
 				entries.Add(new GeneralLedgerEntry
 				{
 					TransactionDate = payment.PaymentDate,
@@ -1570,7 +1576,7 @@ namespace InventorySystem.Services
 					ReferenceId = payment.Id
 				});
 
-				// Credit: Accounts Receivable
+				// Credit: Accounts Receivable (full payment amount reduces the AR balance)
 				var arAccount = await GetAccountByCodeAsync("1100");
 				if (arAccount == null)
 				{
@@ -1589,6 +1595,22 @@ namespace InventorySystem.Services
 					ReferenceType = "CustomerPayment",
 					ReferenceId = payment.Id
 				});
+
+				// ── Phase 5: Credit 4300 Shipping Revenue when shipping was charged ──
+				// On cash basis, shipping revenue is recognised when the customer pays.
+				// The AR credit above covers the full invoice; we add a memo line here
+				// to show how much of that receipt is shipping vs product revenue.
+				// NOTE: This memo line is informational — the AR/Cash entry already
+				// balances the journal. We therefore skip an additional revenue credit
+				// to avoid double-counting with the invoice-time journal entry (JE-SAL).
+				// The 4300 credit was already recorded in GenerateJournalEntriesForSaleAsync
+				// when the sale was created. No additional entry needed here.
+				if (sale.ShippingCost > 0)
+				{
+					_logger.LogInformation(
+						"Customer payment {PaymentId} includes {ShippingCost:C} shipping revenue (4300) for Sale {SaleNumber}",
+						payment.Id, sale.ShippingCost, sale.SaleNumber);
+				}
 
 				await CreateJournalEntriesAsync(entries);
 
@@ -2509,7 +2531,6 @@ namespace InventorySystem.Services
 				return new List<MonthlyCashFlowTrend>();
 			}
 		}
-
 		// ============= HELPER METHODS FOR ENHANCED CASH FLOW ANALYSIS =============
 
 		private async Task CalculateCashEfficiencyMetrics(EnhancedCashFlowAnalysisViewModel analysis, DateTime startDate, DateTime endDate)

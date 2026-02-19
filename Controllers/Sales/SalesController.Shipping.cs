@@ -400,7 +400,14 @@ namespace InventorySystem.Controllers
 				PackageWeight = model.PackageWeight,
 				PackageDimensions = model.PackageDimensions,
 				ShippingInstructions = model.ShippingInstructions,
-				ShippedBy = User.Identity?.Name ?? "System"
+				ShippedBy = User.Identity?.Name ?? "System",
+
+				// ── Cash-basis freight-out data capture (no GL entry here) ──
+				ShippingAccountType = model.ShippingAccountType,
+				ActualCarrierCost = model.ShippingAccountType == Models.Enums.ShippingAccountType.CustomerAccount
+					? 0m
+					: (model.ActualCarrierCost ?? 0m),
+				FreightOutExpensePaymentId = null   // set when carrier invoice is paid
 			};
 
 			foreach (var saleItem in sale.SaleItems)

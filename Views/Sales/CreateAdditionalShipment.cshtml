@@ -364,6 +364,58 @@
                         </div>
                     </div>
 
+                    <hr>
+
+                    <!-- ?? Phase 6: Freight-Out Cost Tracking (§7 of ShippingCostAccountingGuide) ?? -->
+                    <h6><i class="fas fa-dollar-sign"></i> Freight-Out Cost Tracking</h6>
+
+                    <div class="mb-3">
+                        <label class="form-label">Carrier Account <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ShippingAccountType" id="addlAccountTypeOur"
+                                       value="@ShippingAccountType.OurAccount"
+                                       checked
+                                       onchange="updateAdditionalShippingGuidance()" />
+                                <label class="form-check-label" for="addlAccountTypeOur">
+                                    <i class="fas fa-building"></i> Our Account
+                                    <small class="d-block text-muted">We pay the carrier — track freight-out cost</small>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ShippingAccountType" id="addlAccountTypeCustomer"
+                                       value="@ShippingAccountType.CustomerAccount"
+                                       onchange="updateAdditionalShippingGuidance()" />
+                                <label class="form-check-label" for="addlAccountTypeCustomer">
+                                    <i class="fas fa-user"></i> Customer's Account
+                                    <small class="d-block text-muted">Carrier bills customer directly — no cost to us</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="addlActualCarrierCostRow">
+                        <label for="addlActualCarrierCost" class="form-label">
+                            Actual Carrier Cost
+                            <small class="text-muted">(internal — not shown to customer)</small>
+                        </label>
+                        <div class="input-group" style="max-width: 240px;">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="addlActualCarrierCost" name="ActualCarrierCost"
+                                   step="0.01" min="0" placeholder="0.00"
+                                   oninput="updateAdditionalShippingGuidance()" />
+                        </div>
+                        <div class="form-text">
+                            Enter the amount you will pay FedEx / UPS. No GL entry is created now — this is queued
+                            for <strong>Expenses ? Record Payment</strong> when the carrier invoice arrives.
+                        </div>
+                    </div>
+
+                    <!-- Inline shipping guidance alert (§7.2) -->
+                    <div id="addlShippingGuidanceAlert" class="alert mb-3" role="alert" style="display:none;"></div>
+
+                    <hr>
+
                     <!-- Action Summary -->
                     <div class="alert alert-warning mt-3">
                         <h6><i class="fas fa-info-circle"></i> This action will:</h6>
@@ -390,6 +442,70 @@
 
 @section Scripts {
     <script>
+        // ?? Phase 6: Freight-Out inline guidance for Additional Shipment (§7.2) ??
+        var addlSaleShippingCost = @Model.Sale.ShippingCost.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        function updateAdditionalShippingGuidance() {
+            var isCustomerAccount = document.getElementById('addlAccountTypeCustomer').checked;
+            var costInput = document.getElementById('addlActualCarrierCost');
+            var costRow = document.getElementById('addlActualCarrierCostRow');
+            var alertDiv = document.getElementById('addlShippingGuidanceAlert');
+
+            if (isCustomerAccount) {
+                costRow.style.display = 'none';
+                costInput.value = '';
+                costInput.disabled = true;
+            } else {
+                costRow.style.display = '';
+                costInput.disabled = false;
+            }
+
+            var alertClass = '';
+            var message = '';
+
+            if (isCustomerAccount) {
+                alertClass = 'alert-info';
+                message = '<i class="fas fa-info-circle me-1"></i> Shipping billed directly to customer by carrier. No freight-out expense will be recorded.';
+            } else {
+                var actualCost = parseFloat(costInput.value) || 0;
+
+                if (actualCost === 0) {
+                    alertClass = 'alert-warning';
+                    message = '<i class="fas fa-exclamation-triangle me-1"></i> Enter the actual carrier cost so unpaid freight can be tracked.';
+                } else if (addlSaleShippingCost === 0 && actualCost > 0) {
+                    alertClass = 'alert-warning';
+                    message = '<i class="fas fa-exclamation-triangle me-1"></i> Free shipping to customer. Full carrier cost of '
+                        + addlFormatCurrency(actualCost) + ' will be recorded as Freight-Out when paid.';
+                } else if (addlSaleShippingCost < actualCost) {
+                    var delta = actualCost - addlSaleShippingCost;
+                    alertClass = 'alert-warning';
+                    message = '<i class="fas fa-exclamation-triangle me-1"></i> Under-recovery: you absorb '
+                        + addlFormatCurrency(delta) + '. Net freight-out cost: ' + addlFormatCurrency(delta) + '.';
+                } else if (addlSaleShippingCost === actualCost) {
+                    alertClass = 'alert-success';
+                    message = '<i class="fas fa-check-circle me-1"></i> Exact cost recovery. No net freight-out expense.';
+                } else {
+                    var profit = addlSaleShippingCost - actualCost;
+                    alertClass = 'alert-info';
+                    message = '<i class="fas fa-info-circle me-1"></i> Over-recovery: shipping contributes '
+                        + addlFormatCurrency(profit) + ' net revenue.';
+                }
+            }
+
+            alertDiv.className = 'alert mb-3 ' + alertClass;
+            alertDiv.innerHTML = message;
+            alertDiv.style.display = '';
+        }
+
+        function addlFormatCurrency(value) {
+            return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        // Initialise guidance when the modal opens
+        document.getElementById('additionalShipmentModal').addEventListener('show.bs.modal', function () {
+            updateAdditionalShippingGuidance();
+        });
+
         // Global variables to track selected items
         let selectedItems = [];
 

@@ -1061,7 +1061,7 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
               <th>Priority</th>
               <th>Promised Date</th>
               <th>Actions</th>
-            </tr>
+              </tr>
           </thead>
           <tbody>
             @foreach (var serviceOrder in Model.ServiceOrders)
@@ -1644,6 +1644,56 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
           </div>
 
           <hr>
+
+          <!-- ── Phase 6: Freight-Out Cost Tracking (§7 of ShippingCostAccountingGuide) ── -->
+          <h6><i class="fas fa-dollar-sign"></i> Freight-Out Cost Tracking</h6>
+
+          <div class="mb-3">
+            <label class="form-label">Carrier Account <span class="text-danger">*</span></label>
+            <div class="d-flex gap-4">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="ShippingAccountType" id="accountTypeOur"
+                       value="@ShippingAccountType.OurAccount"
+                       checked
+                       onchange="updateShippingGuidance()" />
+                <label class="form-check-label" for="accountTypeOur">
+                  <i class="fas fa-building"></i> Our Account
+                  <small class="d-block text-muted">We pay the carrier — track freight-out cost</small>
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="ShippingAccountType" id="accountTypeCustomer"
+                       value="@ShippingAccountType.CustomerAccount"
+                       onchange="updateShippingGuidance()" />
+                <label class="form-check-label" for="accountTypeCustomer">
+                  <i class="fas fa-user"></i> Customer's Account
+                  <small class="d-block text-muted">Carrier bills customer directly — no cost to us</small>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3" id="actualCarrierCostRow">
+            <label for="actualCarrierCost" class="form-label">
+              Actual Carrier Cost
+              <small class="text-muted">(internal — not shown to customer)</small>
+            </label>
+            <div class="input-group" style="max-width: 240px;">
+              <span class="input-group-text">$</span>
+              <input type="number" class="form-control" id="actualCarrierCost" name="ActualCarrierCost"
+                     step="0.01" min="0" placeholder="0.00"
+                     oninput="updateShippingGuidance()" />
+            </div>
+            <div class="form-text">
+              Enter the amount you will pay FedEx / UPS. No GL entry is created now — this is queued
+              for <strong>Expenses → Record Payment</strong> when the carrier invoice arrives.
+            </div>
+          </div>
+
+          <!-- Inline shipping guidance alert (§7.2) -->
+          <div id="shippingGuidanceAlert" class="alert mb-3" role="alert" style="display:none;"></div>
+
+          <hr>
           <h6><i class="fas fa-cogs"></i> Processing Options</h6>
 
           <div class="row">
@@ -1702,44 +1752,79 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
   </div>
 </div>
 
-<!-- Add this script reference in the head section or before closing body tag -->
-<script src="~/js/sale-document-validation.js"></script>
-
-<!-- Update the Process Sale button to include validation -->
-@if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-{
-  <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal" data-requires-validation="true" data-sale-id="@Model.Sale.Id">
-        <i class="fas fa-shipping-fast"></i> Process & Ship Sale
-    </button>
-}
-
-<!-- Update the shipping form to include document validation -->
-<form asp-action="ProcessSaleWithShipping" 
-      method="post" 
-      data-validate-documents="true"
-      class="needs-validation" 
-      novalidate>
-    <input type="hidden" asp-for="Sale.Id" />
-    <!-- ... rest of the shipping form ... -->
-    
-    <button type="submit" 
-            class="btn btn-primary" 
-            data-sale-id="@Model.Sale.Id">
-        <i class="fas fa-truck"></i> Ship Sale
-    </button>
-</form>
-
-@functions {
-  private string GetStatusBadgeClass(SaleStatus status)
-  {
-    return $"bg-{BadgeHelper.GetSaleStatusBadgeColor(status)}";
-  }
-}
+@* ...existing code... *@
 
 @section Scripts {
   <script src="~/js/confirmation-dialog.js"></script>
   <script src="~/js/sales-enhanced-validation.js"></script>
   <script>
+    // ── Phase 6: Freight-Out inline guidance (§7.2 of ShippingCostAccountingGuide) ──
+    var saleShippingCost = @Model.Sale.ShippingCost.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    function updateShippingGuidance() {
+      var isCustomerAccount = document.getElementById('accountTypeCustomer').checked;
+      var costInput = document.getElementById('actualCarrierCost');
+      var costRow = document.getElementById('actualCarrierCostRow');
+      var alertDiv = document.getElementById('shippingGuidanceAlert');
+
+      // Toggle carrier cost field
+      if (isCustomerAccount) {
+        costRow.style.display = 'none';
+        costInput.value = '';
+        costInput.disabled = true;
+      } else {
+        costRow.style.display = '';
+        costInput.disabled = false;
+      }
+
+      // Determine message per §7.2
+      var alertClass = '';
+      var message = '';
+
+      if (isCustomerAccount) {
+        alertClass = 'alert-info';
+        message = '<i class="fas fa-info-circle me-1"></i> Shipping billed directly to customer by carrier. No freight-out expense will be recorded.';
+      } else {
+        var actualCost = parseFloat(costInput.value) || 0;
+
+        if (actualCost === 0) {
+          alertClass = 'alert-warning';
+          message = '<i class="fas fa-exclamation-triangle me-1"></i> Enter the actual carrier cost so unpaid freight can be tracked.';
+        } else if (saleShippingCost === 0 && actualCost > 0) {
+          alertClass = 'alert-warning';
+          message = '<i class="fas fa-exclamation-triangle me-1"></i> Free shipping to customer. Full carrier cost of '
+            + formatCurrency(actualCost) + ' will be recorded as Freight-Out when paid.';
+        } else if (saleShippingCost < actualCost) {
+          var delta = actualCost - saleShippingCost;
+          alertClass = 'alert-warning';
+          message = '<i class="fas fa-exclamation-triangle me-1"></i> Under-recovery: you absorb '
+            + formatCurrency(delta) + '. Net freight-out cost: ' + formatCurrency(delta) + '.';
+        } else if (saleShippingCost === actualCost) {
+          alertClass = 'alert-success';
+          message = '<i class="fas fa-check-circle me-1"></i> Exact cost recovery. No net freight-out expense.';
+        } else {
+          var profit = saleShippingCost - actualCost;
+          alertClass = 'alert-info';
+          message = '<i class="fas fa-info-circle me-1"></i> Over-recovery: shipping contributes '
+            + formatCurrency(profit) + ' net revenue.';
+        }
+      }
+
+      alertDiv.className = 'alert mb-3 ' + alertClass;
+      alertDiv.innerHTML = message;
+      alertDiv.style.display = '';
+    }
+
+    function formatCurrency(value) {
+      return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    // Initialise guidance on modal open
+    document.getElementById('processSaleModal').addEventListener('show.bs.modal', function () {
+      updateShippingGuidance();
+      loadSaleInventoryInfo(@Model.Sale.Id);
+    });
+
     // Set data attributes for JavaScript
     @if (TempData["ToastMessage"] != null)
     {
@@ -1773,13 +1858,11 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
       );
 
       if (confirmed) {
-        // Create and submit the form
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/Sales/RemoveItem';
         form.style.display = 'none';
 
-        // Add anti-forgery token
         const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
         const tokenInput = document.createElement('input');
         tokenInput.type = 'hidden';
@@ -1787,27 +1870,23 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
         tokenInput.value = token;
         form.appendChild(tokenInput);
 
-        // Add sale item ID
         const saleItemInput = document.createElement('input');
         saleItemInput.type = 'hidden';
         saleItemInput.name = 'saleItemId';
         saleItemInput.value = saleItemId;
         form.appendChild(saleItemInput);
 
-        // Add sale ID
         const saleInput = document.createElement('input');
         saleInput.type = 'hidden';
         saleInput.name = 'saleId';
         saleInput.value = saleId;
         form.appendChild(saleInput);
 
-        // Show loading state
         const button = event.target.closest('button');
         const originalHtml = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         button.disabled = true;
 
-        // Submit form
         document.body.appendChild(form);
         form.submit();
       }
@@ -1846,27 +1925,14 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
 
           if (mainContent) {
             // Create a simplified read-only view
-            content.innerHTML = `
-              <div class="row">
-                <div class="col-12">
-                  ${mainContent.innerHTML}
-                </div>
-              </div>
+            content.innerHTML = `                        
+              ${mainContent.innerHTML}
             `;
 
             // Disable all form elements to make it read-only
             content.querySelectorAll('input, select, textarea, button').forEach(element => {
               element.disabled = true;
               if (element.tagName === 'BUTTON') {
-                element.style.display = 'none';
-              }
-            });
-
-            // Remove edit links and form actions
-            content.querySelectorAll('a[href*="Edit"], a[href*="Delete"], form').forEach(element => {
-              if (element.tagName === 'A' && (element.href.includes('Edit') || element.href.includes('Delete'))) {
-                element.style.display = 'none';
-              } else if (element.tagName === 'FORM') {
                 element.style.display = 'none';
               }
             });
@@ -1917,26 +1983,14 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
 
           if (mainContent) {
             content.innerHTML = `
-              <div class="row">
-                <div class="col-12">
-                  ${mainContent.innerHTML}
-                </div>
-              </div>
-            `;
+
+                          ${mainContent.innerHTML}
+                        `;
 
             // Disable all form elements to make it read-only
             content.querySelectorAll('input, select, textarea, button').forEach(element => {
               element.disabled = true;
               if (element.tagName === 'BUTTON') {
-                element.style.display = 'none';
-              }
-            });
-
-            // Remove edit links and form actions
-            content.querySelectorAll('a[href*="Edit"], a[href*="Delete"], form').forEach(element => {
-              if (element.tagName === 'A' && (element.href.includes('Edit') || element.href.includes('Delete'))) {
-                element.style.display = 'none';
-              } else if (element.tagName === 'FORM') {
                 element.style.display = 'none';
               }
             });
@@ -2018,11 +2072,6 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
       });
     });
 
-    // Load inventory info when modal opens
-    $('#processSaleModal').on('show.bs.modal', function () {
-      loadSaleInventoryInfo(@Model.Sale.Id);
-    });
-
     function loadSaleInventoryInfo(saleId) {
       $.get('/Sales/GetSaleInventoryInfo/' + saleId, function(data) {
         if (data.success) {
@@ -2050,7 +2099,6 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
       });
     }
 
-    // Confirmation dialog for processing sale
     async function confirmProcessSale() {
       return await confirmAction('process and ship this sale',
         `<div class="alert alert-info mt-2 mb-0">
@@ -2060,7 +2108,6 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
       );
     }
 
-    // Confirmation dialog for deleting sale
     async function confirmDeleteSale() {
       return await confirmDelete('sale',
         `<div class="alert alert-danger mt-2 mb-0">
@@ -2070,7 +2117,6 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
       );
     }
 
-    // Check backorder availability for this sale
     function checkBackorderAvailability() {
       fetch('/Sales/CheckBackorderAvailability?saleId=' + @Model.Sale.Id)
         .then(response => response.json())
@@ -2083,7 +2129,6 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
     }
 
     function showBackorderNotification(summary) {
-      // Show notification that items are available for shipment
       const notification = document.createElement('div');
       notification.className = 'alert alert-success alert-dismissible fade show';
       notification.innerHTML = `
@@ -2095,15 +2140,10 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
         </a>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
       `;
-
-      // Insert at top of page
       const firstCard = document.querySelector('.card');
-      if (firstCard) {
-        firstCard.parentNode.insertBefore(notification, firstCard);
-      }
+      if (firstCard) firstCard.parentNode.insertBefore(notification, firstCard);
     }
 
-    // Check for available backorders on page load (for backordered sales)
     @if (Model.Sale.SaleStatus == SaleStatus.Backordered)
     {
         <text>
