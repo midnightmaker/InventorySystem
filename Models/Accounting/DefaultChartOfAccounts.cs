@@ -308,6 +308,17 @@ namespace InventorySystem.Models.Accounting
 					AccountSubType = AccountSubType.CostOfGoodsSold,
 					IsSystemAccount = true
 				},
+                new() {
+                    AccountCode = "5500",
+                    AccountName = "Freight-In",
+                    Description = "Inbound shipping and freight costs on purchased inventory. Part of landed cost — raises inventory asset value.",
+                    AccountType = AccountType.Expense,
+                    AccountSubType = AccountSubType.CostOfGoodsSold,
+                    IsSystemAccount = true,
+                    IsActive = true,
+                    CreatedDate = DateTime.Now,
+                    CreatedBy = "System"
+                },
 
                 // ============= OPERATING EXPENSES (6000-6999) =============
                 
@@ -461,7 +472,19 @@ namespace InventorySystem.Models.Accounting
 					AccountType = AccountType.Expense,
 					AccountSubType = AccountSubType.OperatingExpense,
 					IsSystemAccount = true
-				}
+				},
+                new() {
+                    AccountCode = "6500",
+                    AccountName = "Freight-Out",
+                    Description = "Outbound shipping costs paid to carriers when delivering products to customers. Operating expense — only the portion not recovered from customer billing.",
+                    AccountType = AccountType.Expense,
+                    AccountSubType = AccountSubType.OperatingExpense,
+                    IsSystemAccount = true,
+                    IsActive = true,
+                    CreatedDate = DateTime.Now,
+                    CreatedBy = "System"
+                },
+
 			};
 		}
 
@@ -501,6 +524,7 @@ namespace InventorySystem.Models.Accounting
 				ExpenseCategory.Research => "6070",                // Research & Development
 				ExpenseCategory.Insurance => "6050",               // Insurance Expense
 				ExpenseCategory.GeneralBusiness => "6000",         // General Business Expenses
+				ExpenseCategory.ShippingOut => "6500",             // Freight-Out (outbound carrier costs)
 				_ => "6000"                                         // Default to general business expenses
 			};
 		}

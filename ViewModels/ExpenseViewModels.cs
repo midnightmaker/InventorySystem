@@ -143,6 +143,7 @@ namespace InventorySystem.ViewModels
 			ExpenseCategory.Research => "Research & Development",
 			ExpenseCategory.Insurance => "Insurance",
 			ExpenseCategory.GeneralBusiness => "General Business",
+			ExpenseCategory.ShippingOut => "Outbound Shipping (Freight-Out)",
 			_ => Category.ToString()
 		};
 	}

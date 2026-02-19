@@ -102,6 +102,7 @@ namespace InventorySystem.Models
             ExpenseCategory.Research => "Research & Development",
             ExpenseCategory.Insurance => "Insurance",
             ExpenseCategory.GeneralBusiness => "General Business",
+            ExpenseCategory.ShippingOut => "Outbound Shipping (Freight-Out)",
             _ => Category.ToString()
         };
 
@@ -149,6 +150,7 @@ namespace InventorySystem.Models
                 ExpenseCategory.Research => "6800",              // Research & Development Expense
                 ExpenseCategory.Insurance => "6900",             // Insurance Expense
                 ExpenseCategory.GeneralBusiness => "6000",       // General Business Expense
+                ExpenseCategory.ShippingOut => "6500",           // Freight-Out Expense (GL 6500)
                 _ => "6000"                                       // Default to General Business Expense
             };
         }

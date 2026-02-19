@@ -1314,6 +1314,7 @@ namespace InventorySystem.Controllers
                 ExpenseCategory.Research => "Research & Development",
                 ExpenseCategory.Insurance => "Insurance",
                 ExpenseCategory.GeneralBusiness => "General Business",
+                ExpenseCategory.ShippingOut => "Outbound Shipping (Freight-Out)",
                 _ => category.ToString()
             };
         }
@@ -1332,6 +1333,7 @@ namespace InventorySystem.Controllers
                 ExpenseCategory.Equipment => "Equipment & Maintenance",
                 ExpenseCategory.Marketing => "Marketing & Advertising",
                 ExpenseCategory.Insurance => "Insurance",
+                ExpenseCategory.ShippingOut => "Transportation & Freight",
                 _ => "Other Business Expenses"
             };
         }
