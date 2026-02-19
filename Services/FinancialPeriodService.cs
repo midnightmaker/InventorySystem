@@ -99,6 +99,35 @@ namespace InventorySystem.Services
         public async Task<(DateTime start, DateTime end)> GetCurrentFinancialYearRangeAsync()
         {
             var settings = await GetCompanySettingsAsync();
+
+            // Prefer the explicitly-set current period from the database — it is the
+            // authoritative source and may differ from the computed range when the
+            // financial year has been manually rolled over.
+            if (settings.CurrentFinancialPeriodId.HasValue)
+            {
+                var currentPeriod = await _context.FinancialPeriods
+                    .FirstOrDefaultAsync(p => p.Id == settings.CurrentFinancialPeriodId.Value);
+
+                if (currentPeriod != null)
+                {
+                    return (currentPeriod.StartDate, currentPeriod.EndDate);
+                }
+            }
+
+            // Fall back: find any open period that contains today
+            var today = DateTime.Today;
+            var activePeriod = await _context.FinancialPeriods
+                .Where(p => p.StartDate <= today && p.EndDate >= today && !p.IsClosed)
+                .OrderByDescending(p => p.StartDate)
+                .FirstOrDefaultAsync();
+
+            if (activePeriod != null)
+            {
+                return (activePeriod.StartDate, activePeriod.EndDate);
+            }
+
+            // Last resort: compute from CompanySettings (handles case where no period
+            // records exist yet)
             var start = settings.GetCurrentFinancialYearStart();
             var end = settings.GetCurrentFinancialYearEnd();
             return (start, end);
@@ -106,10 +135,9 @@ namespace InventorySystem.Services
 
         public async Task<(DateTime start, DateTime end)> GetPreviousFinancialYearRangeAsync()
         {
-            var settings = await GetCompanySettingsAsync();
-            var currentStart = settings.GetCurrentFinancialYearStart();
+            var (currentStart, _) = await GetCurrentFinancialYearRangeAsync();
             var previousStart = currentStart.AddYears(-1);
-            var previousEnd = previousStart.AddYears(1).AddDays(-1);
+            var previousEnd = currentStart.AddDays(-1);
             return (previousStart, previousEnd);
         }
 

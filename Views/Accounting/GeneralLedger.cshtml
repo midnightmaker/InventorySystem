@@ -109,7 +109,8 @@
   </div>
   <div class="card-body">
     <form method="get">
-      <input type="hidden" name="period" value="@Model.SelectedPeriod" />
+      {{!-- ✅ Use "custom" as the period value when submitting custom dates --}}
+      <input type="hidden" name="period" value="custom" />
       <div class="row">
         <div class="col-md-3">
           <div class="mb-3">

@@ -268,17 +268,28 @@ namespace InventorySystem.Controllers
 		// ============= GENERAL LEDGER =============
 
 		// GET: Accounting/GeneralLedger
-		public async Task<IActionResult> GeneralLedger(string? accountCode = null, DateTime? startDate = null, DateTime? endDate = null, string? period = null)
+		public async Task<IActionResult> GeneralLedger(
+		string? accountCode = null,
+		DateTime? startDate = null,
+		DateTime? endDate = null,
+		string? period = null)
 		{
 			try
 			{
+				// ✅ When a named period is explicitly selected, ignore any custom dates
+				// so the period button always takes full precedence
+				if (!string.IsNullOrEmpty(period) && period != "custom")
+				{
+					startDate = null;
+					endDate = null;
+				}
+
 				// ✅ DEFAULT TO CURRENT FINANCIAL YEAR when no period specified
 				if (string.IsNullOrEmpty(period) && !startDate.HasValue && !endDate.HasValue)
 				{
 					period = "current-fy";
 				}
 
-				// Get default date range based on financial period settings
 				(DateTime defaultStart, DateTime defaultEnd) = period switch
 				{
 					"current-fy" => await _financialPeriodService.GetCurrentFinancialYearRangeAsync(),
@@ -303,7 +314,6 @@ namespace InventorySystem.Controllers
 				}
 
 				var accounts = await _accountingService.GetActiveAccountsAsync();
-				var financialPeriodInfo = await _financialPeriodService.GetCompanySettingsAsync();
 				var currentPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
 
 				var viewModel = new GeneralLedgerViewModel
@@ -313,7 +323,6 @@ namespace InventorySystem.Controllers
 					StartDate = actualStartDate,
 					EndDate = actualEndDate,
 					Accounts = accounts.ToList(),
-					// Add financial period info
 					CurrentFinancialPeriod = currentPeriod,
 					SelectedPeriod = period,
 					IsAllTimeView = period == "all-time"
