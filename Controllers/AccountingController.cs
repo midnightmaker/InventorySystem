@@ -17,17 +17,20 @@ namespace InventorySystem.Controllers
 	{
 		private readonly IAccountingService _accountingService;
 		private readonly IFinancialPeriodService _financialPeriodService;
+		private readonly ICompanyInfoService _companyInfoService;
 		private readonly InventoryContext _context;
 		private readonly ILogger<AccountingController> _logger;
 
 		public AccountingController(
 			IAccountingService accountingService,
 			IFinancialPeriodService financialPeriodService,
+			ICompanyInfoService companyInfoService,
 			InventoryContext context,
 			ILogger<AccountingController> logger)
 		{
 			_accountingService = accountingService;
 			_financialPeriodService = financialPeriodService;
+			_companyInfoService = companyInfoService;
 			_context = context;
 			_logger = logger;
 		}
@@ -1333,9 +1336,21 @@ namespace InventorySystem.Controllers
 				var periods = await _financialPeriodService.GetAllFinancialPeriodsAsync();
 				var currentPeriod = await _financialPeriodService.GetCurrentFinancialPeriodAsync();
 
+				// Company name is the single source of truth from CompanyInfo
+				var companyInfo = await _companyInfoService.GetCompanyInfoAsync();
+				var companyName = companyInfo.CompanyName;
+
+				// Keep CompanySettings.CompanyName in sync with CompanyInfo
+				if (companySettings.CompanyName != companyName)
+				{
+					companySettings.CompanyName = companyName;
+					await _financialPeriodService.UpdateCompanySettingsAsync(companySettings);
+				}
+
 				var viewModel = new FinancialPeriodViewModel
 				{
 					CompanySettings = companySettings,
+					CompanyName = companyName,
 					AvailablePeriods = periods.ToList(),
 					CurrentPeriod = currentPeriod,
 					CurrentFinancialYear = await _financialPeriodService.GetCurrentFinancialYearRangeAsync(),
@@ -1367,7 +1382,8 @@ namespace InventorySystem.Controllers
 				}
 
 				var settings = await _financialPeriodService.GetCompanySettingsAsync();
-				settings.CompanyName = model.CompanyName;
+				// Company name is sourced from CompanyInfo – do not overwrite it from this form.
+				// Only financial period settings are updated here.
 				settings.FinancialYearStartMonth = model.FinancialYearStartMonth;
 				settings.FinancialYearStartDay = model.FinancialYearStartDay;
 				settings.DefaultReportPeriod = model.DefaultReportPeriod;
@@ -1375,7 +1391,7 @@ namespace InventorySystem.Controllers
 				settings.UpdatedBy = User.Identity?.Name ?? "System";
 
 				await _financialPeriodService.UpdateCompanySettingsAsync(settings);
-				TempData["SuccessMessage"] = "Company settings updated successfully";
+				TempData["SuccessMessage"] = "Company financial settings updated successfully";
 
 				return RedirectToAction(nameof(ManageFinancialPeriods));
 			}

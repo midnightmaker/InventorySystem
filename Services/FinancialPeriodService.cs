@@ -23,10 +23,14 @@ namespace InventorySystem.Services
 
             if (settings == null)
             {
+                // Seed company name from CompanyInfo (single source of truth)
+                var companyInfo = await _context.CompanyInfo.FirstOrDefaultAsync();
+                var companyName = companyInfo?.CompanyName ?? "My Company";
+
                 // Create default settings
                 settings = new CompanySettings
                 {
-                    CompanyName = "My Company",
+                    CompanyName = companyName,
                     FinancialYearStartMonth = 1, // January (calendar year)
                     FinancialYearStartDay = 1,
                     DefaultReportPeriod = DefaultReportPeriod.CurrentFinancialYear,

@@ -9,6 +9,11 @@ namespace InventorySystem.ViewModels.Accounting
         public FinancialPeriod? CurrentPeriod { get; set; }
         public List<FinancialPeriod> AvailablePeriods { get; set; } = new();
         public CompanySettings CompanySettings { get; set; } = null!;
+
+        /// <summary>
+        /// Company name sourced from CompanyInfo (the single source of truth).
+        /// </summary>
+        public string CompanyName { get; set; } = string.Empty;
         
         // Quick period selections
         public (DateTime start, DateTime end) CurrentFinancialYear { get; set; }
