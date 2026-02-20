@@ -36,7 +36,8 @@ namespace InventorySystem.Services
                 _context.CompanySettings.Add(settings);
                 await _context.SaveChangesAsync();
 
-                // Create current financial year
+                // Create current financial year — pass the already-saved settings so
+                // CreateCurrentFinancialYearIfNeeded does NOT call GetCompanySettingsAsync again.
                 await CreateCurrentFinancialYearIfNeeded(settings);
             }
 
@@ -149,23 +150,52 @@ namespace InventorySystem.Services
 
         private async Task CreateCurrentFinancialYearIfNeeded(CompanySettings settings)
         {
-            var currentPeriod = await GetCurrentFinancialPeriodAsync();
+            // Check for an existing period without going through GetCurrentFinancialPeriodAsync,
+            // which would call GetCompanySettingsAsync again and create a second insert.
+            FinancialPeriod? currentPeriod = null;
+
+            if (settings.CurrentFinancialPeriodId.HasValue)
+            {
+                currentPeriod = await _context.FinancialPeriods
+                    .FirstOrDefaultAsync(p => p.Id == settings.CurrentFinancialPeriodId.Value);
+            }
+
             if (currentPeriod == null)
             {
-                await CreateNextFinancialYearAsync();
+                var today = DateTime.Today;
+                currentPeriod = await _context.FinancialPeriods
+                    .FirstOrDefaultAsync(p => p.StartDate <= today && p.EndDate >= today && !p.IsClosed);
+            }
+
+            if (currentPeriod == null)
+            {
+                await CreateNextFinancialYearCoreAsync(settings);
             }
         }
 
         public async Task<FinancialPeriod> CreateNextFinancialYearAsync()
         {
+            // Public entry point: load settings normally then delegate.
             var settings = await GetCompanySettingsAsync();
+            return await CreateNextFinancialYearCoreAsync(settings);
+        }
+
+        // ?? Private helpers ???????????????????????????????????????????????????
+
+        /// <summary>
+        /// Core logic for creating the next financial year period.
+        /// Accepts an already-loaded CompanySettings to avoid any recursive
+        /// call back into GetCompanySettingsAsync.
+        /// </summary>
+        private async Task<FinancialPeriod> CreateNextFinancialYearCoreAsync(CompanySettings settings)
+        {
             var start = settings.GetCurrentFinancialYearStart();
             var end = settings.GetCurrentFinancialYearEnd();
 
             var period = new FinancialPeriod
             {
-                PeriodName = settings.FinancialYearStartMonth == 1 ? 
-                    $"Calendar Year {start.Year}" : 
+                PeriodName = settings.FinancialYearStartMonth == 1 ?
+                    $"Calendar Year {start.Year}" :
                     $"FY {start.Year}-{end.Year}",
                 StartDate = start,
                 EndDate = end,

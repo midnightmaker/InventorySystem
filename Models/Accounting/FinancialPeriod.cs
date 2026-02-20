@@ -46,7 +46,7 @@ namespace InventorySystem.Models.Accounting
         public string? ClosingNotes { get; set; }
 
         [Display(Name = "Last Modified")]
-        public DateTime LastModified { get; set; } = DateTime.Now;
+        public DateTime? LastModified { get; set; }
 
         [Display(Name = "Last Modified By")]
         [StringLength(100)]
