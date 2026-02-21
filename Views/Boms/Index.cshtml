@@ -516,6 +516,9 @@
                       <a href="/Boms/Visualize/@bom.Id" class="btn btn-outline-info" title="Visualize">
                         <i class="fas fa-project-diagram"></i>
                       </a>
+                      <a href="/Boms/Delete/@bom.Id" class="btn btn-outline-danger" title="Delete">
+                        <i class="fas fa-trash-alt"></i>
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -696,6 +699,8 @@
                       window.LoadingIndicator.show('Loading Component Manager...', 'Adding components to BOM');
                   } else if (href.includes('/Visualize/')) {
                       window.LoadingIndicator.show('Loading BOM Visualizer...', 'Generating interactive BOM diagram');
+                  } else if (href.includes('/Delete/')) {
+                      window.LoadingIndicator.show('Preparing Deletion...', 'Setting up BOM deletion');
                   }
               }
           });

@@ -153,5 +153,23 @@ namespace InventorySystem.Controllers
 			sale.SaleStatus == SaleStatus.Shipped ||
 			sale.SaleStatus == SaleStatus.PartiallyShipped ||
 			sale.SaleStatus == SaleStatus.Delivered;
+
+		private static IEnumerable<SelectListItem> BuildCustomerSelectList(
+			IEnumerable<Customer> customers,
+			int? selectedId = null)
+		{
+			return customers
+				.Where(c => c.IsActive)
+				.Select(c => new SelectListItem
+				{
+					Value = c.Id.ToString(),
+					Text = !string.IsNullOrEmpty(c.CompanyName)
+						? $"{c.CompanyName} ({c.CustomerName})"
+						: c.CustomerName,
+					Selected = c.Id == selectedId
+				})
+				.OrderBy(c => c.Text)
+				.ToList();
+		}
 	}
 }

@@ -239,17 +239,27 @@
                 </div>
                 <div class="card-body">
                     <dl class="row">
-                        <dt class="col-sm-5">Name:</dt>
-                        <dd class="col-sm-7">
-                            <a href="/Customers/Details/@Model.Sale.Customer.Id" class="text-decoration-none">
-                                @Model.Sale.Customer.CustomerName
-                            </a>
-                        </dd>
-                        
-                        @if (!string.IsNullOrEmpty(Model.Sale.Customer.CompanyName))
+                        @if (!string.IsNullOrEmpty(Model.Sale.Customer?.CompanyName))
                         {
                             <dt class="col-sm-5">Company:</dt>
-                            <dd class="col-sm-7">@Model.Sale.Customer.CompanyName</dd>
+                            <dd class="col-sm-7">
+                                <strong>
+                                    <a href="/Customers/Details/@Model.Sale.Customer.Id" class="text-decoration-none">
+                                        @Model.Sale.Customer.CompanyName
+                                    </a>
+                                </strong>
+                            </dd>
+                            <dt class="col-sm-5">Contact:</dt>
+                            <dd class="col-sm-7">@Model.Sale.Customer.CustomerName</dd>
+                        }
+                        else
+                        {
+                            <dt class="col-sm-5">Name:</dt>
+                            <dd class="col-sm-7">
+                                <a href="/Customers/Details/@Model.Sale.Customer.Id" class="text-decoration-none">
+                                    @Model.Sale.Customer.CustomerName
+                                </a>
+                            </dd>
                         }
                         
                         @if (!string.IsNullOrEmpty(Model.Sale.Customer.Email))

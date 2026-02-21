@@ -234,9 +234,16 @@
                                     <small class="text-muted">@payment.PaymentDate.ToString("h:mm tt")</small>
                                 </td>
                                 <td>
-                                    <strong>@payment.CustomerName</strong>
-                                    <br>
-                                    <small class="text-muted">ID: @payment.CustomerId</small>
+                                    @if (!string.IsNullOrEmpty(payment.CompanyName))
+                                    {
+                                        <strong>@payment.CompanyName</strong>
+                                        <br>
+                                        <small class="text-muted"><i class="fas fa-user"></i> @payment.CustomerName</small>
+                                    }
+                                    else
+                                    {
+                                        <strong>@payment.CustomerName</strong>
+                                    }
                                 </td>
                                 <td>
                                     <a href="/Sales/Details/@payment.SaleId" class="text-decoration-none">

@@ -183,6 +183,18 @@ namespace InventorySystem.Controllers
                 var allCustomers = await _customerService.GetAllCustomersAsync();
                 var activeCustomers = allCustomers.Where(c => c.IsActive).ToList();
 
+                // Build dropdown entries showing CompanyName as primary (B2B)
+                var customerDropdownItems = activeCustomers
+                    .Select(c => new
+                    {
+                        c.Id,
+                        DisplayName = !string.IsNullOrEmpty(c.CompanyName)
+                            ? $"{c.CompanyName} ({c.CustomerName})"
+                            : c.CustomerName
+                    })
+                    .OrderBy(c => c.DisplayName)
+                    .ToList();
+
                 // Prepare ViewBag data
                 ViewBag.SearchTerm = search;
                 ViewBag.CustomerFilter = customerFilter;
@@ -208,7 +220,7 @@ namespace InventorySystem.Controllers
                 ViewBag.TotalPaymentCount = allPayments.Count;
 
                 // Dropdown data
-                ViewBag.CustomerOptions = new SelectList(activeCustomers, "Id", "CustomerName", customerFilter);
+                ViewBag.CustomerOptions = new SelectList(customerDropdownItems, "Id", "DisplayName", customerFilter);
                 ViewBag.PaymentMethodOptions = new SelectList(paymentMethods.Select(pm => new
                 {
                     Value = pm,
@@ -427,6 +439,7 @@ namespace InventorySystem.Controllers
                         SaleNumber = sale.SaleNumber,
                         CustomerId = sale.CustomerId,
                         CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
+                        CompanyName = sale.Customer?.CompanyName,
                         PaymentDate = customerPayment.PaymentDate,
                         Amount = customerPayment.Amount,
                         PaymentMethod = customerPayment.PaymentMethod,
@@ -453,6 +466,7 @@ namespace InventorySystem.Controllers
                         SaleNumber = sale.SaleNumber,
                         CustomerId = sale.CustomerId,
                         CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
+                        CompanyName = sale.Customer?.CompanyName,
                         PaymentDate = sale.SaleDate, // Default to sale date
                         Amount = sale.TotalAmount,
                         PaymentMethod = sale.PaymentMethod ?? "Unknown",
@@ -486,6 +500,7 @@ namespace InventorySystem.Controllers
                     SaleNumber = sale.SaleNumber,
                     CustomerId = sale.CustomerId,
                     CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
+                    CompanyName = sale.Customer?.CompanyName,
                     PaymentDate = sale.SaleDate,
                     Amount = sale.TotalAmount,
                     PaymentMethod = sale.PaymentMethod ?? "Unknown",
@@ -521,6 +536,7 @@ namespace InventorySystem.Controllers
                             SaleNumber = sale.SaleNumber,
                             CustomerId = sale.CustomerId,
                             CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
+                            CompanyName = sale.Customer?.CompanyName,
                             PaymentDate = paymentDate,
                             Amount = amount,
                             PaymentMethod = paymentMethod,
@@ -547,6 +563,7 @@ namespace InventorySystem.Controllers
                             SaleNumber = sale.SaleNumber,
                             CustomerId = sale.CustomerId,
                             CustomerName = sale.Customer?.CustomerName ?? "Unknown Customer",
+                            CompanyName = sale.Customer?.CompanyName,
                             PaymentDate = sale.SaleDate, // Default to sale date
                             Amount = amount,
                             PaymentMethod = paymentMethod,

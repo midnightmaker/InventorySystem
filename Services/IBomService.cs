@@ -11,6 +11,16 @@ namespace InventorySystem.Services
     Task<Bom> CreateBomAsync(Bom bom);
     Task<Bom> UpdateBomAsync(Bom bom);
     Task DeleteBomAsync(int id);
+
+    /// <summary>
+    /// Returns a detailed impact report describing whether the BOM can be safely deleted.
+    /// </summary>
+    Task<BomDeletabilityResult> CheckBomDeletabilityAsync(int id);
+
+    /// <summary>
+    /// Removes the sub-assembly link between a child BOM and its parent without deleting either BOM.
+    /// </summary>
+    Task DetachSubAssemblyAsync(int subAssemblyBomId, int parentBomId);
     #endregion
 
     #region Production-Specific Methods (CRITICAL FOR PRODUCTION FIXES)
@@ -39,7 +49,7 @@ namespace InventorySystem.Services
     #region Cost Calculations
     Task<decimal> GetBomTotalCostAsync(int bomId);
     Task<decimal> GetBomMaterialCostAsync(int bomId, int quantity = 1);
-    
+
     /// <summary>
     /// Gets exploded BOM cost data including all sub-assembly details
     /// </summary>

@@ -108,7 +108,11 @@ namespace InventorySystem.Controllers
 				ViewBag.ShowingTo = Math.Min(skip + pageSize, totalCount);
 				ViewBag.AllowedPageSizes = AllowedPageSizes;
 
-				ViewBag.CustomerOptions = new SelectList(allCustomers.Where(c => c.IsActive), "Id", "CustomerName", customerFilter);
+				int? selectedCustomerId = int.TryParse(customerFilter, out int cf) ? cf : null;
+				ViewBag.CustomerOptions = new SelectList(
+					BuildCustomerSelectList(allCustomers, selectedCustomerId),
+					"Value", "Text", customerFilter);
+
 				ViewBag.StatusOptions = new SelectList(saleStatuses.Select(s => new
 				{
 					Value = s.ToString(),
@@ -187,16 +191,7 @@ namespace InventorySystem.Controllers
 					sale.CustomerId = customerId.Value;
 
 				var customers = await _customerService.GetAllCustomersAsync();
-				ViewBag.Customers = customers
-					.Where(c => c.IsActive)
-					.Select(c => new SelectListItem
-					{
-						Value = c.Id.ToString(),
-						Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
-						Selected = c.Id == customerId
-					})
-					.OrderBy(c => c.Text)
-					.ToList();
+				ViewBag.Customers = BuildCustomerSelectList(customers, customerId);
 
 				return View(sale);
 			}
@@ -226,16 +221,7 @@ namespace InventorySystem.Controllers
 				if (!ModelState.IsValid)
 				{
 					var customers = await _customerService.GetAllCustomersAsync();
-					ViewBag.Customers = customers
-						.Where(c => c.IsActive)
-						.Select(c => new SelectListItem
-						{
-							Value = c.Id.ToString(),
-							Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
-							Selected = c.Id == sale.CustomerId
-						})
-						.OrderBy(c => c.Text)
-						.ToList();
+					ViewBag.Customers = BuildCustomerSelectList(customers, sale.CustomerId);
 					return View(sale);
 				}
 
@@ -269,16 +255,7 @@ namespace InventorySystem.Controllers
 				try
 				{
 					var customers = await _customerService.GetAllCustomersAsync();
-					ViewBag.Customers = customers
-						.Where(c => c.IsActive)
-						.Select(c => new SelectListItem
-						{
-							Value = c.Id.ToString(),
-							Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
-							Selected = c.Id == sale.CustomerId
-						})
-						.OrderBy(c => c.Text)
-						.ToList();
+					ViewBag.Customers = BuildCustomerSelectList(customers, sale.CustomerId);
 				}
 				catch
 				{
@@ -315,16 +292,7 @@ namespace InventorySystem.Controllers
 				}
 
 				var customers = await _customerService.GetAllCustomersAsync();
-				ViewBag.Customers = customers
-					.Where(c => c.IsActive)
-					.Select(c => new SelectListItem
-					{
-						Value = c.Id.ToString(),
-						Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
-						Selected = c.Id == sale.CustomerId
-					})
-					.OrderBy(c => c.Text)
-					.ToList();
+				ViewBag.Customers = BuildCustomerSelectList(customers, sale.CustomerId);
 
 				return View(sale);
 			}
@@ -371,16 +339,7 @@ namespace InventorySystem.Controllers
 				if (!ModelState.IsValid)
 				{
 					var customers = await _customerService.GetAllCustomersAsync();
-					ViewBag.Customers = customers
-						.Where(c => c.IsActive)
-						.Select(c => new SelectListItem
-						{
-							Value = c.Id.ToString(),
-							Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
-							Selected = c.Id == sale.CustomerId
-						})
-						.OrderBy(c => c.Text)
-						.ToList();
+					ViewBag.Customers = BuildCustomerSelectList(customers, sale.CustomerId);
 					return View(sale);
 				}
 
@@ -401,16 +360,7 @@ namespace InventorySystem.Controllers
 				try
 				{
 					var customers = await _customerService.GetAllCustomersAsync();
-					ViewBag.Customers = customers
-						.Where(c => c.IsActive)
-						.Select(c => new SelectListItem
-						{
-							Value = c.Id.ToString(),
-							Text = $"{c.CustomerName} - {c.CompanyName ?? c.CustomerName}",
-							Selected = c.Id == sale.CustomerId
-						})
-						.OrderBy(c => c.Text)
-						.ToList();
+					ViewBag.Customers = BuildCustomerSelectList(customers, sale.CustomerId);
 				}
 				catch
 				{

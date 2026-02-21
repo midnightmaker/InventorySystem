@@ -72,6 +72,7 @@ namespace InventorySystem.Controllers
 						SaleId = sale.Id,
 						SaleNumber = sale.SaleNumber,
 						CustomerName = sale.Customer?.CustomerName ?? "Unknown",
+						CompanyName = sale.Customer?.CompanyName,
 						CustomerId = sale.CustomerId,
 						SaleDate = sale.SaleDate,
 						DueDate = sale.PaymentDueDate,
@@ -131,6 +132,7 @@ namespace InventorySystem.Controllers
 					SaleNumber = s.SaleNumber,
 					CustomerId = s.CustomerId,
 					CustomerName = s.Customer?.CustomerName ?? "Unknown",
+					CompanyName = s.Customer?.CompanyName,
 					CustomerEmail = s.Customer?.Email ?? "",
 					CustomerPhone = s.Customer?.Phone ?? "",
 					SaleDate = s.SaleDate,
@@ -178,6 +180,7 @@ namespace InventorySystem.Controllers
 					{
 						CustomerId = customer.Id,
 						CustomerName = customer.CustomerName,
+						CompanyName = customer.CompanyName,
 						CustomerEmail = customer.Email,
 						OutstandingBalance = customer.OutstandingBalance,
 						CreditLimit = customer.CreditLimit,
@@ -366,6 +369,7 @@ namespace InventorySystem.Controllers
 					AdjustmentId = a.Id,
 					CreditMemoNumber = $"CM-{a.AdjustmentDate:yyyyMMdd}-{a.Id:D4}",
 					CustomerName = a.Customer.CustomerName,
+					CompanyName = a.Customer.CompanyName,
 					CustomerId = a.CustomerId,
 					AdjustmentType = a.AdjustmentType,
 					CreditAmount = a.AdjustmentAmount,
@@ -394,6 +398,7 @@ namespace InventorySystem.Controllers
 		public int AdjustmentId { get; set; }
 		public string CreditMemoNumber { get; set; } = string.Empty;
 		public string CustomerName { get; set; } = string.Empty;
+		public string? CompanyName { get; set; }
 		public int CustomerId { get; set; }
 		public string AdjustmentType { get; set; } = string.Empty;
 		public decimal CreditAmount { get; set; }

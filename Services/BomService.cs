@@ -130,6 +130,13 @@ namespace InventorySystem.Services
             throw new InvalidOperationException("Cannot delete BOM that has associated finished goods.");
           }
 
+          // Check if BOM is used as a sub-assembly by another BOM
+          var isSubAssembly = await _context.Boms.AnyAsync(b => b.ParentBomId == id);
+          if (isSubAssembly)
+          {
+            throw new InvalidOperationException("Cannot delete a BOM that is referenced as a sub-assembly by another BOM. Remove the sub-assembly reference first.");
+          }
+
           _context.Boms.Remove(bom);
           await _context.SaveChangesAsync();
 
@@ -141,6 +148,91 @@ namespace InventorySystem.Services
         _logger.LogError(ex, "Error deleting BOM {BomId}", id);
         throw;
       }
+    }
+
+    /// <summary>
+    /// Checks whether a BOM can be deleted and returns an impact summary.
+    /// </summary>
+    public async Task<BomDeletabilityResult> CheckBomDeletabilityAsync(int id)
+    {
+      var result = new BomDeletabilityResult();
+
+      var bom = await _context.Boms
+          .Include(b => b.BomItems)
+          .Include(b => b.SubAssemblies)
+          .Include(b => b.Documents)
+          .Include(b => b.ParentBom)
+          .FirstOrDefaultAsync(b => b.Id == id);
+
+      if (bom == null)
+      {
+        result.CanDelete = false;
+        result.BlockingReasons.Add("BOM not found.");
+        return result;
+      }
+
+      result.BomNumber = bom.BomNumber;
+      result.Description = bom.Description;
+      result.ComponentCount = bom.BomItems.Count;
+      result.SubAssemblyCount = bom.SubAssemblies.Count;
+      result.DocumentCount = bom.Documents.Count;
+      result.IsSubAssembly = bom.ParentBomId.HasValue;
+      result.ParentBomId = bom.ParentBomId;
+      result.ParentBomNumber = bom.ParentBom?.BomNumber;
+
+      // Check production usage
+      var productionCount = await _context.Productions.CountAsync(p => p.BomId == id);
+      if (productionCount > 0)
+      {
+        result.ProductionRunCount = productionCount;
+        result.BlockingReasons.Add($"Used in {productionCount} production run(s).");
+      }
+
+      // Check finished goods
+      var finishedGoodCount = await _context.FinishedGoods.CountAsync(fg => fg.BomId == id);
+      if (finishedGoodCount > 0)
+      {
+        result.FinishedGoodCount = finishedGoodCount;
+        result.BlockingReasons.Add($"Has {finishedGoodCount} associated finished good(s).");
+      }
+
+      // Check if it is referenced as a sub-assembly
+      var parentBoms = await _context.Boms
+          .Where(b => b.ParentBomId == id)
+          .Select(b => new { b.Id, b.BomNumber, b.Description })
+          .ToListAsync();
+
+      if (parentBoms.Any())
+      {
+        result.BlockingReasons.Add($"Referenced as a sub-assembly by {parentBoms.Count} BOM(s).");
+        result.ReferencedByBoms = parentBoms.Select(b => $"{b.BomNumber} – {b.Description}").ToList();
+      }
+
+      result.CanDelete = result.BlockingReasons.Count == 0;
+      return result;
+    }
+
+    /// <summary>
+    /// Removes a sub-assembly link from its parent BOM (sets ParentBomId to null)
+    /// without deleting the sub-assembly BOM itself.
+    /// </summary>
+    public async Task DetachSubAssemblyAsync(int subAssemblyBomId, int parentBomId)
+    {
+      var subBom = await _context.Boms.FindAsync(subAssemblyBomId);
+      if (subBom == null)
+        throw new InvalidOperationException("Sub-assembly BOM not found.");
+
+      if (subBom.ParentBomId != parentBomId)
+        throw new InvalidOperationException("Sub-assembly does not belong to the specified parent BOM.");
+
+      subBom.ParentBomId = null;
+
+      var parent = await _context.Boms.FindAsync(parentBomId);
+      if (parent != null)
+        parent.ModifiedDate = DateTime.Now;
+
+      await _context.SaveChangesAsync();
+      _logger.LogInformation("Detached sub-assembly BOM {SubId} from parent BOM {ParentId}", subAssemblyBomId, parentBomId);
     }
 
     #endregion
@@ -954,6 +1046,23 @@ namespace InventorySystem.Services
     public int TotalComponentCount { get; set; } = 0;
     public int TotalSubAssemblyCount { get; set; } = 0;
     public int MaxDepthLevel { get; set; } = 0;
+  }
+
+  public class BomDeletabilityResult
+  {
+    public bool CanDelete { get; set; } = true;
+    public string BomNumber { get; set; } = "";
+    public string Description { get; set; } = "";
+    public int ComponentCount { get; set; }
+    public int SubAssemblyCount { get; set; }
+    public int DocumentCount { get; set; }
+    public bool IsSubAssembly { get; set; }
+    public int? ParentBomId { get; set; }
+    public string? ParentBomNumber { get; set; }
+    public int ProductionRunCount { get; set; }
+    public int FinishedGoodCount { get; set; }
+    public List<string> BlockingReasons { get; set; } = new();
+    public List<string> ReferencedByBoms { get; set; } = new();
   }
 
   #endregion

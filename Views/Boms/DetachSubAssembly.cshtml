@@ -1,0 +1,101 @@
+@model InventorySystem.Models.Bom
+@{
+    ViewData["Title"] = "Remove Sub-Assembly";
+    var parentBom = ViewBag.ParentBom as InventorySystem.Models.Bom;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="text-warning">
+        <i class="fas fa-unlink"></i> Remove Sub-Assembly
+    </h1>
+    <a href="/Boms/Details/@parentBom?.Id" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Parent BOM
+    </a>
+</div>
+
+<div class="alert alert-warning border border-warning border-2">
+    <div class="d-flex align-items-start gap-3">
+        <i class="fas fa-exclamation-triangle fa-2x text-warning flex-shrink-0 mt-1"></i>
+        <div>
+            <h5 class="alert-heading mb-1">Remove sub-assembly from parent BOM?</h5>
+            <p class="mb-0">
+                You are about to detach <strong>@Model.BomNumber</strong> from its parent BOM
+                <strong>@parentBom?.BomNumber</strong>.
+                The sub-assembly BOM will <em>not</em> be deleted — it will simply no longer be
+                nested inside the parent.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> What will happen</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush mb-3">
+                    <li class="list-group-item">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        The link between <strong>@parentBom?.BomNumber</strong> and <strong>@Model.BomNumber</strong> will be removed.
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>@Model.BomNumber</strong> will still exist as an independent BOM and can be found in the BOM list.
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        All components and documents inside <strong>@Model.BomNumber</strong> are preserved.
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        The parent BOM cost will be recalculated on next view (no longer includes this sub-assembly).
+                    </li>
+                </ul>
+
+                <div class="d-flex gap-3 mt-3">
+                    <dl class="me-4">
+                        <dt>Parent BOM</dt>
+                        <dd>
+                            <a href="/Boms/Details/@parentBom?.Id" class="text-decoration-none">
+                                @parentBom?.BomNumber
+                            </a>
+                            @if (!string.IsNullOrEmpty(parentBom?.Description))
+                            {
+                                <br /><small class="text-muted">@parentBom.Description</small>
+                            }
+                        </dd>
+                    </dl>
+                    <dl>
+                        <dt>Sub-Assembly Being Removed</dt>
+                        <dd>
+                            <strong>@Model.BomNumber</strong>
+                            @if (!string.IsNullOrEmpty(Model.Description))
+                            {
+                                <br /><small class="text-muted">@Model.Description</small>
+                            }
+                            <br />
+                            <span class="badge bg-info">@(Model.BomItems?.Count ?? 0) components</span>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+            <div class="card-footer">
+                <form asp-action="DetachSubAssembly" method="post">
+                    <input type="hidden" name="subAssemblyId" value="@Model.Id" />
+                    <input type="hidden" name="parentBomId" value="@parentBom?.Id" />
+                    @Html.AntiForgeryToken()
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-unlink"></i> Confirm — Remove Sub-Assembly Link
+                        </button>
+                        <a href="/Boms/Details/@parentBom?.Id" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

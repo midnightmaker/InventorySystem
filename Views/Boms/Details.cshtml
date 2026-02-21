@@ -13,11 +13,11 @@
     {
       @await Html.PartialAsync("_VersionDropdown", ViewBag.BomVersions, new ViewDataDictionary(ViewData)
       {
-      ["CurrentVersion"] = Model.Version,
+        ["CurrentVersion"] = Model.Version,
         ["EntityType"] = "Boms",
         ["EntityId"] = Model.BaseBomId ?? Model.Id
-        })
-        }
+      })
+    }
   </div>
   <div class="btn-group">
     @if (Model.IsCurrentVersion)
@@ -47,8 +47,7 @@
         <li><hr class="dropdown-divider"></li>
         <li>
           <a class="dropdown-item text-muted" href="#" onclick="event.preventDefault()">
-            <small>Standard: Summary view<br>
-            Exploded: All sub-assembly details</small>
+            <small>Standard: Summary view<br>Exploded: All sub-assembly details</small>
           </a>
         </li>
       </ul>
@@ -57,6 +56,12 @@
     <button type="button" class="btn btn-outline-warning" onclick="showCreateVersionModal('BOM', @(Model.BaseBomId ?? Model.Id))">
       <i class="fas fa-code-branch"></i> New Version
     </button>
+    @if (Model.IsCurrentVersion)
+    {
+      <a href="/Boms/Delete/@Model.Id" class="btn btn-outline-danger" title="Delete this BOM">
+        <i class="fas fa-trash-alt"></i> Delete
+      </a>
+    }
   </div>
 </div>
 
@@ -193,7 +198,6 @@
                           @if (!string.IsNullOrEmpty(doc.Description))
                           {
                             <br>
-                      
                             <small class="text-muted">@doc.Description</small>
                           }
                         </div>
@@ -223,8 +227,6 @@
                         <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" title="Download">
                           <i class="fas fa-download"></i>
                         </a>
-
-                        @* Note: Delete button is removed from Details view - only available in Edit view *@
                       </div>
                     </td>
                   </tr>
@@ -258,7 +260,7 @@
       </div>
     }
 
-    <!-- Components Section with Version Context - Made Collapsible -->
+    <!-- Components Section -->
     @if (Model.BomItems?.Any() == true)
     {
       <div class="card mt-4">
@@ -334,7 +336,7 @@
       </div>
     }
 
-    <!-- Sub-Assemblies Section - Made Collapsible -->
+    <!-- Sub-Assemblies Section -->
     @if (Model.SubAssemblies?.Any() == true)
     {
       <div class="card mt-4">
@@ -367,7 +369,6 @@
                   {
                     var cost = subAssemblyCosts.ContainsKey(subAssembly.Id) ? subAssemblyCosts[subAssembly.Id] : 0;
                     totalSubAssemblyCost += cost;
-                    
                     <tr>
                       <td>
                         <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
@@ -398,6 +399,16 @@
                           <a href="/Boms/Visualize/@subAssembly.Id" class="btn btn-outline-info" title="Visualize">
                             <i class="fas fa-sitemap"></i>
                           </a>
+                          <a href="/Boms/DetachSubAssembly?subAssemblyId=@subAssembly.Id&parentBomId=@Model.Id"
+                             class="btn btn-outline-warning"
+                             title="Remove from this BOM (keeps the sub-assembly BOM)">
+                            <i class="fas fa-unlink"></i>
+                          </a>
+                          <a href="/Boms/Delete/@subAssembly.Id"
+                             class="btn btn-outline-danger"
+                             title="Permanently delete sub-assembly BOM">
+                            <i class="fas fa-trash-alt"></i>
+                          </a>
                         </div>
                       </td>
                     </tr>
@@ -412,19 +423,17 @@
                 </tfoot>
               </table>
             </div>
-            
-            <!-- Enhanced Cost Summary -->
+
+            <!-- Cost Summary -->
             <div class="row mt-3">
+              @{
+                var directComponentsCost = Model.BomItems?.Sum(bi => bi.ExtendedCost) ?? 0;
+              }
               <div class="col-md-4">
                 <div class="card bg-light">
                   <div class="card-body text-center py-2">
                     <h6 class="card-title text-primary mb-1">Direct Components</h6>
-                    <h5 class="text-primary mb-0">
-                      @{
-                        var directComponentsCost = Model.BomItems?.Sum(bi => bi.ExtendedCost) ?? 0;
-                      }
-                      @directComponentsCost.ToString("C")
-                    </h5>
+                    <h5 class="text-primary mb-0">@directComponentsCost.ToString("C")</h5>
                     <small class="text-muted">@(Model.BomItems?.Count ?? 0) items</small>
                   </div>
                 </div>
@@ -528,7 +537,7 @@
           </div>
           <div class="col-6">
             <h5 class="text-info">@(Model.SubAssemblies?.Count ?? 0)</h5>
-            <small class="textMuted">Sub-Assemblies</small>
+            <small class="text-muted">Sub-Assemblies</small>
           </div>
         </div>
         <hr>
@@ -665,283 +674,117 @@
 
 <script>
   let currentZoom = 1;
-  let currentDocumentId = null;
 
   function previewDocument(documentId, documentName) {
-      currentDocumentId = documentId;
-      const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
-      const iframe = document.getElementById('previewIframe');
-      const modalTitle = document.getElementById('previewModalTitle');
-      const downloadLink = document.getElementById('downloadLink');
-      const loading = document.getElementById('previewLoading');
+    const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
+    const iframe = document.getElementById('previewIframe');
+    const loading = document.getElementById('previewLoading');
 
-      modalTitle.textContent = `Preview: ${documentName}`;
-      downloadLink.href = `/Documents/Download/${documentId}`;
+    document.getElementById('previewModalTitle').textContent = `Preview: ${documentName}`;
+    document.getElementById('downloadLink').href = `/Documents/Download/${documentId}`;
+    loading.style.display = 'block';
+    iframe.style.display = 'none';
+    iframe.src = `/Documents/View/${documentId}`;
+    modal.show();
 
-      // Show loading, hide iframe
-      loading.style.display = 'block';
-      iframe.style.display = 'none';
-
-      // Set iframe source to view the document
-      iframe.src = `/Documents/View/${documentId}`;
-
-      // Show modal
-      modal.show();
-
-      // Handle iframe load
-      iframe.onload = function() {
-          loading.style.display = 'none';
-          iframe.style.display = 'block';
-      };
-
-      // Handle iframe error
-      iframe.onerror = function() {
-          loading.innerHTML = `
-              <div class="text-center p-4">
-                  <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                  <h5>Preview Not Available</h5>
-                  <p class="text-muted">This document cannot be previewed in your browser.</p>
-                  <a href="/Documents/Download/${documentId}" class="btn btn-primary">
-                      <i class="fas fa-download"></i> Download Document
-                  </a>
-              </div>
-          `;
-      };
+    iframe.onload = function () { loading.style.display = 'none'; iframe.style.display = 'block'; };
+    iframe.onerror = function () {
+      loading.innerHTML = `<div class="text-center p-4">
+        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+        <h5>Preview Not Available</h5>
+        <a href="/Documents/Download/${documentId}" class="btn btn-primary"><i class="fas fa-download"></i> Download Document</a>
+      </div>`;
+    };
   }
 
-  function zoomIn() {
-      currentZoom += 0.25;
-      applyZoom();
-  }
-
-  function zoomOut() {
-      if (currentZoom > 0.5) {
-          currentZoom -= 0.25;
-          applyZoom();
-      }
-  }
-
-  function resetZoom() {
-      currentZoom = 1;
-      applyZoom();
-  }
-
+  function zoomIn() { currentZoom += 0.25; applyZoom(); }
+  function zoomOut() { if (currentZoom > 0.5) { currentZoom -= 0.25; applyZoom(); } }
+  function resetZoom() { currentZoom = 1; applyZoom(); }
   function applyZoom() {
-      const iframe = document.getElementById('previewIframe');
-      iframe.style.transform = `scale(${currentZoom})`;
-      iframe.style.transformOrigin = 'top left';
+    const iframe = document.getElementById('previewIframe');
+    iframe.style.transform = `scale(${currentZoom})`;
+    iframe.style.transformOrigin = 'top left';
   }
 
-  // Reset zoom when modal is closed
   document.getElementById('documentPreviewModal').addEventListener('hidden.bs.modal', function () {
-      currentZoom = 1;
-      applyZoom();
-      document.getElementById('previewIframe').src = '';
+    currentZoom = 1; applyZoom();
+    document.getElementById('previewIframe').src = '';
   });
 
-  // Define the showCreateVersionModal function for this page
   function showCreateVersionModal(entityType, entityId) {
-    console.log(`Attempting to load modal for ${entityType} ID: ${entityId}`);
-
-    // Add visual feedback to the button
     const button = event?.target;
-    if (button) {
-      button.disabled = true;
-      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-    }
+    if (button) { button.disabled = true; button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...'; }
 
-    // Load the change order modal using the new route
     fetch(`/ChangeOrders/CreateModal/${entityType}/${entityId}`, {
       method: 'GET',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'text/html,application/json'
-      }
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html,application/json' }
     })
     .then(response => {
-      console.log(`Response status: ${response.status}`);
-      console.log(`Response content-type: ${response.headers.get('content-type')}`);
-
-      if (!response.ok) {
-        return response.text().then(text => {
-          console.error('Server error response:', text);
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        });
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return response.json();
-      }
-
-      return response.text();
+      if (!response.ok) return response.text().then(t => { throw new Error(`HTTP ${response.status}: ${response.statusText}`); });
+      const ct = response.headers.get('content-type');
+      return ct?.includes('application/json') ? response.json() : response.text();
     })
     .then(result => {
       if (typeof result === 'string') {
-        // HTML response - show modal
-        console.log('Modal HTML loaded successfully');
-
-        // Remove any existing modal first
-        const existingModal = document.getElementById('changeOrderModal');
-        if (existingModal) {
-          existingModal.remove();
-        }
-
+        const existing = document.getElementById('changeOrderModal');
+        if (existing) existing.remove();
         document.body.insertAdjacentHTML('beforeend', result);
-        const modal = new bootstrap.Modal(document.getElementById('changeOrderModal'));
-        modal.show();
+        new bootstrap.Modal(document.getElementById('changeOrderModal')).show();
       } else if (result.success === false) {
-        // JSON error response - show pending change orders modal
-        if (result.pendingChangeOrders) {
-          showPendingChangeOrdersModal(result);
-        } else {
-          alert(`Error: ${result.message || result.error || 'Unknown error occurred'}`);
-        }
+        result.pendingChangeOrders ? showPendingChangeOrdersModal(result) : alert(`Error: ${result.message || result.error}`);
       }
     })
-    .catch(error => {
-      console.error('Error loading modal:', error);
-      alert(`Error loading change order form: ${error.message}\n\nPlease check the browser console for more details.`);
-    })
+    .catch(error => alert(`Error loading change order form: ${error.message}`))
     .finally(() => {
-      // Re-enable button
-      if (button) {
-        button.disabled = false;
-        button.innerHTML = '<i class="fas fa-code-branch"></i> New Version';
-      }
+      if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-code-branch"></i> New Version'; }
     });
   }
 
-  // Helper functions specific to this page
   function showPendingChangeOrdersModal(errorData) {
-    console.log('Showing pending change orders modal:', errorData);
+    const msg = document.getElementById('pendingModalMessage');
+    if (msg) msg.textContent = errorData.message;
 
-    // Update the modal content
-    const messageElement = document.getElementById('pendingModalMessage');
-    if (messageElement) {
-      messageElement.textContent = errorData.message;
-    }
-
-    // Build the pending change orders list
-    const listContainer = document.getElementById('pendingChangeOrdersList');
-    if (listContainer && errorData.pendingChangeOrders && errorData.pendingChangeOrders.length > 0) {
-      const listHtml = errorData.pendingChangeOrders.map(co => `
-        <div class="card mb-2">
-          <div class="card-body py-2">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <strong>${co.changeOrderNumber}</strong>
-                <span class="badge bg-warning ms-2">Version ${co.newVersion}</span>
+    const list = document.getElementById('pendingChangeOrdersList');
+    if (list) {
+      list.innerHTML = errorData.pendingChangeOrders?.length
+        ? errorData.pendingChangeOrders.map(co => `
+            <div class="card mb-2"><div class="card-body py-2">
+              <div class="d-flex justify-content-between align-items-center">
+                <div><strong>${co.changeOrderNumber}</strong><span class="badge bg-warning ms-2">Version ${co.newVersion}</span></div>
+                <div class="text-end"><small class="text-muted">Created: ${co.createdDate}</small><br><small class="text-muted">By: ${co.createdBy}</small></div>
               </div>
-              <div class="text-end">
-                <small class="text-muted">Created: ${co.createdDate}</small><br>
-                <small class="text-muted">By: ${co.createdBy}</small>
-              </div>
-            </div>
-            <div class="mt-2">
-              <a href="/ChangeOrders/Details/${co.id}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-eye"></i> View Details
-              </a>
-            </div>
-          </div>
-        </div>
-      `).join('');
-      listContainer.innerHTML = listHtml;
-    } else if (listContainer) {
-      listContainer.innerHTML = '<p class="text-muted">No pending change orders found.</p>';
+              <div class="mt-2"><a href="/ChangeOrders/Details/${co.id}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View Details</a></div>
+            </div></div>`).join('')
+        : '<p class="text-muted">No pending change orders found.</p>';
     }
 
-    // Show the modal
-    const pendingModal = document.getElementById('pendingChangeOrdersModal');
-    if (pendingModal) {
-      const modal = new bootstrap.Modal(pendingModal);
-      modal.show();
-    } else {
-      console.error('Pending change orders modal not found in DOM');
-      alert(errorData.message);
-    }
+    const modal = document.getElementById('pendingChangeOrdersModal');
+    if (modal) new bootstrap.Modal(modal).show();
+    else alert(errorData.message);
   }
 
-  function refreshPage() {
-    location.reload();
-  }
+  function refreshPage() { location.reload(); }
 
-  // Page-specific initialization
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('BOM Details page loaded');
-
-    // Check if the New Version button exists
-    const newVersionBtn = document.querySelector('button[onclick*="showCreateVersionModal"]');
-    if (newVersionBtn) {
-      console.log('Found New Version button:', newVersionBtn);
-    } else {
-      console.log('New Version button not found!');
-    }
-
-    // Check if the pending change orders modal exists
-    const pendingModal = document.getElementById('pendingChangeOrdersModal');
-    if (!pendingModal) {
-      console.warn('pendingChangeOrdersModal not found - make sure it exists in the page');
-    }
-
-    // Update chevron icons for collapsible sections
-    const collapseElements = document.querySelectorAll('.collapse');
-    collapseElements.forEach(element => {
-      const toggleButton = document.querySelector(`[data-bs-target="#${element.id}"]`);
-      if (toggleButton) {
-        const chevronIcon = toggleButton.querySelector('.fas');
-        
-        element.addEventListener('shown.bs.collapse', function () {
-          if (chevronIcon) {
-            chevronIcon.classList.remove('fa-chevron-down');
-            chevronIcon.classList.add('fa-chevron-up');
-          }
-        });
-        
-        element.addEventListener('hidden.bs.collapse', function () {
-          if (chevronIcon) {
-            chevronIcon.classList.remove('fa-chevron-up');
-            chevronIcon.classList.add('fa-chevron-down');
-          }
-        });
-      }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.collapse').forEach(element => {
+      const btn = document.querySelector(`[data-bs-target="#${element.id}"]`);
+      if (!btn) return;
+      const icon = btn.querySelector('.fas');
+      element.addEventListener('shown.bs.collapse', () => { if (icon) { icon.classList.replace('fa-chevron-down', 'fa-chevron-up'); } });
+      element.addEventListener('hidden.bs.collapse', () => { if (icon) { icon.classList.replace('fa-chevron-up', 'fa-chevron-down'); } });
     });
   });
 
-  // Clean up modal when closed
   document.addEventListener('hidden.bs.modal', function (event) {
-    if (event.target.id === 'changeOrderModal') {
-      event.target.remove();
-    }
+    if (event.target.id === 'changeOrderModal') event.target.remove();
   });
 </script>
 
 @section Scripts {
   <style>
-    .btn-group-sm .btn {
-      padding: 0.25rem 0.5rem;
-      font-size: 0.875rem;
-    }
-
-    .table th {
-      border-top: none;
-      font-weight: 600;
-      font-size: 0.875rem;
-    }
-
-    .badge {
-      font-size: 0.75rem;
-    }
-
-    /* Smooth transitions for collapsible sections */
-    .collapse {
-      transition: height 0.35s ease;
-    }
-
-    /* Style for chevron animation */
-    .fas.fa-chevron-down,
-    .fas.fa-chevron-up {
-      transition: transform 0.3s ease;
-    }
+    .btn-group-sm .btn { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+    .table th { border-top: none; font-weight: 600; font-size: 0.875rem; }
+    .badge { font-size: 0.75rem; }
+    .collapse { transition: height 0.35s ease; }
   </style>
 }

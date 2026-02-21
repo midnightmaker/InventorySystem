@@ -12,6 +12,7 @@ namespace InventorySystem.ViewModels
         public string SaleNumber { get; set; } = string.Empty;
         public int CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        public string? CompanyName { get; set; }
         
         [Display(Name = "Payment Date")]
         public DateTime PaymentDate { get; set; }

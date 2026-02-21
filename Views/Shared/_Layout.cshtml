@@ -597,6 +597,7 @@
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
   <!-- Embedded Loading Indicator System (inline for reliability) -->
   <script>
@@ -810,8 +811,11 @@
                     href.startsWith('tel:') ||
                     href.includes('download') ||
                     href.includes('javascript:') ||
+                    href.includes('/ExportExcel/') ||   // ← file-download: never show spinner
+                    href.includes('/DownloadSample') ||  // ← CSV download: never show spinner
                     link.target === '_blank' ||
                     link.hasAttribute('download') ||
+                    link.hasAttribute('data-loading-ignore') ||  // ← per-link opt-out
                     href === window.location.pathname + window.location.search) {
                     console.log('⏭️ Skipping link:', href);
                     return;
@@ -1059,6 +1063,24 @@
 
             // Page events - remove beforeunload to prevent early hiding
             window.addEventListener('load', () => this.hide());
+
+            // Hide spinner when the browser regains visibility — this is the reliable
+            // cross-browser signal that a file-download "Save As" dialog has been
+            // dismissed and the page is still open (no navigation occurred).
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && this.isShowing) {
+                    console.log('👁️ Page visible again after potential download — hiding spinner');
+                    this.hide(true);
+                }
+            });
+
+            // focus event is the fallback for browsers that don't change visibilityState
+            window.addEventListener('focus', () => {
+                if (this.isShowing) {
+                    console.log('🪟 Window focus restored after potential download — hiding spinner');
+                    this.hide(true);
+                }
+            });
         },
 
         showForOperation: function(operation, immediate = true) {

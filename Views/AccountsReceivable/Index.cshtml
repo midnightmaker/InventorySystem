@@ -234,7 +234,15 @@
                                             @if (invoice.Customer != null)
                                             {
                                                 <a href="/Customers/Details/@invoice.Customer.Id" class="text-decoration-none">
-                                                    @invoice.Customer.CustomerName
+                                                    @if (!string.IsNullOrEmpty(invoice.Customer.CompanyName))
+                                                    {
+                                                        @invoice.Customer.CompanyName
+                                                        <br><small class="text-muted"><i class="fas fa-user"></i> @invoice.Customer.CustomerName</small>
+                                                    }
+                                                    else
+                                                    {
+                                                        @invoice.Customer.CustomerName
+                                                    }
                                                 </a>
                                             }
                                             else
@@ -302,7 +310,15 @@
                                     <tr class="@(customer.OutstandingBalance > customer.CreditLimit && customer.CreditLimit > 0 ? "table-danger" : "")">
                                         <td>
                                             <a href="/Customers/Details/@customer.Id" class="text-decoration-none">
-                                                @customer.CustomerName
+                                                @if (!string.IsNullOrEmpty(customer.CompanyName))
+                                                {
+                                                    @customer.CompanyName
+                                                    <br><small class="text-muted"><i class="fas fa-user"></i> @customer.CustomerName</small>
+                                                }
+                                                else
+                                                {
+                                                    @customer.CustomerName
+                                                }
                                             </a>
                                             @if (customer.OutstandingBalance > customer.CreditLimit && customer.CreditLimit > 0)
                                             {

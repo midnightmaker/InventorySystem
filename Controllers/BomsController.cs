@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using InventorySystem.Data;
+using ClosedXML.Excel;
 
 namespace InventorySystem.Controllers
 {
@@ -590,10 +591,17 @@ namespace InventorySystem.Controllers
       return View(bom);
     }
 
+    // ?? DELETE BOM ????????????????????????????????????????????????????????
+
     public async Task<IActionResult> Delete(int id)
     {
       var bom = await _bomService.GetBomByIdAsync(id);
       if (bom == null) return NotFound();
+
+      // Run impact check so the view can show what will be affected / blocked
+      var deletability = await _bomService.CheckBomDeletabilityAsync(id);
+      ViewBag.Deletability = deletability;
+
       return View(bom);
     }
 
@@ -601,102 +609,82 @@ namespace InventorySystem.Controllers
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-      await _bomService.DeleteBomAsync(id);
-      return RedirectToAction(nameof(Index));
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetBomDetails(int id)
-    {
-      try
-      {
-        var bom = await _bomService.GetBomByIdAsync(id);
-        if (bom == null)
-        {
-          return NotFound(new { error = "BOM not found" });
-        }
-
-        var response = new
-        {
-          id = bom.Id,
-          bomNumber = bom.BomNumber,
-          description = bom.Description,
-          assemblyPartNumber = bom.AssemblyPartNumber,
-          version = bom.Version,
-          itemCount = bom.BomItems?.Count ?? 0,
-          subAssemblyCount = bom.SubAssemblies?.Count ?? 0,
-          createdDate = bom.CreatedDate.ToString("MM/dd/yyyy"),
-          modifiedDate = bom.ModifiedDate.ToString("MM/dd/yyyy"),
-          isCurrentVersion = bom.IsCurrentVersion,
-          hasDocuments = bom.HasDocuments,
-          documentCount = bom.DocumentCount
-        };
-
-        return Json(response);
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, "Error getting BOM details for ID: {BomId}", id);
-        return StatusCode(500, new { error = "Error loading BOM details" });
-      }
-    }
-    // Quick Material Check - GET
-    public async Task<IActionResult> QuickMaterialCheck(int id, int quantity = 1)
-    {
       try
       {
         var bom = await _bomService.GetBomByIdAsync(id);
         if (bom == null) return NotFound();
 
-        var shortageAnalysis = await _productionService.GetMaterialShortageAnalysisAsync(id, quantity);
+        var parentBomId = bom.ParentBomId; // remember for redirect
 
-        ViewBag.BomId = id;
-        ViewBag.Quantity = quantity;
-        return View(shortageAnalysis);
+        await _bomService.DeleteBomAsync(id);
+
+        TempData["SuccessMessage"] = $"BOM \"{bom.BomNumber}\" was permanently deleted.";
+
+        // If it was a sub-assembly, return to the parent; otherwise go to index.
+        if (parentBomId.HasValue)
+          return RedirectToAction("Details", new { id = parentBomId.Value });
+
+        return RedirectToAction(nameof(Index));
+      }
+      catch (InvalidOperationException ex)
+      {
+        TempData["ErrorMessage"] = ex.Message;
+        return RedirectToAction("Delete", new { id });
       }
       catch (Exception ex)
       {
-        TempData["ErrorMessage"] = $"Error checking material availability: {ex.Message}";
-        return RedirectToAction("Details", new { id });
+        _logger.LogError(ex, "Unhandled error deleting BOM {BomId}", id);
+        TempData["ErrorMessage"] = $"An unexpected error occurred: {ex.Message}";
+        return RedirectToAction("Delete", new { id });
       }
     }
 
-    // AJAX endpoint for quick material check
+    // ?? DETACH SUB-ASSEMBLY (remove the link, keep the BOM) ???????????????
+
+    /// <summary>
+    /// Shows a confirmation page before detaching a sub-assembly from its parent.
+    /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetQuickMaterialStatus(int bomId, int quantity = 1)
+    public async Task<IActionResult> DetachSubAssembly(int subAssemblyId, int parentBomId)
+    {
+      var subBom = await _bomService.GetBomByIdAsync(subAssemblyId);
+      var parentBom = await _bomService.GetBomByIdAsync(parentBomId);
+
+      if (subBom == null || parentBom == null) return NotFound();
+
+      ViewBag.ParentBom = parentBom;
+      return View(subBom);
+    }
+
+    [HttpPost, ActionName("DetachSubAssembly")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DetachSubAssemblyConfirmed(int subAssemblyId, int parentBomId)
     {
       try
       {
-        var canBuild = await _productionService.CanBuildBomAsync(bomId, quantity);
-        var materialCost = await _productionService.CalculateBomMaterialCostAsync(bomId, quantity);
-        var shortages = await _productionService.GetBomMaterialShortagesAsync(bomId, quantity);
+        var subBom = await _bomService.GetBomByIdAsync(subAssemblyId);
+        var parentBom = await _bomService.GetBomByIdAsync(parentBomId);
 
-        return Json(new
-        {
-          success = true,
-          canBuild = canBuild,
-          materialCost = materialCost,
-          shortageCount = shortages.Count(),
-          shortageValue = shortages.Sum(s => s.ShortageValue),
-          criticalShortages = shortages.Count(s => s.IsCriticalShortage),
-          shortages = shortages.Take(5).Select(s => new
-          {
-            partNumber = s.PartNumber,
-            description = s.Description,
-            shortageQuantity = s.ShortageQuantity,
-            availableQuantity = s.AvailableQuantity,
-            requiredQuantity = s.RequiredQuantity,
-            isCritical = s.IsCriticalShortage
-          })
-        });
+        if (subBom == null || parentBom == null) return NotFound();
+
+        await _bomService.DetachSubAssemblyAsync(subAssemblyId, parentBomId);
+
+        TempData["SuccessMessage"] = $"Sub-assembly \"{subBom.BomNumber}\" was removed from \"{parentBom.BomNumber}\". The sub-assembly BOM still exists independently.";
+        return RedirectToAction("Details", new { id = parentBomId });
+      }
+      catch (InvalidOperationException ex)
+      {
+        TempData["ErrorMessage"] = ex.Message;
+        return RedirectToAction("Details", new { id = parentBomId });
       }
       catch (Exception ex)
       {
-        return Json(new { success = false, error = ex.Message });
+        _logger.LogError(ex, "Error detaching sub-assembly {SubId} from parent {ParentId}", subAssemblyId, parentBomId);
+        TempData["ErrorMessage"] = $"An unexpected error occurred: {ex.Message}";
+        return RedirectToAction("Details", new { id = parentBomId });
       }
     }
 
-    // Add this method to the BomsController to help with BOM document upload
     [HttpGet]
     public async Task<IActionResult> UploadDocument(int id)
     {
@@ -845,6 +833,195 @@ namespace InventorySystem.Controllers
 
       var importDetails = System.Text.Json.JsonSerializer.Deserialize<ImportResultsViewModel>(importDetailsJson);
       return View(importDetails);
+    }
+
+    // BOM Excel Export - GET
+    [HttpGet]
+    public async Task<IActionResult> ExportExcel(int id)
+    {
+      try
+      {
+        var bom = await _bomService.GetBomByIdAsync(id);
+        if (bom == null)
+        {
+          TempData["ErrorMessage"] = "BOM not found.";
+          return RedirectToAction("Index");
+        }
+
+        var explodedData = await _bomService.GetExplodedBomCostDataAsync(id);
+
+        using var workbook = new XLWorkbook();
+
+        // ?? Sheet 1: Summary ?????????????????????????????????????????????
+        var summary = workbook.Worksheets.Add("Summary");
+
+        // Title
+        summary.Cell("A1").Value = $"BOM: {bom.BomNumber}";
+        summary.Cell("A1").Style.Font.Bold = true;
+        summary.Cell("A1").Style.Font.FontSize = 16;
+        summary.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        summary.Range("A1:D1").Merge();
+
+        summary.Cell("A2").Value = "Generated:";
+        summary.Cell("B2").Value = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+        // BOM metadata
+        int r = 4;
+        void AddMeta(string label, string value)
+        {
+          summary.Cell(r, 1).Value = label;
+          summary.Cell(r, 1).Style.Font.Bold = true;
+          summary.Cell(r, 2).Value = value;
+          r++;
+        }
+
+        AddMeta("BOM Number:", bom.BomNumber);
+        AddMeta("Description:", bom.Description ?? "");
+        AddMeta("Assembly P/N:", bom.AssemblyPartNumber ?? "");
+        AddMeta("Version:", bom.Version ?? "");
+        AddMeta("Created:", bom.CreatedDate.ToString("yyyy-MM-dd"));
+        AddMeta("Modified:", bom.ModifiedDate.ToString("yyyy-MM-dd"));
+
+        r++;
+        // Cost summary section
+        summary.Cell(r, 1).Value = "Cost Summary";
+        summary.Cell(r, 1).Style.Font.Bold = true;
+        summary.Cell(r, 1).Style.Font.FontSize = 12;
+        r++;
+
+        void AddCost(string label, decimal amount)
+        {
+          summary.Cell(r, 1).Value = label;
+          summary.Cell(r, 1).Style.Font.Bold = true;
+          summary.Cell(r, 2).Value = amount;
+          summary.Cell(r, 2).Style.NumberFormat.Format = "$#,##0.00";
+          r++;
+        }
+
+        AddCost("Direct Components:", explodedData.Summary.DirectComponentsCost);
+        AddCost("Sub-Assemblies:", explodedData.Summary.SubAssembliesCost);
+
+        // Total row — highlighted
+        summary.Cell(r, 1).Value = "Total BOM Cost:";
+        summary.Cell(r, 1).Style.Font.Bold = true;
+        summary.Cell(r, 2).Value = explodedData.TotalCost;
+        summary.Cell(r, 2).Style.NumberFormat.Format = "$#,##0.00";
+        summary.Cell(r, 2).Style.Font.Bold = true;
+        summary.Row(r).Style.Fill.BackgroundColor = XLColor.LightGreen;
+        r++;
+
+        r++;
+        summary.Cell(r, 1).Value = "Component Count:";
+        summary.Cell(r, 1).Style.Font.Bold = true;
+        summary.Cell(r, 2).Value = explodedData.Summary.TotalComponentCount;
+        r++;
+        summary.Cell(r, 1).Value = "Sub-Assembly Count:";
+        summary.Cell(r, 1).Style.Font.Bold = true;
+        summary.Cell(r, 2).Value = explodedData.Summary.TotalSubAssemblyCount;
+
+        summary.Column(1).Width = 22;
+        summary.Column(2).Width = 28;
+        summary.SheetView.FreezeRows(0);
+
+        // ?? Sheet 2: Components ???????????????????????????????????????????
+        var sheet = workbook.Worksheets.Add("Components");
+
+        // Header row
+        var headers = new[]
+        {
+          "Level", "Source BOM", "Part Number", "Description",
+          "Ref. Designator", "Qty", "Unit Cost", "Extended Cost", "Notes"
+        };
+
+        for (int c = 0; c < headers.Length; c++)
+        {
+          var cell = sheet.Cell(1, c + 1);
+          cell.Value = headers[c];
+          cell.Style.Font.Bold = true;
+          cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#2F5597");
+          cell.Style.Font.FontColor = XLColor.White;
+          cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        // Freeze header
+        sheet.SheetView.FreezeRows(1);
+
+        int row = 2;
+        decimal grandTotal = 0;
+
+        foreach (var comp in explodedData.AllComponents)
+        {
+          // Indent the description column to visually show hierarchy depth
+          var indent = new string(' ', comp.Level * 3);
+
+          sheet.Cell(row, 1).Value = comp.Level;
+          sheet.Cell(row, 2).Value = comp.SourceBom;
+          sheet.Cell(row, 3).Value = comp.PartNumber;
+          sheet.Cell(row, 4).Value = indent + comp.Description;
+          sheet.Cell(row, 5).Value = comp.ReferenceDesignator;
+          sheet.Cell(row, 6).Value = comp.Quantity;
+          sheet.Cell(row, 7).Value = comp.UnitCost;
+          sheet.Cell(row, 7).Style.NumberFormat.Format = "$#,##0.00";
+          sheet.Cell(row, 8).Value = comp.ExtendedCost;
+          sheet.Cell(row, 8).Style.NumberFormat.Format = "$#,##0.00";
+          sheet.Cell(row, 9).Value = comp.Notes;
+
+          // Alternate row shading per level for readability
+          if (comp.Level == 0)
+            sheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#DDEEFF");
+          else if (row % 2 == 0)
+            sheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7F7F7");
+
+          grandTotal += comp.ExtendedCost;
+          row++;
+        }
+
+        // Grand-total footer row
+        sheet.Cell(row, 7).Value = "TOTAL:";
+        sheet.Cell(row, 7).Style.Font.Bold = true;
+        sheet.Cell(row, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+        sheet.Cell(row, 8).Value = grandTotal;
+        sheet.Cell(row, 8).Style.NumberFormat.Format = "$#,##0.00";
+        sheet.Cell(row, 8).Style.Font.Bold = true;
+        sheet.Row(row).Style.Fill.BackgroundColor = XLColor.LightGreen;
+
+        // Auto-fit columns
+        sheet.Column(1).Width = 8;
+        sheet.Column(2).Width = 18;
+        sheet.Column(3).Width = 18;
+        sheet.Column(4).Width = 40;
+        sheet.Column(5).Width = 16;
+        sheet.Column(6).Width = 8;
+        sheet.Column(7).Width = 14;
+        sheet.Column(8).Width = 14;
+        sheet.Column(9).Width = 30;
+
+        // Add auto-filter to header row
+        sheet.RangeUsed()?.SetAutoFilter();
+
+        // ?? Stream to client ??????????????????????????????????????????????
+        var safeNumber = (bom.BomNumber ?? "BOM").Replace(' ', '_')
+                                                  .Replace('/', '-')
+                                                  .Replace('\\', '-');
+        var fileName = $"BOM_{safeNumber}_{DateTime.Now:yyyy-MM-dd}.xlsx";
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+
+        _logger.LogInformation("Excel export generated for BOM {BomId} ({BomNumber})", id, bom.BomNumber);
+
+        return File(
+          stream.ToArray(),
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          fileName);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error generating Excel export for BOM {BomId}", id);
+        TempData["ErrorMessage"] = $"Error generating Excel export: {ex.Message}";
+        return RedirectToAction("Visualize", new { id });
+      }
     }
 
     // BOM Visualization - GET

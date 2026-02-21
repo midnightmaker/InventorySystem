@@ -90,7 +90,15 @@
                                 </td>
                                 <td>
                                     <a href="/Customers/Details/@statement.CustomerId" class="text-decoration-none fw-bold">
-                                        @statement.CustomerName
+                                        @if (!string.IsNullOrEmpty(statement.CompanyName))
+                                        {
+                                            @statement.CompanyName
+                                            <br><small class="text-muted fw-normal"><i class="fas fa-user"></i> @statement.CustomerName</small>
+                                        }
+                                        else
+                                        {
+                                            @statement.CustomerName
+                                        }
                                     </a>
                                     @if (!string.IsNullOrEmpty(statement.CustomerEmail))
                                     {

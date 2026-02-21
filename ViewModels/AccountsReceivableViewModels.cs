@@ -98,6 +98,7 @@ namespace InventorySystem.ViewModels
         public string SaleNumber { get; set; } = string.Empty;
         public int CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        public string? CompanyName { get; set; }
         public DateTime SaleDate { get; set; }
         public DateTime DueDate { get; set; }
         public decimal Amount { get; set; }
@@ -125,6 +126,7 @@ namespace InventorySystem.ViewModels
         public string SaleNumber { get; set; } = string.Empty;
         public int CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        public string? CompanyName { get; set; }
         public string CustomerEmail { get; set; } = string.Empty;
         public string CustomerPhone { get; set; } = string.Empty;
         public DateTime SaleDate { get; set; }
@@ -156,6 +158,7 @@ namespace InventorySystem.ViewModels
     {
         public int CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        public string? CompanyName { get; set; }
         public string CustomerEmail { get; set; } = string.Empty;
         public decimal OutstandingBalance { get; set; }
         public decimal CreditLimit { get; set; }

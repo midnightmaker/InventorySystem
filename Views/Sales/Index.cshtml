@@ -286,19 +286,26 @@
                 </td>
                 <td>@sale.SaleDate.ToString("MM/dd/yyyy")</td>
                 <td>
-                  @* FIXED: Use Customer relationship instead of legacy properties *@
+                  @* B2B: Company is primary, contact person is secondary *@
                   @if (sale.Customer != null)
                   {
-                    <strong>
-                      <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none" onclick="event.stopPropagation();">
-                        @sale.Customer.CustomerName
-                      </a>
-                    </strong>
                     @if (!string.IsNullOrEmpty(sale.Customer.CompanyName))
                     {
+                      <strong>
+                        <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none" onclick="event.stopPropagation();">
+                          @sale.Customer.CompanyName
+                        </a>
+                      </strong>
                       <br>
-              
-                      <small class="text-muted">@sale.Customer.CompanyName</small>
+                      <small class="text-muted"><i class="fas fa-user"></i> @sale.Customer.CustomerName</small>
+                    }
+                    else
+                    {
+                      <strong>
+                        <a href="/Customers/Details/@sale.Customer.Id" class="text-decoration-none" onclick="event.stopPropagation();">
+                          @sale.Customer.CustomerName
+                        </a>
+                      </strong>
                     }
                     @if (!string.IsNullOrEmpty(sale.Customer.Email))
                     {

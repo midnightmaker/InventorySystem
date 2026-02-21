@@ -45,7 +45,15 @@
                         </td>
                         <td>
                             <a href="/Customers/Details/@item.CustomerId" class="text-decoration-none">
-                                @item.CustomerName
+                                @if (!string.IsNullOrEmpty(item.CompanyName))
+                                {
+                                    @item.CompanyName
+                                    <br><small class="text-muted"><i class="fas fa-user"></i> @item.CustomerName</small>
+                                }
+                                else
+                                {
+                                    @item.CustomerName
+                                }
                             </a>
                             <br>
                             <small class="text-muted">Due: @item.DueDate.ToString("MM/dd/yyyy")</small>
