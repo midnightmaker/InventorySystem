@@ -559,7 +559,16 @@ namespace InventorySystem.Controllers
     [HttpPost]
     public async Task<IActionResult> RemoveItem(int bomItemId, int bomId)
     {
-      await _bomService.DeleteBomItemAsync(bomItemId);
+      try
+      {
+        await _bomService.DeleteBomItemAsync(bomItemId);
+        TempData["SuccessMessage"] = "Component removed from BOM.";
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error removing BOM item {BomItemId} from BOM {BomId}", bomItemId, bomId);
+        TempData["ErrorMessage"] = $"Error removing component: {ex.Message}";
+      }
       return RedirectToAction("Details", new { id = bomId });
     }
 

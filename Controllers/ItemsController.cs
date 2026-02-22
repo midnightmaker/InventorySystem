@@ -352,6 +352,10 @@ namespace InventorySystem.Controllers
       ViewBag.AverageCost = await _inventoryService.GetAverageCostAsync(id);
       ViewBag.FifoValue = await _inventoryService.GetFifoValueAsync(id);
 
+      // BOMs that reference this item
+      var bomsUsingItem = await _bomService.GetBomsByItemIdAsync(id);
+      ViewBag.BomsUsingItem = bomsUsingItem;
+
       if (item.IsCurrentVersion)
       {
           var pendingChangeOrders = await _versionService.GetPendingChangeOrdersForEntityAsync("Item", item.BaseItemId ?? item.Id);
@@ -486,6 +490,39 @@ namespace InventorySystem.Controllers
 
       try
       {
+        // Remove all fields not submitted by the form to prevent false ModelState errors.
+        // Image fields were removed from the view (byte[] can't round-trip via hidden fields).
+        ModelState.Remove(nameof(Item.ImageData));
+        ModelState.Remove(nameof(Item.ImageContentType));
+        ModelState.Remove(nameof(Item.ImageFileName));
+        // Navigation / collection properties - never posted by a form.
+        ModelState.Remove(nameof(Item.Purchases));
+        ModelState.Remove(nameof(Item.DesignDocuments));
+        ModelState.Remove(nameof(Item.VendorItems));
+        ModelState.Remove(nameof(Item.BaseItem));
+        ModelState.Remove(nameof(Item.CreatedFromChangeOrder));
+        ModelState.Remove(nameof(Item.ParentRawMaterial));
+        ModelState.Remove(nameof(Item.Versions));
+        ModelState.Remove(nameof(Item.TransformedItems));
+        // Optional / computed fields not present in the form.
+        ModelState.Remove(nameof(Item.VersionHistory));
+        ModelState.Remove(nameof(Item.MaterialType));
+        ModelState.Remove(nameof(Item.ParentRawMaterialId));
+        ModelState.Remove(nameof(Item.YieldFactor));
+        ModelState.Remove(nameof(Item.WastePercentage));
+        ModelState.Remove(nameof(Item.RequiresSerialNumber));
+        ModelState.Remove(nameof(Item.RequiresModelNumber));
+        ModelState.Remove(nameof(Item.PreferredRevenueAccountCode));
+
+        if (!ModelState.IsValid)
+        {
+          // Log every validation error so we can identify any remaining problem fields.
+          var errors = ModelState
+            .Where(kvp => kvp.Value!.Errors.Count > 0)
+            .Select(kvp => $"{kvp.Key}: {string.Join("; ", kvp.Value!.Errors.Select(e => e.ErrorMessage))}");
+          _logger.LogWarning("Edit Item ModelState invalid for item {ItemId}. Errors: {Errors}", id, string.Join(" | ", errors));
+        }
+
         if (ModelState.IsValid)
         {
           var existingItem = await _inventoryService.GetItemByIdAsync(id);
@@ -536,6 +573,11 @@ namespace InventorySystem.Controllers
     {
       var item = await _inventoryService.GetItemByIdAsync(id);
       if (item == null) return NotFound();
+
+      // Surface BOM usage so the view can warn the user
+      var bomsUsingItem = await _bomService.GetBomsByItemIdAsync(id);
+      ViewBag.BomsUsingItem = bomsUsingItem;
+
       return View(item);
     }
 
@@ -545,6 +587,15 @@ namespace InventorySystem.Controllers
     {
       try
       {
+        // Block deletion when item is referenced in one or more BOMs
+        var bomsUsingItem = (await _bomService.GetBomsByItemIdAsync(id)).ToList();
+        if (bomsUsingItem.Any())
+        {
+          var bomList = string.Join(", ", bomsUsingItem.Select(b => b.BomNumber));
+          TempData["ErrorMessage"] = $"Cannot delete this item — it is used in {bomsUsingItem.Count} BOM(s): {bomList}. Remove it from those BOMs first.";
+          return RedirectToAction("Delete", new { id });
+        }
+
         await _inventoryService.DeleteItemAsync(id);
         TempData["SuccessMessage"] = "Item deleted successfully!";
         return RedirectToAction(nameof(Index));

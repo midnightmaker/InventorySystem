@@ -39,13 +39,12 @@
       @Html.HiddenFor(model => model.Id)
       @Html.HiddenFor(model => model.CreatedDate)
       @Html.HiddenFor(model => model.CurrentStock)
-      @Html.HiddenFor(model => model.ImageData)
-      @Html.HiddenFor(model => model.ImageContentType)
-      @Html.HiddenFor(model => model.ImageFileName)
       @Html.HiddenFor(model => model.IsCurrentVersion)
       @Html.HiddenFor(model => model.BaseItemId)
       @Html.HiddenFor(model => model.Version)
       @Html.HiddenFor(model => model.CreatedFromChangeOrderId)
+
+      <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
 
       <!-- Basic Information Card -->
       <div class="card">

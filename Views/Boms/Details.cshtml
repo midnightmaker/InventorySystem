@@ -268,6 +268,12 @@
           <h5><i class="fas fa-cogs"></i> Components (@Model.BomItems.Count)</h5>
           <div>
             <small class="text-muted me-2">For Version @Model.Version</small>
+            @if (Model.IsCurrentVersion)
+            {
+              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-outline-success me-1">
+                <i class="fas fa-plus"></i> Add Component
+              </a>
+            }
             <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#componentsTable" aria-expanded="true" aria-controls="componentsTable">
               <i class="fas fa-chevron-down"></i> Toggle
             </button>
@@ -276,19 +282,35 @@
         <div class="collapse show" id="componentsTable">
           <div class="card-body">
             <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
+              <table class="table table-sm table-hover" id="componentsGrid">
+                <thead class="table-dark">
                   <tr>
-                    <th>Part Number</th>
-                    <th>Description</th>
-                    <th>Quantity</th>
-                    <th>Unit Cost</th>
-                    <th>Extended Cost</th>
-                    <th>Reference</th>
+                    <th class="sortable-col" data-col="0" style="cursor:pointer; user-select:none; white-space:nowrap;">
+                      Part Number <i class="fas fa-sort sort-icon ms-1 opacity-50"></i>
+                    </th>
+                    <th class="sortable-col" data-col="1" style="cursor:pointer; user-select:none; white-space:nowrap;">
+                      Description <i class="fas fa-sort sort-icon ms-1 opacity-50"></i>
+                    </th>
+                    <th class="sortable-col" data-col="2" style="cursor:pointer; user-select:none; white-space:nowrap;">
+                      Quantity <i class="fas fa-sort sort-icon ms-1 opacity-50"></i>
+                    </th>
+                    <th class="sortable-col" data-col="3" style="cursor:pointer; user-select:none; white-space:nowrap;">
+                      Unit Cost <i class="fas fa-sort sort-icon ms-1 opacity-50"></i>
+                    </th>
+                    <th class="sortable-col" data-col="4" style="cursor:pointer; user-select:none; white-space:nowrap;">
+                      Extended Cost <i class="fas fa-sort sort-icon ms-1 opacity-50"></i>
+                    </th>
+                    <th class="sortable-col" data-col="5" style="cursor:pointer; user-select:none; white-space:nowrap;">
+                      Reference <i class="fas fa-sort sort-icon ms-1 opacity-50"></i>
+                    </th>
+                    @if (Model.IsCurrentVersion)
+                    {
+                      <th style="width:80px;">Actions</th>
+                    }
                   </tr>
                 </thead>
                 <tbody>
-                  @foreach (var bomItem in Model.BomItems)
+                  @foreach (var bomItem in Model.BomItems.OrderBy(bi => bi.Item.PartNumber))
                   {
                     <tr>
                       <td>
@@ -297,13 +319,40 @@
                         </a>
                       </td>
                       <td>@bomItem.Item.Description</td>
-                      <td>@bomItem.Quantity</td>
-                      <td>@bomItem.UnitCost.ToString("C")</td>
-                      <td>@bomItem.ExtendedCost.ToString("C")</td>
+                      <td data-sort="@bomItem.Quantity">@bomItem.Quantity</td>
+                      <td data-sort="@bomItem.UnitCost">@bomItem.UnitCost.ToString("C")</td>
+                      <td data-sort="@bomItem.ExtendedCost">@bomItem.ExtendedCost.ToString("C")</td>
                       <td>@bomItem.ReferenceDesignator</td>
+                      @if (Model.IsCurrentVersion)
+                      {
+                        <td>
+                          <form method="post" action="/Boms/RemoveItem"
+                                onsubmit="return confirm('Remove @bomItem.Item.PartNumber from this BOM?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="bomItemId" value="@bomItem.Id" />
+                            <input type="hidden" name="bomId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from BOM">
+                              <i class="fas fa-times"></i>
+                            </button>
+                          </form>
+                        </td>
+                      }
                     </tr>
                   }
                 </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="@(Model.IsCurrentVersion ? 4 : 4)">Total Direct Component Cost:</th>
+                    <th>
+                      <strong class="text-success">@(Model.BomItems.Sum(bi => bi.ExtendedCost).ToString("C"))</strong>
+                    </th>
+                    <th></th>
+                    @if (Model.IsCurrentVersion)
+                    {
+                      <th></th>
+                    }
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
@@ -315,12 +364,21 @@
       <div class="card mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h6><i class="fas fa-cogs"></i> Components</h6>
-          <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#componentsEmpty" aria-expanded="true" aria-controls="componentsEmpty">
-            <i class="fas fa-chevron-down"></i> Toggle
-          </button>
+          <div>
+            @if (Model.IsCurrentVersion)
+            {
+              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-outline-success me-1">
+                <i class="fas fa-plus"></i> Add Component
+              </a>
+            }
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#componentsEmpty" aria-expanded="true" aria-controls="componentsEmpty">
+              <i class="fas fa-chevron-down"></i> Toggle
+            </button>
+          </div>
         </div>
         <div class="collapse show" id="componentsEmpty">
           <div class="card-body text-center">
+            <i class="fas fa-cogs fa-3x text-muted mb-2"></i>
             <p class="text-muted mb-3">
               @if (Model.IsCurrentVersion)
               {
@@ -331,6 +389,12 @@
                 <span>No components were added to Version @Model.Version</span>
               }
             </p>
+            @if (Model.IsCurrentVersion)
+            {
+              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-outline-success">
+                <i class="fas fa-plus"></i> Add First Component
+              </a>
+            }
           </div>
         </div>
       </div>
@@ -786,5 +850,77 @@
     .table th { border-top: none; font-weight: 600; font-size: 0.875rem; }
     .badge { font-size: 0.75rem; }
     .collapse { transition: height 0.35s ease; }
+    /* Sortable column headers */
+    #componentsGrid thead th.sortable-col:hover { background-color: #343a40; opacity: 0.9; }
+    #componentsGrid thead th.sort-asc  .sort-icon,
+    #componentsGrid thead th.sort-desc .sort-icon { opacity: 1 !important; color: #ffc107; }
   </style>
+  <script>
+    (function () {
+      const table = document.getElementById('componentsGrid');
+      if (!table) return;
+
+      // Track current sort: { col: index, asc: bool }
+      let sortState = { col: 0, asc: true };   // default: Part Number asc (already rendered that way)
+
+      // Mark the default header as sorted
+      const headers = table.querySelectorAll('thead th.sortable-col');
+      updateHeaderIcons(headers, 0, true);
+
+      headers.forEach(th => {
+        th.addEventListener('click', function () {
+          const col = parseInt(this.dataset.col);
+          const asc = (sortState.col === col) ? !sortState.asc : true;
+          sortState = { col, asc };
+          sortTable(col, asc);
+          updateHeaderIcons(headers, col, asc);
+        });
+      });
+
+      function sortTable(colIndex, asc) {
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        rows.sort((a, b) => {
+          const cellA = a.cells[colIndex];
+          const cellB = b.cells[colIndex];
+
+          // Use data-sort attribute for numeric columns (Quantity, Unit Cost, Extended Cost)
+          const rawA = cellA.dataset.sort ?? cellA.textContent.trim();
+          const rawB = cellB.dataset.sort ?? cellB.textContent.trim();
+
+          const numA = parseFloat(rawA);
+          const numB = parseFloat(rawB);
+          const isNumeric = !isNaN(numA) && !isNaN(numB);
+
+          let cmp = isNumeric
+            ? numA - numB
+            : rawA.localeCompare(rawB, undefined, { sensitivity: 'base', numeric: true });
+
+          return asc ? cmp : -cmp;
+        });
+
+        rows.forEach(r => tbody.appendChild(r));
+      }
+
+      function updateHeaderIcons(headers, activeCol, asc) {
+        headers.forEach(th => {
+          const icon = th.querySelector('.sort-icon');
+          th.classList.remove('sort-asc', 'sort-desc');
+          if (icon) {
+            icon.classList.remove('fa-sort-up', 'fa-sort-down');
+            icon.classList.add('fa-sort');
+            icon.classList.add('opacity-50');
+          }
+          if (parseInt(th.dataset.col) === activeCol) {
+            th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+            if (icon) {
+              icon.classList.remove('fa-sort', 'opacity-50');
+              icon.classList.add(asc ? 'fa-sort-up' : 'fa-sort-down');
+            }
+          }
+        });
+      }
+    })();
+  </script>
 }

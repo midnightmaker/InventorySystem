@@ -1,0 +1,232 @@
+@model InventorySystem.Models.Item
+@{
+    ViewData["Title"] = "Delete Item";
+    var bomsUsingItem = ViewBag.BomsUsingItem as IEnumerable<InventorySystem.Models.Bom> ?? new List<InventorySystem.Models.Bom>();
+    var isBlockedByBoms = bomsUsingItem.Any();
+}
+
+<div class="container-fluid">
+    <div class="d-flex align-items-center mb-4 gap-3">
+        <a href="@Url.Action("Index", "Items")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Items
+        </a>
+        <h2 class="mb-0 text-danger"><i class="fas fa-trash-alt"></i> Delete Item</h2>
+    </div>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row justify-content-center">
+        <div class="col-md-9">
+
+            @if (isBlockedByBoms)
+            {
+                <!-- BLOCKED: item is used in BOMs -->
+                <div class="alert alert-danger border border-danger border-2">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="fas fa-ban fa-3x text-danger flex-shrink-0 mt-1"></i>
+                        <div>
+                            <h4 class="alert-heading mb-1">Deletion Blocked</h4>
+                            <p class="mb-0">
+                                <strong>@Model.PartNumber</strong> is referenced as a component in
+                                <strong>@bomsUsingItem.Count()</strong> BOM(s).
+                                Remove it from those BOMs before deleting this item.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-danger mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="fas fa-sitemap"></i> BOMs Referencing This Item</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>BOM Number</th>
+                                    <th>Description</th>
+                                    <th>Version</th>
+                                    <th>Qty Used</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var bom in bomsUsingItem.OrderBy(b => b.BomNumber))
+                                {
+                                    var bomItem = bom.BomItems?.FirstOrDefault(bi => bi.ItemId == Model.Id);
+                                    <tr>
+                                        <td><strong>@bom.BomNumber</strong></td>
+                                        <td>@bom.Description</td>
+                                        <td>
+                                            <span class="badge @(bom.IsCurrentVersion ? "bg-success" : "bg-secondary")">
+                                                @bom.Version
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if (bomItem != null)
+                                            {
+                                                <span class="badge bg-primary">@bomItem.Quantity</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">—</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <a href="/Boms/Details/@bom.Id" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                <i class="fas fa-eye"></i> Open BOM
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 justify-content-end">
+                    <a href="@Url.Action("Details", "Items", new { id = Model.Id })" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-left"></i> Back to Item Details
+                    </a>
+                </div>
+            }
+            else
+            {
+                <!-- Safe to delete -->
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Warning: This action cannot be undone!</h5>
+                    <p class="mb-0">
+                        Deleting this item will permanently remove it and all associated records from the system.
+                        Make sure this item has no outstanding purchases or sales before proceeding.
+                    </p>
+                </div>
+
+                <div class="card border-danger mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="fas fa-cube"></i> Item to Delete</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            @if (Model.HasImage)
+                            {
+                                <div class="col-md-3 text-center mb-3">
+                                    <img src="/Items/GetImage/@Model.Id"
+                                         alt="@Model.PartNumber"
+                                         class="img-fluid rounded border"
+                                         style="max-height: 150px; object-fit: contain;" />
+                                </div>
+                            }
+                            <div class="@(Model.HasImage ? "col-md-9" : "col-md-12")">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Part Number</dt>
+                                    <dd class="col-sm-8"><strong>@Model.PartNumber</strong> <span class="badge bg-outline-dark">Rev @Model.Version</span></dd>
+
+                                    <dt class="col-sm-4">Description</dt>
+                                    <dd class="col-sm-8">@Model.Description</dd>
+
+                                    <dt class="col-sm-4">Item Type</dt>
+                                    <dd class="col-sm-8">
+                                        @{
+                                            var badgeColor = Model.ItemType switch
+                                            {
+                                                InventorySystem.Models.Enums.ItemType.Inventoried => "primary",
+                                                InventorySystem.Models.Enums.ItemType.Consumable => "secondary",
+                                                InventorySystem.Models.Enums.ItemType.RnDMaterials => "success",
+                                                _ => "secondary"
+                                            };
+                                        }
+                                        <span class="badge bg-@badgeColor">@Model.ItemTypeDisplayName</span>
+                                    </dd>
+
+                                    <dt class="col-sm-4">Current Stock</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.TrackInventory)
+                                        {
+                                            <span class="badge @(Model.CurrentStock <= Model.MinimumStock ? "bg-danger" : "bg-success")">
+                                                @Model.CurrentStock
+                                            </span>
+                                            <small class="text-muted ms-1">(Min: @Model.MinimumStock)</small>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
+                                    </dd>
+
+                                    <dt class="col-sm-4">Sellable</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.IsSellable)
+                                        {
+                                            <span class="badge bg-success">Sellable</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">Not Sellable</span>
+                                        }
+                                    </dd>
+
+                                    <dt class="col-sm-4">Used In BOMs</dt>
+                                    <dd class="col-sm-8"><span class="badge bg-success">None — safe to delete</span></dd>
+
+                                    @if (!string.IsNullOrEmpty(Model.Comments))
+                                    {
+                                        <dt class="col-sm-4">Comments</dt>
+                                        <dd class="col-sm-8 text-muted">@Model.Comments</dd>
+                                    }
+
+                                    <dt class="col-sm-4">Created</dt>
+                                    <dd class="col-sm-8 text-muted">@Model.CreatedDate.ToString("MMM dd, yyyy")</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 justify-content-end">
+                    <a href="@Url.Action("Details", "Items", new { id = Model.Id })" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <form asp-action="Delete" method="post">
+                        <input type="hidden" asp-for="Id" />
+                        @Html.AntiForgeryToken()
+                        <button type="submit" id="confirmDeleteBtn" class="btn btn-danger btn-lg">
+                            <i class="fas fa-trash-alt"></i> Confirm Delete
+                        </button>
+                    </form>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @if (!isBlockedByBoms)
+    {
+        <script>
+            document.getElementById('confirmDeleteBtn').addEventListener('click', function (e) {
+                if (!confirm('Are you absolutely sure you want to delete "@Model.PartNumber — @Model.Description"?\n\nThis cannot be undone.')) {
+                    e.preventDefault();
+                }
+            });
+        </script>
+    }
+}
+
+<style>
+    .badge.bg-outline-dark {
+        color: #212529;
+        border: 1px solid #212529;
+        background-color: transparent;
+    }
+    dl.row dt {
+        font-weight: 600;
+        color: #495057;
+    }
+</style>
