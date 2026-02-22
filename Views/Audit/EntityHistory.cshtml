@@ -1,0 +1,145 @@
+@model InventorySystem.ViewModels.EntityHistoryViewModel
+@{
+    ViewData["Title"] = $"Audit History – {Model.EntityName} #{Model.EntityId}";
+}
+
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-controller="Audit" asp-action="Index">Audit Trail</a></li>
+            <li class="breadcrumb-item active">@Model.EntityName #@Model.EntityId</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3>
+                <i class="fas fa-history text-info"></i>
+                Change History &mdash; <span class="text-primary">@Model.EntityName</span> #@Model.EntityId
+            </h3>
+            <p class="text-muted mb-0">
+                @Model.History.Count change(s) recorded
+                @if (Model.History.Any())
+                {
+                    <span> &middot; First recorded @Model.History.Last().Timestamp.ToLocalTime().ToString("MM/dd/yyyy")</span>
+                }
+            </p>
+        </div>
+        <a asp-controller="Audit" asp-action="Index"
+           asp-route-entityName="@Model.EntityName"
+           class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Audit Trail
+        </a>
+    </div>
+
+    @if (Model.History.Any())
+    {
+        <div class="card">
+            <div class="card-body p-0">
+                <!-- Timeline -->
+                <div class="list-group list-group-flush">
+                    @foreach (var log in Model.History)
+                    {
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <span class="badge @log.ActionBadgeClass me-2">
+                                        <i class="@log.ActionIcon"></i> @log.Action
+                                    </span>
+                                    <small class="text-muted">
+                                        @log.Timestamp.ToLocalTime().ToString("MM/dd/yyyy hh:mm:ss tt")
+                                    </small>
+                                    <small class="text-muted ms-2">
+                                        by <strong>@(log.PerformedBy ?? "System")</strong>
+                                    </small>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(log.Summary))
+                            {
+                                <p class="mb-2"><i class="fas fa-info-circle text-info"></i> @log.Summary</p>
+                            }
+
+                            @if (!string.IsNullOrEmpty(log.AffectedColumns))
+                            {
+                                <p class="mb-2 small">
+                                    <strong>Changed fields:</strong>
+                                    @foreach (var col in log.AffectedColumns.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        <span class="badge bg-light text-dark border me-1">@col.Trim()</span>
+                                    }
+                                </p>
+                            }
+
+                            @if (log.IsUpdate && !string.IsNullOrEmpty(log.OldValues) && !string.IsNullOrEmpty(log.NewValues))
+                            {
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card bg-light border-danger mb-0">
+                                            <div class="card-header py-1 px-2 bg-danger bg-opacity-10">
+                                                <small class="fw-bold text-danger"><i class="fas fa-minus-circle"></i> Before</small>
+                                            </div>
+                                            <div class="card-body py-1 px-2">
+                                                <pre class="mb-0 small" style="max-height: 200px; overflow: auto; white-space: pre-wrap;">@FormatJson(log.OldValues)</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-light border-success mb-0">
+                                            <div class="card-header py-1 px-2 bg-success bg-opacity-10">
+                                                <small class="fw-bold text-success"><i class="fas fa-plus-circle"></i> After</small>
+                                            </div>
+                                            <div class="card-body py-1 px-2">
+                                                <pre class="mb-0 small" style="max-height: 200px; overflow: auto; white-space: pre-wrap;">@FormatJson(log.NewValues)</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (log.IsCreate && !string.IsNullOrEmpty(log.NewValues))
+                            {
+                                <details>
+                                    <summary class="small text-muted" style="cursor:pointer;">Show initial values</summary>
+                                    <pre class="small mt-1 bg-light p-2 rounded" style="max-height: 200px; overflow: auto; white-space: pre-wrap;">@FormatJson(log.NewValues)</pre>
+                                </details>
+                            }
+                            else if (log.IsDelete && !string.IsNullOrEmpty(log.OldValues))
+                            {
+                                <details>
+                                    <summary class="small text-muted" style="cursor:pointer;">Show deleted values</summary>
+                                    <pre class="small mt-1 bg-light p-2 rounded" style="max-height: 200px; overflow: auto; white-space: pre-wrap;">@FormatJson(log.OldValues)</pre>
+                                </details>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-clipboard-check fa-3x text-muted mb-3"></i>
+                <h5>No History Found</h5>
+                <p class="text-muted">No audit records exist for this entity.</p>
+            </div>
+        </div>
+    }
+</div>
+
+@functions {
+    string FormatJson(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return "";
+        try
+        {
+            var obj = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+            return System.Text.Json.JsonSerializer.Serialize(obj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return json;
+        }
+    }
+}

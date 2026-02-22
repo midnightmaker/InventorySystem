@@ -356,7 +356,7 @@
 
             {
               <ul class="list-unstyled">
-                @foreach (var activity in Model.RecentActivities.Take(3))
+                @foreach (var activity in Model.RecentActivities.Take(5))
 
                 {
                   <li class="mb-2">
@@ -543,9 +543,9 @@
     document.querySelector('.card-gradient-primary')?.addEventListener('click', () => window.location.href = '/Items');
     document.querySelector('.card-gradient-success')?.addEventListener('click', () => console.log('Navigate to financial reports'));
     document.querySelector('.card-gradient-warning')?.addEventListener('click', () => window.location.href = '/Items?stockLevelFilter=low');
-    document.querySelector('.card-gradient-info')?.addEventListener('click', () => window.location.href = '/Boms');
-    document.querySelector('.card-gradient-secondary')?.addEventListener('click', () => window.location.href = '/Purchases');
-    document.querySelector('.card-gradient-dark')?.addEventListener('click', () => window.location.href = '/Vendors'); // FIX: Add this line
+    document.querySelector('.card-gradient-info')?.addEventListener('click', () => window.location.href = '/Boms';
+    document.querySelector('.card-gradient-secondary')?.addEventListener('click', () => window.location.href = '/Purchases';
+    document.querySelector('.card-gradient-dark')?.addEventListener('click', () => window.location.href = '/Vendors'; // FIX: Add this line
   });
 
   // Refresh data every 60 seconds

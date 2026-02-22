@@ -7,6 +7,7 @@ using InventorySystem.Models.CustomerService;
 using InventorySystem.Models.Enums;
 using InventorySystem.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace InventorySystem.Data
 {
@@ -91,6 +92,9 @@ namespace InventorySystem.Data
 		public DbSet<CaseEscalation> CaseEscalations { get; set; }
 
 		public DbSet<VendorShortage> VendorShortages { get; set; } = null!;
+
+		// Audit Trail
+		public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -977,6 +981,37 @@ namespace InventorySystem.Data
 				entity.HasIndex(vs => vs.ShortageDate);
 				entity.HasIndex(vs => new { vs.VendorId, vs.Status });
 			});
+
+			// ============= AUDIT LOG CONFIGURATION =============
+			modelBuilder.Entity<AuditLog>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+
+				entity.Property(e => e.EntityName)
+					.IsRequired()
+					.HasMaxLength(100);
+
+				entity.Property(e => e.EntityId)
+					.HasMaxLength(50);
+
+				entity.Property(e => e.Action)
+					.IsRequired()
+					.HasMaxLength(20);
+
+				entity.Property(e => e.PerformedBy)
+					.HasMaxLength(100);
+
+				entity.Property(e => e.AffectedColumns)
+					.HasMaxLength(2000);
+
+				entity.Property(e => e.Summary)
+					.HasMaxLength(500);
+
+				entity.HasIndex(e => e.Timestamp);
+				entity.HasIndex(e => new { e.EntityName, e.EntityId });
+				entity.HasIndex(e => e.Action);
+				entity.HasIndex(e => e.PerformedBy);
+			});
 		}
 
 
@@ -1088,7 +1123,7 @@ namespace InventorySystem.Data
 							.OnDelete(DeleteBehavior.Restrict);
 			});
 
-			// BOM Item configuration
+			// BomItem configuration
 			modelBuilder.Entity<BomItem>(entity =>
 			{
 				entity.HasKey(e => e.Id);
@@ -1695,14 +1730,29 @@ namespace InventorySystem.Data
 			});
 		}
 
+		// ---------- Entities to skip when capturing audit data ----------
+		private static readonly HashSet<string> _auditExcludedEntities = new(StringComparer.OrdinalIgnoreCase)
+		{
+			nameof(AuditLog),           // Never audit the audit table itself
+			nameof(WorkflowTransition)  // High-volume internal transitions
+		};
+
+		// Properties that change on almost every save and add noise to the audit log
+		private static readonly HashSet<string> _auditExcludedProperties = new(StringComparer.OrdinalIgnoreCase)
+		{
+			"LastModifiedDate", "LastModified", "LastModifiedBy", "LastUpdated",
+			"CreatedDate", "CreatedBy", "UpdatedBy", "Timestamp"
+		};
+
 		// Override SaveChanges to handle automatic timestamps
 		public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
 		{
-			var entries = ChangeTracker
+			// ---- Existing ProductionWorkflow timestamp logic ----
+			var workflowEntries = ChangeTracker
 					.Entries()
 					.Where(e => e.Entity is ProductionWorkflow && (e.State == EntityState.Added || e.State == EntityState.Modified));
 
-			foreach (var entityEntry in entries)
+			foreach (var entityEntry in workflowEntries)
 			{
 				var workflow = (ProductionWorkflow)entityEntry.Entity;
 
@@ -1714,7 +1764,123 @@ namespace InventorySystem.Data
 				workflow.LastModifiedDate = DateTime.UtcNow;
 			}
 
+			// ---- Audit trail capture ----
+			var auditEntries = new List<AuditLog>();
+
+			foreach (var entry in ChangeTracker.Entries()
+				.Where(e => e.State == EntityState.Added
+						 || e.State == EntityState.Modified
+						 || e.State == EntityState.Deleted))
+			{
+				var entityName = entry.Entity.GetType().Name;
+
+				// Skip excluded entities and owned types
+				if (_auditExcludedEntities.Contains(entityName))
+					continue;
+
+				if (entry.Metadata.IsOwned())
+					continue;
+
+				var audit = new AuditLog
+				{
+					EntityName = entityName,
+					Timestamp = DateTime.UtcNow
+				};
+
+				// Try to get the primary key value
+				var keyValues = entry.Properties
+					.Where(p => p.Metadata.IsPrimaryKey())
+					.Select(p => p.CurrentValue?.ToString() ?? "")
+					.ToList();
+				audit.EntityId = string.Join(",", keyValues);
+
+				switch (entry.State)
+				{
+					case EntityState.Added:
+						audit.Action = "Create";
+						audit.NewValues = SerializeProperties(entry.Properties
+							.Where(p => !p.Metadata.IsPrimaryKey())
+							.ToDictionary(p => p.Metadata.Name, p => p.CurrentValue));
+						audit.Summary = $"New {entityName} created";
+						break;
+
+					case EntityState.Modified:
+						audit.Action = "Update";
+
+						var changedProps = entry.Properties
+							.Where(p => p.IsModified
+								&& !p.Metadata.IsPrimaryKey()
+								&& !_auditExcludedProperties.Contains(p.Metadata.Name))
+							.ToList();
+
+						if (!changedProps.Any())
+							continue; // Skip if only excluded props changed
+
+						var oldDict = changedProps.ToDictionary(p => p.Metadata.Name, p => p.OriginalValue);
+						var newDict = changedProps.ToDictionary(p => p.Metadata.Name, p => p.CurrentValue);
+
+						audit.OldValues = SerializeProperties(oldDict);
+						audit.NewValues = SerializeProperties(newDict);
+						audit.AffectedColumns = string.Join(", ", changedProps.Select(p => p.Metadata.Name));
+
+						// Build a human-readable summary of the first few changes
+						var summaryParts = changedProps.Take(3)
+							.Select(p => $"{p.Metadata.Name}: {Truncate(p.OriginalValue)} → {Truncate(p.CurrentValue)}")
+							.ToList();
+						if (changedProps.Count > 3)
+							summaryParts.Add($"+{changedProps.Count - 3} more");
+						audit.Summary = string.Join("; ", summaryParts);
+						break;
+
+					case EntityState.Deleted:
+						audit.Action = "Delete";
+						audit.OldValues = SerializeProperties(entry.Properties
+							.Where(p => !p.Metadata.IsPrimaryKey())
+							.ToDictionary(p => p.Metadata.Name, p => p.OriginalValue));
+						audit.Summary = $"{entityName} #{audit.EntityId} deleted";
+						break;
+				}
+
+				auditEntries.Add(audit);
+			}
+
+			// Persist audit records alongside the actual changes
+			if (auditEntries.Any())
+			{
+				await AuditLogs.AddRangeAsync(auditEntries, cancellationToken);
+			}
+
 			return await base.SaveChangesAsync(cancellationToken);
+		}
+
+		// ---------- Helpers ----------
+
+		private static string? SerializeProperties(Dictionary<string, object?> properties)
+		{
+			try
+			{
+				// Remove byte[] / large binary properties to keep the JSON manageable
+				var clean = properties
+					.Where(kv => kv.Value is not byte[])
+					.ToDictionary(kv => kv.Key, kv => kv.Value);
+
+				return JsonSerializer.Serialize(clean, new JsonSerializerOptions
+				{
+					WriteIndented = false,
+					DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+				});
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		private static string Truncate(object? value, int maxLen = 40)
+		{
+			if (value == null) return "(null)";
+			var s = value.ToString() ?? "";
+			return s.Length <= maxLen ? s : s[..maxLen] + "…";
 		}
 	}
 }

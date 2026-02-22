@@ -376,7 +376,48 @@ namespace InventorySystem.Controllers
           });
         }
 
-        return activities.OrderByDescending(a => a.Timestamp).Take(5);
+        // Get recent sales (last 5)
+        var recentSales = await _context.Sales
+            .Include(s => s.Customer)
+            .OrderByDescending(s => s.SaleDate)
+            .Take(5)
+            .ToListAsync();
+
+        foreach (var sale in recentSales)
+        {
+          var customerName = sale.Customer?.CompanyName ?? sale.Customer?.CustomerName ?? "Unknown";
+          activities.Add(new RecentActivity
+          {
+            Type = "sale",
+            Description = $"Sale {sale.SaleNumber} to {customerName} ({sale.TotalAmount:C})",
+            Timestamp = sale.SaleDate,
+            Icon = "fas fa-cash-register",
+            Color = "text-warning"
+          });
+        }
+
+        // Get recent productions (last 5)
+        var recentProductions = await _context.Productions
+            .Include(p => p.Bom)
+            .Include(p => p.FinishedGood)
+            .OrderByDescending(p => p.ProductionDate)
+            .Take(5)
+            .ToListAsync();
+
+        foreach (var production in recentProductions)
+        {
+          var productName = production.FinishedGood?.PartNumber ?? production.Bom?.BomNumber ?? $"#{production.Id}";
+          activities.Add(new RecentActivity
+          {
+            Type = "production",
+            Description = $"Produced {production.QuantityProduced} × {productName}",
+            Timestamp = production.ProductionDate,
+            Icon = "fas fa-industry",
+            Color = "text-danger"
+          });
+        }
+
+        return activities.OrderByDescending(a => a.Timestamp).Take(10);
       }
       catch (Exception ex)
       {

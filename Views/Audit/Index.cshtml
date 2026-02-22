@@ -1,0 +1,258 @@
+@model InventorySystem.ViewModels.AuditLogIndexViewModel
+@{
+    ViewData["Title"] = "Audit Trail";
+}
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2><i class="fas fa-history text-info"></i> Audit Trail</h2>
+            <p class="text-muted mb-0">Track all changes across the system — who changed what, when, and from what value.</p>
+        </div>
+        <div>
+            <span class="badge bg-info fs-6">@Model.TotalCount total records</span>
+        </div>
+    </div>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Filters Card -->
+    <div class="card mb-3">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filters</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" asp-action="Index">
+                <div class="row g-2">
+                    <div class="col-md-2">
+                        <label class="form-label small">Entity</label>
+                        <select name="entityName" class="form-select form-select-sm">
+                            <option value="">All Entities</option>
+                            @foreach (var name in Model.AvailableEntityNames)
+                            {
+                                <option value="@name" selected="@(Model.EntityName == name)">@name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label small">Entity ID</label>
+                        <input type="text" name="entityId" class="form-control form-control-sm" value="@Model.EntityId" placeholder="#" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Action</label>
+                        <select name="action" class="form-select form-select-sm">
+                            <option value="">All Actions</option>
+                            <option value="Create" selected="@(Model.Action == "Create")">Create</option>
+                            <option value="Update" selected="@(Model.Action == "Update")">Update</option>
+                            <option value="Delete" selected="@(Model.Action == "Delete")">Delete</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">User</label>
+                        <select name="performedBy" class="form-select form-select-sm">
+                            <option value="">All Users</option>
+                            @foreach (var user in Model.AvailableUsers)
+                            {
+                                <option value="@user" selected="@(Model.PerformedBy == user)">@user</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">From Date</label>
+                        <input type="date" name="fromDate" class="form-control form-control-sm" value="@Model.FromDate?.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">To Date</label>
+                        <input type="date" name="toDate" class="form-control form-control-sm" value="@Model.ToDate?.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end gap-1">
+                        <button type="submit" class="btn btn-sm btn-primary" title="Apply Filters">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <a asp-action="Index" class="btn btn-sm btn-outline-secondary" title="Clear Filters">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-4">
+                        <input type="text" name="searchTerm" class="form-control form-control-sm" placeholder="Search values, summaries..." value="@Model.SearchTerm" />
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Audit Log Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            @if (Model.AuditLogs.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="width:150px;">Timestamp</th>
+                                <th style="width:80px;">Action</th>
+                                <th style="width:120px;">Entity</th>
+                                <th style="width:60px;">ID</th>
+                                <th>Summary</th>
+                                <th style="width:140px;">Changed Fields</th>
+                                <th style="width:100px;">User</th>
+                                <th style="width:80px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in Model.AuditLogs)
+                            {
+                                <tr>
+                                    <td class="small text-nowrap">
+                                        @log.Timestamp.ToLocalTime().ToString("MM/dd/yyyy hh:mm tt")
+                                    </td>
+                                    <td>
+                                        <span class="badge @log.ActionBadgeClass">
+                                            <i class="@log.ActionIcon"></i> @log.Action
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-semibold">@log.EntityName</span>
+                                    </td>
+                                    <td>
+                                        <code>@log.EntityId</code>
+                                    </td>
+                                    <td class="small">
+                                        @if (!string.IsNullOrEmpty(log.Summary))
+                                        {
+                                            @log.Summary
+                                        }
+                                        else if (log.IsCreate)
+                                        {
+                                            <span class="text-success">New @log.EntityName created</span>
+                                        }
+                                        else if (log.IsDelete)
+                                        {
+                                            <span class="text-danger">@log.EntityName deleted</span>
+                                        }
+                                    </td>
+                                    <td class="small">
+                                        @if (!string.IsNullOrEmpty(log.AffectedColumns))
+                                        {
+                                            var columns = log.AffectedColumns.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                                            @foreach (var col in columns.Take(3))
+                                            {
+                                                <span class="badge bg-light text-dark border me-1">@col.Trim()</span>
+                                            }
+                                            @if (columns.Length > 3)
+                                            {
+                                                <span class="badge bg-light text-muted border">+@(columns.Length - 3) more</span>
+                                            }
+                                        }
+                                    </td>
+                                    <td class="small">
+                                        @(log.PerformedBy ?? "System")
+                                    </td>
+                                    <td>
+                                        <a asp-action="EntityHistory"
+                                           asp-route-entityName="@log.EntityName"
+                                           asp-route-entityId="@log.EntityId"
+                                           class="btn btn-sm btn-outline-info" title="View full history">
+                                            <i class="fas fa-history"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                @if (Model.TotalPages > 1)
+                {
+                    <div class="card-footer d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">
+                            Showing @(((Model.CurrentPage - 1) * Model.PageSize) + 1)–@Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalCount) of @Model.TotalCount
+                        </span>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0">
+                                @if (Model.CurrentPage > 1)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@(Model.CurrentPage - 1)"
+                                           asp-route-entityName="@Model.EntityName"
+                                           asp-route-entityId="@Model.EntityId"
+                                           asp-route-action="@Model.Action"
+                                           asp-route-performedBy="@Model.PerformedBy"
+                                           asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                                           asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
+                                           asp-route-searchTerm="@Model.SearchTerm">
+                                            &laquo; Prev
+                                        </a>
+                                    </li>
+                                }
+
+                                @for (int i = Math.Max(1, Model.CurrentPage - 2); i <= Math.Min(Model.TotalPages, Model.CurrentPage + 2); i++)
+                                {
+                                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@i"
+                                           asp-route-entityName="@Model.EntityName"
+                                           asp-route-entityId="@Model.EntityId"
+                                           asp-route-action="@Model.Action"
+                                           asp-route-performedBy="@Model.PerformedBy"
+                                           asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                                           asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
+                                           asp-route-searchTerm="@Model.SearchTerm">
+                                            @i
+                                        </a>
+                                    </li>
+                                }
+
+                                @if (Model.CurrentPage < Model.TotalPages)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@(Model.CurrentPage + 1)"
+                                           asp-route-entityName="@Model.EntityName"
+                                           asp-route-entityId="@Model.EntityId"
+                                           asp-route-action="@Model.Action"
+                                           asp-route-performedBy="@Model.PerformedBy"
+                                           asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                                           asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
+                                           asp-route-searchTerm="@Model.SearchTerm">
+                                            Next &raquo;
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </nav>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="fas fa-clipboard-check fa-3x text-muted mb-3"></i>
+                    <h5>No Audit Records Found</h5>
+                    <p class="text-muted">
+                        @if (!string.IsNullOrEmpty(Model.EntityName) || !string.IsNullOrEmpty(Model.Action) || !string.IsNullOrEmpty(Model.SearchTerm))
+                        {
+                            <span>No records match the current filters. <a asp-action="Index">Clear filters</a></span>
+                        }
+                        else
+                        {
+                            <span>Changes will appear here as users create, edit, and delete records.</span>
+                        }
+                    </p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

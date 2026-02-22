@@ -113,6 +113,9 @@ builder.Services.AddScoped<IFinancialPeriodService, FinancialPeriodService>();
 
 builder.Services.AddScoped<ICustomerServiceService, CustomerServiceService>();
 
+// Register Audit Trail Service
+builder.Services.AddScoped<IAuditService, AuditService>();
+
 // Configure file upload limits and request sizes
 builder.Services.Configure<FormOptions>(options =>
 {
