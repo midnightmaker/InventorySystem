@@ -32,13 +32,17 @@
   </div>
 }
 
-<form asp-action="Edit" method="post">
-  <input asp-for="Id" type="hidden" />
-  <input asp-for="CreatedDate" type="hidden" />
-  <input asp-for="ParentBomId" type="hidden" />
+<div class="row">
+  <div class="col-md-8">
 
-  <div class="row">
-    <div class="col-md-8">
+    
+    <form asp-action="Edit" method="post">
+      <input asp-for="Id" type="hidden" />
+      <input asp-for="CreatedDate" type="hidden" />
+      <input asp-for="ParentBomId" type="hidden" />
+      <input asp-for="IsCurrentVersion" type="hidden" />
+      <input asp-for="BaseBomId" type="hidden" />
+
       <div class="card">
         <div class="card-header">
           <h5><i class="fas fa-info-circle"></i> BOM Information</h5>
@@ -94,245 +98,6 @@
         </div>
       </div>
 
-      @if (Model.BomItems?.Any() == true)
-      {
-        <div class="card mt-4">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5><i class="fas fa-cogs"></i> Components (@Model.BomItems.Count)</h5>
-            <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-success">
-              <i class="fas fa-plus"></i> Add Component
-            </a>
-          </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Part Number</th>
-                    <th>Description</th>
-                    <th>Quantity</th>
-                    <th>Unit Cost</th>
-                    <th>Extended Cost</th>
-                    <th>Reference</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @foreach (var bomItem in Model.BomItems)
-                  {
-                    <tr>
-                      <td>
-                        <a href="/Items/Details/@bomItem.Item.Id" class="text-decoration-none">
-                          @bomItem.Item.PartNumber
-                        </a>
-                      </td>
-                      <td>@bomItem.Item.Description</td>
-                      <td>@bomItem.Quantity</td>
-                      <td>@bomItem.UnitCost.ToString("C")</td>
-                      <td>@bomItem.ExtendedCost.ToString("C")</td>
-                      <td>@bomItem.ReferenceDesignator</td>
-                      <td>
-                        <div class="btn-group btn-group-sm">
-                          <form asp-action="RemoveItem" method="post" style="display:inline;">
-                            <input type="hidden" name="bomItemId" value="@bomItem.Id" />
-                            <input type="hidden" name="bomId" value="@Model.Id" />
-                            <button type="submit" class="btn btn-outline-danger"
-                                    onclick="return confirm('Remove this item from the BOM?')"
-                                    title="Remove Item">
-                              <i class="fas fa-trash"></i> Remove
-                            </button>
-                          </form>
-                        </div>
-                        <small class="text-muted d-block mt-1">
-                          To edit quantity, remove and re-add this component
-                        </small>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      }
-
-      @if (Model.SubAssemblies?.Any() == true)
-      {
-        <div class="card mt-4">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5><i class="fas fa-layer-group"></i> Sub-Assemblies (@Model.SubAssemblies.Count)</h5>
-            <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-sm btn-success">
-              <i class="fas fa-plus"></i> Add Sub-Assembly
-            </a>
-          </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Sub-Assembly Name</th>
-                    <th>Assembly P/N</th>
-                    <th>Version</th>
-                    <th>Components</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @foreach (var subAssembly in Model.SubAssemblies)
-                  {
-                    <tr>
-                      <td>
-                        <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
-                          @subAssembly.BomNumber
-                        </a>
-                      </td>
-                      <td>@subAssembly.AssemblyPartNumber</td>
-                      <td>@subAssembly.Version</td>
-                      <td>
-                        <span class="badge bg-info">@subAssembly.BomItems.Count</span>
-                      </td>
-                      <td>
-                        <div class="btn-group btn-group-sm">
-                          <a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary" title="View Details">
-                            <i class="fas fa-eye"></i>
-                          </a>
-                          <a href="/Boms/Edit/@subAssembly.Id" class="btn btn-outline-secondary" title="Edit">
-                            <i class="fas fa-edit"></i>
-                          </a>
-                        </div>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      }
-
-      <!-- BOM Documents Section -->
-      @if (Model.HasDocuments && Model.Documents?.Any() == true)
-      {
-        <div class="card mt-4">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5><i class="fas fa-file-alt"></i> BOM Documents (@Model.Documents.Count)</h5>
-            <a href="/Documents/UploadBom?bomId=@Model.Id" class="btn btn-sm btn-outline-success">
-              <i class="fas fa-plus"></i> Add Document
-            </a>
-          </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Document Name</th>
-                    <th>Type</th>
-                    <th>Size</th>
-                    <th>Uploaded</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @foreach (var doc in Model.Documents.OrderBy(d => d.DocumentType).ThenBy(d => d.DocumentName))
-                  {
-                    <tr>
-                      <td>
-                        <div class="d-flex align-items-center">
-                          <i class="@doc.FileTypeIcon me-2"></i>
-                          <div>
-                            <strong>@doc.DocumentName</strong>
-                            @if (!string.IsNullOrEmpty(doc.Description))
-                            {
-                              <br>
-                        
-                              <small class="text-muted">@doc.Description</small>
-                            }
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span class="badge bg-secondary">@doc.DocumentType</span>
-                      </td>
-                      <td>@doc.FileSizeFormatted</td>
-                      <td>
-                        <small>@doc.UploadedDate.ToString("MM/dd/yyyy")</small>
-                      </td>
-                      <td>
-                        <div class="btn-group btn-group-sm">
-                          @{
-                            var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
-                            .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
-                          }
-
-                          @if (canPreview)
-                          {
-                            <button class="btn btn-outline-info" onclick="previewDocument(@doc.Id, '@doc.DocumentName')" title="Preview">
-                              <i class="fas fa-eye"></i>
-                            </button>
-                          }
-
-                          <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" title="Download">
-                            <i class="fas fa-download"></i>
-                          </a>
-
-                          <!-- Delete button is available in Edit view -->
-                          <form asp-controller="Documents" asp-action="DeleteBom" method="post" style="display:inline;">
-                            <input type="hidden" name="id" value="@doc.Id" />
-                            <button type="submit" class="btn btn-outline-danger"
-                                    onclick="return confirm('Delete this document? This action cannot be undone.')"
-                                    title="Delete Document">
-                              <i class="fas fa-trash"></i>
-                            </button>
-                          </form>
-                        </div>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      }
-    </div>
-
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">
-          <h5><i class="fas fa-info-circle"></i> BOM Summary</h5>
-        </div>
-        <div class="card-body">
-          <dl class="row">
-            <dt class="col-sm-5">Created:</dt>
-            <dd class="col-sm-7">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
-
-            <dt class="col-sm-5">Components:</dt>
-            <dd class="col-sm-7">
-              <span class="badge bg-info">@(Model.BomItems?.Count ?? 0)</span>
-            </dd>
-
-            <dt class="col-sm-5">Sub-Assemblies:</dt>
-            <dd class="col-sm-7">
-              <span class="badge bg-secondary">@(Model.SubAssemblies?.Count ?? 0)</span>
-            </dd>
-
-            <dt class="col-sm-5">Documents:</dt>
-            <dd class="col-sm-7">
-              <span class="badge bg-primary">@(Model.Documents?.Count ?? 0)</span>
-            </dd>
-          </dl>
-
-          @if (ViewBag.TotalCost != null)
-          {
-            <hr>
-            <div class="text-center">
-              <h5 class="text-success">Total Cost</h5>
-              <h4>@(((decimal)ViewBag.TotalCost).ToString("C"))</h4>
-            </div>
-          }
-        </div>
-      </div>
-
       <div class="card mt-3">
         <div class="card-header">
           <h5><i class="fas fa-save"></i> Actions</h5>
@@ -346,66 +111,295 @@
               <i class="fas fa-times"></i> Cancel
             </a>
           </div>
+        </div>
+      </div>
+    </form>
 
-          <hr>
 
-          <div class="d-grid gap-2">
-            @if (!(Model.BomItems?.Any() == true))
-            {
-              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-success">
-                <i class="fas fa-plus"></i> Add First Component
-              </a>
-            }
-            else
-            {
-              <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-outline-success">
-                <i class="fas fa-plus"></i> Add More Components
-              </a>
-            }
 
-            <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-outline-info">
-              <i class="fas fa-layer-group"></i> Add Sub-Assembly
-            </a>
-
-            <a href="/Documents/UploadBom?bomId=@Model.Id" class="btn btn-outline-primary">
-              <i class="fas fa-upload"></i> Upload Document
-            </a>
-
-            <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-warning">
-              <i class="fas fa-dollar-sign"></i> Cost Report
-            </a>
+    @if (Model.BomItems?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-cogs"></i> Components (@Model.BomItems.Count)</h5>
+          <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-sm btn-success">
+            <i class="fas fa-plus"></i> Add Component
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Part Number</th>
+                  <th>Description</th>
+                  <th>Quantity</th>
+                  <th>Unit Cost</th>
+                  <th>Extended Cost</th>
+                  <th>Reference</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var bomItem in Model.BomItems)
+                {
+                  <tr>
+                    <td>
+                      <a href="/Items/Details/@bomItem.Item.Id" class="text-decoration-none">
+                        @bomItem.Item.PartNumber
+                      </a>
+                    </td>
+                    <td>@bomItem.Item.Description</td>
+                    <td>@bomItem.Quantity</td>
+                    <td>@bomItem.UnitCost.ToString("C")</td>
+                    <td>@bomItem.ExtendedCost.ToString("C")</td>
+                    <td>@bomItem.ReferenceDesignator</td>
+                    <td>
+                      <form asp-action="RemoveItem" method="post">
+                        <input type="hidden" name="bomItemId" value="@bomItem.Id" />
+                        <input type="hidden" name="bomId" value="@Model.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Remove this item from the BOM?')"
+                                title="Remove Item">
+                          <i class="fas fa-trash"></i> Remove
+                        </button>
+                      </form>
+                      <small class="text-muted d-block mt-1">
+                        To edit quantity, remove and re-add this component
+                      </small>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
+    }
 
-      <div class="card mt-3 border-info">
-        <div class="card-header bg-info text-white">
-          <h6><i class="fas fa-lightbulb"></i> Editing Tips</h6>
+
+    @if (Model.SubAssemblies?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-layer-group"></i> Sub-Assemblies (@Model.SubAssemblies.Count)</h5>
+          <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-sm btn-success">
+            <i class="fas fa-plus"></i> Add Sub-Assembly
+          </a>
         </div>
         <div class="card-body">
-          <ul class="list-unstyled mb-0">
-            <li class="mb-2"><i class="fas fa-check text-success"></i> <small>ModifiedDate updates automatically</small></li>
-            <li class="mb-2"><i class="fas fa-check text-success"></i> <small>Component costs update in real-time</small></li>
-            <li class="mb-2"><i class="fas fa-check text-success"></i> <small>You can edit individual component quantities</small></li>
-            <li><i class="fas fa-check text-success"></i> <small>Sub-assemblies can be nested 3 levels deep</small></li>
-          </ul>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Sub-Assembly Name</th>
+                  <th>Assembly P/N</th>
+                  <th>Version</th>
+                  <th>Components</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var subAssembly in Model.SubAssemblies)
+                {
+                  <tr>
+                    <td>
+                      <a href="/Boms/Details/@subAssembly.Id" class="text-decoration-none">
+                        @subAssembly.BomNumber
+                      </a>
+                    </td>
+                    <td>@subAssembly.AssemblyPartNumber</td>
+                    <td>@subAssembly.Version</td>
+                    <td>
+                      <span class="badge bg-info">@subAssembly.BomItems.Count</span>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        <a href="/Boms/Details/@subAssembly.Id" class="btn btn-outline-primary" title="View Details">
+                          <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="/Boms/Edit/@subAssembly.Id" class="btn btn-outline-secondary" title="Edit">
+                          <i class="fas fa-edit"></i>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+    }
 
-      <!-- Debug Section - Remove this in production -->
-      <div class="card mt-3 border-warning">
-        <div class="card-header bg-warning text-dark">
-          <h6><i class="fas fa-bug"></i> Debug Info</h6>
+
+    @if (Model.HasDocuments && Model.Documents?.Any() == true)
+    {
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5><i class="fas fa-file-alt"></i> BOM Documents (@Model.Documents.Count)</h5>
+          <a href="/Documents/UploadBom?bomId=@Model.Id" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-plus"></i> Add Document
+          </a>
         </div>
         <div class="card-body">
-          <button type="button" class="btn btn-sm btn-outline-warning" onclick="debugDocuments()">
-            <i class="fas fa-search"></i> Debug Documents
-          </button>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Document Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Uploaded</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var doc in Model.Documents.OrderBy(d => d.DocumentType).ThenBy(d => d.DocumentName))
+                {
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <i class="@doc.FileTypeIcon me-2"></i>
+                        <div>
+                          <strong>@doc.DocumentName</strong>
+                          @if (!string.IsNullOrEmpty(doc.Description))
+                          {
+                            <br />
+                            <small class="text-muted">@doc.Description</small>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge bg-secondary">@doc.DocumentType</span>
+                    </td>
+                    <td>@doc.FileSizeFormatted</td>
+                    <td>
+                      <small>@doc.UploadedDate.ToString("MM/dd/yyyy")</small>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        @{
+                          var canPreview = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff" }
+                          .Contains(System.IO.Path.GetExtension(doc.FileName).ToLowerInvariant());
+                        }
+                        @if (canPreview)
+                        {
+                          <button class="btn btn-outline-info" onclick="previewDocument(@doc.Id, '@doc.DocumentName')" title="Preview">
+                            <i class="fas fa-eye"></i>
+                          </button>
+                        }
+                        <a href="/Documents/Download/@doc.Id" class="btn btn-outline-primary" title="Download">
+                          <i class="fas fa-download"></i>
+                        </a>
+                        <form asp-controller="Documents" asp-action="DeleteBom" method="post" style="display:inline;">
+                          <input type="hidden" name="id" value="@doc.Id" />
+                          <button type="submit" class="btn btn-outline-danger"
+                                  onclick="return confirm('Delete this document? This action cannot be undone.')"
+                                  title="Delete Document">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-info-circle"></i> BOM Summary</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-5">Created:</dt>
+          <dd class="col-sm-7">@Model.CreatedDate.ToString("MM/dd/yyyy")</dd>
+
+          <dt class="col-sm-5">Components:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-info">@(Model.BomItems?.Count ?? 0)</span>
+          </dd>
+
+          <dt class="col-sm-5">Sub-Assemblies:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-secondary">@(Model.SubAssemblies?.Count ?? 0)</span>
+          </dd>
+
+          <dt class="col-sm-5">Documents:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-primary">@(Model.Documents?.Count ?? 0)</span>
+          </dd>
+        </dl>
+
+        @if (ViewBag.TotalCost != null)
+        {
+          <hr>
+          <div class="text-center">
+            <h5 class="text-success">Total Cost</h5>
+            <h4>@(((decimal)ViewBag.TotalCost).ToString("C"))</h4>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5><i class="fas fa-tools"></i> Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          @if (!(Model.BomItems?.Any() == true))
+          {
+            <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-success">
+              <i class="fas fa-plus"></i> Add First Component
+            </a>
+          }
+          else
+          {
+            <a href="/Boms/AddItem?bomId=@Model.Id" class="btn btn-outline-success">
+              <i class="fas fa-plus"></i> Add More Components
+            </a>
+          }
+
+          <a href="/Boms/Create?parentBomId=@Model.Id" class="btn btn-outline-info">
+            <i class="fas fa-layer-group"></i> Add Sub-Assembly
+          </a>
+
+          <a href="/Documents/UploadBom?bomId=@Model.Id" class="btn btn-outline-primary">
+            <i class="fas fa-upload"></i> Upload Document
+          </a>
+
+          <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-warning">
+            <i class="fas fa-dollar-sign"></i> Cost Report
+          </a>
         </div>
       </div>
     </div>
+
+    <div class="card mt-3 border-info">
+      <div class="card-header bg-info text-white">
+        <h6><i class="fas fa-lightbulb"></i> Editing Tips</h6>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0">
+          <li class="mb-2"><i class="fas fa-check text-success"></i> <small>ModifiedDate updates automatically</small></li>
+          <li class="mb-2"><i class="fas fa-check text-success"></i> <small>Component costs update in real-time</small></li>
+          <li class="mb-2"><i class="fas fa-check text-success"></i> <small>To edit quantity, remove and re-add the component</small></li>
+          <li><i class="fas fa-check text-success"></i> <small>Sub-assemblies can be nested 3 levels deep</small></li>
+        </ul>
+      </div>
+    </div>
   </div>
-</form>
+</div>
 
 @* Document Preview Modal *@
 <div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true">
@@ -451,159 +445,76 @@
     let currentDocumentId = null;
 
     function previewDocument(documentId, documentName) {
-        console.log('Preview function called with:', documentId, documentName);
+      currentDocumentId = documentId;
+      const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
+      const iframe = document.getElementById('previewIframe');
+      const modalTitle = document.getElementById('previewModalTitle');
+      const downloadLink = document.getElementById('downloadLink');
+      const loading = document.getElementById('previewLoading');
 
-        currentDocumentId = documentId;
-        const modal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
-        const iframe = document.getElementById('previewIframe');
-        const modalTitle = document.getElementById('previewModalTitle');
-        const downloadLink = document.getElementById('downloadLink');
-        const loading = document.getElementById('previewLoading');
+      modalTitle.textContent = `Preview: ${documentName}`;
+      downloadLink.href = `/Documents/Download/${documentId}`;
+      loading.style.display = 'block';
+      iframe.style.display = 'none';
+      modal.show();
 
-        modalTitle.textContent = `Preview: ${documentName}`;
-        downloadLink.href = `/Documents/Download/${documentId}`;
-
-        // Show loading, hide iframe
-        loading.style.display = 'block';
-        iframe.style.display = 'none';
-
-        // Clear any previous error states
-        iframe.style.display = 'none';
-
-        // Show modal first
-        modal.show();
-
-        // First try to fetch document info to validate it exists
-        fetch(`/Documents/GetDocumentInfo/${documentId}`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            console.log('Document info response status:', response.status);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(docInfo => {
-            console.log('Document info:', docInfo);
-
-            // Now try to load the document in iframe
-            iframe.src = `/Documents/View/${documentId}`;
-            console.log('Setting iframe src to:', iframe.src);
-
-            // Set up iframe event handlers
-            iframe.onload = function() {
-                console.log('Iframe loaded successfully');
-                loading.style.display = 'none';
-                iframe.style.display = 'block';
-            };
-
-            iframe.onerror = function() {
-                console.log('Iframe error occurred');
-                showPreviewError('Failed to load document in preview');
-            };
-
-            // Add timeout for iframe loading
-            setTimeout(() => {
-                if (iframe.style.display === 'none' && loading.style.display === 'block') {
-                    console.log('Iframe loading timeout');
-                    showPreviewError('Document preview timed out');
-                }
-            }, 10000); // 10 second timeout
-        })
-        .catch(error => {
-            console.error('Error fetching document info:', error);
-            showPreviewError(`Document not found or cannot be accessed: ${error.message}`);
-        });
+      fetch(`/Documents/GetDocumentInfo/${documentId}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        return response.json();
+      })
+      .then(() => {
+        iframe.src = `/Documents/View/${documentId}`;
+        iframe.onload = function () {
+          loading.style.display = 'none';
+          iframe.style.display = 'block';
+        };
+        iframe.onerror = function () {
+          showPreviewError('Failed to load document in preview');
+        };
+        setTimeout(() => {
+          if (iframe.style.display === 'none' && loading.style.display === 'block') {
+            showPreviewError('Document preview timed out');
+          }
+        }, 10000);
+      })
+      .catch(error => {
+        showPreviewError(`Document not found or cannot be accessed: ${error.message}`);
+      });
     }
 
     function showPreviewError(message) {
-        const loading = document.getElementById('previewLoading');
-        loading.innerHTML = `
-            <div class="text-center p-4">
-                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
-                <h5>Preview Error</h5>
-                <p class="text-muted">${message}</p>
-                <a href="/Documents/Download/${currentDocumentId}" class="btn btn-primary">
-                    <i class="fas fa-download"></i> Download Document Instead
-                </a>
-            </div>
-        `;
+      const loading = document.getElementById('previewLoading');
+      loading.innerHTML = `
+        <div class="text-center p-4">
+          <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+          <h5>Preview Error</h5>
+          <p class="text-muted">${message}</p>
+          <a href="/Documents/Download/${currentDocumentId}" class="btn btn-primary">
+            <i class="fas fa-download"></i> Download Document Instead
+          </a>
+        </div>`;
     }
 
-    function debugDocuments() {
-        fetch(`/Documents/TestBomDocuments?bomId=@Model.Id`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Debug info:', data);
-            alert(`Debug Info:\nBOM ID: ${data.BomId}\nBOM Exists: ${data.BomExists}\nBOM Number: ${data.BomNumber}\nDirect Document Count: ${data.DirectDocumentCount}\nNavigation Document Count: ${data.NavigationDocumentCount}\n\nCheck console for detailed document info.`);
-        })
-        .catch(error => {
-            console.error('Debug error:', error);
-            alert('Debug request failed. Check console for details.');
-        });
-    }
-
-    function zoomIn() {
-        currentZoom += 0.25;
-        applyZoom();
-    }
-
-    function zoomOut() {
-        if (currentZoom > 0.5) {
-            currentZoom -= 0.25;
-            applyZoom();
-        }
-    }
-
-    function resetZoom() {
-        currentZoom = 1;
-        applyZoom();
-    }
-
+    function zoomIn() { currentZoom += 0.25; applyZoom(); }
+    function zoomOut() { if (currentZoom > 0.5) { currentZoom -= 0.25; applyZoom(); } }
+    function resetZoom() { currentZoom = 1; applyZoom(); }
     function applyZoom() {
-        const iframe = document.getElementById('previewIframe');
-        if (iframe) {
-            iframe.style.transform = `scale(${currentZoom})`;
-            iframe.style.transformOrigin = 'top left';
-        }
+      const iframe = document.getElementById('previewIframe');
+      if (iframe) {
+        iframe.style.transform = `scale(${currentZoom})`;
+        iframe.style.transformOrigin = 'top left';
+      }
     }
 
-    // Reset zoom when modal is closed
     document.getElementById('documentPreviewModal').addEventListener('hidden.bs.modal', function () {
-        currentZoom = 1;
-        applyZoom();
-        const iframe = document.getElementById('previewIframe');
-        if (iframe) {
-            iframe.src = '';
-            iframe.onload = null;
-            iframe.onerror = null;
-        }
-    });
-
-    // Auto-update the modified date display
-    document.addEventListener('DOMContentLoaded', function () {
-      console.log('BOM Edit page loaded');
-
-      const form = document.querySelector('form');
-      if (form) {
-        // Update modified date when form is submitted
-        form.addEventListener('submit', function () {
-          const modifiedInput = document.querySelector('input[readonly]');
-          if (modifiedInput) {
-            const now = new Date();
-            modifiedInput.value = now.toLocaleString();
-          }
-        });
-      }
+      currentZoom = 1;
+      applyZoom();
+      const iframe = document.getElementById('previewIframe');
+      if (iframe) { iframe.src = ''; iframe.onload = null; iframe.onerror = null; }
     });
   </script>
 
