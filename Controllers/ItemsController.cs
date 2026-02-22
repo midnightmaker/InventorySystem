@@ -513,6 +513,7 @@ namespace InventorySystem.Controllers
         ModelState.Remove(nameof(Item.RequiresSerialNumber));
         ModelState.Remove(nameof(Item.RequiresModelNumber));
         ModelState.Remove(nameof(Item.PreferredRevenueAccountCode));
+        ModelState.Remove(nameof(Item.Comments));
 
         if (!ModelState.IsValid)
         {

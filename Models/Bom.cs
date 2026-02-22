@@ -21,10 +21,15 @@ namespace InventorySystem.Models
     public DateTime CreatedDate { get; set; } = DateTime.Now;
     public DateTime ModifiedDate { get; set; } = DateTime.Now;
 
+    // Thumbnail image
+    public byte[]? ImageData { get; set; }
+    public string? ImageContentType { get; set; }
+    public string? ImageFileName { get; set; }
+
     // Navigation properties
     public virtual ICollection<BomItem> BomItems { get; set; } = new List<BomItem>();
 
-    // NEW: Documents navigation property (reusing ItemDocument)
+    // Documents navigation property (reusing ItemDocument)
     public virtual ICollection<ItemDocument> Documents { get; set; } = new List<ItemDocument>();
 
     // For hierarchical BOMs (up to 3 levels as requested)
@@ -45,7 +50,10 @@ namespace InventorySystem.Models
     public string VersionedName => $"{BomNumber} {Version}";
     public int VersionCount => Versions?.Count ?? 0;
 
-    // NEW: Document helper properties
+    [NotMapped]
+    public bool HasImage => ImageData != null && ImageData.Length > 0;
+
+    // Document helper properties
     [NotMapped]
     public bool HasDocuments => Documents?.Any() == true;
 

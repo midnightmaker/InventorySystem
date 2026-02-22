@@ -17,7 +17,7 @@ namespace InventorySystem.Models
     public string Description { get; set; } = string.Empty;
 
     [StringLength(1000)]
-    public string Comments { get; set; } = string.Empty;
+    public string? Comments { get; set; }
 
     public int MinimumStock { get; set; }
     public int CurrentStock { get; set; }

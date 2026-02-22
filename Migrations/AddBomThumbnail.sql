@@ -1,0 +1,26 @@
+-- Migration: AddBomThumbnail
+-- Adds thumbnail image columns to the Boms table, matching the pattern used for Items.
+
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Boms' AND COLUMN_NAME = 'ImageData'
+)
+BEGIN
+    ALTER TABLE Boms ADD ImageData VARBINARY(MAX) NULL;
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Boms' AND COLUMN_NAME = 'ImageContentType'
+)
+BEGIN
+    ALTER TABLE Boms ADD ImageContentType NVARCHAR(100) NULL;
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Boms' AND COLUMN_NAME = 'ImageFileName'
+)
+BEGIN
+    ALTER TABLE Boms ADD ImageFileName NVARCHAR(260) NULL;
+END

@@ -91,7 +91,18 @@ namespace InventorySystem.Services
       try
       {
         bom.ModifiedDate = DateTime.Now;
-        _context.Boms.Update(bom);
+
+        // If the entity is already tracked (e.g. loaded in the same request),
+        // calling Update() would cause a duplicate-tracking exception.
+        // Only attach/mark modified when the entity is NOT already tracked.
+        var entry = _context.Entry(bom);
+        if (entry.State == EntityState.Detached)
+        {
+          _context.Boms.Update(bom);
+        }
+        // If already tracked (Added / Modified / Unchanged), EF will detect
+        // the changes automatically — just save.
+
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Updated BOM {BomNumber} (ID: {BomId})", bom.BomNumber, bom.Id);

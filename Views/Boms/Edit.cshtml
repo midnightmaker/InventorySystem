@@ -35,8 +35,7 @@
 <div class="row">
   <div class="col-md-8">
 
-    
-    <form asp-action="Edit" method="post">
+    <form asp-action="Edit" method="post" enctype="multipart/form-data">
       <input asp-for="Id" type="hidden" />
       <input asp-for="CreatedDate" type="hidden" />
       <input asp-for="ParentBomId" type="hidden" />
@@ -94,6 +93,66 @@
             <label asp-for="Description" class="form-label">Description *</label>
             <textarea asp-for="Description" class="form-control" rows="3"></textarea>
             <span asp-validation-for="Description" class="text-danger"></span>
+          </div>
+        </div>
+      </div>
+
+      @* Thumbnail card — placed after BOM Information, before Actions *@
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5><i class="fas fa-image"></i> BOM Thumbnail</h5>
+        </div>
+        <div class="card-body">
+          @if (Model.HasImage)
+          {
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Current Thumbnail:</label>
+                <div>
+                  <img src="/Boms/GetImage/@Model.Id"
+                       alt="BOM Thumbnail"
+                       style="max-width: 150px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" />
+                  <div class="mt-1">
+                    <small class="text-muted">@Model.ImageFileName</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-8">
+                <div class="mb-3">
+                  <label for="newImageFile" class="form-label">
+                    <i class="fas fa-upload text-primary"></i> Replace Thumbnail
+                  </label>
+                  <input name="newImageFile" class="form-control" type="file" accept="image/*" id="newImageFile" />
+                  <div class="form-text">
+                    <i class="fas fa-info-circle"></i>
+                    Leave empty to keep the current thumbnail. Supported formats: JPG, PNG, GIF, BMP — max 5 MB.
+                  </div>
+                  <span asp-validation-for="ImageFileName" class="text-danger"></span>
+                </div>
+              </div>
+            </div>
+          }
+          else
+          {
+            <div class="mb-3">
+              <label for="newImageFile" class="form-label">
+                <i class="fas fa-upload text-primary"></i> Upload Thumbnail
+              </label>
+              <input name="newImageFile" class="form-control" type="file" accept="image/*" id="newImageFile" />
+              <div class="form-text">
+                <i class="fas fa-info-circle"></i>
+                Upload a thumbnail image for this BOM (JPG, PNG, GIF, BMP — max 5 MB).
+              </div>
+            </div>
+          }
+
+          @* Live preview of newly selected file *@
+          <div id="bomImagePreview" style="display:none;">
+            <label class="form-label">New Thumbnail Preview:</label>
+            <div>
+              <img id="bomPreviewImg" src="#" alt="Preview"
+                   style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" />
+            </div>
           </div>
         </div>
       </div>
@@ -381,6 +440,17 @@
           <a href="/Boms/CostReport/@Model.Id" class="btn btn-outline-warning">
             <i class="fas fa-dollar-sign"></i> Cost Report
           </a>
+
+          @if (Model.HasImage)
+          {
+            <form asp-controller="Boms" asp-action="RemoveImage" method="post" class="d-grid">
+              <input type="hidden" name="id" value="@Model.Id" />
+              <button type="submit" class="btn btn-outline-danger"
+                      onclick="return confirm('Remove the BOM thumbnail? This cannot be undone.')">
+                <i class="fas fa-trash"></i> Remove Thumbnail
+              </button>
+            </form>
+          }
         </div>
       </div>
     </div>
@@ -515,6 +585,21 @@
       applyZoom();
       const iframe = document.getElementById('previewIframe');
       if (iframe) { iframe.src = ''; iframe.onload = null; iframe.onerror = null; }
+    });
+
+
+    document.getElementById('newImageFile').addEventListener('change', function (evt) {
+      const [file] = evt.target.files;
+      const previewDiv = document.getElementById('bomImagePreview');
+      const previewImg = document.getElementById('bomPreviewImg');
+
+      if (file) {
+        const objectUrl = URL.createObjectURL(file);
+        previewImg.src = objectUrl;
+        previewDiv.style.display = 'block';
+      } else {
+        previewDiv.style.display = 'none';
+      }
     });
   </script>
 

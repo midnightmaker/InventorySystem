@@ -370,65 +370,103 @@ namespace InventorySystem.Controllers
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, Bom bom)
+    public async Task<IActionResult> Edit(int id, Bom bom, IFormFile? newImageFile)
     {
       if (id != bom.Id) return NotFound();
-
-      Console.WriteLine("=== BOM EDIT DEBUG ===");
-      Console.WriteLine($"BomId: {bom.Id}");
-      Console.WriteLine($"Name: {bom.BomNumber}");
-      Console.WriteLine($"Version: {bom.Version}");
-      Console.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
 
       // Remove validation for navigation properties and calculated fields
       ModelState.Remove("BomItems");
       ModelState.Remove("SubAssemblies");
       ModelState.Remove("ParentBom");
       ModelState.Remove("ModifiedDate");
+      ModelState.Remove("newImageFile");
 
-      // Update the ModifiedDate automatically
-      bom.ModifiedDate = DateTime.Now;
+      // Load the tracked entity FIRST — this is the single source of truth for EF
+      var existingBom = await _bomService.GetBomByIdAsync(id);
+      if (existingBom == null) return NotFound();
+
+      // Validate and process the uploaded image before checking ModelState
+      if (newImageFile != null && newImageFile.Length > 0)
+      {
+        if (newImageFile.Length > 5 * 1024 * 1024)
+        {
+          ModelState.AddModelError("newImageFile", "Image file size must be less than 5MB.");
+        }
+        else
+        {
+          var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp" };
+          if (!allowedTypes.Contains(newImageFile.ContentType.ToLowerInvariant()))
+          {
+            ModelState.AddModelError("newImageFile", "Please upload a valid image file (JPG, PNG, GIF, BMP).");
+          }
+          else
+          {
+            using var ms = new MemoryStream();
+            await newImageFile.CopyToAsync(ms);
+            // Write image data directly onto the tracked entity
+            existingBom.ImageData = ms.ToArray();
+            existingBom.ImageContentType = newImageFile.ContentType;
+            existingBom.ImageFileName = newImageFile.FileName;
+          }
+        }
+      }
+      // If no new file, existing image fields on existingBom are already correct — no action needed
 
       if (ModelState.IsValid)
       {
         try
         {
-          await _bomService.UpdateBomAsync(bom);
+          // Copy only the user-editable scalar fields onto the tracked entity
+          existingBom.BomNumber = bom.BomNumber;
+          existingBom.Description = bom.Description;
+          existingBom.Version = bom.Version;
+          existingBom.AssemblyPartNumber = bom.AssemblyPartNumber;
+          existingBom.ModifiedDate = DateTime.Now;
+
+          // Save using the already-tracked entity — no duplicate tracking conflict
+          await _bomService.UpdateBomAsync(existingBom);
           TempData["SuccessMessage"] = "BOM updated successfully!";
-          return RedirectToAction("Details", new { id = bom.Id });
+          return RedirectToAction("Details", new { id = existingBom.Id });
         }
         catch (Exception ex)
         {
-          Console.WriteLine($"Error updating BOM: {ex.Message}");
+          _logger.LogError(ex, "Error updating BOM {BomId}", id);
           TempData["ErrorMessage"] = $"Error updating BOM: {ex.Message}";
         }
       }
 
-      // Debug: Log validation errors
-      Console.WriteLine("=== VALIDATION ERRORS ===");
-      foreach (var error in ModelState)
-      {
-        if (error.Value.Errors.Any())
-        {
-          Console.WriteLine($"{error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
-        }
-      }
+      // Re-populate view fields from the existing BOM for re-display
+      existingBom.BomNumber = bom.BomNumber;
+      existingBom.Description = bom.Description;
+      existingBom.Version = bom.Version;
+      existingBom.AssemblyPartNumber = bom.AssemblyPartNumber;
 
-      // Reload the BOM with all related data for the view
-      var fullBom = await _bomService.GetBomByIdAsync(id);
-      if (fullBom != null)
-      {
-        // Copy the form values to the full BOM object
-        fullBom.BomNumber = bom.BomNumber;
-        fullBom.Description = bom.Description;
-        fullBom.Version = bom.Version;
-        fullBom.AssemblyPartNumber = bom.AssemblyPartNumber;
+      ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
+      return View(existingBom);
+    }
 
-        ViewBag.TotalCost = await _bomService.GetBomTotalCostAsync(id);
-        return View(fullBom);
-      }
+    public async Task<IActionResult> GetImage(int id)
+    {
+      var bom = await _bomService.GetBomByIdAsync(id);
+      if (bom == null || !bom.HasImage) return NotFound();
 
-      return View(bom);
+      return File(bom.ImageData!, bom.ImageContentType!, bom.ImageFileName);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveImage(int id)
+    {
+      var bom = await _bomService.GetBomByIdAsync(id);
+      if (bom == null) return NotFound();
+
+      bom.ImageData = null;
+      bom.ImageContentType = null;
+      bom.ImageFileName = null;
+
+      await _bomService.UpdateBomAsync(bom);
+      TempData["SuccessMessage"] = "BOM thumbnail removed successfully!";
+      return RedirectToAction("Edit", new { id });
     }
 
     // REMOVE THE EditBomItem method completely since GetBomItemByIdAsync doesn't exist
