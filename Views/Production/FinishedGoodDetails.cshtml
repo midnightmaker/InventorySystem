@@ -187,11 +187,17 @@
     }
 
     <!-- Product Image Section -->
-    @if (Model.HasImage && Model.ImageData != null)
+    @if (Model.HasEffectiveImage)
     {
       <div class="card mb-4">
         <div class="card-header">
-          <h5><i class="fas fa-image"></i> Product Image</h5>
+          <h5>
+            <i class="fas fa-image"></i> Product Image
+            @if (!Model.HasImage && Model.Bom != null && Model.Bom.HasImage)
+            {
+              <span class="badge bg-info ms-2"><i class="fas fa-link"></i> From BOM</span>
+            }
+          </h5>
         </div>
         <div class="card-body text-center">
           <img src="/Production/GetFinishedGoodImage/@Model.Id"
@@ -200,16 +206,23 @@
                style="max-height: 300px; cursor: pointer;"
                onclick="showFinishedGoodImageModal('@Model.PartNumber', '/Production/GetFinishedGoodImage/@Model.Id')" />
           <br>
-          <small class="text-muted">@Model.ImageFileName</small>
-          <div class="mt-2">
-            <form asp-controller="Production" asp-action="RemoveFinishedGoodImage" method="post" style="display: inline;">
-              <input type="hidden" name="id" value="@Model.Id" />
-              <button type="submit" class="btn btn-outline-danger btn-sm"
-                      onclick="return confirm('Remove the product image? This action cannot be undone.');">
-                <i class="fas fa-trash"></i> Remove Image
-              </button>
-            </form>
-          </div>
+          @if (Model.HasImage)
+          {
+            <small class="text-muted">@Model.ImageFileName</small>
+            <div class="mt-2">
+              <form asp-controller="Production" asp-action="RemoveFinishedGoodImage" method="post" style="display: inline;">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button type="submit" class="btn btn-outline-danger btn-sm"
+                        onclick="return confirm('Remove the product image? This action cannot be undone.');">
+                  <i class="fas fa-trash"></i> Remove Image
+                </button>
+              </form>
+            </div>
+          }
+          else
+          {
+            <small class="text-muted">Image inherited from BOM: @Model.Bom?.BomNumber</small>
+          }
         </div>
       </div>
     }

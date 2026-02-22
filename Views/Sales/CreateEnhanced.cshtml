@@ -1,4 +1,5 @@
 ﻿@model InventorySystem.ViewModels.EnhancedCreateSaleViewModel
+@using InventorySystem.Models.Enums
 @{
   ViewData["Title"] = "Create Sale with Items";
 }
@@ -192,9 +193,10 @@
                   <div class="row g-2">
                     <div class="col-auto">
                       <select name="LineItems[@i].ProductType" class="form-select product-type-select"
-                              onchange="toggleProductSelect(@i)" style="width: 120px;">
+                              onchange="toggleProductSelect(@i)" style="width: 130px;">
                         <option value="Item">Item</option>
                         <option value="FinishedGood">Finished Good</option>
+                        <option value="ServiceType">Service</option>
                       </select>
                     </div>
                     <div class="col">
@@ -203,12 +205,16 @@
                         <option value="">-- Select Item --</option>
                       </select>
                       <select name="LineItems[@i].FinishedGoodId" class="form-select finished-good-select d-none"
-                              onchange="loadProductInfo(@i)">
+                              disabled onchange="loadProductInfo(@i)">
                         <option value="">-- Select Finished Good --</option>
+                      </select>
+                      <select name="LineItems[@i].ServiceTypeId" class="form-select service-type-select d-none"
+                              disabled onchange="loadProductInfo(@i)">
+                        <option value="">-- Select Service --</option>
                       </select>
                     </div>
                   </div>
-                  <small class="text-muted product-info"></small>
+                  <small class="text-muted product-info mt-1 d-block"></small>
                   <input name="LineItems[@i].Notes" type="hidden" class="line-notes" />
                 </td>
                 <td class="text-center">

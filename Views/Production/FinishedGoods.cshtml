@@ -62,7 +62,7 @@
               <tr class="@(finishedGood.IsLowStock ? "table-warning" : "") clickable-row" data-finished-good-id="@finishedGood.Id" style="cursor: pointer;">
                 <!-- ✅ NEW: Image Thumbnail Column -->
                 <td class="align-middle text-center">
-                  @if (finishedGood.HasImage)
+                  @if (finishedGood.HasEffectiveImage)
                   {
                     <img src="/Production/GetFinishedGoodImageThumbnail/@finishedGood.Id?size=60" 
                          alt="@finishedGood.PartNumber" 

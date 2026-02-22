@@ -377,5 +377,86 @@ namespace InventorySystem.Controllers
 				return Json(new { success = false, message = $"Error validating sale: {ex.Message}", canProcess = false });
 			}
 		}
+
+		// GET: Sales/SearchCustomers - used by enhanced sale creation page
+		[HttpGet]
+		public async Task<JsonResult> SearchCustomers(string query, int page = 1, int pageSize = 10)
+		{
+			try
+			{
+				if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+					return Json(new { success = true, customers = new List<object>(), hasMore = false });
+
+				var customers = await _context.Customers
+					.Where(c => c.IsActive &&
+						(c.CustomerName.Contains(query) ||
+						 (c.CompanyName != null && c.CompanyName.Contains(query)) ||
+						 (c.Email != null && c.Email.Contains(query))))
+					.OrderBy(c => c.CustomerName)
+					.Skip((page - 1) * pageSize)
+					.Take(pageSize + 1) // +1 to detect if there are more
+					.ToListAsync();
+
+				var hasMore = customers.Count > pageSize;
+				if (hasMore) customers = customers.Take(pageSize).ToList();
+
+				var results = customers.Select(c => new
+				{
+					id = c.Id,
+					name = c.CustomerName,
+					company = c.CompanyName ?? "",
+					email = c.Email ?? "",
+					phone = c.Phone ?? "",
+					displayText = !string.IsNullOrEmpty(c.CompanyName)
+						? $"{c.CompanyName} ({c.CustomerName})"
+						: c.CustomerName,
+					outstandingBalance = c.OutstandingBalance,
+					creditLimit = c.CreditLimit,
+					isActive = c.IsActive,
+					fullShippingAddress = c.FullShippingAddress,
+					paymentTerms = (int)c.DefaultPaymentTerms
+				}).ToList();
+
+				return Json(new { success = true, customers = results, hasMore });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error searching customers: {Query}", query);
+				return Json(new { success = false, message = "Error searching customers", customers = new List<object>(), hasMore = false });
+			}
+		}
+
+		// GET: Sales/GetServiceTypesForSale
+		[HttpGet]
+		public async Task<JsonResult> GetServiceTypesForSale()
+		{
+			try
+			{
+				var serviceTypes = await _context.ServiceTypes
+					.Where(st => st.IsActive && st.IsSellable)
+					.OrderBy(st => st.ServiceName)
+					.ToListAsync();
+
+				var results = serviceTypes.Select(st => new
+				{
+					id = st.Id,
+					serviceCode = st.ServiceCode ?? "",
+					partNumber = st.ServiceCode ?? "",
+					serviceName = st.ServiceName,
+					description = st.Description ?? st.ServiceName,
+					standardPrice = st.StandardPrice,
+					suggestedPrice = st.StandardPrice,
+					hasSalePrice = true,
+					tracksInventory = false
+				}).ToList();
+
+				return Json(new { success = true, serviceTypes = results });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting service types for sale");
+				return Json(new { success = false, message = "Error retrieving service types" });
+			}
+		}
 	}
 }

@@ -19,15 +19,12 @@ namespace InventorySystem.ViewModels
 		[Display(Name = "Service")]
 		public int? ServiceTypeId { get; set; }
 
-		[Required]
+		// No [Required] or [Range] here — empty rows are intentionally left blank
 		[Display(Name = "Quantity")]
-		[Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
-		public int Quantity { get; set; } = 1;
+		public int Quantity { get; set; } = 0;
 
-		[Required]
 		[Display(Name = "Unit Price")]
-		[Range(0, double.MaxValue, ErrorMessage = "Unit price cannot be negative")]
-		public decimal UnitPrice { get; set; }
+		public decimal UnitPrice { get; set; } = 0;
 
 		[Display(Name = "Notes")]
 		[StringLength(500)]

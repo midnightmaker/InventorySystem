@@ -1554,21 +1554,36 @@ namespace InventorySystem.Controllers
     }
 
     // Image handling actions for Finished Goods
-public async Task<IActionResult> GetFinishedGoodImage(int id)
+    public async Task<IActionResult> GetFinishedGoodImage(int id)
     {
         var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
-        if (finishedGood == null || !finishedGood.HasImage) return NotFound();
+        if (finishedGood == null) return NotFound();
 
-        return File(finishedGood.ImageData!, finishedGood.ImageContentType!, finishedGood.ImageFileName);
+        // Return the finished good's own image if it has one
+        if (finishedGood.HasImage)
+            return File(finishedGood.ImageData!, finishedGood.ImageContentType!, finishedGood.ImageFileName);
+
+        // Fall back to BOM thumbnail if the finished good has an associated BOM with an image
+        if (finishedGood.Bom != null && finishedGood.Bom.HasImage)
+            return File(finishedGood.Bom.ImageData!, finishedGood.Bom.ImageContentType!, finishedGood.Bom.ImageFileName);
+
+        return NotFound();
     }
 
     public async Task<IActionResult> GetFinishedGoodImageThumbnail(int id, int size = 150)
     {
         var finishedGood = await _productionService.GetFinishedGoodByIdAsync(id);
-        if (finishedGood == null || !finishedGood.HasImage) return NotFound();
+        if (finishedGood == null) return NotFound();
 
-        // For simplicity, return the original image
-        return File(finishedGood.ImageData!, finishedGood.ImageContentType!, finishedGood.ImageFileName);
+        // Return the finished good's own image if it has one
+        if (finishedGood.HasImage)
+            return File(finishedGood.ImageData!, finishedGood.ImageContentType!, finishedGood.ImageFileName);
+
+        // Fall back to BOM thumbnail if the finished good has an associated BOM with an image
+        if (finishedGood.Bom != null && finishedGood.Bom.HasImage)
+            return File(finishedGood.Bom.ImageData!, finishedGood.Bom.ImageContentType!, finishedGood.Bom.ImageFileName);
+
+        return NotFound();
     }
 
     [HttpPost]

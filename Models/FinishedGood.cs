@@ -78,6 +78,13 @@ namespace InventorySystem.Models
 		[NotMapped]
 		public bool HasImage => ImageData != null && ImageData.Length > 0;
 
+		/// <summary>
+		/// Returns true if this finished good has an image directly, or if its associated BOM has a thumbnail.
+		/// Use this when deciding whether to show an image in the UI.
+		/// </summary>
+		[NotMapped]
+		public bool HasEffectiveImage => HasImage || (Bom != null && Bom.HasImage);
+
 		// Serial Number and Model Number Requirements
 		[Display(Name = "Requires Serial Number")]
     public bool RequiresSerialNumber { get; set; } = true; // Default TRUE for Finished Goods

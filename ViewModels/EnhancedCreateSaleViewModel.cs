@@ -96,7 +96,10 @@ namespace InventorySystem.ViewModels
 				yield return new ValidationResult("Customer is required", new[] { nameof(CustomerId) });
 			}
 
-			if (!LineItems.Any())
+			// Only validate rows that have a product selected
+			var selectedItems = LineItems.Where(li => li != null && li.IsSelected).ToList();
+
+			if (!selectedItems.Any())
 			{
 				yield return new ValidationResult("At least one line item is required", new[] { nameof(LineItems) });
 			}
@@ -111,7 +114,7 @@ namespace InventorySystem.ViewModels
 				yield return new ValidationResult("Discount amount cannot be negative", new[] { nameof(DiscountAmount) });
 			}
 
-			if (DiscountCalculated > SubtotalAmount)
+			if (DiscountCalculated > SubtotalAmount && SubtotalAmount > 0)
 			{
 				yield return new ValidationResult("Discount amount cannot exceed subtotal", new[] { nameof(DiscountAmount), nameof(DiscountPercentage) });
 			}
@@ -121,10 +124,11 @@ namespace InventorySystem.ViewModels
 				yield return new ValidationResult("Payment due date cannot be before sale date", new[] { nameof(PaymentDueDate) });
 			}
 
-			// Validate line items
+			// Only validate selected line items
 			for (int i = 0; i < LineItems.Count; i++)
 			{
 				var lineItem = LineItems[i];
+				if (lineItem == null || !lineItem.IsSelected) continue;
 
 				if (lineItem.ProductType == "Item" && !lineItem.ItemId.HasValue)
 				{

@@ -768,5 +768,211 @@ namespace InventorySystem.Controllers
 				return View(model);
 			}
 		}
+
+		// GET: Sales/CreateEnhanced
+		[HttpGet]
+		public async Task<IActionResult> CreateEnhanced(int? customerId)
+		{
+			try
+			{
+				var viewModel = new EnhancedCreateSaleViewModel
+				{
+					SaleDate = DateTime.Today,
+					PaymentStatus = PaymentStatus.Pending,
+					SaleStatus = SaleStatus.Processing,
+					Terms = PaymentTerms.Net30,
+					PaymentDueDate = DateTime.Today.AddDays(30),
+					ShippingCost = 0,
+					TaxAmount = 0,
+					DiscountType = "Amount"
+				};
+
+				if (customerId.HasValue)
+				{
+					viewModel.CustomerId = customerId.Value;
+					var customer = await _customerService.GetAllCustomersAsync();
+					var selectedCustomer = customer.FirstOrDefault(c => c.Id == customerId.Value);
+					if (selectedCustomer != null)
+					{
+						viewModel.ShippingAddress = selectedCustomer.FullShippingAddress;
+						viewModel.Terms = selectedCustomer.DefaultPaymentTerms;
+						viewModel.PaymentDueDate = DateTime.Today.AddDays(
+							selectedCustomer.DefaultPaymentTerms switch
+							{
+								PaymentTerms.COD => 0,
+								PaymentTerms.Net10 => 10,
+								PaymentTerms.Net15 => 15,
+								PaymentTerms.Net30 => 30,
+								PaymentTerms.Net60 => 60,
+								_ => 30
+							});
+					}
+				}
+
+				return View(viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading enhanced create sale form");
+				SetErrorMessage($"Error loading create form: {ex.Message}");
+				return RedirectToAction("Index");
+			}
+		}
+
+		// POST: Sales/CreateEnhanced
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreateEnhanced(EnhancedCreateSaleViewModel viewModel)
+		{
+			try
+			{
+				// Remove ALL LineItems-related ModelState errors:
+				// - Standard model-binding parse errors (e.g. empty string ? int?) use keys like "LineItems[0].ItemId"
+				// - IValidatableObject errors use keys like "LineItems" or ""
+				// We validate line items manually below, so clear all of them.
+				// Also remove DiscountAmount/DiscountPercentage errors — the toggled-off input
+				// posts an empty string that cannot bind to decimal, producing a spurious error.
+				var keysToRemove = ModelState.Keys
+					.Where(k => k.StartsWith("LineItems")
+						|| k == string.Empty
+						|| k == nameof(viewModel.DiscountAmount)
+						|| k == nameof(viewModel.DiscountPercentage))
+					.ToList();
+				foreach (var key in keysToRemove)
+					ModelState.Remove(key);
+
+				// Filter to only rows that have a product selected and qty > 0
+				var validLineItems = (viewModel.LineItems ?? new List<SaleLineItemViewModel>())
+					.Where(li => li != null && li.IsSelected && li.Quantity > 0)
+					.ToList();
+
+				if (!viewModel.CustomerId.HasValue || viewModel.CustomerId <= 0)
+					ModelState.AddModelError(nameof(viewModel.CustomerId), "Customer is required.");
+
+				if (!validLineItems.Any())
+					ModelState.AddModelError(nameof(viewModel.LineItems), "At least one line item with a product and quantity is required.");
+
+				if (!ModelState.IsValid)
+				{
+					return View(viewModel);
+				}
+
+				// Build the Sale entity
+				var sale = new Sale
+				{
+					SaleNumber = await _salesService.GenerateSaleNumberAsync(),
+					CustomerId = viewModel.CustomerId!.Value,
+					SaleDate = viewModel.SaleDate,
+					OrderNumber = viewModel.OrderNumber,
+					PaymentStatus = viewModel.PaymentStatus,
+					SaleStatus = viewModel.SaleStatus,
+					Terms = viewModel.Terms,
+					PaymentDueDate = viewModel.PaymentDueDate,
+					ShippingAddress = viewModel.ShippingAddress,
+					Notes = viewModel.Notes,
+					PaymentMethod = viewModel.PaymentMethod,
+					ShippingCost = viewModel.ShippingCost,
+					TaxAmount = viewModel.TaxAmount,
+					DiscountAmount = viewModel.DiscountType == "Amount" ? viewModel.DiscountAmount : 0,
+					DiscountPercentage = viewModel.DiscountType == "Percentage" ? viewModel.DiscountPercentage : 0,
+					DiscountType = viewModel.DiscountType,
+					DiscountReason = viewModel.DiscountReason,
+					CreatedDate = DateTime.Now
+				};
+
+				var createdSale = await _salesService.CreateSaleAsync(sale);
+
+				// Add all valid line items
+				foreach (var lineItem in validLineItems)
+				{
+					string productName = "Product";
+					decimal unitCost = 0;
+					int availableStock = 0;
+					bool tracksInventory = false;
+
+					if (lineItem.ProductType == "Item" && lineItem.ItemId.HasValue)
+					{
+						var item = await _inventoryService.GetItemByIdAsync(lineItem.ItemId.Value);
+						if (item == null)
+						{
+							_logger.LogWarning("Item {ItemId} not found during enhanced sale creation", lineItem.ItemId.Value);
+							continue;
+						}
+						productName = item.PartNumber;
+						tracksInventory = item.TrackInventory;
+						availableStock = item.CurrentStock;
+						try { unitCost = await _inventoryService.GetAverageCostAsync(lineItem.ItemId.Value); } catch { }
+					}
+					else if (lineItem.ProductType == "FinishedGood" && lineItem.FinishedGoodId.HasValue)
+					{
+						var fg = await _context.FinishedGoods.FindAsync(lineItem.FinishedGoodId.Value);
+						if (fg == null) continue;
+						productName = fg.PartNumber ?? "Finished Good";
+						tracksInventory = true;
+						availableStock = fg.CurrentStock;
+						unitCost = fg.UnitCost;
+					}
+					else if (lineItem.ProductType == "ServiceType" && lineItem.ServiceTypeId.HasValue)
+					{
+						var st = await _context.ServiceTypes.FindAsync(lineItem.ServiceTypeId.Value);
+						if (st == null) continue;
+						productName = st.ServiceCode ?? st.ServiceName;
+						tracksInventory = false;
+					}
+					else
+					{
+						continue; // Skip invalid rows
+					}
+
+					int backorderQty = 0;
+					if (tracksInventory && availableStock < lineItem.Quantity)
+						backorderQty = lineItem.Quantity - availableStock;
+
+					var saleItem = new SaleItem
+					{
+						SaleId = createdSale.Id,
+						Quantity = lineItem.Quantity,
+						QuantitySold = lineItem.Quantity,
+						QuantityBackordered = backorderQty,
+						UnitPrice = lineItem.UnitPrice,
+						UnitCost = unitCost,
+						Notes = lineItem.Notes,
+						SerialNumber = lineItem.SerialNumber,
+						ModelNumber = lineItem.ModelNumber
+					};
+
+					if (lineItem.ProductType == "Item") saleItem.ItemId = lineItem.ItemId;
+					else if (lineItem.ProductType == "FinishedGood") saleItem.FinishedGoodId = lineItem.FinishedGoodId;
+					else if (lineItem.ProductType == "ServiceType") saleItem.ServiceTypeId = lineItem.ServiceTypeId;
+
+					_context.SaleItems.Add(saleItem);
+				}
+
+				await _context.SaveChangesAsync();
+
+				// Update sale status if any backorders exist
+				await _salesService.CheckAndUpdateBackorderStatusAsync(createdSale.Id);
+
+				// Generate journal entries
+				try
+				{
+					var accountingService = HttpContext.RequestServices.GetRequiredService<IAccountingService>();
+					await accountingService.GenerateJournalEntriesForSaleAsync(createdSale);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Error creating journal entry for enhanced sale {SaleId}", createdSale.Id);
+				}
+
+				SetSuccessMessage($"Sale {createdSale.SaleNumber} created successfully with {validLineItems.Count} line item(s)!");
+				return RedirectToAction("Details", new { id = createdSale.Id });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating enhanced sale");
+				SetErrorMessage($"Error creating sale: {ex.Message}");
+				return View(viewModel);
+			}
+		}
 	}
 }
