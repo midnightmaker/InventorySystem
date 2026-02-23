@@ -347,9 +347,10 @@ namespace InventorySystem.Controllers
 				sale.CreatedDate = existingSale.CreatedDate;
 				sale.ShippedDate = existingSale.ShippedDate;
 				sale.ShippedBy = existingSale.ShippedBy;
+				sale.IsQuotation = existingSale.IsQuotation;
 
 				await _salesService.UpdateSaleAsync(sale);
-				SetSuccessMessage($"Sale {sale.SaleNumber} updated successfully!");
+				SetSuccessMessage($"{(existingSale.IsQuotation ? "Quotation" : "Sale")} {sale.SaleNumber} updated successfully!");
 				return RedirectToAction("Details", new { id = sale.Id });
 			}
 			catch (Exception ex)
@@ -422,9 +423,9 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Index");
 				}
 
-				if (sale.SaleStatus != SaleStatus.Processing && sale.SaleStatus != SaleStatus.Backordered)
+				if (sale.SaleStatus != SaleStatus.Processing && sale.SaleStatus != SaleStatus.Backordered && sale.SaleStatus != SaleStatus.Quotation)
 				{
-					SetErrorMessage($"Cannot add items to sale with status '{sale.SaleStatus}'. Only 'Processing' or 'Backordered' sales can have items added.");
+					SetErrorMessage($"Cannot add items to sale with status '{sale.SaleStatus}'. Only 'Processing', 'Backordered', or 'Quotation' sales can have items added.");
 					return RedirectToAction("Details", new { id = saleId });
 				}
 
@@ -475,9 +476,9 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Index");
 				}
 
-				if (existingSale.SaleStatus != SaleStatus.Processing && existingSale.SaleStatus != SaleStatus.Backordered)
+				if (existingSale.SaleStatus != SaleStatus.Processing && existingSale.SaleStatus != SaleStatus.Backordered && existingSale.SaleStatus != SaleStatus.Quotation)
 				{
-					SetErrorMessage($"Cannot add items to sale with status '{existingSale.SaleStatus}'. Only 'Processing' or 'Backordered' sales can have items added.");
+					SetErrorMessage($"Cannot add items to sale with status '{existingSale.SaleStatus}'. Only 'Processing', 'Backordered', or 'Quotation' sales can have items added.");
 					return RedirectToAction("Details", new { id = model.SaleId });
 				}
 
@@ -598,9 +599,9 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Index");
 				}
 
-				if (saleItem.Sale.SaleStatus != SaleStatus.Processing && saleItem.Sale.SaleStatus != SaleStatus.Backordered)
+				if (saleItem.Sale.SaleStatus != SaleStatus.Processing && saleItem.Sale.SaleStatus != SaleStatus.Backordered && saleItem.Sale.SaleStatus != SaleStatus.Quotation)
 				{
-					SetErrorMessage($"Cannot edit items in a sale with status '{saleItem.Sale.SaleStatus}'. Only sales with 'Processing' or 'Backordered' status can be modified.");
+					SetErrorMessage($"Cannot edit items in a sale with status '{saleItem.Sale.SaleStatus}'. Only sales with 'Processing', 'Backordered', or 'Quotation' status can be modified.");
 					return RedirectToAction("Details", new { id = saleItem.SaleId });
 				}
 
@@ -693,9 +694,9 @@ namespace InventorySystem.Controllers
 					return RedirectToAction("Index");
 				}
 
-				if (saleItem.Sale.SaleStatus != SaleStatus.Processing && saleItem.Sale.SaleStatus != SaleStatus.Backordered)
+				if (saleItem.Sale.SaleStatus != SaleStatus.Processing && saleItem.Sale.SaleStatus != SaleStatus.Backordered && saleItem.Sale.SaleStatus != SaleStatus.Quotation)
 				{
-					SetErrorMessage($"Cannot edit items in a sale with status '{saleItem.Sale.SaleStatus}'. Only sales with 'Processing' or 'Backordered' status can be modified.");
+					SetErrorMessage($"Cannot edit items in a sale with status '{saleItem.Sale.SaleStatus}'. Only sales with 'Processing', 'Backordered', or 'Quotation' status can be modified.");
 					return RedirectToAction("Details", new { id = saleItem.SaleId });
 				}
 
@@ -766,6 +767,107 @@ namespace InventorySystem.Controllers
 				}
 
 				return View(model);
+			}
+		}
+
+		// GET: Sales/CreateQuotation
+		[HttpGet]
+		public async Task<IActionResult> CreateQuotation(int? customerId)
+		{
+			try
+			{
+				var viewModel = new EnhancedCreateSaleViewModel
+				{
+					SaleDate = DateTime.Today,
+					PaymentStatus = PaymentStatus.Pending,
+					SaleStatus = SaleStatus.Quotation,
+					Terms = PaymentTerms.Net30,
+					PaymentDueDate = DateTime.Today.AddDays(30),
+					ShippingCost = 0,
+					TaxAmount = 0,
+					DiscountType = "Amount",
+					IsQuotation = true
+				};
+
+				if (customerId.HasValue)
+				{
+					viewModel.CustomerId = customerId.Value;
+					var customer = await _customerService.GetAllCustomersAsync();
+					var selectedCustomer = customer.FirstOrDefault(c => c.Id == customerId.Value);
+					if (selectedCustomer != null)
+					{
+						viewModel.ShippingAddress = selectedCustomer.FullShippingAddress;
+						viewModel.Terms = selectedCustomer.DefaultPaymentTerms;
+						viewModel.PaymentDueDate = DateTime.Today.AddDays(
+							selectedCustomer.DefaultPaymentTerms switch
+							{
+								PaymentTerms.COD => 0,
+								PaymentTerms.Net10 => 10,
+								PaymentTerms.Net15 => 15,
+								PaymentTerms.Net30 => 30,
+								PaymentTerms.Net60 => 60,
+								_ => 30
+							});
+					}
+				}
+
+				return View("CreateEnhanced", viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error loading create quotation form");
+				SetErrorMessage($"Error loading create form: {ex.Message}");
+				return RedirectToAction("Index");
+			}
+		}
+
+		// POST: Sales/ConvertQuotationToSale/{id}
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> ConvertQuotationToSale(int id)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(id);
+				if (sale == null)
+				{
+					SetErrorMessage("Quotation not found.");
+					return RedirectToAction("Index");
+				}
+
+				if (sale.SaleStatus != SaleStatus.Quotation)
+				{
+					SetErrorMessage($"Only quotations can be converted to sales. This sale has status '{sale.SaleStatus}'.");
+					return RedirectToAction("Details", new { id });
+				}
+
+				// Convert quotation to active sale
+				sale.SaleStatus = SaleStatus.Processing;
+				sale.SaleDate = DateTime.Today; // Reset sale date to today
+				sale.CreatedDate = DateTime.Now;
+				sale.CalculatePaymentDueDate(); // Recalculate due date based on terms
+
+				await _salesService.UpdateSaleAsync(sale);
+
+				// Generate journal entries for the now-active sale
+				try
+				{
+					var accountingService = HttpContext.RequestServices.GetRequiredService<IAccountingService>();
+					await accountingService.GenerateJournalEntriesForSaleAsync(sale);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Error creating journal entry for converted quotation {SaleId}", sale.Id);
+				}
+
+				SetSuccessMessage($"Quotation {sale.SaleNumber} has been converted to an active sale successfully!");
+				return RedirectToAction("Details", new { id = sale.Id });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error converting quotation to sale: {SaleId}", id);
+				SetErrorMessage($"Error converting quotation: {ex.Message}");
+				return RedirectToAction("Details", new { id });
 			}
 		}
 
@@ -865,7 +967,7 @@ namespace InventorySystem.Controllers
 					SaleDate = viewModel.SaleDate,
 					OrderNumber = viewModel.OrderNumber,
 					PaymentStatus = viewModel.PaymentStatus,
-					SaleStatus = viewModel.SaleStatus,
+					SaleStatus = viewModel.IsQuotation ? SaleStatus.Quotation : viewModel.SaleStatus,
 					Terms = viewModel.Terms,
 					PaymentDueDate = viewModel.PaymentDueDate,
 					ShippingAddress = viewModel.ShippingAddress,
@@ -877,7 +979,8 @@ namespace InventorySystem.Controllers
 					DiscountPercentage = viewModel.DiscountType == "Percentage" ? viewModel.DiscountPercentage : 0,
 					DiscountType = viewModel.DiscountType,
 					DiscountReason = viewModel.DiscountReason,
-					CreatedDate = DateTime.Now
+					CreatedDate = DateTime.Now,
+					IsQuotation = viewModel.IsQuotation
 				};
 
 				var createdSale = await _salesService.CreateSaleAsync(sale);
@@ -953,18 +1056,22 @@ namespace InventorySystem.Controllers
 				// Update sale status if any backorders exist
 				await _salesService.CheckAndUpdateBackorderStatusAsync(createdSale.Id);
 
-				// Generate journal entries
-				try
+				// Only generate journal entries for actual sales (not quotations)
+				if (!viewModel.IsQuotation)
 				{
-					var accountingService = HttpContext.RequestServices.GetRequiredService<IAccountingService>();
-					await accountingService.GenerateJournalEntriesForSaleAsync(createdSale);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Error creating journal entry for enhanced sale {SaleId}", createdSale.Id);
+					try
+					{
+						var accountingService = HttpContext.RequestServices.GetRequiredService<IAccountingService>();
+						await accountingService.GenerateJournalEntriesForSaleAsync(createdSale);
+					}
+					catch (Exception ex)
+					{
+						_logger.LogError(ex, "Error creating journal entry for enhanced sale {SaleId}", createdSale.Id);
+					}
 				}
 
-				SetSuccessMessage($"Sale {createdSale.SaleNumber} created successfully with {validLineItems.Count} line item(s)!");
+				var documentType = viewModel.IsQuotation ? "Quotation" : "Sale";
+				SetSuccessMessage($"{documentType} {createdSale.SaleNumber} created successfully with {validLineItems.Count} line item(s)!");
 				return RedirectToAction("Details", new { id = createdSale.Id });
 			}
 			catch (Exception ex)

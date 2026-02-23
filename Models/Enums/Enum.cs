@@ -14,6 +14,7 @@ namespace InventorySystem.Models.Enums
 
   public enum SaleStatus
   {
+    Quotation,      // NEW - Sale started as a quotation/quote
     Processing,
     Backordered,    // NEW - Added backorder status
 		PartiallyShipped,

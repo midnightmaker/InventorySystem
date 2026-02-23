@@ -243,6 +243,14 @@
                     <small class="d-block text-muted">One-step creation with line items & discounts</small>
                   </a>
                 </li>
+                <!-- Create Quotation Option -->
+                <li>
+                  <a class="dropdown-item" href="/Sales/CreateQuotation">
+                    <i class="fas fa-file-alt text-info"></i>
+                    <strong>Create Quotation</strong>
+                    <small class="d-block text-muted">Quote with line items — convert to sale later</small>
+                  </a>
+                </li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="/CustomerPayments"><i class="fas fa-credit-card text-danger"></i> Customer Payments</a></li>
                 <li><a class="dropdown-item" href="/Sales/Backorders"><i class="fas fa-hourglass-half text-warning"></i> Backorders</a></li>
@@ -979,12 +987,15 @@
                     } else if (href.includes('/Create')) {
                         message = 'Loading Support Case Creator...';
                         subtext = 'Preparing new support case form';
-                    } else {
-                        message = 'Loading Customer Service...';
-                        subtext = 'Retrieving support case data';
-                    }
+                  } else {
+                    message = 'Loading Customer Service...';
+                    subtext = 'Retrieving support case data';
+                  }
                 } else if (href.includes('/Sales')) {
-                    if (href.includes('/Create')) {
+                    if (href.includes('/CreateQuotation')) {
+                        message = 'Loading Quotation Creator...';
+                        subtext = 'Preparing quotation form with line items';
+                    } else if (href.includes('/Create')) {
                         message = 'Loading Sale Creator...';
                         subtext = 'Preparing new sale form';
                       } else if (href.includes('/Edit/')) {

@@ -4,7 +4,7 @@
 @using InventorySystem.Models.Enums
 @using InventorySystem.Helpers
 @{
-  ViewData["Title"] = "Sale Details";
+  ViewData["Title"] = Model.Sale.IsQuotation && Model.Sale.SaleStatus == SaleStatus.Quotation ? "Quotation Details" : "Sale Details";
   var sale = Model.Sale;  // For easier reference
 }
 
@@ -36,7 +36,16 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-shopping-cart"></i> Sale @Model.Sale.SaleNumber</h1>
+  <h1>
+    @if (Model.Sale.IsQuotation && Model.Sale.SaleStatus == SaleStatus.Quotation)
+    {
+      <i class="fas fa-file-alt"></i> <text>Quotation @Model.Sale.SaleNumber</text>
+    }
+    else
+    {
+      <i class="fas fa-shopping-cart"></i> <text>Sale @Model.Sale.SaleNumber</text>
+    }
+  </h1>
   <div class="btn-group">
     <a href="/Sales" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Sales
@@ -44,12 +53,23 @@
     <a href="/Sales/Edit/@Model.Sale.Id" class="btn btn-outline-primary">
       <i class="fas fa-edit"></i> Edit
     </a>
-    @* Only show Add Item button for modifiable sales *@
-    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
+    @* Show Add Item button for Quotation status as well *@
+    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
     {
       <a href="/Sales/AddItem?saleId=@Model.Sale.Id" class="btn btn-success">
         <i class="fas fa-plus"></i> Add Item
       </a>
+    }
+
+    @* Convert Quotation to Sale button *@
+    @if (Model.Sale.SaleStatus == SaleStatus.Quotation)
+    {
+      <form asp-action="ConvertQuotationToSale" asp-route-id="@Model.Sale.Id" method="post" style="display:inline;">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-warning" onclick="return confirm('Are you sure you want to convert this quotation to an active sale? This will change the status to Processing and generate journal entries.')">
+          <i class="fas fa-exchange-alt"></i> Convert to Sale
+        </button>
+      </form>
     }
 
     @* UPDATED: Process & Ship button with simplified service validation *@
@@ -82,7 +102,11 @@
     <a href="@Url.Action("InvoiceReport", new { saleId = Model.Sale.Id })"
        class="btn btn-primary">
       <i class="fas fa-file-invoice-dollar"></i>
-      @if (isProformaInvoice)
+      @if (Model.Sale.IsQuotation && isProformaInvoice)
+      {
+        <text>View Quotation</text>
+      }
+      else if (isProformaInvoice)
       {
         <text>View Proforma</text>
       }
@@ -574,8 +598,8 @@ else
             <span class="badge bg-primary ms-2">@Model.Sale.SaleItems.Count items</span>
           }
         </h5>
-        @* Only show Add Item button for modifiable sales *@
-        @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
+        @* Only show Add Item button for modifiable sales (including Quotation) *@
+        @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
         {
           <a href="/Sales/AddItem?saleId=@Model.Sale.Id" class="btn btn-success btn-sm">
             <i class="fas fa-plus"></i> Add Item
@@ -596,7 +620,7 @@ else
                 <col width="10%">
                 <col width="10%">
                 <col width="15%">
-                @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
+                @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
                 {
                   <col width="10%">
                 }
@@ -611,7 +635,7 @@ else
                   <th class="text-end align-middle">Unit Price</th>
                   <th class="text-end align-middle">Total</th>
                   <th class="align-middle">Serial/Model</th>
-                  @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
+                  @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
                   {
                     <th class="text-center align-middle">Actions</th>
                   }
@@ -743,7 +767,7 @@ else
                         <span class="text-muted">-</span>
                       }
                     </td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
+                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
                     {
                       <td class="text-center align-middle">
                         <div class="btn-group btn-group-sm">
@@ -768,8 +792,8 @@ else
           <div class="text-center py-3">
             <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
             <p class="text-muted">No items added to this sale yet.</p>
-            @* Only show Add First Item button for modifiable sales *@
-            @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
+            @* Only show Add First Item button for modifiable sales (including Quotation) *@
+            @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
             {
               <a href="/Sales/AddItem?saleId=@Model.Sale.Id" class="btn btn-success">
                 <i class="fas fa-plus"></i> Add First Item
@@ -1061,7 +1085,7 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
               <th>Priority</th>
               <th>Promised Date</th>
               <th>Actions</th>
-              </tr>
+            </tr>
           </thead>
           <tbody>
             @foreach (var serviceOrder in Model.ServiceOrders)
@@ -1239,94 +1263,6 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
             </table>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- NEW: Comprehensive Shipments Card -->
-
-<!-- UPDATED: Service Orders Section - Only show if service orders exist -->
-@if (Model.ServiceOrders.Any())
-{
-  <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5><i class="fas fa-cogs"></i> Related Service Orders</h5>
-      <a href="@Url.Action("CreateServiceOrder", "Services", new { saleId = Model.Sale.Id })"
-         class="btn btn-sm btn-outline-primary">
-        <i class="fas fa-plus"></i> Create Service Order
-      </a>
-    </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Service Order</th>
-              <th>Service Type</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Promised Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var serviceOrder in Model.ServiceOrders)
-            {
-              <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-light" : "")">
-                <td>
-                  <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })">
-                    @serviceOrder.ServiceOrderNumber
-                  </a>
-                  @if (serviceOrder.Status != ServiceOrderStatus.Completed)
-                  {
-                    <br>
-                    <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Pending</small>
-                  }
-                </td>
-                <td>@serviceOrder.ServiceType?.ServiceName</td>
-                <td>
-                  <span class="badge bg-@BadgeHelper.GetServiceOrderStatusBadgeColor(serviceOrder.Status)">
-                    @serviceOrder.StatusDisplay
-                  </span>
-                </td>
-                <td>
-                  <span class="badge bg-@BadgeHelper.GetServicePriorityBadgeColor(serviceOrder.Priority)">
-                    @serviceOrder.PriorityDisplay
-                  </span>
-                </td>
-                <td>
-                  @if (serviceOrder.PromisedDate.HasValue)
-                  {
-                    <span class="@(serviceOrder.IsOverdue ? "text-danger" : "")">
-                      @serviceOrder.PromisedDate.Value.ToString("MM/dd/yyyy")
-                    </span>
-                  }
-                </td>
-                <td>
-                  <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })"
-                     class="btn btn-sm btn-outline-primary">
-                    View
-                  </a>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      @* UPDATED: Service Orders Status Summary *@
-      <div class="alert alert-light mt-3">
-        <i class="fas fa-info-circle"></i>
-        <strong>Service Orders Status:</strong>
-        @if (hasIncompleteServiceOrders)
-        {
-          <span class="text-dark">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
-        }
-        else
-        {
-          <span class="text-dark">All service orders are completed and ready for shipment.</span>
-        }
       </div>
     </div>
   </div>
@@ -1751,8 +1687,6 @@ else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus
     </div>
   </div>
 </div>
-
-@* ...existing code... *@
 
 @section Scripts {
   <script src="~/js/confirmation-dialog.js"></script>

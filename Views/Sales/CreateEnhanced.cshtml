@@ -1,24 +1,44 @@
 ﻿@model InventorySystem.ViewModels.EnhancedCreateSaleViewModel
 @using InventorySystem.Models.Enums
 @{
-  ViewData["Title"] = "Create Sale with Items";
+  var isQuotation = Model.IsQuotation;
+  ViewData["Title"] = isQuotation ? "Create Quotation" : "Create Sale with Items";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-shopping-cart"></i> Create Sale with Items</h1>
+  <h1>
+    @if (isQuotation)
+    {
+      <i class="fas fa-file-alt"></i> <text>Create Quotation</text>
+    }
+    else
+    {
+      <i class="fas fa-shopping-cart"></i> <text>Create Sale with Items</text>
+    }
+  </h1>
   <div class="btn-group">
     <a href="/Sales" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Sales
     </a>
-    <a href="/Sales/Create" class="btn btn-outline-info">
-      <i class="fas fa-plus"></i> Quick Create (2-Step)
-    </a>
+    @if (!isQuotation)
+    {
+      <a href="/Sales/Create" class="btn btn-outline-info">
+        <i class="fas fa-plus"></i> Quick Create (2-Step)
+      </a>
+    }
   </div>
 </div>
 
 <div class="alert alert-info">
   <i class="fas fa-info-circle"></i>
-  <strong>Enhanced Sale Creation:</strong> Create a complete sale with line items and optional discounts in a single step.
+  @if (isQuotation)
+  {
+    <strong>Create Quotation:</strong> <text>Create a quotation with line items and optional discounts. You can convert it to an active sale later.</text>
+  }
+  else
+  {
+    <strong>Enhanced Sale Creation:</strong> <text>Create a complete sale with line items and optional discounts in a single step.</text>
+  }
 </div>
 
 @if (TempData["ErrorMessage"] != null)
@@ -30,6 +50,7 @@
 }
 
 <form asp-action="CreateEnhanced" method="post" id="enhancedSaleForm">
+  <input type="hidden" asp-for="IsQuotation" />
 
   <!-- Customer & Sale Information Section -->
   <div class="row mb-4">
@@ -361,7 +382,14 @@
           <i class="fas fa-times"></i> Cancel
         </a>
         <button type="submit" class="btn btn-primary btn-lg" id="createSaleBtn" disabled>
-          <i class="fas fa-save"></i> Create Complete Sale
+          @if (isQuotation)
+          {
+            <i class="fas fa-file-alt"></i> <text>Create Quotation</text>
+          }
+          else
+          {
+            <i class="fas fa-save"></i> <text>Create Complete Sale</text>
+          }
         </button>
       </div>
     </div>

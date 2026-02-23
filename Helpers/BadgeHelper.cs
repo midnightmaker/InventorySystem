@@ -98,6 +98,7 @@ namespace InventorySystem.Helpers
         {
             return status switch
             {
+                SaleStatus.Quotation => "secondary",
                 SaleStatus.Processing => "primary",
                 SaleStatus.Backordered => "warning",
                 SaleStatus.PartiallyShipped => "info",

@@ -77,8 +77,39 @@ namespace InventorySystem.ViewModels
 		public bool? IsProforma { get; set; }
 		public string InvoiceTitle { get; set; } = "Invoice";
 
+		/// <summary>
+		/// Indicates the sale originated as a quotation - when true, shows "QUOTATION" title
+		/// </summary>
+		public bool IsQuotation { get; set; }
+
 		// Helper property to determine if this is a proforma invoice
 		public bool IsProformaInvoice => IsProforma ?? (SaleStatus != SaleStatus.Shipped);
+
+		/// <summary>
+		/// Gets the document title based on the state: Quotation, Proforma Invoice, or Invoice
+		/// </summary>
+		public string DocumentTitle
+		{
+			get
+			{
+				if (IsQuotation && IsProformaInvoice) return "QUOTATION";
+				if (IsProformaInvoice) return "PROFORMA INVOICE";
+				return "INVOICE";
+			}
+		}
+
+		/// <summary>
+		/// Gets a shorter document label for use in headings and references
+		/// </summary>
+		public string DocumentLabel
+		{
+			get
+			{
+				if (IsQuotation && IsProformaInvoice) return "Quotation";
+				if (IsProformaInvoice) return "Proforma";
+				return "Invoice";
+			}
+		}
 
 		// Add these properties to the existing InvoiceReportViewModel
 

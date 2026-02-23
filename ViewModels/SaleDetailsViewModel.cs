@@ -29,6 +29,7 @@ namespace InventorySystem.ViewModels
                 // Enhanced status display with shipment context
                 return Sale.SaleStatus switch
                 {
+                    SaleStatus.Quotation => "Quotation",
                     SaleStatus.Processing => "Processing",
                     SaleStatus.Backordered when TotalShipments > 0 => $"Partially Shipped ({TotalShipments} shipment{(TotalShipments > 1 ? "s" : "")})",
                     SaleStatus.Backordered => "Backordered",
@@ -48,6 +49,7 @@ namespace InventorySystem.ViewModels
             {
                 return Sale?.SaleStatus switch
                 {
+                    SaleStatus.Quotation => "secondary",
                     SaleStatus.Processing => "primary",
                     SaleStatus.Backordered => "warning",
                     SaleStatus.Shipped => "success",

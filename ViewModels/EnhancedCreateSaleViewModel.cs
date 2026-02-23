@@ -45,6 +45,12 @@ namespace InventorySystem.ViewModels
 		[StringLength(100)]
 		public string? PaymentMethod { get; set; }
 
+		/// <summary>
+		/// When true, creates the sale as a Quotation instead of a regular sale.
+		/// </summary>
+		[Display(Name = "Create as Quotation")]
+		public bool IsQuotation { get; set; } = false;
+
 		// Financial Properties
 		[Display(Name = "Shipping Cost")]
 		[Range(0, double.MaxValue, ErrorMessage = "Shipping cost cannot be negative")]

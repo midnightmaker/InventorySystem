@@ -21,6 +21,9 @@
     <a href="/Sales/CreateEnhanced" class="btn btn-primary">
       <i class="fas fa-plus-circle"></i> Create Sale with Items
     </a>
+    <a href="/Sales/CreateQuotation" class="btn btn-outline-primary">
+      <i class="fas fa-file-alt"></i> New Quotation
+    </a>
     <a href="/Sales/Backorders" class="btn btn-warning">
       <i class="fas fa-hourglass-half"></i> Backorders
       @{
@@ -388,6 +391,10 @@
                   else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Delivered)
                   {
                     <span class="badge bg-info">Delivered</span>
+                  }
+                  else if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Quotation)
+                  {
+                    <span class="badge bg-secondary"><i class="fas fa-file-alt"></i> Quotation</span>
                   }
                   else
                   {
