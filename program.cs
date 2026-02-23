@@ -160,6 +160,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
+app.UseAuthorization();
+
 // ADDITION: Enable session middleware (must be before MapControllerRoute)
 app.UseSession();
 

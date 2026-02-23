@@ -237,11 +237,13 @@ namespace InventorySystem.Models
 		{
 			get
 			{
-				// Calculate base amount from unpaid sales
+				// Exclude quotations — they are not committed sales and carry no payment obligation
 				var salesAmount = Sales?.Where(s =>
-						s.PaymentStatus == PaymentStatus.Pending ||
+						s.SaleStatus != SaleStatus.Quotation &&
+						s.PaymentStatus != PaymentStatus.Quotation &&
+						(s.PaymentStatus == PaymentStatus.Pending ||
 						s.PaymentStatus == PaymentStatus.Overdue ||
-						s.PaymentStatus == PaymentStatus.PartiallyPaid)
+						s.PaymentStatus == PaymentStatus.PartiallyPaid))
 						.Sum(s => s.TotalAmount) ?? 0;
 
 				// Subtract any balance adjustments (allowances, bad debt write-offs)
@@ -256,9 +258,11 @@ namespace InventorySystem.Models
 		// Add a method to get the raw balance without adjustments (for comparison)
 		[NotMapped]
 		public decimal RawOutstandingBalance => Sales?.Where(s =>
-				s.PaymentStatus == PaymentStatus.Pending ||
+				s.SaleStatus != SaleStatus.Quotation &&
+				s.PaymentStatus != PaymentStatus.Quotation &&
+				(s.PaymentStatus == PaymentStatus.Pending ||
 				s.PaymentStatus == PaymentStatus.Overdue ||
-				s.PaymentStatus == PaymentStatus.PartiallyPaid)
+				s.PaymentStatus == PaymentStatus.PartiallyPaid))
 				.Sum(s => s.TotalAmount) ?? 0;
 
 		// Add a method to get total adjustments

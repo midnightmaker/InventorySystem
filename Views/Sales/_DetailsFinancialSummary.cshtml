@@ -1,0 +1,174 @@
+@model InventorySystem.ViewModels.SaleDetailsViewModel
+@using InventorySystem.Services
+
+@{
+    var saleAdjustments = Model.Sale.RelatedAdjustments?.ToList() ?? new List<CustomerBalanceAdjustment>();
+    var totalAdjustments = saleAdjustments.Sum(a => a.AdjustmentAmount);
+    var effectiveAmount = Model.Sale.TotalAmount - totalAdjustments;
+    var totalCost = Model.Sale.SaleItems.Sum(si => si.TotalCost);
+    var grossRevenue = Model.Sale.SubtotalAmount;
+    var netRevenue = Model.Sale.TotalAmount;
+    var grossProfit = grossRevenue - totalCost;
+    var netProfit = netRevenue - totalCost;
+    var adjustedProfit = netProfit - totalAdjustments;
+    var afterDiscountAmount = Model.Sale.SubtotalAmount - Model.Sale.DiscountCalculated;
+    var showExtraCol = Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered;
+}
+
+@if (Model.Sale.SaleItems?.Any() == true)
+{
+    <!-- Financial Summary Card -->
+    <div class="row mt-0">
+        <div class="col-12">
+            <div class="card border-success" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-calculator"></i> Financial Summary</h5>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0" style="table-layout: fixed; width: 100%;">
+                            <colgroup>
+                                <col width="8%"><col width="12%"><col width="30%">
+                                <col width="10%"><col width="10%"><col width="15%"><col width="15%">
+                                @if (showExtraCol) { <col width="10%"> }
+                            </colgroup>
+                            <tbody>
+                                <tr class="table-light">
+                                    <td colspan="6"><strong>Subtotal:</strong></td>
+                                    <td class="text-end"><strong>@Model.Sale.SubtotalAmount.ToString("C")</strong></td>
+                                    @if (showExtraCol) { <td></td> }
+                                </tr>
+
+                                @if (Model.Sale.HasDiscount)
+                                {
+                                    <tr class="table-warning">
+                                        <td colspan="6"><strong>Discount:</strong></td>
+                                        <td class="text-end text-success"><strong>-@Model.Sale.DiscountCalculated.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                    <tr>
+                                        <td colspan="6">After Discount:</td>
+                                        <td class="text-end">@afterDiscountAmount.ToString("C")</td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                }
+
+                                <tr>
+                                    <td colspan="6">Tax Amount:</td>
+                                    <td class="text-end">@Model.Sale.TaxAmount.ToString("C")</td>
+                                    @if (showExtraCol) { <td></td> }
+                                </tr>
+                                <tr>
+                                    <td colspan="6">Shipping:</td>
+                                    <td class="text-end">@Model.Sale.ShippingCost.ToString("C")</td>
+                                    @if (showExtraCol) { <td></td> }
+                                </tr>
+
+                                @if (totalAdjustments > 0)
+                                {
+                                    <tr class="table-info">
+                                        <td colspan="6"><strong>Sale Total:</strong></td>
+                                        <td class="text-end"><strong>@Model.Sale.TotalAmount.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                    <tr class="table-warning">
+                                        <td colspan="6"><strong>Post-Sale Adjustments:</strong></td>
+                                        <td class="text-end text-success"><strong>-@totalAdjustments.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                    <tr class="table-dark">
+                                        <td colspan="6"><strong>Effective Total:</strong></td>
+                                        <td class="text-end"><strong>@effectiveAmount.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                }
+                                else
+                                {
+                                    <tr class="table-dark">
+                                        <td colspan="6"><strong>Total:</strong></td>
+                                        <td class="text-end"><strong>@Model.Sale.TotalAmount.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profit Analysis Card -->
+    <div class="row mt-0">
+        <div class="col-12">
+            <div class="card border-info" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Profit Analysis</h5>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0" style="table-layout: fixed; width: 100%;">
+                            <colgroup>
+                                <col width="8%"><col width="12%"><col width="30%">
+                                <col width="10%"><col width="10%"><col width="15%"><col width="15%">
+                                @if (showExtraCol) { <col width="10%"> }
+                            </colgroup>
+                            <tbody>
+                                <tr class="table-secondary">
+                                    <td colspan="6"><strong>Total Cost:</strong></td>
+                                    <td class="text-end"><strong>@totalCost.ToString("C")</strong></td>
+                                    @if (showExtraCol) { <td></td> }
+                                </tr>
+
+                                @if (Model.Sale.HasDiscount)
+                                {
+                                    <tr class="table-secondary">
+                                        <td colspan="6"><strong>Gross Profit (before discount):</strong></td>
+                                        <td class="text-end"><strong>@grossProfit.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                    <tr class="@(netProfit >= 0 ? "table-success" : "table-danger")">
+                                        <td colspan="6"><strong>Net Profit (after discount):</strong></td>
+                                        <td class="text-end"><strong>@netProfit.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                }
+                                else
+                                {
+                                    <tr class="@(grossProfit >= 0 ? "table-success" : "table-danger")">
+                                        <td colspan="6"><strong>Gross Profit:</strong></td>
+                                        <td class="text-end"><strong>@grossProfit.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                }
+
+                                @if (totalAdjustments > 0)
+                                {
+                                    <tr class="@(adjustedProfit >= 0 ? "table-info" : "table-danger")">
+                                        <td colspan="6"><strong>Final Profit (after all adjustments):</strong></td>
+                                        <td class="text-end"><strong>@adjustedProfit.ToString("C")</strong></td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                }
+
+                                @if (netRevenue > 0)
+                                {
+                                    var profitMargin = (netProfit / netRevenue) * 100;
+                                    <tr class="table-light">
+                                        <td colspan="6"><strong>Profit Margin:</strong></td>
+                                        <td class="text-end">
+                                            <span class="badge bg-@(profitMargin >= 20 ? "success" : profitMargin >= 10 ? "warning" : "danger")">
+                                                @profitMargin.ToString("F1")%
+                                            </span>
+                                        </td>
+                                        @if (showExtraCol) { <td></td> }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

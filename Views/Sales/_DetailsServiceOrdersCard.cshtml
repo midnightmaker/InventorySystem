@@ -1,0 +1,91 @@
+@model InventorySystem.ViewModels.SaleDetailsViewModel
+@using InventorySystem.Models.Enums
+@using InventorySystem.Helpers
+
+@{
+    var hasIncompleteServiceOrders = (bool)ViewData["HasIncompleteServiceOrders"]!;
+}
+
+@if (Model.ServiceOrders.Any())
+{
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-cogs"></i> Related Service Orders</h5>
+            <a href="@Url.Action("CreateServiceOrder", "Services", new { saleId = Model.Sale.Id })"
+               class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-plus"></i> Create Service Order
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Service Order</th>
+                            <th>Service Type</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Promised Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var serviceOrder in Model.ServiceOrders)
+                        {
+                            <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-light" : "")">
+                                <td>
+                                    <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })">
+                                        @serviceOrder.ServiceOrderNumber
+                                    </a>
+                                    @if (serviceOrder.Status != ServiceOrderStatus.Completed)
+                                    {
+                                        <br>
+                                        <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Pending</small>
+                                    }
+                                </td>
+                                <td>@serviceOrder.ServiceType?.ServiceName</td>
+                                <td>
+                                    <span class="badge bg-@BadgeHelper.GetServiceOrderStatusBadgeColor(serviceOrder.Status)">
+                                        @serviceOrder.StatusDisplay
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-@BadgeHelper.GetServicePriorityBadgeColor(serviceOrder.Priority)">
+                                        @serviceOrder.PriorityDisplay
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (serviceOrder.PromisedDate.HasValue)
+                                    {
+                                        <span class="@(serviceOrder.IsOverdue ? "text-danger" : "")">
+                                            @serviceOrder.PromisedDate.Value.ToString("MM/dd/yyyy")
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })"
+                                       class="btn btn-sm btn-outline-primary">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="alert alert-light mt-3">
+                <i class="fas fa-info-circle"></i>
+                <strong>Service Orders Status:</strong>
+                @if (hasIncompleteServiceOrders)
+                {
+                    <span class="text-dark">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
+                }
+                else
+                {
+                    <span class="text-dark">All service orders are completed and ready for shipment.</span>
+                }
+            </div>
+        </div>
+    </div>
+}

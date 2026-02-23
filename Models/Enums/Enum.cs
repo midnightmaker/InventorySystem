@@ -4,12 +4,17 @@ namespace InventorySystem.Models.Enums
 {
   public enum PaymentStatus
   {
-    Pending,
-    Paid,
-    PartiallyPaid,
-    Refunded,
-    Failed,
-    Overdue
+    Pending = 0,
+    Paid = 1,
+    PartiallyPaid = 2,
+    Refunded = 3,
+    Failed = 4,
+    Overdue = 5,
+    /// <summary>
+    /// Used exclusively for sales with SaleStatus.Quotation. 
+    /// Quotations have no payment obligation until converted to an active sale.
+    /// </summary>
+    Quotation = 6
   }
 
   public enum SaleStatus

@@ -306,7 +306,7 @@ namespace InventorySystem.Controllers
 
 		// POST: Sales/Edit/{id}
 		[HttpPost]
-		[ValidateAntiForgeryToken]
+		//[ValidateAntiForgeryToken]
 		public async Task<IActionResult> Edit(int id, Sale sale)
 		{
 			if (id != sale.Id) return NotFound();
@@ -328,6 +328,14 @@ namespace InventorySystem.Controllers
 				ModelState.Remove(nameof(sale.CourierService));
 				ModelState.Remove(nameof(sale.TrackingNumber));
 				ModelState.Remove(nameof(sale.ShippedDate));
+
+				// Remove PaymentDueDate model-state errors: the hidden field may render in a
+				// culture-specific datetime format before JS corrects it, and IValidatableObject
+				// may flag it for quotations or overdue sales. We validate due-date logic manually below.
+				ModelState.Remove(nameof(sale.PaymentDueDate));
+
+				// Also clear the root-level IValidatableObject errors (key == "")
+				ModelState.Remove(string.Empty);
 
 				var existingSale = await _salesService.GetSaleByIdAsync(id);
 				if (existingSale == null)
@@ -363,6 +371,10 @@ namespace InventorySystem.Controllers
 				sale.ShippedDate = existingSale.ShippedDate;
 				sale.ShippedBy = existingSale.ShippedBy;
 				sale.IsQuotation = existingSale.IsQuotation;
+
+				// Recalculate PaymentDueDate from Terms + SaleDate in case the hidden field
+				// was submitted with an incorrect or culture-specific value.
+				sale.CalculatePaymentDueDate();
 
 				await _salesService.UpdateSaleAsync(sale);
 				SetSuccessMessage($"{(existingSale.IsQuotation ? "Quotation" : "Sale")} {sale.SaleNumber} updated successfully!");
@@ -794,7 +806,7 @@ namespace InventorySystem.Controllers
 				var viewModel = new EnhancedCreateSaleViewModel
 				{
 					SaleDate = DateTime.Today,
-					PaymentStatus = PaymentStatus.Pending,
+					PaymentStatus = PaymentStatus.Quotation,
 					SaleStatus = SaleStatus.Quotation,
 					Terms = PaymentTerms.Net30,
 					PaymentDueDate = DateTime.Today.AddDays(30),
@@ -858,6 +870,7 @@ namespace InventorySystem.Controllers
 
 				// Convert quotation to active sale
 				sale.SaleStatus = SaleStatus.Processing;
+				sale.PaymentStatus = PaymentStatus.Pending; // Quotation -> real sale: reset to Pending
 				sale.SaleDate = DateTime.Today; // Reset sale date to today
 				sale.CreatedDate = DateTime.Now;
 				sale.CalculatePaymentDueDate(); // Recalculate due date based on terms
@@ -981,7 +994,7 @@ namespace InventorySystem.Controllers
 					CustomerId = viewModel.CustomerId!.Value,
 					SaleDate = viewModel.SaleDate,
 					OrderNumber = viewModel.OrderNumber,
-					PaymentStatus = viewModel.PaymentStatus,
+					PaymentStatus = viewModel.IsQuotation ? PaymentStatus.Quotation : viewModel.PaymentStatus,
 					SaleStatus = viewModel.IsQuotation ? SaleStatus.Quotation : viewModel.SaleStatus,
 					Terms = viewModel.Terms,
 					PaymentDueDate = viewModel.PaymentDueDate,

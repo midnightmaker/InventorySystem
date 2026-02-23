@@ -1,0 +1,54 @@
+@model InventorySystem.ViewModels.SaleDetailsViewModel
+
+@if (Model.Sale.HasDiscount)
+{
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas"></i> Sales Discount Applied
+                        <span class="badge bg-dark ms-2">@Model.Sale.DiscountCalculated.ToString("C")</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Discount Type:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-secondary">@Model.Sale.DiscountType</span>
+                                </dd>
+                                @if (Model.Sale.DiscountType == "Percentage")
+                                {
+                                    <dt class="col-sm-4">Percentage:</dt>
+                                    <dd class="col-sm-8"><strong>@Model.Sale.DiscountPercentage%</strong></dd>
+                                }
+                                else
+                                {
+                                    <dt class="col-sm-4">Amount:</dt>
+                                    <dd class="col-sm-8"><strong>@Model.Sale.DiscountAmount.ToString("C")</strong></dd>
+                                }
+                                <dt class="col-sm-4">Total Savings:</dt>
+                                <dd class="col-sm-8"><strong class="text-success">@Model.Sale.DiscountCalculated.ToString("C")</strong></dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            @if (!string.IsNullOrEmpty(Model.Sale.DiscountReason))
+                            {
+                                <dl class="row">
+                                    <dt class="col-sm-3">Reason:</dt>
+                                    <dd class="col-sm-9">@Model.Sale.DiscountReason</dd>
+                                </dl>
+                            }
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Note:</strong> This discount was applied at the time of sale and is different from post-sale adjustments.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

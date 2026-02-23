@@ -1,0 +1,98 @@
+@model InventorySystem.ViewModels.SaleDetailsViewModel
+@using InventorySystem.Models.Enums
+
+@if (Model.Sale.Customer != null)
+{
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-user"></i> Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <dl class="row">
+                                <dt class="col-sm-4">Name:</dt>
+                                <dd class="col-sm-8">
+                                    <a href="/Customers/Details/@Model.Sale.Customer.Id" class="text-decoration-none">
+                                        @Model.Sale.Customer.CustomerName
+                                    </a>
+                                </dd>
+
+                                @if (!string.IsNullOrEmpty(Model.Sale.Customer.CompanyName))
+                                {
+                                    <dt class="col-sm-4">Company:</dt>
+                                    <dd class="col-sm-8">@Model.Sale.Customer.CompanyName</dd>
+                                }
+
+                                @if (!string.IsNullOrEmpty(Model.Sale.Customer.Email))
+                                {
+                                    <dt class="col-sm-4">Email:</dt>
+                                    <dd class="col-sm-8">
+                                        <a href="mailto:@Model.Sale.Customer.Email">@Model.Sale.Customer.Email</a>
+                                    </dd>
+                                }
+
+                                @if (!string.IsNullOrEmpty(Model.Sale.Customer.Phone))
+                                {
+                                    <dt class="col-sm-4">Phone:</dt>
+                                    <dd class="col-sm-8">@Model.Sale.Customer.Phone</dd>
+                                }
+                            </dl>
+                        </div>
+
+                        <div class="col-md-4">
+                            <table class="table table-sm">
+                                <tr class="@(Model.Sale.Customer.OutstandingBalance > 0 ? "table-warning" : "table-success")">
+                                    <td><strong>Outstanding Balance:</strong></td>
+                                    <td class="text-end"><strong>@Model.Sale.Customer.OutstandingBalance.ToString("C")</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Credit Limit:</strong></td>
+                                    <td class="text-end">@Model.Sale.Customer.CreditLimit.ToString("C")</td>
+                                </tr>
+                                <tr class="@(Model.Sale.Customer.CreditAvailable > 0 ? "table-success" : "table-danger")">
+                                    <td><strong>Available Credit:</strong></td>
+                                    <td class="text-end"><strong>@Model.Sale.Customer.CreditAvailable.ToString("C")</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="col-md-4">
+                            @if (Model.Sale.Customer.OutstandingBalance > Model.Sale.Customer.CreditLimit)
+                            {
+                                <div class="alert alert-danger mb-2">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>Credit Alert:</strong><br>
+                                    Customer is over credit limit by @((Model.Sale.Customer.OutstandingBalance - Model.Sale.Customer.CreditLimit).ToString("C"))
+                                </div>
+                            }
+
+                            <div class="btn-group d-grid gap-2">
+                                <a href="/Customers/Details/@Model.Sale.Customer.Id" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-user"></i> View Customer Details
+                                </a>
+                                @if (Model.Sale.CanMakeAdjustments)
+                                {
+                                    <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id"
+                                       class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-adjust"></i> Create Adjustment
+                                    </a>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-outline-secondary btn-sm" disabled
+                                            title="Adjustments can only be created after sale is shipped">
+                                        <i class="fas fa-adjust"></i> Create Adjustment
+                                        <small class="d-block">Requires Shipped Status</small>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

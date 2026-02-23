@@ -128,7 +128,9 @@ namespace InventorySystem.Models
 
 		[NotMapped]
 		[Display(Name = "Is Overdue")]
-		public bool IsOverdue => PaymentDueDate < DateTime.Today && PaymentStatus != PaymentStatus.Paid;
+		public bool IsOverdue => SaleStatus != SaleStatus.Quotation &&
+		                         PaymentDueDate < DateTime.Today &&
+		                         PaymentStatus != PaymentStatus.Paid;
 
 		[NotMapped]
 		[Display(Name = "Days Overdue")]
@@ -188,18 +190,22 @@ namespace InventorySystem.Models
 		{
 			var results = new List<ValidationResult>();
 
-			if (PaymentDueDate.Date < SaleDate.Date)
+			// Skip payment due date validation for quotations — they don't have binding payment deadlines.
+			if (SaleStatus != SaleStatus.Quotation)
 			{
-				results.Add(new ValidationResult(
-						"Payment due date cannot be before the sale date.",
-						new[] { nameof(PaymentDueDate) }));
-			}
+				if (PaymentDueDate.Date < SaleDate.Date)
+				{
+					results.Add(new ValidationResult(
+							"Payment due date cannot be before the sale date.",
+							new[] { nameof(PaymentDueDate) }));
+				}
 
-			if ((Terms == PaymentTerms.Immediate || Terms == PaymentTerms.PrePayment || Terms == PaymentTerms.COD) && PaymentDueDate.Date != SaleDate.Date)
-			{
-				results.Add(new ValidationResult(
-						"Payment due date must be the same as sale date for Immediate, Pre Payment, or COD terms.",
-						new[] { nameof(PaymentDueDate) }));
+				if ((Terms == PaymentTerms.Immediate || Terms == PaymentTerms.PrePayment || Terms == PaymentTerms.COD) && PaymentDueDate.Date != SaleDate.Date)
+				{
+					results.Add(new ValidationResult(
+							"Payment due date must be the same as sale date for Immediate, Pre Payment, or COD terms.",
+							new[] { nameof(PaymentDueDate) }));
+				}
 			}
 
 			if (SaleStatus == SaleStatus.Shipped)
@@ -433,6 +439,7 @@ namespace InventorySystem.Models
 		// Add computed property to check if adjustments affect payment status
 		[NotMapped]
 		public bool AdjustmentsAffectBalance => TotalAdjustments > 0 &&
+				PaymentStatus != PaymentStatus.Quotation &&
 				(PaymentStatus == PaymentStatus.Pending || PaymentStatus == PaymentStatus.Overdue);
 
 		// Helper method to get adjustment summary

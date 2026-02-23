@@ -1,0 +1,120 @@
+@model InventorySystem.ViewModels.SaleDetailsViewModel
+@using InventorySystem.Helpers
+
+<!-- Consolidated Sale Information Header with Status -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title"><i class="fas fa-calendar-alt"></i> Sale Information</h6>
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Sale Date:</dt>
+                    <dd class="col-sm-7">@Model.Sale.SaleDate.ToString("MM/dd/yyyy")</dd>
+                    <dt class="col-sm-5">Due Date:</dt>
+                    <dd class="col-sm-7">@Model.Sale.PaymentDueDate.ToString("MM/dd/yyyy")</dd>
+                    <dt class="col-sm-5">Terms:</dt>
+                    <dd class="col-sm-7">@Model.Sale.Terms</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title"><i class="fas fa-info-circle"></i> Status Overview</h6>
+                <dl class="row mb-0">
+                    <dt class="col-sm-6">Status:</dt>
+                    <dd class="col-sm-6">
+                        <span class="badge bg-@Model.ConsolidatedStatusBadgeColor fs-6">
+                            @Model.ConsolidatedStatus
+                        </span>
+                    </dd>
+                    <dt class="col-sm-6">Payment:</dt>
+                    <dd class="col-sm-6">
+                        <span class="badge bg-@BadgeHelper.GetPaymentStatusBadgeColor(Model.Sale.PaymentStatus)">
+                            @Model.Sale.PaymentStatus
+                        </span>
+                    </dd>
+                    @if (Model.Sale.IsOverdue)
+                    {
+                        <dt class="col-sm-6">Overdue:</dt>
+                        <dd class="col-sm-6"><span class="badge bg-danger">@Model.Sale.DaysOverdue days</span></dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title"><i class="fas fa-truck"></i> Fulfillment Summary</h6>
+                <dl class="row mb-0">
+                    <dt class="col-sm-6">Shipments:</dt>
+                    <dd class="col-sm-6">
+                        @if (Model.TotalShipments > 0)
+                        {
+                            <span class="badge bg-info">@Model.TotalShipments</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">None</span>
+                        }
+                    </dd>
+                    @if (Model.Sale.HasBackorders)
+                    {
+                        <dt class="col-sm-6">Backorders:</dt>
+                        <dd class="col-sm-6">
+                            <span class="badge bg-warning text-dark">@Model.Sale.TotalBackorders units</span>
+                        </dd>
+                    }
+                    @if (Model.TotalShipments > 0)
+                    {
+                        <dt class="col-sm-6">Last Ship:</dt>
+                        <dd class="col-sm-6">
+                            <small>@(Model.LastShipmentDate?.ToString("MM/dd/yyyy") ?? "N/A")</small>
+                        </dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Sale Details Row -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        @if (!string.IsNullOrEmpty(Model.Sale.OrderNumber))
+                        {
+                            <dl class="row">
+                                <dt class="col-sm-6">Order Number:</dt>
+                                <dd class="col-sm-6">@Model.Sale.OrderNumber</dd>
+                            </dl>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.Sale.PaymentMethod))
+                        {
+                            <dl class="row">
+                                <dt class="col-sm-6">Payment Method:</dt>
+                                <dd class="col-sm-6">@Model.Sale.PaymentMethod</dd>
+                            </dl>
+                        }
+                    </div>
+                    <div class="col-md-9">
+                        @if (!string.IsNullOrEmpty(Model.Sale.Notes))
+                        {
+                            <dl class="row">
+                                <dt class="col-sm-2">Notes:</dt>
+                                <dd class="col-sm-10"><small class="text-muted">@Model.Sale.Notes</small></dd>
+                            </dl>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -37,7 +37,8 @@
   </div>
 }
 
-<form asp-action="Edit" method="post">
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+  @Html.AntiForgeryToken()
   <input asp-for="Id" type="hidden" />
   <input asp-for="SaleNumber" type="hidden" />
   <input asp-for="CreatedDate" type="hidden" />
@@ -169,8 +170,8 @@
                 </label>
                 @* Display-only input (not submitted — no name attribute) *@
                 <input type="date" id="PaymentDueDateDisplay" value="@Model.PaymentDueDate.ToString("yyyy-MM-dd")" class="form-control" readonly style="background-color: #e9ecef;" />
-                @* Single hidden input that actually posts the value *@
-                <input asp-for="PaymentDueDate" type="hidden" />
+                @* Single hidden input that actually posts the value — use yyyy-MM-dd format for reliable binding *@
+                <input type="hidden" name="PaymentDueDate" id="PaymentDueDate" value="@Model.PaymentDueDate.ToString("yyyy-MM-dd")" />
                 <span asp-validation-for="PaymentDueDate" class="text-danger"></span>
                 @if (Model.IsOverdue)
                 {
@@ -194,13 +195,27 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label asp-for="PaymentStatus" class="form-label">Payment Status *</label>
-                <select asp-for="PaymentStatus" class="form-select">
-                  <option value="@((int)PaymentStatus.Pending)">Pending</option>
-                  <option value="@((int)PaymentStatus.Paid)">Paid</option>
-                  <option value="@((int)PaymentStatus.PartiallyPaid)">Partially Paid</option>
-                  <option value="@((int)PaymentStatus.Overdue)">Overdue</option>
-                </select>
-                <span asp-validation-for="PaymentStatus" class="text-danger"></span>
+                @if (isQuotation)
+                {
+                  @* Quotations have no payment obligation — show read-only badge and post the fixed value *@
+                  <div>
+                    <span class="badge bg-secondary fs-6 px-3 py-2">
+                      <i class="fas fa-file-alt"></i> Quotation
+                    </span>
+                    <div class="form-text">Payment status is not applicable for quotations.</div>
+                  </div>
+                  <input type="hidden" asp-for="PaymentStatus" value="@((int)PaymentStatus.Quotation)" />
+                }
+                else
+                {
+                  <select asp-for="PaymentStatus" class="form-select">
+                    <option value="@((int)PaymentStatus.Pending)">Pending</option>
+                    <option value="@((int)PaymentStatus.Paid)">Paid</option>
+                    <option value="@((int)PaymentStatus.PartiallyPaid)">Partially Paid</option>
+                    <option value="@((int)PaymentStatus.Overdue)">Overdue</option>
+                  </select>
+                  <span asp-validation-for="PaymentStatus" class="text-danger"></span>
+                }
               </div>
             </div>
             <div class="col-md-4">

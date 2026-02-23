@@ -4,2087 +4,330 @@
 @using InventorySystem.Models.Enums
 @using InventorySystem.Helpers
 @{
-  ViewData["Title"] = Model.Sale.IsQuotation && Model.Sale.SaleStatus == SaleStatus.Quotation ? "Quotation Details" : "Sale Details";
-  var sale = Model.Sale;  // For easier reference
+    ViewData["Title"] = Model.Sale.IsQuotation && Model.Sale.SaleStatus == SaleStatus.Quotation ? "Quotation Details" : "Sale Details";
+
+    var hasIncompleteServiceOrders = Model.ServiceOrders.Any(so => so.Status != ServiceOrderStatus.Completed);
+    var canProcessSale = !hasIncompleteServiceOrders;
+    var isProformaInvoice = Model.Sale.SaleStatus != SaleStatus.Shipped && Model.Sale.SaleStatus != SaleStatus.Delivered;
+
+    // Pass computed flags to partials via ViewData
+    ViewData["CanProcessSale"] = canProcessSale;
+    ViewData["IsProformaInvoice"] = isProformaInvoice;
+    ViewData["HasIncompleteServiceOrders"] = hasIncompleteServiceOrders;
 }
 
-@{
-  // Get adjustments for this sale using the new navigation property
-  var saleAdjustments = Model.Sale.RelatedAdjustments?.ToList() ?? new List<CustomerBalanceAdjustment>();
-  var totalAdjustments = saleAdjustments.Sum(a => a.AdjustmentAmount);
-  var effectiveAmount = Model.Sale.TotalAmount - totalAdjustments;
-  var totalCost = Model.Sale.SaleItems.Sum(si => si.TotalCost);
-  var grossRevenue = Model.Sale.SubtotalAmount; // Before discount
-  var netRevenue = Model.Sale.TotalAmount; // After discount but before adjustments
-  var grossProfit = grossRevenue - totalCost; // Profit before discount
-  var netProfit = netRevenue - totalCost; // Profit after discount
-  var adjustedProfit = netProfit - totalAdjustments; // Final profit after all adjustments
-  var afterDiscountAmount = Model.Sale.SubtotalAmount - Model.Sale.DiscountCalculated; // Add this line
-
-  // REMOVED: Service items check - no longer part of operational items
-  // var hasServiceItems = Model.Sale.SaleItems?.Any(si => si.Item?.ItemType == ItemType.Service) == true;
-  
-  // UPDATED: Check if sale has incomplete service orders for any existing service orders
-  var hasIncompleteServiceOrders = Model.ServiceOrders.Any(so => so.Status != ServiceOrderStatus.Completed);
-  var canProcessSale = !hasIncompleteServiceOrders; // Simplified - just check existing service orders
-
-  // Determine if adjustments can be created
-  var canCreateAdjustments = Model.Sale.SaleStatus == SaleStatus.Shipped || Model.Sale.SaleStatus == SaleStatus.Delivered;
-
-  // Determine invoice type
-  var isProformaInvoice = Model.Sale.SaleStatus != SaleStatus.Shipped && Model.Sale.SaleStatus != SaleStatus.Delivered;
-}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1>
-    @if (Model.Sale.IsQuotation && Model.Sale.SaleStatus == SaleStatus.Quotation)
-    {
-      <i class="fas fa-file-alt"></i> <text>Quotation @Model.Sale.SaleNumber</text>
-    }
-    else
-    {
-      <i class="fas fa-shopping-cart"></i> <text>Sale @Model.Sale.SaleNumber</text>
-    }
-  </h1>
-  <div class="btn-group">
-    <a href="/Sales" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-left"></i> Back to Sales
-    </a>
-    <a href="/Sales/Edit/@Model.Sale.Id" class="btn btn-outline-primary">
-      <i class="fas fa-edit"></i> Edit
-    </a>
-    @* Show Add Item button for Quotation status as well *@
-    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
-    {
-      <a href="/Sales/AddItem?saleId=@Model.Sale.Id" class="btn btn-success">
-        <i class="fas fa-plus"></i> Add Item
-      </a>
-    }
-
-    @* Convert Quotation to Sale button *@
-    @if (Model.Sale.SaleStatus == SaleStatus.Quotation)
-    {
-      <form asp-action="ConvertQuotationToSale" asp-route-id="@Model.Sale.Id" method="post" style="display:inline;">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="btn btn-warning" onclick="return confirm('Are you sure you want to convert this quotation to an active sale? This will change the status to Processing and generate journal entries.')">
-          <i class="fas fa-exchange-alt"></i> Convert to Sale
-        </button>
-      </form>
-    }
-
-    @* UPDATED: Process & Ship button with simplified service validation *@
-    @if (Model.Sale.SaleStatus == SaleStatus.Processing && Model.Sale.SaleItems?.Any() == true)
-    {
-      @if (canProcessSale)
-      {
-        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal">
-          <i class="fas fa-shipping-fast"></i> Process & Ship
-        </button>
-      }
-      else
-      {
-        <button type="button" class="btn btn-warning" disabled title="Complete all service orders before shipping">
-          <i class="fas fa-shipping-fast"></i> Process & Ship
-          <small class="d-block">Services Pending</small>
-        </button>
-      }
-    }
-
-    @* NEW: Additional Shipment button for partially shipped/backordered sales *@
-    @if (Model.Sale.CanShipAdditionalItems)
-    {
-      <a href="@Url.Action("CreateAdditionalShipment", new { saleId = Model.Sale.Id })" class="btn btn-info">
-        <i class="fas fa-shipping-fast"></i> Create Additional Shipment
-      </a>
-    }
-
-    @* View Invoice button shows proforma status *@
-    <a href="@Url.Action("InvoiceReport", new { saleId = Model.Sale.Id })"
-       class="btn btn-primary">
-      <i class="fas fa-file-invoice-dollar"></i>
-      @if (Model.Sale.IsQuotation && isProformaInvoice)
-      {
-        <text>View Quotation</text>
-      }
-      else if (isProformaInvoice)
-      {
-        <text>View Proforma</text>
-      }
-      else
-      {
-        <text>View Invoice</text>
-      }
-    </a>
-
-    @* REMOVED: Single Packing Slip Button - now replaced with comprehensive shipments card below *@
-
-    @if (Model.Sale.PaymentStatus != PaymentStatus.Paid)
-    {
-      <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">
-        <i class="fas fa-dollar-sign"></i> Record Payment
-      </button>
-    }
-  </div>
-</div>
-
-@if (TempData["SuccessMessage"] != null)
-{
-  <div class="alert alert-success alert-dismissible fade show">
-    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
-
-@if (TempData["ErrorMessage"] != null)
-{
-  <div class="alert alert-danger alert-dismissible fade show">
-    <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-}
-
-<!-- NEW: Backorder Availability Notification -->
-@if (Model.Sale.CanShipAdditionalItems)
-{
-    <div class="alert alert-info d-flex align-items-center mb-4">
-        <i class="fas fa-info-circle me-2"></i>
-        <div class="flex-grow-1">
-            <strong>Items Available for Shipment</strong>
-            <p class="mb-1">This sale has @Model.Sale.ItemsAvailableForShipment.Count item(s) available for additional shipment.</p>
-        </div>
-        <div>
-            <a href="@Url.Action("CreateAdditionalShipment", new { saleId = Model.Sale.Id })" 
-               class="btn btn-primary">
-                <i class="fas fa-shipping-fast"></i> Create Shipment
-            </a>
-        </div>
-    </div>
-}
-
-<!-- Customer Information Card - Full Width -->
-@if (Model.Sale.Customer != null)
-{
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card border-info">
-        <div class="card-header bg-light">
-          <h5 class="mb-0"><i class="fas fa-user"></i> Customer Information</h5>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <!-- Basic customer info -->
-            <div class="col-md-4">
-              <dl class="row">
-                <dt class="col-sm-4">Name:</dt>
-                <dd class="col-sm-8">
-                  <a href="/Customers/Details/@Model.Sale.Customer.Id" class="text-decoration-none">
-                    @Model.Sale.Customer.CustomerName
-                  </a>
-                </dd>
-
-                @if (!string.IsNullOrEmpty(Model.Sale.Customer.CompanyName))
-                {
-                  <dt class="col-sm-4">Company:</dt>
-                  <dd class="col-sm-8">@Model.Sale.Customer.CompanyName</dd>
-                }
-
-                @if (!string.IsNullOrEmpty(Model.Sale.Customer.Email))
-                {
-                  <dt class="col-sm-4">Email:</dt>
-                  <dd class="col-sm-8">
-                    <a href="mailto:@Model.Sale.Customer.Email">@Model.Sale.Customer.Email</a>
-                  </dd>
-                }
-
-                @if (!string.IsNullOrEmpty(Model.Sale.Customer.Phone))
-                {
-                  <dt class="col-sm-4">Phone:</dt>
-                  <dd class="col-sm-8">@Model.Sale.Customer.Phone</dd>
-                }
-              </dl>
-            </div>
-
-            <!-- Credit information -->
-            <div class="col-md-4">
-              <table class="table table-sm">
-                <tr class="@(Model.Sale.Customer.OutstandingBalance > 0 ? "table-warning" : "table-success")">
-                  <td><strong>Outstanding Balance:</strong></td>
-                  <td class="text-end"><strong>@Model.Sale.Customer.OutstandingBalance.ToString("C")</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Credit Limit:</strong></td>
-                  <td class="text-end">@Model.Sale.Customer.CreditLimit.ToString("C")</td>
-                </tr>
-                <tr class="@(Model.Sale.Customer.CreditAvailable > 0 ? "table-success" : "table-danger")">
-                  <td><strong>Available Credit:</strong></td>
-                  <td class="text-end"><strong>@Model.Sale.Customer.CreditAvailable.ToString("C")</strong></td>
-                </tr>
-              </table>
-            </div>
-
-            <!-- Customer status & alerts -->
-            <div class="col-md-4">
-              @if (Model.Sale.Customer.OutstandingBalance > Model.Sale.Customer.CreditLimit)
-              {
-                <div class="alert alert-danger mb-2">
-                  <i class="fas fa-exclamation-triangle"></i>
-                  <strong>Credit Alert:</strong><br>
-                  Customer is over credit limit by @((Model.Sale.Customer.OutstandingBalance - Model.Sale.Customer.CreditLimit).ToString("C"))
-                </div>
-              }
-
-              <div class="btn-group d-grid gap-2">
-                <a href="/Customers/Details/@Model.Sale.Customer.Id" class="btn btn-outline-info btn-sm">
-                  <i class="fas fa-user"></i> View Customer Details
-                </a>
-                @* Create Adjustment button with status check *@
-                @if (Model.Sale.CanMakeAdjustments)
-                {
-                  <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id" class="btn btn-outline-success btn-sm">
-                    <i class="fas fa-adjust"></i> Create Adjustment
-                  </a>
-                }
-                else
-                {
-                  <button class="btn btn-outline-secondary btn-sm" disabled title="Adjustments can only be created after sale is shipped">
-                    <i class="fas fa-adjust"></i> Create Adjustment
-                    <small class="d-block">Requires Shipped Status</small>
-                  </button>
-                }
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- UPDATED: Consolidated Sale Information Header with Status -->
-<div class="row mb-4">
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-body">
-        <h6 class="card-title"><i class="fas fa-calendar-alt"></i> Sale Information</h6>
-        <dl class="row mb-0">
-          <dt class="col-sm-5">Sale Date:</dt>
-          <dd class="col-sm-7">@Model.Sale.SaleDate.ToString("MM/dd/yyyy")</dd>
-          <dt class="col-sm-5">Due Date:</dt>
-          <dd class="col-sm-7">@Model.Sale.PaymentDueDate.ToString("MM/dd/yyyy")</dd>
-          <dt class="col-sm-5">Terms:</dt>
-          <dd class="col-sm-7">@Model.Sale.Terms</dd>
-        </dl>
-      </div>
-    </div>
-  </div>
-  
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-body">
-        <h6 class="card-title"><i class="fas fa-info-circle"></i> Status Overview</h6>
-        <dl class="row mb-0">
-          <dt class="col-sm-6">Status:</dt>
-          <dd class="col-sm-6">
-            <span class="badge bg-@Model.ConsolidatedStatusBadgeColor fs-6">
-              @Model.ConsolidatedStatus
-            </span>
-          </dd>
-          <dt class="col-sm-6">Payment:</dt>
-          <dd class="col-sm-6">
-            <span class="badge bg-@BadgeHelper.GetPaymentStatusBadgeColor(Model.Sale.PaymentStatus)">@Model.Sale.PaymentStatus</span>
-          </dd>
-          @if (Model.Sale.IsOverdue)
-          {
-            <dt class="col-sm-6">Overdue:</dt>
-            <dd class="col-sm-6"><span class="badge bg-danger">@Model.Sale.DaysOverdue days</span></dd>
-          }
-        </dl>
-      </div>
-    </div>
-  </div>
-  
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-body">
-        <h6 class="card-title"><i class="fas fa-truck"></i> Fulfillment Summary</h6>
-        <dl class="row mb-0">
-          <dt class="col-sm-6">Shipments:</dt>
-          <dd class="col-sm-6">
-            @if (Model.TotalShipments > 0)
-            {
-              <span class="badge bg-info">@Model.TotalShipments</span>
-            }
-            else
-            {
-              <span class="text-muted">None</span>
-            }
-          </dd>
-          @if (Model.Sale.HasBackorders)
-          {
-            <dt class="col-sm-6">Backorders:</dt>
-            <dd class="col-sm-6">
-              <span class="badge bg-warning text-dark">@Model.Sale.TotalBackorders units</span>
-            </dd>
-          }
-          @if (Model.TotalShipments > 0)
-          {
-            <dt class="col-sm-6">Last Ship:</dt>
-            <dd class="col-sm-6">
-              <small>@(Model.LastShipmentDate?.ToString("MM/dd/yyyy") ?? "N/A")</small>
-            </dd>
-          }
-        </dl>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Additional Sale Details Row -->
-<div class="row mb-4">
-  <div class="col-12">
-    <div class="card">
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-3">
-            @if (!string.IsNullOrEmpty(Model.Sale.OrderNumber))
-            {
-              <dl class="row">
-                <dt class="col-sm-6">Order Number:</dt>
-                <dd class="col-sm-6">@Model.Sale.OrderNumber</dd>
-              </dl>
-            }
-            @if (!string.IsNullOrEmpty(Model.Sale.PaymentMethod))
-            {
-              <dl class="row">
-                <dt class="col-sm-6">Payment Method:</dt>
-                <dd class="col-sm-6">@Model.Sale.PaymentMethod</dd>
-              </dl>
-            }
-          </div>
-          <div class="col-md-9">
-            @if (!string.IsNullOrEmpty(Model.Sale.Notes))
-            {
-              <dl class="row">
-                <dt class="col-sm-2">Notes:</dt>
-                <dd class="col-sm-10"><small class="text-muted">@Model.Sale.Notes</small></dd>
-              </dl>
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-@if (Model.Sale.HasDiscount)
-{
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card border-info">
-        <div class="card-header bg-info text-white">
-          <h5 class="mb-0">
-            <i class="fas"></i> Sales Discount Applied
-            <span class="badge bg-dark ms-2">@Model.Sale.DiscountCalculated.ToString("C") </span>
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-6">
-              <dl class="row">
-                <dt class="col-sm-4">Discount Type:</dt>
-                <dd class="col-sm-8">
-                  <span class="badge bg-secondary">@Model.Sale.DiscountType</span>
-                </dd>
-                @if (Model.Sale.DiscountType == "Percentage")
-                {
-                  <dt class="col-sm-4">Percentage:</dt>
-                  <dd class="col-sm-8"><strong>@Model.Sale.DiscountPercentage%</strong></dd>
-                }
-                else
-                {
-                  <dt class="col-sm-4">Amount:</dt>
-                  <dd class="col-sm-8"><strong>@Model.Sale.DiscountAmount.ToString("C")</strong></dd>
-                }
-                <dt class="col-sm-4">Total Savings:</dt>
-                <dd class="col-sm-8"><strong class="text-success">@Model.Sale.DiscountCalculated.ToString("C")</strong></dd>
-              </dl>
-            </div>
-            <div class="col-md-6">
-              @if (!string.IsNullOrEmpty(Model.Sale.DiscountReason))
-              {
-                <dl class="row">
-                  <dt class="col-sm-3">Reason:</dt>
-                  <dd class="col-sm-9">@Model.Sale.DiscountReason</dd>
-                </dl>
-              }
-              <div class="alert alert-info mb-0">
-                <i class="fas fa-info-circle"></i>
-                <strong>Note:</strong> This discount was applied at the time of sale and is different from post-sale adjustments.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
-
-@if (saleAdjustments.Any())
-{
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card border-warning">
-        <div class="card-header bg-warning text-dark">
-          <h5 class="mb-0">
-            <i class="fas fa-adjust"></i> Post-Sale Adjustments
-            <span class="badge bg-dark ms-2">@saleAdjustments.Count Applied</span>
-          </h5>
-        </div>
-        <div class="card-body">
-          <!-- Adjustment Summary -->
-          <div class="row mb-3">
-            <div class="col-md-6">
-              <h6>Financial Impact:</h6>
-              <table class="table table-sm">
-                <tr>
-                  <td><strong>Original Invoice Amount:</strong></td>
-                  <td class="text-end">@Model.Sale.TotalAmount.ToString("C")</td>
-                </tr>
-                <tr>
-                  <td><strong>Total Adjustments:</strong></td>
-                  <td class="text-end text-success">-@totalAdjustments.ToString("C")</td>
-                </tr>
-                <tr class="table-light">
-                  <td><strong>Effective Amount:</strong></td>
-                  <td class="text-end"><strong>@effectiveAmount.ToString("C")</strong></td>
-                </tr>
-              </table>
-            </div>
-            <div class="col-md-6">
-              <h6>Quick Actions:</h6>
-              <div class="btn-group-vertical d-grid gap-2">
-                <a href="/Sales/GenerateRevisedInvoice/@Model.Sale.Id" class="btn btn-outline-primary btn-sm">
-                  <i class="fas fa-file-invoice"></i> Generate Revised Invoice
-                </a>
-                @if (Model.Sale.CanMakeAdjustments)
-                {
-                  <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id" class="btn btn-outline-success btn-sm">
-                    <i class="fas fa-plus"></i> Add New Adjustment
-                  </a>
-                }
-              </div>
-            </div>
-          </div>
-
-          <!-- Adjustments List -->
-          <h6>Applied Adjustments:</h6>
-          <div class="table-responsive">
-            <table class="table table-hover table-sm">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Amount</th>
-                  <th>Reason</th>
-                  <th>Applied By</th>
-                  <th class="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                @foreach (var adjustment in saleAdjustments.OrderByDescending(a => a.AdjustmentDate))
-                {
-                  <tr>
-                    <td>@adjustment.AdjustmentDate.ToString("MM/dd/yyyy")</td>
-                    <td>
-                      <span class="badge bg-@(adjustment.AdjustmentType == "Bad Debt Write-off" ? "danger" : "warning")">
-                        @adjustment.AdjustmentType
-                      </span>
-                    </td>
-                    <td class="text-end">
-                      <strong class="text-success">@adjustment.AdjustmentAmount.ToString("C")</strong>
-                    </td>
-                    <td>
-                      @if (adjustment.Reason.Length > 40)
-                      {
-                        <span title="@adjustment.Reason">
-                          @adjustment.Reason.Substring(0, 40)...
-                        </span>
-                      }
-                      else
-                      {
-                        @adjustment.Reason
-                      }
-                    </td>
-                    <td>@adjustment.CreatedBy</td>
-                    <td class="text-center">
-                      <div class="btn-group btn-group-sm">
-                        <a href="/Sales/GenerateRevisedInvoice/@Model.Sale.Id?adjustmentId=@adjustment.Id"
-                           class="btn btn-outline-primary btn-sm" title="Revised Invoice for this adjustment">
-                          <i class="fas fa-file-invoice"></i>
-                        </a>
-                        <a href="/Sales/GenerateCreditMemo?adjustmentId=@adjustment.Id"
-                           class="btn btn-outline-success btn-sm" title="Generate Credit Memo">
-                          <i class="fas fa-receipt"></i>
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Impact Notice -->
-          <div class="alert alert-info mt-3">
-            <h6><i class="fas fa-info-circle"></i> Payment Status Impact</h6>
-            <p class="mb-0">
-              Due to applied adjustments, the customer now owes
-              <strong>@effectiveAmount.ToString("C")</strong>
-              for this invoice instead of the original @Model.Sale.TotalAmount.ToString("C").
-              @if (Model.Sale.PaymentStatus == PaymentStatus.Paid && effectiveAmount < Model.Sale.TotalAmount)
-              {
-                <span class="text-success">
-                  <br><strong>Note:</strong> This invoice may be eligible for refund due to adjustments exceeding payments received.
-                </span>
-              }
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
-else
-{
-  <!-- No Adjustments - Show Option to Create -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card border-light">
-        <div class="card-body text-center py-3">
-          <div class="text-muted mb-2">
-            <i class="fas fa-info-circle"></i>
-            @if (Model.Sale.CanMakeAdjustments)
-            {
-              <text>No adjustments have been applied to this sale.</text>
-            }
-            else
-            {
-              <text>No adjustments have been applied to this sale. Adjustments for shipping damage, missing items etc. can only be made after the sale has been processed and shipped.</text>
-            }
-          </div>
-          @if (Model.Sale.CanMakeAdjustments)
-          {
-            <a href="/Accounting/CreateCustomerAdjustment?customerId=@Model.Sale.CustomerId&saleId=@Model.Sale.Id"
-               class="btn btn-outline-primary btn-sm">
-              <i class="fas fa-plus"></i> Apply Customer Adjustment
-            </a>
-          }
-        </div>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Sale Items in Full Width -->
-<div class="row">
-  <div class="col-12">
-    <!-- Sale Items Card - Full Width -->
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">
-          <i class="fas fa-list"></i> Sale Items
-          @if (Model.Sale.SaleItems?.Any() == true)
-          {
-            <span class="badge bg-primary ms-2">@Model.Sale.SaleItems.Count items</span>
-          }
-        </h5>
-        @* Only show Add Item button for modifiable sales (including Quotation) *@
-        @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
-        {
-          <a href="/Sales/AddItem?saleId=@Model.Sale.Id" class="btn btn-success btn-sm">
-            <i class="fas fa-plus"></i> Add Item
-          </a>
-        }
-      </div>
-      <div class="card-body">
-        @if (Model.Sale.SaleItems?.Any() == true)
-        {
-          <div class="table-responsive">
-            <table class="table table-hover" id="saleItemsTable" style="table-layout: fixed; width: 100%;">
-              <colgroup>
-                <col width="8%">
-                <col width="12%">
-                <col width="25%">
-                <col width="10%">
-                <col width="10%">
-                <col width="10%">
-                <col width="10%">
-                <col width="15%">
-                @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
-                {
-                  <col width="10%">
-                }
-              </colgroup>
-              <thead>
-                <tr>
-                  <th class="align-middle">Image</th>
-                  <th class="align-middle">Part Number</th>
-                  <th class="align-middle">Description</th>
-                  <th class="align-middle">Type</th>
-                  <th class="text-center align-middle">Qty</th>
-                  <th class="text-end align-middle">Unit Price</th>
-                  <th class="text-end align-middle">Total</th>
-                  <th class="align-middle">Serial/Model</th>
-                  @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
-                  {
-                    <th class="text-center align-middle">Actions</th>
-                  }
-                </tr>
-              </thead>
-              <tbody>
-                @foreach (var item in Model.Sale.SaleItems)
-                {
-                  <tr>
-                    <td class="text-center align-middle">
-                      @if (item.ItemId.HasValue)
-                      {
-                        <div class="item-image-container" style="width: 40px; height: 40px; position: relative; display: inline-block;">
-                          <img src="/Items/GetImageThumbnail/@item.ItemId?size=40"
-                               alt="@item.ProductPartNumber"
-                               class="item-thumbnail rounded"
-                               style="width: 40px; height: 40px; object-fit: cover; cursor: pointer; position: absolute; top: 0; left: 0; z-index: 2;"
-                               onload="this.parentElement.querySelector('.item-thumbnail-placeholder').style.display='none';"
-                               onerror="this.style.display='none'; this.parentElement.querySelector('.item-thumbnail-placeholder').style.display='flex';"
-                               onclick="showItemImageModal('@item.ProductPartNumber', '/Items/GetImage/@item.ItemId')" />
-                          <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded"
-                               style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6; position: absolute; top: 0; left: 0; z-index: 1; display: flex;">
-                            <i class="fas fa-image text-muted" style="font-size: 16px;"></i>
-                          </div>
-                        </div>
-                      }
-                      else if (item.FinishedGoodId.HasValue)
-                      {
-                        <div class="item-image-container" style="width: 40px; height: 40px; position: relative; display: inline-block;">
-                          <img src="/Production/GetFinishedGoodImageThumbnail/@item.FinishedGoodId?size=40"
-                               alt="@item.ProductPartNumber"
-                               class="item-thumbnail rounded"
-                               style="width: 40px; height: 40px; object-fit: cover; cursor: pointer; position: absolute; top: 0; left: 0; z-index: 2;"
-                               onload="this.parentElement.querySelector('.item-thumbnail-placeholder').style.display='none';"
-                               onerror="this.style.display='none'; this.parentElement.querySelector('.item-thumbnail-placeholder').style.display='flex';"
-                               onclick="showItemImageModal('@item.ProductPartNumber', '/Production/GetFinishedGoodImage/@item.FinishedGoodId')" />
-                          <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded"
-                               style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6; position: absolute; top: 0; left: 0; z-index: 1; display: flex;">
-                            <i class="fas fa-cube text-muted" style="font-size: 16px;"></i>
-                          </div>
-                        </div>
-                      }
-                      else
-                      {
-                        <div class="item-thumbnail-placeholder d-flex align-items-center justify-content-center rounded"
-                             style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px solid #dee2e6;">
-                          <i class="fas fa-cube text-muted" style="font-size: 16px;"></i>
-                        </div>
-                      }
-                    </td>
-                    <td class="align-middle">
-                      @if (item.ItemId.HasValue)
-                      {
-                        <a href="#" class="nav-link" onclick="showItemDetails(@item.ItemId)" style="cursor: pointer;">
-                          @item.ProductPartNumber
-                        </a>
-                      }
-                      else if (item.FinishedGoodId.HasValue)
-                      {
-                        <a href="#" class="nav-link" onclick="showFinishedGoodDetails(@item.FinishedGoodId)" style="cursor: pointer;">
-                          @item.ProductPartNumber
-                        </a>
-                      }
-                      else
-                      {
-                        @item.ProductPartNumber
-                      }
-                      @if (item.QuantityBackordered > 0)
-                      {
-                        <br>
-                        <span class="badge bg-warning text-dark ms-1">Backordered</span>
-                      }
-                    </td>
-                    <td class="align-middle">
-                      <strong>@item.ProductName</strong>
-                      @if (!string.IsNullOrEmpty(item.Notes))
-                      {
-                        <br>
-                        <small class="text-muted">@item.Notes</small>
-                      }
-                    </td>
-                    <td class="align-middle">
-                      <span class="badge bg-secondary">
-                        @* ✅ FIXED: Properly determine ProductType including ServiceType *@
-                        @if (item.ItemId.HasValue)
-                        {
-                            <text>Item</text>
-                        }
-                        else if (item.ServiceTypeId.HasValue)
-                        {
-                            <text>Service</text>
-                        }
-                        else if (item.FinishedGoodId.HasValue)
-                        {
-                            <text>Finished Good</text>
-                        }
-                        else
-                        {
-                            <text>Unknown</text>
-                        }
-                      </span>
-                    </td>
-                    <td class="text-center align-middle">
-                      <span class="badge bg-primary">@item.QuantitySold</span>
-                      @if (item.QuantityBackordered > 0)
-                      {
-                        <br>
-                        <small class="text-warning">(@item.QuantityBackordered backord.)</small>
-                      }
-                    </td>
-                    <td class="text-end align-middle">@item.UnitPrice.ToString("C")</td>
-                    <td class="text-end align-middle"><strong>@item.TotalPrice.ToString("C")</strong></td>
-                    <td class="align-middle">
-                      @if (item.HasSerialModelInfo)
-                      {
-                        <small>
-                          @if (!string.IsNullOrWhiteSpace(item.SerialNumber))
-                          {
-                            <div><strong>S/N:</strong> @item.SerialNumber</div>
-                          }
-                          @if (!string.IsNullOrWhiteSpace(item.ModelNumber))
-                          {
-                            <div><strong>Model:</strong> @item.ModelNumber</div>
-                          }
-                        </small>
-                      }
-                      else
-                      {
-                        <span class="text-muted">-</span>
-                      }
-                    </td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
-                    {
-                      <td class="text-center align-middle">
-                        <div class="btn-group btn-group-sm">
-                          <a href="/Sales/EditSaleItem/@item.Id" class="btn btn-outline-primary" title="Edit Item">
-                            <i class="fas fa-edit"></i>
-                          </a>
-                          <button type="button" class="btn btn-outline-danger" title="Remove Item"
-                                  onclick="removeItemWithConfirmation(@item.Id, @Model.Sale.Id, '@Html.Raw(item.ProductPartNumber)', '@Html.Raw(item.ProductName)', @item.QuantitySold, '@item.UnitPrice.ToString("C")')">
-                            <i class="fas fa-trash"></i>
-                          </button>
-                        </div>
-                      </td>
-                    }
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-        else
-        {
-          <div class="text-center py-3">
-            <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
-            <p class="text-muted">No items added to this sale yet.</p>
-            @* Only show Add First Item button for modifiable sales (including Quotation) *@
-            @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
-            {
-              <a href="/Sales/AddItem?saleId=@Model.Sale.Id" class="btn btn-success">
-                <i class="fas fa-plus"></i> Add First Item
-              </a>
-            }
-          </div>
-        }
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- NEW: Comprehensive Shipments Card -->
-@if (Model.TotalShipments > 0)
-{
-  <div class="row mt-0">
-    <div class="col-12">
-      <div class="card border-info" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
-        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">
-            <i class="fas fa-shipping-fast"></i> Shipments 
-            <span class="badge bg-dark ms-2">@Model.TotalShipments shipment@(Model.TotalShipments > 1 ? "s" : "")</span>
-          </h5>
-          <div class="d-flex align-items-center gap-3">
-            @if (Model.HasMultipleShipments)
-            {
-              <small>
-                <i class="fas fa-info-circle"></i> 
-                Multiple shipments: @Model.FirstShipmentDate?.ToString("MM/dd") - @Model.LastShipmentDate?.ToString("MM/dd")
-              </small>
-            }
-            @if (Model.Sale.CanShipAdditionalItems)
-            {
-              <a href="@Url.Action("CreateAdditionalShipment", new { saleId = Model.Sale.Id })" 
-                 class="btn btn-light btn-sm">
-                <i class="fas fa-plus"></i> Create Additional Shipment
-              </a>
-            }
-          </div>
-        </div>
-        <div class="card-body">
-          <!-- Shipment Summary -->
-          <div class="row mb-3">
-            <div class="col-md-4">
-              <div class="d-flex align-items-center">
-                <div class="flex-shrink-0">
-                  <i class="fas fa-boxes fa-2x text-primary"></i>
-                </div>
-                <div class="flex-grow-1 ms-3">
-                  <div class="fw-bold">@Model.TotalItemsShipped</div>
-                  <small class="text-muted">Total Items Shipped</small>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="d-flex align-items-center">
-                <div class="flex-shrink-0">
-                  <i class="fas fa-dollar-sign fa-2x text-success"></i>
-                </div>
-                <div class="flex-grow-1 ms-3">
-                  <div class="fw-bold">@Model.TotalShipmentValue.ToString("C")</div>
-                  <small class="text-muted">Total Shipment Value</small>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="d-flex align-items-center">
-                <div class="flex-shrink-0">
-                  <i class="fas fa-clock fa-2x text-info"></i>
-                </div>
-                <div class="flex-grow-1 ms-3">
-                  <div class="fw-bold">
-                    @if (Model.HasMultipleShipments)
-                    {
-                      <span>@((Model.LastShipmentDate - Model.FirstShipmentDate)?.Days ?? 0) days</span>
-                    }
-                    else
-                    {
-                      <span>Same day</span>
-                    }
-                  </div>
-                  <small class="text-muted">Shipping Timespan</small>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Individual Shipments Table -->
-          <div class="table-responsive">
-            <table class="table table-hover">
-              <thead class="table-dark">
-                <tr>
-                  <th>Packing Slip</th>
-                  <th>Ship Date</th>
-                  <th>Courier</th>
-                  <th>Tracking</th>
-                  <th class="text-center">Items</th>
-                  <th class="text-end">Value</th>
-                  <th>Expected Delivery</th>
-                  <th class="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                @foreach (var shipment in Model.Shipments)
-                {
-                  <tr>
-                    <td>
-                      <strong>@shipment.PackingSlipNumber</strong>
-                      <br>
-                      <small class="text-muted">by @shipment.ShippedBy</small>
-                    </td>
-                    <td>
-                      @shipment.ShipmentDate.ToString("MM/dd/yyyy")
-                      <br>
-                      <small class="text-muted">@shipment.ShipmentDate.ToString("h:mm tt")</small>
-                    </td>
-                    <td>
-                      <span class="badge bg-secondary">@shipment.CourierService</span>
-                      @if (shipment.PackageWeight.HasValue)
-                      {
-                        <br>
-                        <small class="text-muted">@shipment.PackageWeight.Value lbs</small>
-                      }
-                    </td>
-                    <td>
-                      @if (!string.IsNullOrEmpty(shipment.TrackingNumber) && shipment.TrackingNumber != "N/A")
-                      {
-                        <strong>@shipment.TrackingNumber</strong>
-                        @if (shipment.CourierService == "FedEx")
-                        {
-                          <br>
-                          <a href="https://www.fedex.com/apps/fedextrack/?tracknumbers=@shipment.TrackingNumber" 
-                             target="_blank" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-external-link-alt"></i> Track
-                          </a>
-                        }
-                        else if (shipment.CourierService == "UPS")
-                        {
-                          <br>
-                          <a href="https://www.ups.com/track?tracknum=@shipment.TrackingNumber" 
-                             target="_blank" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-external-link-alt"></i> Track
-                          </a>
-                        }
-                        else if (shipment.CourierService == "USPS")
-                        {
-                          <br>
-                          <a href="https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=@shipment.TrackingNumber" 
-                             target="_blank" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-external-link-alt"></i> Track
-                          </a>
-                        }
-                      }
-                      else
-                      {
-                        <span class="text-muted">Local/Pickup</span>
-                      }
-                    </td>
-                    <td class="text-center">
-                      <span class="badge bg-info">@shipment.TotalItemsShipped items</span>
-                      @if (shipment.ShipmentItems.Any())
-                      {
-                        <br>
-                        <small class="text-muted">
-                          @string.Join(", ", shipment.ShipmentItems.Take(2).Select(si => $"{si.SaleItem.ProductPartNumber} ({si.QuantityShipped})"))
-                          @if (shipment.ShipmentItems.Count() > 2)
-                          {
-                            <text>...</text>
-                          }
-                        </small>
-                      }
-                    </td>
-                    <td class="text-end">
-                      <strong>@shipment.ShipmentItems.Sum(si => si.QuantityShipped * si.SaleItem.UnitPrice).ToString("C")</strong>
-                    </td>
-                    <td>
-                      @if (shipment.ExpectedDeliveryDate.HasValue)
-                      {
-                        @shipment.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy")
-                        var isOverdue = DateTime.Now > shipment.ExpectedDeliveryDate.Value && Model.Sale.SaleStatus != SaleStatus.Delivered;
-                        @if (isOverdue)
-                        {
-                          <br>
-                          <span class="badge bg-danger">Overdue</span>
-                        }
-                      }
-                      else
-                      {
-                        <span class="text-muted">TBD</span>
-                      }
-                    </td>
-                    <td class="text-center">
-                      <div class="btn-group btn-group-sm">
-                        <a href="@Url.Action("ShipmentDetails", new { id = shipment.Id })" 
-                           class="btn btn-outline-info" title="View Shipment Details">
-                          <i class="fas fa-eye"></i>
-                        </a>
-                        <a href="@Url.Action("PackingSlip", new { id = shipment.Id })" 
-                           target="_blank" class="btn btn-outline-primary" title="View Packing Slip">
-                          <i class="fas fa-file-alt"></i>
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-
-          @if (!string.IsNullOrEmpty(Model.Shipments.FirstOrDefault()?.ShippingInstructions))
-          {
-            <div class="mt-3">
-              <h6><i class="fas fa-info-circle"></i> Shipping Instructions</h6>
-              <div class="alert alert-light">
-                @Model.Shipments.FirstOrDefault()?.ShippingInstructions
-              </div>
-            </div>
-          }
-        </div>
-      </div>
-    </div>
-  </div>
-}
-else if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-{
-  <!-- No Shipments Yet - Show Ready to Ship -->
-  <div class="row mt-0">
-    <div class="col-12">
-      <div class="card border-warning" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
-        <div class="card-header bg-warning text-dark">
-          <h5 class="mb-0">
-            <i class="fas fa-clock"></i> Ready for Shipment
-          </h5>
-        </div>
-        <div class="card-body text-center">
-          <div class="row">
-            <div class="col-md-6 offset-md-3">
-              <i class="fas fa-shipping-fast fa-3x text-warning mb-3"></i>
-              <h6>This sale is ready to be processed and shipped</h6>
-              <p class="text-muted mb-3">
-                Click the "Process & Ship" button above to create the first shipment for this sale.
-                @if (Model.Sale.HasBackorders)
-                {
-                  <br>
-                  <strong>Note:</strong>
-                  <span>This sale has backorders. A partial shipment will be created for available items.</span>
-                }
-              </p>
-              @if (canProcessSale)
-              {
-                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal">
-                  <i class="fas fa-shipping-fast"></i> Process & Ship Sale
-                </button>
-              }
-              else
-              {
-                <div class="alert alert-info">
-                  <i class="fas fa-info-circle"></i>
-                  Complete all service orders before shipping this sale.
-                </div>
-              }
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- UPDATED: Service Orders Section - Only show if service orders exist -->
-@if (Model.ServiceOrders.Any())
-{
-  <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5><i class="fas fa-cogs"></i> Related Service Orders</h5>
-      <a href="@Url.Action("CreateServiceOrder", "Services", new { saleId = Model.Sale.Id })"
-         class="btn btn-sm btn-outline-primary">
-        <i class="fas fa-plus"></i> Create Service Order
-      </a>
-    </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Service Order</th>
-              <th>Service Type</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Promised Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var serviceOrder in Model.ServiceOrders)
-            {
-              <tr class="@(serviceOrder.Status != ServiceOrderStatus.Completed ? "table-light" : "")">
-                <td>
-                  <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })">
-                    @serviceOrder.ServiceOrderNumber
-                  </a>
-                  @if (serviceOrder.Status != ServiceOrderStatus.Completed)
-                  {
-                    <br>
-                    <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Pending</small>
-                  }
-                </td>
-                <td>@serviceOrder.ServiceType?.ServiceName</td>
-                <td>
-                  <span class="badge bg-@BadgeHelper.GetServiceOrderStatusBadgeColor(serviceOrder.Status)">
-                    @serviceOrder.StatusDisplay
-                  </span>
-                </td>
-                <td>
-                  <span class="badge bg-@BadgeHelper.GetServicePriorityBadgeColor(serviceOrder.Priority)">
-                    @serviceOrder.PriorityDisplay
-                  </span>
-                </td>
-                <td>
-                  @if (serviceOrder.PromisedDate.HasValue)
-                  {
-                    <span class="@(serviceOrder.IsOverdue ? "text-danger" : "")">
-                      @serviceOrder.PromisedDate.Value.ToString("MM/dd/yyyy")
-                    </span>
-                  }
-                </td>
-                <td>
-                  <a href="@Url.Action("Details", "Services", new { id = serviceOrder.Id })"
-                     class="btn btn-sm btn-outline-primary">
-                    View
-                  </a>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      @* UPDATED: Service Orders Status Summary *@
-      <div class="alert alert-light mt-3">
-        <i class="fas fa-info-circle"></i>
-        <strong>Service Orders Status:</strong>
-        @if (hasIncompleteServiceOrders)
-        {
-          <span class="text-dark">Some service orders are still pending completion. The sale cannot be shipped until all service orders are completed.</span>
-        }
-        else
-        {
-          <span class="text-dark">All service orders are completed and ready for shipment.</span>
-        }
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Sale Summary Card -->
-@if (Model.Sale.SaleItems?.Any() == true)
-{
-  <div class="row mt-0">
-    <div class="col-12">
-      <div class="card border-success" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
-        <div class="card-header bg-light">
-          <h5 class="mb-0"><i class="fas fa-calculator"></i> Financial Summary</h5>
-        </div>
-        <div class="card-body pt-2">
-          <div class="table-responsive">
-            <table class="table table-sm mb-0" style="table-layout: fixed; width: 100%;">
-              <colgroup>
-                <col width="8%">
-                <col width="12%">
-                <col width="30%">
-                <col width="10%">
-                <col width="10%">
-                <col width="15%">
-                <col width="15%">
-                @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                {
-                  <col width="10%">
-                }
-              </colgroup>
-              <tbody>
-                <tr class="table-light">
-                  <td colspan="6"><strong>Subtotal:</strong></td>
-                  <td class="text-end"><strong>@Model.Sale.SubtotalAmount.ToString("C")</strong></td>
-                  @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                  {
-                    <td></td>
-                  }
-                </tr>
-
-                @if (Model.Sale.HasDiscount)
-                {
-                  <tr class="table-warning">
-                    <td colspan="6"><strong>Discount:</strong></td>
-                    <td class="text-end text-success"><strong>-@Model.Sale.DiscountCalculated.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                  <tr>
-                    <td colspan="6">After Discount:</td>
-                    <td class="text-end">@afterDiscountAmount.ToString("C")</td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                }
-
-                <tr>
-                  <td colspan="6">Tax Amount:</td>
-                  <td class="text-end">@Model.Sale.TaxAmount.ToString("C")</td>
-                  @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                  {
-                    <td></td>
-                  }
-                </tr>
-                <tr>
-                  <td colspan="6">Shipping:</td>
-                  <td class="text-end">@Model.Sale.ShippingCost.ToString("C")</td>
-                  @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                  {
-                    <td></td>
-                  }
-                </tr>
-
-                @if (totalAdjustments > 0)
-                {
-                  <tr class="table-info">
-                    <td colspan="6"><strong>Sale Total:</strong></td>
-                    <td class="text-end"><strong>@Model.Sale.TotalAmount.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                  <tr class="table-warning">
-                    <td colspan="6"><strong>Post-Sale Adjustments:</strong></td>
-                    <td class="text-end text-success"><strong>-@totalAdjustments.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                  <tr class="table-dark">
-                    <td colspan="6"><strong>Effective Total:</strong></td>
-                    <td class="text-end"><strong>@effectiveAmount.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                }
-                else
-                {
-                  <tr class="table-dark">
-                    <td colspan="6"><strong>Total:</strong></td>
-                    <td class="text-end"><strong>@Model.Sale.TotalAmount.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Profit Analysis Card -->
-@if (Model.Sale.SaleItems?.Any() == true)
-{
-  <div class="row mt-0">
-    <div class="col-12">
-      <div class="card border-info" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
-        <div class="card-header bg-info text-white">
-          <h5 class="mb-0"><i class="fas fa-chart-line"></i> Profit Analysis</h5>
-        </div>
-        <div class="card-body pt-2">
-          <div class="table-responsive">
-            <table class="table table-sm mb-0" style="table-layout: fixed; width: 100%;">
-              <colgroup>
-                <col width="8%">
-                <col width="12%">
-                <col width="30%">
-                <col width="10%">
-                <col width="10%">
-                <col width="15%">
-                <col width="15%">
-                @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                {
-                  <col width="10%">
-                }
-              </colgroup>
-              <tbody>
-                <tr class="table-secondary">
-                  <td colspan="6"><strong>Total Cost:</strong></td>
-                  <td class="text-end"><strong>@totalCost.ToString("C")</strong></td>
-                  @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                  {
-                    <td></td>
-                  }
-                </tr>
-
-                @if (Model.Sale.HasDiscount)
-                {
-                  <tr class="table-secondary">
-                    <td colspan="6"><strong>Gross Profit (before discount):</strong></td>
-                    <td class="text-end"><strong>@grossProfit.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                  <tr class="@(netProfit >= 0 ? "table-success" : "table-danger")">
-                    <td colspan="6"><strong>Net Profit (after discount):</strong></td>
-                    <td class="text-end"><strong>@netProfit.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                }
-                else
-                {
-                  <tr class="@(grossProfit >= 0 ? "table-success" : "table-danger")">
-                    <td colspan="6"><strong>Gross Profit:</strong></td>
-                    <td class="text-end"><strong>@grossProfit.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                }
-
-                @if (totalAdjustments > 0)
-                {
-                  <tr class="@(adjustedProfit >= 0 ? "table-info" : "table-danger")">
-                    <td colspan="6"><strong>Final Profit (after all adjustments):</strong></td>
-                    <td class="text-end"><strong>@adjustedProfit.ToString("C")</strong></td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                }
-
-                @if (netRevenue > 0)
-                {
-                  var profitMargin = (netProfit / netRevenue) * 100;
-                  <tr class="table-light">
-                    <td colspan="6"><strong>Profit Margin:</strong></td>
-                    <td class="text-end">
-                      <span class="badge bg-@(profitMargin >= 20 ? "success" : profitMargin >= 10 ? "warning" : "danger")">
-                        @profitMargin.ToString("F1")%
-                      </span>
-                    </td>
-                    @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered)
-                    {
-                      <td></td>
-                    }
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Item Details Modal -->
-<div class="modal fade" id="itemDetailsModal" tabindex="-1" aria-labelledby="itemDetailsModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="itemDetailsModalLabel">
-          <i class="fas fa-cube"></i> Item Details
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="itemDetailsContent">
-        <div class="text-center">
-          <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <a href="#" id="viewFullItemLink" class="btn btn-primary" target="_blank">
-          <i class="fas fa-external-link-alt"></i> View Full Details
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Image Modal -->
-<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="imageModalLabel">Item Image</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center">
-        <img id="modalImage" src="" alt="" class="img-fluid rounded" />
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Payment Recording Modal -->
-@if (Model.Sale.PaymentStatus != PaymentStatus.Paid)
-{
-  <div class="modal fade" id="recordPaymentModal" tabindex="-1" aria-labelledby="recordPaymentModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <form asp-action="RecordPayment" method="post">
-          <input type="hidden" name="saleId" value="@Model.Sale.Id" />
-          <div class="modal-header">
-            <h5 class="modal-title" id="recordPaymentModalLabel">
-              <i class="fas fa-dollar-sign"></i> Record Payment - Sale @Model.Sale.SaleNumber
-              @if (totalAdjustments > 0)
-              {
-                <span class="badge bg-warning text-dark">Adjusted</span>
-              }
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label class="form-label">Sale Total</label>
-              @if (totalAdjustments > 0)
-              {
-                <input type="text" class="form-control"
-                       value="@effectiveAmount.ToString("C") (Adjusted from @Model.Sale.TotalAmount.ToString("C"))" readonly />
-                <div class="form-text text-warning">
-                  <i class="fas fa-info-circle"></i>
-                  This sale has adjustments totaling @totalAdjustments.ToString("C")
-                </div>
-              }
-              else
-              {
-                <input type="text" class="form-control" value="@Model.Sale.TotalAmount.ToString("C")" readonly />
-              }
-            </div>
-            <div class="mb-3">
-              <label for="paymentAmount" class="form-label">Payment Amount *</label>
-              <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount"
-                     value="@effectiveAmount" max="@effectiveAmount" min="0.01" required />
-              <div class="form-text">Enter the amount received from the customer</div>
-            </div>
-            <div class="mb-3">
-              <label for="paymentMethod" class="form-label">Payment Method *</label>
-              <select class="form-select" id="paymentMethod" name="paymentMethod" required>
-                <option value="">Select payment method...</option>
-                <option value="Cash">Cash</option>
-                <option value="Check">Check</option>
-                <option value="Credit Card">Credit Card</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="PayPal">PayPal</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label for="paymentDate" class="form-label">Payment Date *</label>
-              <input type="date" class="form-control" id="paymentDate" name="paymentDate"
-                     value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
-            </div>
-            <div class="mb-3">
-              <label for="paymentNotes" class="form-label">Payment Notes</label>
-              <textarea class="form-control" id="paymentNotes" name="paymentNotes" rows="2"
-                      placeholder="Check number, transaction ID, reference number, etc."></textarea>
-              <div class="form-text">Optional notes about this payment</div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-success">
-              <i class="fas fa-save"></i> Record Payment
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Process Sale Confirmation Modal -->
-<div class="modal fade" id="processSaleModal" tabindex="-1" aria-labelledby="processSaleModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <form method="post" action="/Sales/ProcessSaleWithShipping" data-requires-validation="true">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="SaleId" value="@Model.Sale.Id" />
-        <input type="hidden" name="SaleNumber" value="@Model.Sale.SaleNumber" />
-        <input type="hidden" name="CustomerName" value="@Model.Sale.Customer?.CustomerName" />
-
-        <div class="modal-header">
-          <h5 class="modal-title" id="processSaleModalLabel">
-            <i class="fas fa-shipping-fast"></i> Process & Ship Sale @Model.Sale.SaleNumber
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-
-        <div class="modal-body">
-          <!-- Inventory Impact Section -->
-          <div class="alert alert-warning" id="inventoryWarning" style="display: none;">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>Inventory Impact:</strong>
-            <p class="mb-2">This sale contains <span id="inventoryItemCount"></span> that will reduce inventory levels:</p>
-            <ul id="inventoryItemsList" class="mb-0"></ul>
-          </div>
-
-          <div class="alert alert-info" id="noInventoryInfo" style="display: none;">
-            <i class="fas fa-info-circle"></i>
-            <strong>No Inventory Impact:</strong>
-            <p class="mb-0">This sale contains only finished goods and non-inventory items. No raw material inventory will be reduced.</p>
-          </div>
-
-          <!-- Shipping Information Section -->
-          <div class="row">
-            <div class="col-md-6">
-              <h6><i class="fas fa-truck"></i> Shipping Information</h6>
-
-              <div class="mb-3">
-                <label for="courierService" class="form-label">Courier Service *</label>
-                <select class="form-select" id="courierService" name="CourierService" required>
-                  <option value="">Select courier service...</option>
-                  <option value="FedEx">FedEx</option>
-                  <option value="UPS">UPS</option>
-                  <option value="USPS">USPS</option>
-                  <option value="DHL">DHL</option>
-                  <option value="OnTrac">OnTrac</option>
-                  <option value="Local Delivery">Local Delivery</option>
-                  <option value="Customer Pickup">Customer Pickup</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div class="mb-3">
-                <label for="trackingNumber" class="form-label">Tracking Number *</label>
-                <input type="text" class="form-control" id="trackingNumber" name="TrackingNumber"
-                       placeholder="Enter tracking number" required />
-                <div class="form-text">Leave blank if customer pickup or local delivery</div>
-              </div>
-
-              <div class="mb-3">
-                <label for="expectedDeliveryDate" class="form-label">Expected Delivery Date</label>
-                <input type="date" class="form-control" id="expectedDeliveryDate" name="ExpectedDeliveryDate"
-                       min="@DateTime.Today.ToString("yyyy-MM-dd")" />
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <h6><i class="fas fa-box"></i> Package Information</h6>
-
-              <div class="mb-3">
-                <label for="packageWeight" class="form-label">Package Weight (lbs)</label>
-                <input type="number" class="form-control" id="packageWeight" name="PackageWeight"
-                       step="0.1" min="0" placeholder="0.0" />
-              </div>
-
-              <div class="mb-3">
-                <label for="packageDimensions" class="form-label">Package Dimensions</label>
-                <input type="text" class="form-control" id="packageDimensions" name="PackageDimensions"
-                       placeholder="e.g., 12x8x6 inches" />
-              </div>
-
-              <div class="mb-3">
-                <label for="shippingInstructions" class="form-label">Shipping Instructions</label>
-                <textarea class="form-control" id="shippingInstructions" name="ShippingInstructions"
-                          rows="3" placeholder="Special delivery instructions..."></textarea>
-              </div>
-            </div>
-          </div>
-
-          <hr>
-
-          <!-- ── Phase 6: Freight-Out Cost Tracking (§7 of ShippingCostAccountingGuide) ── -->
-          <h6><i class="fas fa-dollar-sign"></i> Freight-Out Cost Tracking</h6>
-
-          <div class="mb-3">
-            <label class="form-label">Carrier Account <span class="text-danger">*</span></label>
-            <div class="d-flex gap-4">
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="ShippingAccountType" id="accountTypeOur"
-                       value="@ShippingAccountType.OurAccount"
-                       checked
-                       onchange="updateShippingGuidance()" />
-                <label class="form-check-label" for="accountTypeOur">
-                  <i class="fas fa-building"></i> Our Account
-                  <small class="d-block text-muted">We pay the carrier — track freight-out cost</small>
-                </label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="ShippingAccountType" id="accountTypeCustomer"
-                       value="@ShippingAccountType.CustomerAccount"
-                       onchange="updateShippingGuidance()" />
-                <label class="form-check-label" for="accountTypeCustomer">
-                  <i class="fas fa-user"></i> Customer's Account
-                  <small class="d-block text-muted">Carrier bills customer directly — no cost to us</small>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="mb-3" id="actualCarrierCostRow">
-            <label for="actualCarrierCost" class="form-label">
-              Actual Carrier Cost
-              <small class="text-muted">(internal — not shown to customer)</small>
-            </label>
-            <div class="input-group" style="max-width: 240px;">
-              <span class="input-group-text">$</span>
-              <input type="number" class="form-control" id="actualCarrierCost" name="ActualCarrierCost"
-                     step="0.01" min="0" placeholder="0.00"
-                     oninput="updateShippingGuidance()" />
-            </div>
-            <div class="form-text">
-              Enter the amount you will pay FedEx / UPS. No GL entry is created now — this is queued
-              for <strong>Expenses → Record Payment</strong> when the carrier invoice arrives.
-            </div>
-          </div>
-
-          <!-- Inline shipping guidance alert (§7.2) -->
-          <div id="shippingGuidanceAlert" class="alert mb-3" role="alert" style="display:none;"></div>
-
-          <hr>
-          <h6><i class="fas fa-cogs"></i> Processing Options</h6>
-
-          <div class="row">
-            <div class="col-md-6">
-              <div class="form-check mb-2">
-                <input type="hidden" name="GeneratePackingSlip" value="false" />
-                <input class="form-check-input" type="checkbox" id="generatePackingSlip" name="GeneratePackingSlip" value="true" checked>
-                <label class="form-check-label" for="generatePackingSlip">
-                  <i class="fas fa-file-alt"></i> Generate Packing Slip
-                </label>
-              </div>
-
-              <div class="form-check mb-2">
-                <input type="hidden" name="PrintPackingSlip" value="false" />
-                <input class="form-check-input" type="checkbox" id="printPackingSlip" name="PrintPackingSlip" value="true">
-                <label class="form-check-label" for="printPackingSlip">
-                  <i class="fas fa-print"></i> Auto-Print Packing Slip
-                </label>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="form-check mb-2">
-                <input type="hidden" name="EmailCustomer" value="false" />
-                <input class="form-check-input" type="checkbox" id="emailCustomer" name="EmailCustomer" value="true" checked>
-                <label class="form-check-label" for="emailCustomer">
-                  <i class="fas fa-envelope"></i> Email Shipping Notice to Customer
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- Action Summary -->
-          <div class="alert alert-info mt-3">
-            <h6><i class="fas fa-info-circle"></i> This action will:</h6>
-            <ul class="mb-0">
-              <li>Mark the sale as <strong>Shipped</strong></li>
-              <li>Record shipping information and tracking details</li>
-              <li>Reduce inventory levels for physical items</li>
-              <li>Set shipped date to current date/time</li>
-              <li>Generate packing slip (if selected)</li>
-              <li>Send email notification (if selected)</li>
-              <li><strong>Cannot be undone</strong></li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-shipping-fast"></i> Process & Ship Sale
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+@await Html.PartialAsync("_DetailsHeader", Model)
+@await Html.PartialAsync("_DetailsCustomerCard", Model)
+@await Html.PartialAsync("_DetailsSaleInfoCards", Model)
+@await Html.PartialAsync("_DetailsDiscountCard", Model)
+@await Html.PartialAsync("_DetailsAdjustmentsCard", Model)
+@await Html.PartialAsync("_DetailsSaleItemsTable", Model)
+@await Html.PartialAsync("_DetailsShipmentsCard", Model)
+@await Html.PartialAsync("_DetailsServiceOrdersCard", Model)
+@await Html.PartialAsync("_DetailsFinancialSummary", Model)
+@await Html.PartialAsync("_DetailsModals", Model)
 
 @section Scripts {
-  <script src="~/js/confirmation-dialog.js"></script>
-  <script src="~/js/sales-enhanced-validation.js"></script>
-  <script>
-    // ── Phase 6: Freight-Out inline guidance (§7.2 of ShippingCostAccountingGuide) ──
-    var saleShippingCost = @Model.Sale.ShippingCost.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    <script src="~/js/confirmation-dialog.js"></script>
+    <script src="~/js/sales-enhanced-validation.js"></script>
+    <script>
+        // ── Phase 6: Freight-Out inline guidance (§7.2 of ShippingCostAccountingGuide) ──
+        var saleShippingCost = @Model.Sale.ShippingCost.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-    function updateShippingGuidance() {
-      var isCustomerAccount = document.getElementById('accountTypeCustomer').checked;
-      var costInput = document.getElementById('actualCarrierCost');
-      var costRow = document.getElementById('actualCarrierCostRow');
-      var alertDiv = document.getElementById('shippingGuidanceAlert');
+        function updateShippingGuidance() {
+            var isCustomerAccount = document.getElementById('accountTypeCustomer').checked;
+            var costInput = document.getElementById('actualCarrierCost');
+            var costRow = document.getElementById('actualCarrierCostRow');
+            var alertDiv = document.getElementById('shippingGuidanceAlert');
 
-      // Toggle carrier cost field
-      if (isCustomerAccount) {
-        costRow.style.display = 'none';
-        costInput.value = '';
-        costInput.disabled = true;
-      } else {
-        costRow.style.display = '';
-        costInput.disabled = false;
-      }
+            if (isCustomerAccount) {
+                costRow.style.display = 'none';
+                costInput.value = '';
+                costInput.disabled = true;
+            } else {
+                costRow.style.display = '';
+                costInput.disabled = false;
+            }
 
-      // Determine message per §7.2
-      var alertClass = '';
-      var message = '';
+            var alertClass = '';
+            var message = '';
 
-      if (isCustomerAccount) {
-        alertClass = 'alert-info';
-        message = '<i class="fas fa-info-circle me-1"></i> Shipping billed directly to customer by carrier. No freight-out expense will be recorded.';
-      } else {
-        var actualCost = parseFloat(costInput.value) || 0;
+            if (isCustomerAccount) {
+                alertClass = 'alert-info';
+                message = '<i class="fas fa-info-circle me-1"></i> Shipping billed directly to customer by carrier. No freight-out expense will be recorded.';
+            } else {
+                var actualCost = parseFloat(costInput.value) || 0;
 
-        if (actualCost === 0) {
-          alertClass = 'alert-warning';
-          message = '<i class="fas fa-exclamation-triangle me-1"></i> Enter the actual carrier cost so unpaid freight can be tracked.';
-        } else if (saleShippingCost === 0 && actualCost > 0) {
-          alertClass = 'alert-warning';
-          message = '<i class="fas fa-exclamation-triangle me-1"></i> Free shipping to customer. Full carrier cost of '
-            + formatCurrency(actualCost) + ' will be recorded as Freight-Out when paid.';
-        } else if (saleShippingCost < actualCost) {
-          var delta = actualCost - saleShippingCost;
-          alertClass = 'alert-warning';
-          message = '<i class="fas fa-exclamation-triangle me-1"></i> Under-recovery: you absorb '
-            + formatCurrency(delta) + '. Net freight-out cost: ' + formatCurrency(delta) + '.';
-        } else if (saleShippingCost === actualCost) {
-          alertClass = 'alert-success';
-          message = '<i class="fas fa-check-circle me-1"></i> Exact cost recovery. No net freight-out expense.';
-        } else {
-          var profit = saleShippingCost - actualCost;
-          alertClass = 'alert-info';
-          message = '<i class="fas fa-info-circle me-1"></i> Over-recovery: shipping contributes '
-            + formatCurrency(profit) + ' net revenue.';
+                if (actualCost === 0) {
+                    alertClass = 'alert-warning';
+                    message = '<i class="fas fa-exclamation-triangle me-1"></i> Enter the actual carrier cost so unpaid freight can be tracked.';
+                } else if (saleShippingCost === 0 && actualCost > 0) {
+                    alertClass = 'alert-warning';
+                    message = '<i class="fas fa-exclamation-triangle me-1"></i> Free shipping to customer. Full carrier cost of '
+                        + formatCurrency(actualCost) + ' will be recorded as Freight-Out when paid.';
+                } else if (saleShippingCost < actualCost) {
+                    var delta = actualCost - saleShippingCost;
+                    alertClass = 'alert-warning';
+                    message = '<i class="fas fa-exclamation-triangle me-1"></i> Under-recovery: you absorb '
+                        + formatCurrency(delta) + '. Net freight-out cost: ' + formatCurrency(delta) + '.';
+                } else if (saleShippingCost === actualCost) {
+                    alertClass = 'alert-success';
+                    message = '<i class="fas fa-check-circle me-1"></i> Exact cost recovery. No net freight-out expense.';
+                } else {
+                    var profit = saleShippingCost - actualCost;
+                    alertClass = 'alert-info';
+                    message = '<i class="fas fa-info-circle me-1"></i> Over-recovery: shipping contributes '
+                        + formatCurrency(profit) + ' net revenue.';
+                }
+            }
+
+            alertDiv.className = 'alert mb-3 ' + alertClass;
+            alertDiv.innerHTML = message;
+            alertDiv.style.display = '';
         }
-      }
 
-      alertDiv.className = 'alert mb-3 ' + alertClass;
-      alertDiv.innerHTML = message;
-      alertDiv.style.display = '';
-    }
+        function formatCurrency(value) {
+            return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
 
-    function formatCurrency(value) {
-      return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-
-    // Initialise guidance on modal open
-    document.getElementById('processSaleModal').addEventListener('show.bs.modal', function () {
-      updateShippingGuidance();
-      loadSaleInventoryInfo(@Model.Sale.Id);
-    });
-
-    // Set data attributes for JavaScript
-    @if (TempData["ToastMessage"] != null)
-    {
-          <text>document.body.dataset.toastMessage = @Html.Raw(Json.Serialize(TempData["ToastMessage"].ToString()));</text>
-          <text>document.body.dataset.toastType = @Html.Raw(Json.Serialize(TempData["ToastType"]?.ToString() ?? "info"));</text>
-    }
-
-    @if (TempData["ServiceOrderPrompt"] != null)
-    {
-          <text>document.body.dataset.serviceOrderPrompt = 'true';</text>
-          <text>document.body.dataset.missingServiceOrders = @Html.Raw(TempData["MissingServiceOrders"]?.ToString() ?? "[]");</text>
-          <text>document.body.dataset.serviceOrderCreationUrl = @Html.Raw(Json.Serialize(TempData["ServiceOrderCreationUrl"]?.ToString() ?? ""));</text>
-    }
-
-    // Enhanced remove item confirmation
-    async function removeItemWithConfirmation(saleItemId, saleId, partNumber, productName, quantity, unitPrice) {
-      const confirmed = await confirmRemove('sale item',
-        `<div class="mt-2">
-          <strong>Item Details:</strong><br>
-          <div class="ps-3">
-            <div><strong>Part Number:</strong> ${partNumber}</div>
-            <div><strong>Product:</strong> ${productName}</div>
-            <div><strong>Quantity:</strong> ${quantity}</div>
-            <div><strong>Unit Price:</strong> ${unitPrice}</div>
-          </div>
-          <div class="alert alert-warning mt-2 mb-0">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <strong>Warning:</strong> This will permanently remove the item from this sale and cannot be undone.
-          </div>
-        </div>`
-      );
-
-      if (confirmed) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/Sales/RemoveItem';
-        form.style.display = 'none';
-
-        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-        const tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = '__RequestVerificationToken';
-        tokenInput.value = token;
-        form.appendChild(tokenInput);
-
-        const saleItemInput = document.createElement('input');
-        saleItemInput.type = 'hidden';
-        saleItemInput.name = 'saleItemId';
-        saleItemInput.value = saleItemId;
-        form.appendChild(saleItemInput);
-
-        const saleInput = document.createElement('input');
-        saleInput.type = 'hidden';
-        saleInput.name = 'saleId';
-        saleInput.value = saleId;
-        form.appendChild(saleInput);
-
-        const button = event.target.closest('button');
-        const originalHtml = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        button.disabled = true;
-
-        document.body.appendChild(form);
-        form.submit();
-      }
-    }
-
-    // Function to show item details in modal
-    function showItemDetails(itemId) {
-      const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
-      const content = document.getElementById('itemDetailsContent');
-      const viewFullLink = document.getElementById('viewFullItemLink');
-
-      // Set the full details link
-      viewFullLink.href = `/Items/Details/${itemId}`;
-
-      // Show loading spinner
-      content.innerHTML = `
-        <div class="text-center">
-          <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-          <p class="mt-2">Loading item details...</p>
-        </div>
-      `;
-
-      // Show the modal
-      modal.show();
-
-      // Fetch item details
-      fetch(`/Items/Details/${itemId}`)
-        .then(response => response.text())
-        .then(html => {
-          // Extract just the main content from the full page
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
-
-          if (mainContent) {
-            // Create a simplified read-only view
-            content.innerHTML = `                        
-              ${mainContent.innerHTML}
-            `;
-
-            // Disable all form elements to make it read-only
-            content.querySelectorAll('input, select, textarea, button').forEach(element => {
-              element.disabled = true;
-              if (element.tagName === 'BUTTON') {
-                element.style.display = 'none';
-              }
-            });
-          } else {
-            content.innerHTML = '<p class="text-danger">Error loading item details.</p>';
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching item details:', error);
-          content.innerHTML = '<p class="text-danger">Error loading item details. Please try again.</p>';
+        document.getElementById('processSaleModal').addEventListener('show.bs.modal', function () {
+            updateShippingGuidance();
+            loadSaleInventoryInfo(@Model.Sale.Id);
         });
-    }
 
-    // Function to show finished good details in modal
-    function showFinishedGoodDetails(finishedGoodId) {
-      const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
-      const content = document.getElementById('itemDetailsContent');
-      const viewFullLink = document.getElementById('viewFullItemLink');
-      const modalTitle = document.getElementById('itemDetailsModalLabel');
+        @if (TempData["ToastMessage"] != null)
+        {
+            <text>document.body.dataset.toastMessage = @Html.Raw(Json.Serialize(TempData["ToastMessage"].ToString()));</text>
+            <text>document.body.dataset.toastType = @Html.Raw(Json.Serialize(TempData["ToastType"]?.ToString() ?? "info"));</text>
+        }
 
-      // Update modal title
-      modalTitle.innerHTML = '<i class="fas fa-cube"></i> Finished Good Details';
+        @if (TempData["ServiceOrderPrompt"] != null)
+        {
+            <text>document.body.dataset.serviceOrderPrompt = 'true';</text>
+            <text>document.body.dataset.missingServiceOrders = @Html.Raw(TempData["MissingServiceOrders"]?.ToString() ?? "[]");</text>
+            <text>document.body.dataset.serviceOrderCreationUrl = @Html.Raw(Json.Serialize(TempData["ServiceOrderCreationUrl"]?.ToString() ?? ""));</text>
+        }
 
-      // Set the full details link
-      viewFullLink.href = `/Production/FinishedGoodDetails/${finishedGoodId}`;
+        async function removeItemWithConfirmation(saleItemId, saleId, partNumber, productName, quantity, unitPrice) {
+            const confirmed = await confirmRemove('sale item',
+                `<div class="mt-2">
+                    <strong>Item Details:</strong><br>
+                    <div class="ps-3">
+                        <div><strong>Part Number:</strong> ${partNumber}</div>
+                        <div><strong>Product:</strong> ${productName}</div>
+                        <div><strong>Quantity:</strong> ${quantity}</div>
+                        <div><strong>Unit Price:</strong> ${unitPrice}</div>
+                    </div>
+                    <div class="alert alert-warning mt-2 mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>Warning:</strong> This will permanently remove the item from this sale and cannot be undone.
+                    </div>
+                </div>`
+            );
 
-      // Show loading spinner
-      content.innerHTML = `
-        <div class="text-center">
-          <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-          <p class="mt-2">Loading finished good details...</p>
-        </div>
-      `;
+            if (confirmed) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/Sales/RemoveItem';
+                form.style.display = 'none';
 
-      // Show the modal
-      modal.show();
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                const tokenInput = document.createElement('input');
+                tokenInput.type = 'hidden';
+                tokenInput.name = '__RequestVerificationToken';
+                tokenInput.value = token;
+                form.appendChild(tokenInput);
 
-      // Fetch finished good details
-      fetch(`/Production/FinishedGoodDetails/${finishedGoodId}`)
-        .then(response => response.text())
-        .then(html => {
-          // Extract just the main content from the full page
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
+                const saleItemInput = document.createElement('input');
+                saleItemInput.type = 'hidden';
+                saleItemInput.name = 'saleItemId';
+                saleItemInput.value = saleItemId;
+                form.appendChild(saleItemInput);
 
-          if (mainContent) {
+                const saleInput = document.createElement('input');
+                saleInput.type = 'hidden';
+                saleInput.name = 'saleId';
+                saleInput.value = saleId;
+                form.appendChild(saleInput);
+
+                const button = event.target.closest('button');
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                button.disabled = true;
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function showItemDetails(itemId) {
+            const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
+            const content = document.getElementById('itemDetailsContent');
+            const viewFullLink = document.getElementById('viewFullItemLink');
+
+            viewFullLink.href = `/Items/Details/${itemId}`;
             content.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+                    <p class="mt-2">Loading item details...</p>
+                </div>`;
+            modal.show();
 
-                          ${mainContent.innerHTML}
-                        `;
+            fetch(`/Items/Details/${itemId}`)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
+                    if (mainContent) {
+                        content.innerHTML = mainContent.innerHTML;
+                        content.querySelectorAll('input, select, textarea, button').forEach(el => {
+                            el.disabled = true;
+                            if (el.tagName === 'BUTTON') el.style.display = 'none';
+                        });
+                    } else {
+                        content.innerHTML = '<p class="text-danger">Error loading item details.</p>';
+                    }
+                })
+                .catch(() => {
+                    content.innerHTML = '<p class="text-danger">Error loading item details. Please try again.</p>';
+                });
+        }
 
-            // Disable all form elements to make it read-only
-            content.querySelectorAll('input, select, textarea, button').forEach(element => {
-              element.disabled = true;
-              if (element.tagName === 'BUTTON') {
-                element.style.display = 'none';
-              }
+        function showFinishedGoodDetails(finishedGoodId) {
+            const modal = new bootstrap.Modal(document.getElementById('itemDetailsModal'));
+            const content = document.getElementById('itemDetailsContent');
+            const viewFullLink = document.getElementById('viewFullItemLink');
+            const modalTitle = document.getElementById('itemDetailsModalLabel');
+
+            modalTitle.innerHTML = '<i class="fas fa-cube"></i> Finished Good Details';
+            viewFullLink.href = `/Production/FinishedGoodDetails/${finishedGoodId}`;
+            content.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+                    <p class="mt-2">Loading finished good details...</p>
+                </div>`;
+            modal.show();
+
+            fetch(`/Production/FinishedGoodDetails/${finishedGoodId}`)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const mainContent = doc.querySelector('.card-body') || doc.querySelector('main') || doc.body;
+                    if (mainContent) {
+                        content.innerHTML = mainContent.innerHTML;
+                        content.querySelectorAll('input, select, textarea, button').forEach(el => {
+                            el.disabled = true;
+                            if (el.tagName === 'BUTTON') el.style.display = 'none';
+                        });
+                    } else {
+                        content.innerHTML = '<p class="text-danger">Error loading finished good details.</p>';
+                    }
+                })
+                .catch(() => {
+                    content.innerHTML = '<p class="text-danger">Error loading finished good details. Please try again.</p>';
+                });
+        }
+
+        function showItemImageModal(partNumber, imageUrl) {
+            const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+            document.getElementById('imageModalLabel').textContent = `${partNumber} - Item Image`;
+            document.getElementById('modalImage').src = imageUrl;
+            document.getElementById('modalImage').alt = partNumber;
+            modal.show();
+        }
+
+        $(document).ready(function () {
+            $('#courierService').on('change', function () {
+                const courier = $(this).val();
+                const trackingInput = $('#trackingNumber');
+                trackingInput.val('');
+
+                switch (courier) {
+                    case 'FedEx':
+                        trackingInput.attr('placeholder', 'e.g., 1234 5678 9012').attr('pattern', '[0-9\\s]{12,}');
+                        break;
+                    case 'UPS':
+                        trackingInput.attr('placeholder', 'e.g., 1Z999AA1234567890').attr('pattern', '1Z[0-9A-Z]{16}');
+                        break;
+                    case 'USPS':
+                        trackingInput.attr('placeholder', 'e.g., 9400 1234 5678 9012 3456 78').attr('pattern', '[0-9\\s]{20,}');
+                        break;
+                    case 'Customer Pickup':
+                    case 'Local Delivery':
+                        trackingInput.val('N/A').attr('readonly', true).removeAttr('required');
+                        break;
+                    default:
+                        trackingInput.attr('placeholder', 'Enter tracking number').removeAttr('pattern').removeAttr('readonly').attr('required', true);
+                        break;
+                }
             });
-          } else {
-            content.innerHTML = '<p class="text-danger">Error loading finished good details.</p>';
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching finished good details:', error);
-          content.innerHTML = '<p class="text-danger">Error loading finished good details. Please try again.</p>';
+
+            $('#paymentAmount').on('change', function () {
+                var paymentAmount = parseFloat($(this).val());
+                var remainingBalance = @((Model.Sale.Customer?.OutstandingBalance ?? 0));
+                if (paymentAmount > remainingBalance) {
+                    alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
+                    $(this).val(remainingBalance.toFixed(2));
+                }
+            });
         });
-    }
 
-    // Function to show item image in modal
-    function showItemImageModal(partNumber, imageUrl) {
-      const modal = new bootstrap.Modal(document.getElementById('imageModal'));
-      const modalTitle = document.getElementById('imageModalLabel');
-      const modalImage = document.getElementById('modalImage');
-
-      modalTitle.textContent = `${partNumber} - Item Image`;
-      modalImage.src = imageUrl;
-      modalImage.alt = partNumber;
-
-      modal.show();
-    }
-
-    // Auto-populate courier service based on common patterns
-    $(document).ready(function() {
-      $('#courierService').on('change', function() {
-        const courier = $(this).val();
-        const trackingInput = $('#trackingNumber');
-
-        // Clear tracking number when courier changes
-        trackingInput.val('');
-
-        // Set placeholders and validation patterns based on courier
-        switch(courier) {
-          case 'FedEx':
-            trackingInput.attr('placeholder', 'e.g., 1234 5678 9012');
-            trackingInput.attr('pattern', '[0-9\\s]{12,}');
-            break;
-          case 'UPS':
-            trackingInput.attr('placeholder', 'e.g., 1Z999AA1234567890');
-            trackingInput.attr('pattern', '1Z[0-9A-Z]{16}');
-            break;
-          case 'USPS':
-            trackingInput.attr('placeholder', 'e.g., 9400 1234 5678 9012 3456 78');
-            trackingInput.attr('pattern', '[0-9\\s]{20,}');
-            break;
-          case 'Customer Pickup':
-          case 'Local Delivery':
-            trackingInput.val('N/A');
-            trackingInput.attr('readonly', true);
-            trackingInput.removeAttr('required');
-            break;
-          default:
-            trackingInput.attr('placeholder', 'Enter tracking number');
-            trackingInput.removeAttr('pattern');
-            trackingInput.removeAttr('readonly');
-            trackingInput.attr('required', true);
-            break;
-        }
-      });
-
-      // Auto-populate customer email if not already filled
-      if (!$('#CustomerEmail').val() && '@Model.Sale.Customer?.Email') {
-        $('#CustomerEmail').val('@Model.Sale.Customer?.Email');
-      }
-
-      // Payment amount validation
-      $('#paymentAmount').on('change', function() {
-        var paymentAmount = parseFloat($(this).val());
-        var remainingBalance = @((Model.Sale.Customer?.OutstandingBalance ?? 0));
-
-        if (paymentAmount > remainingBalance) {
-          alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
-          $(this).val(remainingBalance.toFixed(2));
-        }
-      });
-    });
-
-    function loadSaleInventoryInfo(saleId) {
-      $.get('/Sales/GetSaleInventoryInfo/' + saleId, function(data) {
-        if (data.success) {
-          if (data.inventoryItemsCount > 0) {
-            $('#inventoryItemCount').text(data.inventoryItemsCount + ' item(s)');
-
-            var itemsList = $('#inventoryItemsList');
-            itemsList.empty();
-
-            data.inventoryItems.forEach(function(item) {
-              itemsList.append('<li>' + item.partNumber + ' - ' + item.description + ' (Qty: ' + item.quantity + ', Stock: ' + item.currentStock + ')</li>');
+        function loadSaleInventoryInfo(saleId) {
+            $.get('/Sales/GetSaleInventoryInfo/' + saleId, function (data) {
+                if (data.success) {
+                    if (data.inventoryItemsCount > 0) {
+                        $('#inventoryItemCount').text(data.inventoryItemsCount + ' item(s)');
+                        var itemsList = $('#inventoryItemsList');
+                        itemsList.empty();
+                        data.inventoryItems.forEach(function (item) {
+                            itemsList.append('<li>' + item.partNumber + ' - ' + item.description + ' (Qty: ' + item.quantity + ', Stock: ' + item.currentStock + ')</li>');
+                        });
+                        $('#inventoryWarning').show();
+                        $('#noInventoryInfo').hide();
+                    } else {
+                        $('#noInventoryInfo').show();
+                        $('#inventoryWarning').hide();
+                    }
+                }
+            }).fail(function () {
+                $('#noInventoryInfo').show();
+                $('#inventoryWarning').hide();
             });
-
-            $('#inventoryWarning').show();
-            $('#noInventoryInfo').hide();
-          } else {
-            $('#noInventoryInfo').show();
-            $('#inventoryWarning').hide();
-          }
         }
-      }).fail(function() {
-        console.error('Failed to load sale inventory info');
-        $('#noInventoryInfo').show();
-        $('#inventoryWarning').hide();
-      });
-    }
 
-    async function confirmProcessSale() {
-      return await confirmAction('process and ship this sale',
-        `<div class="alert alert-info mt-2 mb-0">
-          <i class="fas fa-info-circle me-1"></i>
-          This will mark the sale as shipped and reduce inventory levels. This action cannot be undone.
-        </div>`
-      );
-    }
+        function checkBackorderAvailability() {
+            fetch('/Sales/CheckBackorderAvailability?saleId=' + @Model.Sale.Id)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.hasAvailableItems) {
+                        showBackorderNotification(data.summary);
+                    }
+                })
+                .catch(error => console.error('Error checking backorder availability:', error));
+        }
 
-    async function confirmDeleteSale() {
-      return await confirmDelete('sale',
-        `<div class="alert alert-danger mt-2 mb-0">
-          <i class="fas fa-exclamation-triangle me-1"></i>
-          <strong>Warning:</strong> This will permanently delete the entire sale and all associated items.
-        </div>`
-      );
-    }
+        function showBackorderNotification(summary) {
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-success alert-dismissible fade show';
+            notification.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <strong>Items Available for Shipment!</strong><br>
+                ${summary.itemsAvailable} of ${summary.totalItems} backordered items are now available for shipment.
+                <a href="/Sales/CreateAdditionalShipment?saleId=@Model.Sale.Id" class="btn btn-sm btn-success ms-2">
+                    <i class="fas fa-shipping-fast"></i> Create Shipment
+                </a>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            const firstCard = document.querySelector('.card');
+            if (firstCard) firstCard.parentNode.insertBefore(notification, firstCard);
+        }
 
-    function checkBackorderAvailability() {
-      fetch('/Sales/CheckBackorderAvailability?saleId=' + @Model.Sale.Id)
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && data.hasAvailableItems) {
-            showBackorderNotification(data.summary);
-          }
-        })
-        .catch(error => console.error('Error checking backorder availability:', error));
-    }
-
-    function showBackorderNotification(summary) {
-      const notification = document.createElement('div');
-      notification.className = 'alert alert-success alert-dismissible fade show';
-      notification.innerHTML = `
-        <i class="fas fa-check-circle"></i>
-        <strong>Items Available for Shipment!</strong><br>
-        ${summary.itemsAvailable} of ${summary.totalItems} backordered items are now available for shipment.
-        <a href="/Sales/CreateAdditionalShipment?saleId=@Model.Sale.Id" class="btn btn-sm btn-success ms-2">
-          <i class="fas fa-shipping-fast"></i> Create Shipment
-        </a>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      `;
-      const firstCard = document.querySelector('.card');
-      if (firstCard) firstCard.parentNode.insertBefore(notification, firstCard);
-    }
-
-    @if (Model.Sale.SaleStatus == SaleStatus.Backordered)
-    {
-        <text>
-        setTimeout(() => {
-          checkBackorderAvailability();
-        }, 1000);
-        </text>
-    }
-  </script>
+        @if (Model.Sale.SaleStatus == SaleStatus.Backordered)
+        {
+            <text>
+            setTimeout(() => { checkBackorderAvailability(); }, 1000);
+            </text>
+        }
+    </script>
 }

@@ -417,6 +417,17 @@ namespace InventorySystem.Services
                 var sale = await _context.Sales.FindAsync(saleId);
                 if (sale == null) return;
 
+                // Never overwrite the Quotation payment status — quotations have no payment obligation
+                if (sale.SaleStatus == SaleStatus.Quotation)
+                {
+                    if (sale.PaymentStatus != PaymentStatus.Quotation)
+                    {
+                        sale.PaymentStatus = PaymentStatus.Quotation;
+                        await _context.SaveChangesAsync();
+                    }
+                    return;
+                }
+
                 var totalPayments = await GetTotalPaymentsBySaleAsync(saleId);
                 var remainingBalance = sale.TotalAmount - totalPayments;
 

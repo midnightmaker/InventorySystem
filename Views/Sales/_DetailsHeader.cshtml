@@ -1,0 +1,125 @@
+@model InventorySystem.ViewModels.SaleDetailsViewModel
+@using InventorySystem.Models.Enums
+
+@{
+    var isProformaInvoice = (bool)ViewData["IsProformaInvoice"]!;
+    var canProcessSale = (bool)ViewData["CanProcessSale"]!;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        @if (Model.Sale.IsQuotation && Model.Sale.SaleStatus == SaleStatus.Quotation)
+        {
+            <i class="fas fa-file-alt"></i> <text>Quotation @Model.Sale.SaleNumber</text>
+        }
+        else
+        {
+            <i class="fas fa-shopping-cart"></i> <text>Sale @Model.Sale.SaleNumber</text>
+        }
+    </h1>
+    <div class="btn-group">
+        <a href="/Sales" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Sales
+        </a>
+        <a href="/Sales/Edit/@Model.Sale.Id" class="btn btn-outline-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+
+        @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered || Model.Sale.SaleStatus == SaleStatus.Quotation)
+        {
+            <a href="/Sales/AddItem?saleId=@Model.Sale.Id" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add Item
+            </a>
+        }
+
+        @if (Model.Sale.SaleStatus == SaleStatus.Quotation)
+        {
+            <form asp-action="ConvertQuotationToSale" asp-route-id="@Model.Sale.Id" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-warning"
+                        onclick="return confirm('Are you sure you want to convert this quotation to an active sale? This will change the status to Processing and generate journal entries.')">
+                    <i class="fas fa-exchange-alt"></i> Convert to Sale
+                </button>
+            </form>
+        }
+
+        @if (Model.Sale.SaleStatus == SaleStatus.Processing && Model.Sale.SaleItems?.Any() == true)
+        {
+            @if (canProcessSale)
+            {
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processSaleModal">
+                    <i class="fas fa-shipping-fast"></i> Process & Ship
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-warning" disabled title="Complete all service orders before shipping">
+                    <i class="fas fa-shipping-fast"></i> Process & Ship
+                    <small class="d-block">Services Pending</small>
+                </button>
+            }
+        }
+
+        @if (Model.Sale.CanShipAdditionalItems)
+        {
+            <a href="@Url.Action("CreateAdditionalShipment", new { saleId = Model.Sale.Id })" class="btn btn-info">
+                <i class="fas fa-shipping-fast"></i> Create Additional Shipment
+            </a>
+        }
+
+        <a href="@Url.Action("InvoiceReport", new { saleId = Model.Sale.Id })" class="btn btn-primary">
+            <i class="fas fa-file-invoice-dollar"></i>
+            @if (Model.Sale.IsQuotation && isProformaInvoice)
+            {
+                <text>View Quotation</text>
+            }
+            else if (isProformaInvoice)
+            {
+                <text>View Proforma</text>
+            }
+            else
+            {
+                <text>View Invoice</text>
+            }
+        </a>
+
+        @if (Model.Sale.PaymentStatus != PaymentStatus.Paid)
+        {
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">
+                <i class="fas fa-dollar-sign"></i> Record Payment
+            </button>
+        }
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (Model.Sale.CanShipAdditionalItems)
+{
+    <div class="alert alert-info d-flex align-items-center mb-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <div class="flex-grow-1">
+            <strong>Items Available for Shipment</strong>
+            <p class="mb-1">This sale has @Model.Sale.ItemsAvailableForShipment.Count item(s) available for additional shipment.</p>
+        </div>
+        <div>
+            <a href="@Url.Action("CreateAdditionalShipment", new { saleId = Model.Sale.Id })" class="btn btn-primary">
+                <i class="fas fa-shipping-fast"></i> Create Shipment
+            </a>
+        </div>
+    </div>
+}
