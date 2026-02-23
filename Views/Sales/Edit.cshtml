@@ -1,11 +1,16 @@
 ﻿@using InventorySystem.Models.Enums
 @model InventorySystem.Models.Sale
 @{
-  ViewData["Title"] = "Edit Sale";
+  var isQuotation = Model.IsQuotation || Model.SaleStatus == SaleStatus.Quotation;
+  var documentType = isQuotation ? "Quotation" : "Sale";
+  ViewData["Title"] = $"Edit {documentType}";
+  var canModifyItems = Model.SaleStatus == SaleStatus.Processing 
+                    || Model.SaleStatus == SaleStatus.Backordered 
+                    || Model.SaleStatus == SaleStatus.Quotation;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-edit"></i> Edit Sale @Model.SaleNumber</h1>
+  <h1><i class="fas fa-edit"></i> Edit @documentType @Model.SaleNumber</h1>
   <div class="btn-group">
     <a href="/Sales/Details/@Model.Id" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left"></i> Back to Details
@@ -99,7 +104,7 @@
                   <option value="Credit Card">Credit Card</option>
                   <option value="Bank Transfer">Bank Transfer</option>
                   <option value="PayPal">PayPal</option>
-                  <option value="Square"></option>
+                  <option value="Square">Square</option>
                   <option value="Stripe">Stripe</option>
                   <option value="Other">Other</option>
                 </select>
@@ -126,13 +131,13 @@
 
       <div class="card mt-4">
         <div class="card-header">
-          <h5><i class="fas fa-receipt"></i> Sale Details</h5>
+          <h5><i class="fas fa-receipt"></i> @documentType Details</h5>
         </div>
         <div class="card-body">
           <div class="row">
             <div class="col-md-4">
               <div class="mb-3">
-                <label asp-for="SaleDate" class="form-label">Sale Date *</label>
+                <label asp-for="SaleDate" class="form-label">@(isQuotation ? "Quotation" : "Sale") Date *</label>
                 <input asp-for="SaleDate" class="form-control" type="date" onchange="updatePaymentDueDate()" />
                 <span asp-validation-for="SaleDate" class="text-danger"></span>
               </div>
@@ -162,7 +167,9 @@
                   <i class="fas fa-clock text-warning"></i>
                   Payment Due Date
                 </label>
-                <input asp-for="PaymentDueDate" class="form-control" type="date" readonly style="background-color: #e9ecef;" />
+                @* Display-only input (not submitted — no name attribute) *@
+                <input type="date" id="PaymentDueDateDisplay" value="@Model.PaymentDueDate.ToString("yyyy-MM-dd")" class="form-control" readonly style="background-color: #e9ecef;" />
+                @* Single hidden input that actually posts the value *@
                 <input asp-for="PaymentDueDate" type="hidden" />
                 <span asp-validation-for="PaymentDueDate" class="text-danger"></span>
                 @if (Model.IsOverdue)
@@ -198,8 +205,9 @@
             </div>
             <div class="col-md-4">
               <div class="mb-3">
-                <label asp-for="SaleStatus" class="form-label">Sale Status *</label>
+                <label asp-for="SaleStatus" class="form-label">@documentType Status *</label>
                 <select asp-for="SaleStatus" class="form-select">
+                  <option value="@((int)SaleStatus.Quotation)">Quotation</option>
                   <option value="@((int)SaleStatus.Processing)">Processing</option>
                   <option value="@((int)SaleStatus.Backordered)">Backordered</option>
                   <option value="@((int)SaleStatus.Shipped)">Shipped</option>
@@ -235,11 +243,273 @@
             </div>
           </div>
 
-          <div class="mb-3">
-            <label asp-for="Notes" class="form-label">Notes</label>
-            <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
-            <span asp-validation-for="Notes" class="text-danger"></span>
+          <!-- Discount Section -->
+          <div class="card border-info mb-3">
+            <div class="card-header bg-info bg-opacity-10">
+              <h6 class="mb-0">
+                <i class="fas fa-tags text-info"></i> Discount
+                @if (Model.HasDiscount)
+                {
+                  <span class="badge bg-info ms-2">@Model.DiscountCalculated.ToString("C") off</span>
+                }
+              </h6>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label asp-for="DiscountType" class="form-label">Discount Type</label>
+                    <select asp-for="DiscountType" class="form-select" id="discountTypeSelect" onchange="toggleDiscountFields()">
+                      <option value="Amount">Fixed Amount ($)</option>
+                      <option value="Percentage">Percentage (%)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3" id="discountAmountGroup">
+                    <label asp-for="DiscountAmount" class="form-label">Discount Amount</label>
+                    <div class="input-group">
+                      <span class="input-group-text">$</span>
+                      <input asp-for="DiscountAmount" class="form-control" step="0.01" min="0" id="discountAmountInput" />
+                    </div>
+                    <span asp-validation-for="DiscountAmount" class="text-danger"></span>
+                  </div>
+                  <div class="mb-3" id="discountPercentageGroup" style="display:none;">
+                    <label asp-for="DiscountPercentage" class="form-label">Discount Percentage</label>
+                    <div class="input-group">
+                      <input asp-for="DiscountPercentage" class="form-control" step="0.01" min="0" max="100" id="discountPercentageInput" />
+                      <span class="input-group-text">%</span>
+                    </div>
+                    <span asp-validation-for="DiscountPercentage" class="text-danger"></span>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label asp-for="DiscountReason" class="form-label">Discount Reason</label>
+                    <input asp-for="DiscountReason" class="form-control" placeholder="e.g., Bulk order, Loyalty, Negotiated" />
+                    <span asp-validation-for="DiscountReason" class="text-danger"></span>
+                  </div>
+                </div>
+              </div>
+              <div id="discountPreview" class="text-muted small" style="display:none;">
+                <i class="fas fa-calculator"></i> Estimated discount: <strong id="discountPreviewAmount">$0.00</strong>
+              </div>
+            </div>
           </div>
+
+          <!-- Notes Section -->
+          <div class="card border-secondary mb-0">
+            <div class="card-header bg-secondary bg-opacity-10">
+              <h6 class="mb-0">
+                <i class="fas fa-sticky-note text-secondary"></i> General Notes
+              </h6>
+            </div>
+            <div class="card-body">
+              <div class="mb-2">
+                <textarea asp-for="Notes" class="form-control" rows="4" 
+                          placeholder="Add any notes for this @documentType.ToLower()&#10;&#10;Examples:&#10;• Production lead time: 4-6 weeks&#10;• Customer requires delivery by specific date&#10;• Special packaging instructions&#10;• Price valid for 30 days (quotations)"></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+              </div>
+              <div class="form-text">
+                <i class="fas fa-info-circle"></i> 
+                Use this field for production lead time notes, customer-specific requirements, delivery instructions, or any concerns to address at time of @(isQuotation ? "quotation" : "sale").
+              </div>
+              @if (isQuotation)
+              {
+                <div class="mt-2">
+                  <small class="text-muted">
+                    <strong>Quick-add:</strong>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="appendNote('Production lead time: 4-6 weeks.')">
+                      <i class="fas fa-clock"></i> Lead Time
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="appendNote('Price valid for 30 days from quotation date.')">
+                      <i class="fas fa-calendar"></i> Price Validity
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="appendNote('Subject to stock availability at time of order.')">
+                      <i class="fas fa-boxes"></i> Stock Availability
+                    </button>
+                  </small>
+                </div>
+              }
+              else
+              {
+                <div class="mt-2">
+                  <small class="text-muted">
+                    <strong>Quick-add:</strong>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="appendNote('Production lead time: 4-6 weeks.')">
+                      <i class="fas fa-clock"></i> Lead Time
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="appendNote('Customer requested expedited delivery.')">
+                      <i class="fas fa-shipping-fast"></i> Expedited
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="appendNote('Special packaging required.')">
+                      <i class="fas fa-box"></i> Packaging
+                    </button>
+                  </small>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sale Items Card -->
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-list"></i> @documentType Items
+            @if (Model.SaleItems?.Any() == true)
+            {
+              <span class="badge bg-primary ms-2">@Model.SaleItems.Count() item(s)</span>
+            }
+          </h5>
+          @if (canModifyItems)
+          {
+            <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success btn-sm">
+              <i class="fas fa-plus"></i> Add Item
+            </a>
+          }
+        </div>
+        <div class="card-body">
+          @if (Model.SaleItems?.Any() == true)
+          {
+            <div class="table-responsive">
+              <table class="table table-hover table-sm">
+                <thead>
+                  <tr>
+                    <th>Part Number</th>
+                    <th>Description</th>
+                    <th>Type</th>
+                    <th class="text-center">Qty</th>
+                    <th class="text-end">Unit Price</th>
+                    <th class="text-end">Total</th>
+                    <th>Serial / Model</th>
+                    @if (canModifyItems)
+                    {
+                      <th class="text-center">Actions</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var item in Model.SaleItems)
+                  {
+                    <tr>
+                      <td>
+                        <strong>@item.ProductPartNumber</strong>
+                        @if (item.QuantityBackordered > 0)
+                        {
+                          <br><span class="badge bg-warning text-dark">Backordered</span>
+                        }
+                      </td>
+                      <td>
+                        @item.ProductName
+                        @if (!string.IsNullOrEmpty(item.Notes))
+                        {
+                          <br><small class="text-muted">@item.Notes</small>
+                        }
+                      </td>
+                      <td>
+                        <span class="badge bg-secondary">
+                          @if (item.ItemId.HasValue)
+                          {
+                            <text>Item</text>
+                          }
+                          else if (item.ServiceTypeId.HasValue)
+                          {
+                            <text>Service</text>
+                          }
+                          else if (item.FinishedGoodId.HasValue)
+                          {
+                            <text>Finished Good</text>
+                          }
+                          else
+                          {
+                            <text>Unknown</text>
+                          }
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-primary">@item.QuantitySold</span>
+                        @if (item.QuantityBackordered > 0)
+                        {
+                          <br><small class="text-warning">(@item.QuantityBackordered backord.)</small>
+                        }
+                      </td>
+                      <td class="text-end">@item.UnitPrice.ToString("C")</td>
+                      <td class="text-end"><strong>@item.TotalPrice.ToString("C")</strong></td>
+                      <td>
+                        @if (item.HasSerialModelInfo)
+                        {
+                          <small>
+                            @if (!string.IsNullOrWhiteSpace(item.SerialNumber))
+                            {
+                              <div><strong>S/N:</strong> @item.SerialNumber</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.ModelNumber))
+                            {
+                              <div><strong>Model:</strong> @item.ModelNumber</div>
+                            }
+                          </small>
+                        }
+                        else
+                        {
+                          <span class="text-muted">-</span>
+                        }
+                      </td>
+                      @if (canModifyItems)
+                      {
+                        <td class="text-center">
+                          <div class="btn-group btn-group-sm">
+                            <a href="/Sales/EditSaleItem/@item.Id" class="btn btn-outline-primary" title="Edit Item">
+                              <i class="fas fa-edit"></i>
+                            </a>
+                            <form asp-action="RemoveItem" method="post" style="display:inline;"
+                                  onsubmit="return confirm('Are you sure you want to remove this item from the @documentType.ToLower()?');">
+                              <input type="hidden" name="saleItemId" value="@item.Id" />
+                              <input type="hidden" name="saleId" value="@Model.Id" />
+                              <button type="submit" class="btn btn-outline-danger btn-sm" title="Remove Item">
+                                <i class="fas fa-trash"></i>
+                              </button>
+                            </form>
+                          </div>
+                        </td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <td colspan="5" class="text-end"><strong>Subtotal:</strong></td>
+                    <td class="text-end"><strong>@Model.SubtotalAmount.ToString("C")</strong></td>
+                    <td colspan="@(canModifyItems ? "2" : "1")"></td>
+                  </tr>
+                  @if (Model.HasDiscount)
+                  {
+                    <tr class="text-info">
+                      <td colspan="5" class="text-end">
+                        <strong>Discount (@(Model.DiscountType == "Percentage" ? $"{Model.DiscountPercentage}%" : "Fixed")):</strong>
+                      </td>
+                      <td class="text-end"><strong>-@Model.DiscountCalculated.ToString("C")</strong></td>
+                      <td colspan="@(canModifyItems ? "2" : "1")"></td>
+                    </tr>
+                  }
+                </tfoot>
+              </table>
+            </div>
+          }
+          else
+          {
+            <div class="text-center py-3">
+              <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+              <p class="text-muted">No items added to this @documentType.ToLower() yet.</p>
+              @if (canModifyItems)
+              {
+                <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
+                  <i class="fas fa-plus"></i> Add First Item
+                </a>
+              }
+            </div>
+          }
         </div>
       </div>
     </div>
@@ -247,11 +517,11 @@
     <div class="col-md-4">
       <div class="card">
         <div class="card-header">
-          <h5><i class="fas fa-info-circle"></i> Sale Information</h5>
+          <h5><i class="fas fa-info-circle"></i> @documentType Information</h5>
         </div>
         <div class="card-body">
           <dl class="row">
-            <dt class="col-sm-5">Sale Number:</dt>
+            <dt class="col-sm-5">@documentType Number:</dt>
             <dd class="col-sm-7">@Model.SaleNumber</dd>
 
             <dt class="col-sm-5">Created:</dt>
@@ -262,14 +532,23 @@
               <span class="badge bg-info">@Model.SaleItems.Count()</span>
             </dd>
 
+            <dt class="col-sm-5">Subtotal:</dt>
+            <dd class="col-sm-7">@Model.SubtotalAmount.ToString("C")</dd>
+
+            @if (Model.HasDiscount)
+            {
+              <dt class="col-sm-5 text-info">Discount:</dt>
+              <dd class="col-sm-7 text-info">-@Model.DiscountCalculated.ToString("C")</dd>
+            }
+
             <dt class="col-sm-5">Current Total:</dt>
-            <dd class="col-sm-7">@Model.TotalAmount.ToString("C")</dd>
+            <dd class="col-sm-7"><strong>@Model.TotalAmount.ToString("C")</strong></dd>
           </dl>
 
           @if (Model.SaleItems?.Any() == true)
           {
             <div class="alert alert-info">
-              <small><i class="fas fa-info-circle"></i> Tax and shipping changes will update the total automatically.</small>
+              <small><i class="fas fa-info-circle"></i> Tax, shipping, and discount changes will update the total automatically.</small>
             </div>
           }
         </div>
@@ -314,7 +593,7 @@
         </div>
         <div class="card-body">
             <button type="submit" class="btn btn-primary">
-              <i class="fas fa-save"></i> Update Sale
+              <i class="fas fa-save"></i> Update @documentType
             </button>
           <a href="/Sales/AddItem?saleId=@Model.Id" class="btn btn-success">
             <i class="fas fa-plus"></i> Add Items
@@ -333,6 +612,18 @@
           </div>
           <div class="card-body">
             <p class="mb-2">This sale is still being processed. You can still modify it.</p>
+          </div>
+        </div>
+      }
+
+      @if (Model.SaleStatus == SaleStatus.Quotation)
+      {
+        <div class="card mt-3 border-info">
+          <div class="card-header bg-info">
+            <h6><i class="fas fa-file-alt"></i> Quotation Status</h6>
+          </div>
+          <div class="card-body">
+            <p class="mb-2">This is a quotation. You can modify it freely until it is converted to a sale.</p>
           </div>
         </div>
       }
@@ -362,8 +653,8 @@
     function updatePaymentDueDate() {
       const saleDateInput = document.querySelector('input[name="SaleDate"]');
       const termsSelect = document.querySelector('select[name="Terms"]');
-      const dueDateInput = document.querySelector('input[name="PaymentDueDate"]:not([type="hidden"])');
-      const hiddenDueDateInput = document.querySelector('input[name="PaymentDueDate"][type="hidden"]');
+      const dueDateDisplay = document.getElementById('PaymentDueDateDisplay');
+      const hiddenDueDateInput = document.querySelector('input[name="PaymentDueDate"]');
       
       if (saleDateInput.value && termsSelect.value) {
         const saleDate = new Date(saleDateInput.value);
@@ -377,8 +668,8 @@
         
         const dueDateString = dueDate.toISOString().split('T')[0];
         
-        if (dueDateInput) {
-          dueDateInput.value = dueDateString;
+        if (dueDateDisplay) {
+          dueDateDisplay.value = dueDateString;
         }
         if (hiddenDueDateInput) {
           hiddenDueDateInput.value = dueDateString;
@@ -394,10 +685,70 @@
         </text>
       }
     }
-    
-    // Calculate initial due date on page load
+
+    // Discount toggle logic
+    function toggleDiscountFields() {
+      const discountType = document.getElementById('discountTypeSelect').value;
+      const amountGroup = document.getElementById('discountAmountGroup');
+      const percentageGroup = document.getElementById('discountPercentageGroup');
+      const amountInput = document.getElementById('discountAmountInput');
+      const percentageInput = document.getElementById('discountPercentageInput');
+
+      if (discountType === 'Percentage') {
+        amountGroup.style.display = 'none';
+        percentageGroup.style.display = 'block';
+        amountInput.value = '0.00';
+      } else {
+        amountGroup.style.display = 'block';
+        percentageGroup.style.display = 'none';
+        percentageInput.value = '0.00';
+      }
+      updateDiscountPreview();
+    }
+
+    function updateDiscountPreview() {
+      const discountType = document.getElementById('discountTypeSelect').value;
+      const amountInput = document.getElementById('discountAmountInput');
+      const percentageInput = document.getElementById('discountPercentageInput');
+      const preview = document.getElementById('discountPreview');
+      const previewAmount = document.getElementById('discountPreviewAmount');
+      const subtotal = @Model.SubtotalAmount;
+
+      let discount = 0;
+      if (discountType === 'Percentage') {
+        const pct = parseFloat(percentageInput.value) || 0;
+        discount = subtotal * (pct / 100);
+      } else {
+        discount = parseFloat(amountInput.value) || 0;
+      }
+
+      if (discount > 0) {
+        preview.style.display = 'block';
+        previewAmount.textContent = '$' + discount.toFixed(2);
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    // Append quick note to Notes textarea
+    function appendNote(text) {
+      const notesField = document.getElementById('Notes');
+      if (notesField.value && notesField.value.trim().length > 0) {
+        notesField.value = notesField.value.trimEnd() + '\n' + text;
+      } else {
+        notesField.value = text;
+      }
+      notesField.focus();
+    }
+
+    // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
       updatePaymentDueDate();
+      toggleDiscountFields();
+
+      // Attach change/input events for discount preview
+      document.getElementById('discountAmountInput').addEventListener('input', updateDiscountPreview);
+      document.getElementById('discountPercentageInput').addEventListener('input', updateDiscountPreview);
     });
   </script>
-}}
+}

@@ -116,6 +116,12 @@ namespace InventorySystem.Services
 				existingEntity.Notes = sale.Notes;
 				existingEntity.OrderNumber = sale.OrderNumber;
 
+				// Discount fields
+				existingEntity.DiscountType = sale.DiscountType;
+				existingEntity.DiscountAmount = sale.DiscountAmount;
+				existingEntity.DiscountPercentage = sale.DiscountPercentage;
+				existingEntity.DiscountReason = sale.DiscountReason;
+
 				await _context.SaveChangesAsync();
 				return existingEntity;
 			}

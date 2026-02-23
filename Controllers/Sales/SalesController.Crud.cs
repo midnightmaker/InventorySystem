@@ -316,6 +316,18 @@ namespace InventorySystem.Controllers
 				ModelState.Remove("Customer");
 				ModelState.Remove("SaleItems");
 				ModelState.Remove("RelatedAdjustments");
+				ModelState.Remove("Shipments");
+				ModelState.Remove("CustomerPayments");
+
+				// Remove discount binding errors for the toggled-off input (posts empty string ? can't bind to decimal)
+				ModelState.Remove(nameof(sale.DiscountAmount));
+				ModelState.Remove(nameof(sale.DiscountPercentage));
+
+				// Remove shipping-related validation errors — the edit form does not expose these fields,
+				// so they won't be posted and IValidatableObject will flag them when status is Shipped.
+				ModelState.Remove(nameof(sale.CourierService));
+				ModelState.Remove(nameof(sale.TrackingNumber));
+				ModelState.Remove(nameof(sale.ShippedDate));
 
 				var existingSale = await _salesService.GetSaleByIdAsync(id);
 				if (existingSale == null)
@@ -338,6 +350,9 @@ namespace InventorySystem.Controllers
 
 				if (!ModelState.IsValid)
 				{
+					// Reload the sale with navigation properties for the view
+					sale.Customer = existingSale.Customer;
+					sale.SaleItems = existingSale.SaleItems;
 					var customers = await _customerService.GetAllCustomersAsync();
 					ViewBag.Customers = BuildCustomerSelectList(customers, sale.CustomerId);
 					return View(sale);
