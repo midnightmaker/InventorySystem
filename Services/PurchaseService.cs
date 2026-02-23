@@ -437,6 +437,7 @@ namespace InventorySystem.Services
 			return paymentTerms?.ToLower() switch
 			{
 				"cod" or "cash on delivery" => invoiceDate,
+				"pre payment" or "prepayment" or "prepaid" => invoiceDate,
 				"net 10" or "10 days" => invoiceDate.AddDays(10),
 				"net 15" or "15 days" => invoiceDate.AddDays(15),
 				"net 30" or "30 days" => invoiceDate.AddDays(30),

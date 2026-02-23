@@ -177,6 +177,7 @@ namespace InventorySystem.Models
                 if (!string.IsNullOrEmpty(BillingCity)) parts.Add(BillingCity);
                 if (!string.IsNullOrEmpty(BillingState)) parts.Add(BillingState);
                 if (!string.IsNullOrEmpty(BillingZipCode)) parts.Add(BillingZipCode);
+                if (!string.IsNullOrEmpty(BillingCountry)) parts.Add(BillingCountry);
                 return string.Join(", ", parts);
             }
         }
@@ -192,6 +193,7 @@ namespace InventorySystem.Models
                 if (!string.IsNullOrEmpty(ShippingCity)) parts.Add(ShippingCity);
                 if (!string.IsNullOrEmpty(ShippingState)) parts.Add(ShippingState);
                 if (!string.IsNullOrEmpty(ShippingZipCode)) parts.Add(ShippingZipCode);
+                if (!string.IsNullOrEmpty(ShippingCountry)) parts.Add(ShippingCountry);
                 return string.Join(", ", parts);
             }
         }
@@ -333,6 +335,7 @@ namespace InventorySystem.Models
 				if (!string.IsNullOrEmpty(AccountsPayableBillingCity)) parts.Add(AccountsPayableBillingCity);
 				if (!string.IsNullOrEmpty(AccountsPayableBillingState)) parts.Add(AccountsPayableBillingState);
 				if (!string.IsNullOrEmpty(AccountsPayableBillingZipCode)) parts.Add(AccountsPayableBillingZipCode);
+				if (!string.IsNullOrEmpty(AccountsPayableBillingCountry)) parts.Add(AccountsPayableBillingCountry);
 				return string.Join(", ", parts);
 			}
 		}

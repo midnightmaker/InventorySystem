@@ -115,12 +115,21 @@ namespace InventorySystem.Controllers
 
 				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
 				var isProforma = sale.SaleStatus != SaleStatus.Shipped && sale.SaleStatus != SaleStatus.Delivered;
+				var isQuotation = sale.IsQuotation;
+
+				// For quotations, the valid period is 60 days from the quote date
+				var dueDate = isQuotation && isProforma
+					? (DateTime?)sale.SaleDate.AddDays(60)
+					: sale.PaymentDueDate;
+
+				// Determine the document label for email subject/message
+				var docLabel = isQuotation && isProforma ? "Quotation" : isProforma ? "Proforma Invoice" : "Invoice";
 
 				var viewModel = new InvoiceReportViewModel
 				{
 					InvoiceNumber = sale.SaleNumber,
 					InvoiceDate = sale.SaleDate,
-					DueDate = sale.PaymentDueDate,
+					DueDate = dueDate,
 					SaleStatus = sale.SaleStatus,
 					PaymentStatus = sale.PaymentStatus,
 					PaymentTerms = sale.Terms,
@@ -141,8 +150,8 @@ namespace InventorySystem.Controllers
 					}).ToList(),
 					CompanyInfo = await GetCompanyInfo(),
 					CustomerEmail = recipientEmail,
-					EmailSubject = $"{(isProforma ? "Proforma Invoice" : "Invoice")} {sale.SaleNumber}",
-					EmailMessage = $"Please find attached {(isProforma ? "Proforma Invoice" : "Invoice")} {sale.SaleNumber} for your recent {(isProforma ? "quote" : "purchase")}.",
+					EmailSubject = $"{docLabel} {sale.SaleNumber}",
+					EmailMessage = $"Please find attached {docLabel} {sale.SaleNumber} for your recent {(isProforma ? "quote" : "purchase")}.",
 					PaymentMethod = sale.PaymentMethod ?? string.Empty,
 					IsOverdue = sale.IsOverdue,
 					DaysOverdue = sale.DaysOverdue,
@@ -156,7 +165,8 @@ namespace InventorySystem.Controllers
 					TotalAdjustments = totalAdjustments,
 					OriginalAmount = sale.TotalAmount,
 					IsProforma = isProforma,
-					InvoiceTitle = isProforma ? "Proforma Invoice" : "Invoice",
+					IsQuotation = isQuotation,
+					InvoiceTitle = docLabel,
 					IsDirectedToAP = sale.Customer?.DirectInvoicesToAP ?? false,
 					APContactName = sale.Customer?.AccountsPayableContactName,
 					RequiresPO = sale.Customer?.RequiresPurchaseOrder ?? false,
@@ -200,11 +210,19 @@ namespace InventorySystem.Controllers
 					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
 				};
 
+				var isProforma = sale.SaleStatus != SaleStatus.Shipped && sale.SaleStatus != SaleStatus.Delivered;
+				var isQuotation = sale.IsQuotation;
+
+				// For quotations, the valid period is 60 days from the quote date
+				var dueDate = isQuotation && isProforma
+					? (DateTime?)sale.SaleDate.AddDays(60)
+					: sale.PaymentDueDate;
+
 				var viewModel = new InvoiceReportViewModel
 				{
 					InvoiceNumber = sale.SaleNumber,
 					InvoiceDate = sale.SaleDate,
-					DueDate = sale.PaymentDueDate,
+					DueDate = dueDate,
 					SaleStatus = sale.SaleStatus,
 					PaymentStatus = sale.PaymentStatus,
 					PaymentTerms = sale.Terms,
@@ -212,6 +230,8 @@ namespace InventorySystem.Controllers
 					Customer = customer,
 					TotalAdjustments = totalAdjustments,
 					OriginalAmount = sale.TotalAmount,
+					IsQuotation = isQuotation,
+					IsProforma = isProforma,
 					LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
 					{
 						ItemId = si.ItemId ?? si.FinishedGoodId ?? si.ServiceTypeId ?? 0,

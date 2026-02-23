@@ -2,8 +2,12 @@
 @{
   Layout = null; // No layout for print view
   var afterDiscountAmount = Model.SubtotalAmount - Model.TotalDiscount;
-  var isProforma = Model.IsProforma ?? (Model.SaleStatus != InventorySystem.Models.Enums.SaleStatus.Shipped);
-  var invoiceTitle = isProforma ? "PROFORMA INVOICE" : "INVOICE";
+  var isProforma = Model.IsProformaInvoice;
+  var isQuotation = Model.IsQuotation && isProforma;
+  var docTitle = Model.DocumentTitle;
+  var docLabel = Model.DocumentLabel;
+  var validUntilDate = Model.DueDate?.ToString("MMMM dd, yyyy") 
+    ?? (isQuotation ? Model.InvoiceDate.AddDays(60).ToString("MMMM dd, yyyy") : "Immediate");
 }
 
 <!DOCTYPE html>
@@ -11,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>@(isProforma ? "Proforma Invoice" : "Invoice") @Model.InvoiceNumber - Print</title>
+  <title>@docLabel @Model.InvoiceNumber - Print</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -278,15 +282,15 @@
           }
         </div>
         <div class="text-center flex-grow-1">
-          <h1>@invoiceTitle</h1>
-          <h2 class="@(isProforma ? "text-warning" : "text-primary")">@(isProforma ? "Proforma" : "Invoice")# @Model.InvoiceNumber</h2>
+          <h1>@docTitle</h1>
+          <h2 class="@(isQuotation ? "text-info" : isProforma ? "text-warning" : "text-primary")">@docLabel# @Model.InvoiceNumber</h2>
         </div>
         <div>
           <!-- Space for symmetry -->
         </div>
       </div>
 
-      @if (isProforma)
+      @if (isProforma && !isQuotation)
       {
         <div class="proforma-notice mt-3">
           <i class="fas fa-exclamation-triangle"></i>
@@ -321,7 +325,7 @@
       </div>
       <div class="col-6">
         <div class="customer-info">
-          <h5><strong>Bill To:</strong></h5>
+          <h5><strong>@(isQuotation ? "Quote To:" : isProforma ? "Quote To:" : "Bill To:")</strong></h5>
           <address>
             <strong>@Model.Customer.CustomerName</strong><br>
             @if (!string.IsNullOrWhiteSpace(Model.Customer.BillingAddress))
@@ -353,20 +357,33 @@
     <div class="invoice-details">
       <div class="row">
         <div class="col-3">
-          <strong>@(isProforma ? "Proforma" : "Invoice") Date:</strong><br>
+          <strong>@(isQuotation ? "Quotation" : isProforma ? "Proforma" : "Invoice") Date:</strong><br>
           @Model.InvoiceDate.ToString("MMMM dd, yyyy")
         </div>
         <div class="col-3">
-          <strong>@(isProforma ? "Valid Until:" : "Due Date:"):</strong><br>
-          @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
+          @if (isQuotation)
+          {
+            <strong>Valid Until:</strong><br>
+            @validUntilDate
+          }
+          else if (isProforma)
+          {
+            <strong>Valid Until:</strong><br>
+            @validUntilDate
+          }
+          else
+          {
+            <strong>Due Date:</strong><br>
+            @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
+          }
         </div>
         <div class="col-3">
-          <strong>Payment Terms:</strong><br>
+          <strong>@(isProforma ? "Proposed Terms:" : "Payment Terms:")</strong><br>
           @Model.PaymentTerms
         </div>
         <div class="col-3">
           <strong>Status:</strong><br>
-          <span class="badge">@(isProforma ? "Draft/Estimate" : Model.PaymentStatus.ToString())</span>
+          <span class="badge">@(isQuotation ? "Quotation" : isProforma ? "Draft/Estimate" : Model.PaymentStatus.ToString())</span>
         </div>
       </div>
 
@@ -374,7 +391,7 @@
       {
         <div class="row mt-2">
           <div class="col-12">
-            <strong>Order Number:</strong> @Model.OrderNumber
+            <strong>@(isQuotation ? "Reference Number:" : isProforma ? "Reference Number:" : "Order Number:")</strong> @Model.OrderNumber
           </div>
         </div>
       }
@@ -394,9 +411,7 @@
           </tr>
         </thead>
         <tbody>
-          @{
-            int lineNumber = 1;
-          }
+          @{ int lineNumber = 1; }
           @foreach (var item in Model.LineItems)
           {
             <tr>
@@ -440,11 +455,11 @@
 
           @* Always show shipping and tax, even if zero *@
           <tr>
-            <th colspan="5" class="text-end">@(isProforma ? "Estimated Shipping:" : "Shipping:"):</th>
+            <th colspan="5" class="text-end">@(isProforma ? "Estimated Shipping:" : "Shipping:")</th>
             <th class="text-end">$@Model.TotalShipping.ToString("N2")</th>
           </tr>
           <tr>
-            <th colspan="5" class="text-end">@(isProforma ? "Estimated Tax:" : "Tax:"):</th>
+            <th colspan="5" class="text-end">@(isProforma ? "Estimated Tax:" : "Tax:")</th>
             <th class="text-end">$@Model.TotalTax.ToString("N2")</th>
           </tr>
 
@@ -467,7 +482,7 @@
           else
           {
             <tr>
-              <th colspan="5" class="text-end"><strong>@(isProforma ? "PROFORMA TOTAL:" : "INVOICE TOTAL:"):</strong></th>
+              <th colspan="5" class="text-end"><strong>@(isQuotation ? "QUOTATION TOTAL:" : isProforma ? "PROFORMA TOTAL:" : "INVOICE TOTAL:")</strong></th>
               <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
             </tr>
           }
@@ -546,26 +561,51 @@
     <!-- Footer -->
     @if (isProforma)
     {
-      <!-- Proforma-specific footer -->
-      <div class="proforma-footer">
-        <h6><i class="fas fa-info-circle"></i> <strong>PROFORMA INVOICE NOTES</strong></h6>
-        <ol class="mb-0">
-          <li>This is not a tax invoice.</li>
-          <li>Issued for customs clearance and quotation purposes only.</li>
-          <li>Final amounts may vary based on shipping and insurance costs at the time of dispatch.</li>
-        </ol>
-      </div>
-    }
-
-    <div class="footer">
-      <p class="mb-1"><strong>Thank you for your business!</strong></p>
-      @if (!isProforma)
+      @if (isQuotation)
       {
-        <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
+        <!-- Quotation-specific footer -->
+        <div class="proforma-footer">
+          <h6><i class="fas fa-info-circle"></i> <strong>QUOTATION TERMS &amp; CONDITIONS</strong></h6>
+          <ol class="mb-0">
+            <li>This is a <strong>Quotation</strong> and is not a tax invoice.</li>
+            <li>This quotation is valid for <strong>60 days</strong> from the quotation date (@Model.InvoiceDate.ToString("MMMM dd, yyyy")) — expiring <strong>@Model.InvoiceDate.AddDays(60).ToString("MMMM dd, yyyy")</strong>.</li>
+            <li>Prices and availability are subject to change after the validity period.</li>
+            <li>To accept this quotation, please contact us to confirm your order.</li>
+            <li>A final invoice will be issued upon order confirmation and shipment.</li>
+            <li>All sales are subject to our standard terms and conditions.</li>
+          </ol>
+        </div>
       }
       else
       {
+        <!-- Proforma-specific footer -->
+        <div class="proforma-footer">
+          <h6><i class="fas fa-info-circle"></i> <strong>PROFORMA INVOICE NOTES</strong></h6>
+          <ol class="mb-0">
+            <li>This is not a tax invoice.</li>
+            <li>Issued for customs clearance and quotation purposes only.</li>
+            <li>Final amounts may vary based on shipping and insurance costs at the time of dispatch.</li>
+          </ol>
+        </div>
+      }
+    }
+
+    <div class="footer">
+      @if (isQuotation)
+      {
+        <p class="mb-1"><strong>Thank you for the opportunity to quote!</strong></p>
+        <p class="mb-1">Quotation <strong>@Model.InvoiceNumber</strong> is valid for 60 days from @Model.InvoiceDate.ToString("MMMM dd, yyyy") (until <strong>@Model.InvoiceDate.AddDays(60).ToString("MMMM dd, yyyy")</strong>).</p>
+        <p class="mb-1">Please contact us to place your order or if you have any questions.</p>
+      }
+      else if (isProforma)
+      {
+        <p class="mb-1"><strong>Thank you for your business!</strong></p>
         <p class="mb-1">This proforma invoice <strong>@Model.InvoiceNumber</strong> is valid for quotation purposes.</p>
+      }
+      else
+      {
+        <p class="mb-1"><strong>Thank you for your business!</strong></p>
+        <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
       }
       <p class="mb-0">
         <small>Printed on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</small>
@@ -576,7 +616,7 @@
   <!-- Print button (hidden when printing) -->
   <div class="no-print text-center mt-4">
     <button type="button" class="btn btn-primary" onclick="window.print()">
-      <i class="fas fa-print"></i> Print This @(isProforma ? "Proforma Invoice" : "Invoice")
+      <i class="fas fa-print"></i> Print This @docLabel
     </button>
     <button type="button" class="btn btn-secondary" onclick="window.close()">
       <i class="fas fa-times"></i> Close

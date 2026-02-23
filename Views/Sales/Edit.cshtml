@@ -145,7 +145,10 @@
                 </label>
                 <select asp-for="Terms" class="form-select" onchange="updatePaymentDueDate()">
                   <option value="@((int)PaymentTerms.Immediate)">Immediate</option>
+                  <option value="@((int)PaymentTerms.PrePayment)">Pre Payment</option>
+                  <option value="@((int)PaymentTerms.COD)">COD (Cash on Delivery)</option>
                   <option value="@((int)PaymentTerms.Net10)">Net 10</option>
+                  <option value="@((int)PaymentTerms.Net15)">Net 15</option>
                   <option value="@((int)PaymentTerms.Net30)">Net 30</option>
                   <option value="@((int)PaymentTerms.Net45)">Net 45</option>
                   <option value="@((int)PaymentTerms.Net60)">Net 60</option>
@@ -366,8 +369,11 @@
         const saleDate = new Date(saleDateInput.value);
         const termsDays = parseInt(termsSelect.value);
         
+        // PrePayment (998) and COD (999) mean immediate payment — 0 days added
+        const days = (termsDays === 998 || termsDays === 999) ? 0 : termsDays;
+        
         const dueDate = new Date(saleDate);
-        dueDate.setDate(dueDate.getDate() + termsDays);
+        dueDate.setDate(dueDate.getDate() + days);
         
         const dueDateString = dueDate.toISOString().split('T')[0];
         

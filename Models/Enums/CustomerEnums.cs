@@ -42,6 +42,9 @@ namespace InventorySystem.Models.Enums
         [Display(Name = "Net 60")]
         Net60 = 60,
         
+        [Display(Name = "Pre Payment")]
+        PrePayment = 998,
+        
         [Display(Name = "COD")]
         COD = 999
     }

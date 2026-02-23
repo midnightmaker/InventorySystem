@@ -5,6 +5,12 @@ let suggestedPrices = {}; // Store suggested prices for line items
 let customerSearchTimeout;
 let selectedCustomer = null;
 
+// Determine if this is a quotation form based on the hidden IsQuotation input
+function isQuotationMode() {
+  const isQuotationInput = document.querySelector('input[name="IsQuotation"]');
+  return isQuotationInput && isQuotationInput.value.toLowerCase() === 'true';
+}
+
 console.log('Enhanced sales creation JavaScript loaded');
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -17,6 +23,19 @@ document.addEventListener('DOMContentLoaded', function () {
     populateAllProductDropdowns();
     calculateTotals();
     validateForm();
+
+    // Detect if page was re-rendered after a validation error and reset the button
+    var hasValidationErrors = document.querySelectorAll('.text-danger:not(:empty), .validation-summary-errors').length > 0
+      || document.querySelectorAll('.field-validation-error').length > 0;
+    if (hasValidationErrors) {
+      console.log('Validation errors detected on page load, resetting submit button');
+      var btn = document.getElementById('createSaleBtn');
+      if (btn) {
+        btn.disabled = false;
+        validateForm(); // Re-run to set correct enabled/disabled state and text
+      }
+    }
+
     console.log('Enhanced sales creation initialization completed successfully');
   } catch (error) {
     console.error('Error during initialization:', error);
@@ -492,9 +511,11 @@ function validateForm() {
   if (btn) {
     const isValid = hasLineItems && hasCustomer && !hasStockErrors;
     btn.disabled = !isValid;
+    const isQuotation = isQuotationMode();
     if (!hasCustomer) btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Select Customer';
     else if (!hasLineItems) btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Add Items';
     else if (hasStockErrors) btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Check Stock';
+    else if (isQuotation) btn.innerHTML = '<i class="fas fa-file-alt"></i> Create Quotation';
     else btn.innerHTML = '<i class="fas fa-save"></i> Create Complete Sale';
   }
 }
@@ -523,14 +544,16 @@ function clearCustomerInfo() {
 
 function updateDueDate() {
   const saleDate = document.querySelector('input[name="SaleDate"]')?.value;
-  const terms = parseInt(document.querySelector('select[name="Terms"]')?.value);
+  const termsValue = parseInt(document.querySelector('select[name="Terms"]')?.value);
   const dueInput = document.querySelector('input[name="PaymentDueDate"]');
-  if (!saleDate || !dueInput) return;
+  if (!saleDate || !dueInput || isNaN(termsValue)) return;
 
   const date = new Date(saleDate);
   if (isNaN(date.getTime())) return;
 
-  const days = [0, 10, 15, 30, 60, 90][terms] ?? 30;
+  // PaymentTerms enum: Immediate=0, Net10=10, Net15=15, Net30=30, Net45=45, Net60=60, PrePayment=998, COD=999
+  // The enum value IS the number of days, except PrePayment (998) and COD (999) which mean immediate/0 days.
+  const days = (termsValue === 998 || termsValue === 999) ? 0 : termsValue;
   date.setDate(date.getDate() + days);
   dueInput.value = date.toISOString().split('T')[0];
 }
@@ -541,13 +564,40 @@ document.addEventListener('DOMContentLoaded', function () {
   const form = document.getElementById('enhancedSaleForm');
   if (form) {
     form.addEventListener('submit', function (e) {
+      // Check for stock availability errors first
       if (document.querySelectorAll('input.is-invalid').length > 0) {
         e.preventDefault();
         alert('Please resolve stock availability issues before submitting.');
         return false;
       }
+
+      // Check jQuery unobtrusive validation if available
+      var $form = $(form);
+      if ($form.valid && !$form.valid()) {
+        // jQuery validation will handle showing errors and preventing submit
+        // Do NOT show spinner or disable button
+        return; // let jQuery validation's handler call preventDefault
+      }
+
+      // Validation passed — show spinner and disable to prevent double-submit
       const btn = document.getElementById('createSaleBtn');
-      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Sale...'; }
+      if (btn) {
+        btn.disabled = true;
+        const isQuotation = isQuotationMode();
+        btn.innerHTML = isQuotation
+          ? '<i class="fas fa-spinner fa-spin"></i> Creating Quotation...'
+          : '<i class="fas fa-spinner fa-spin"></i> Creating Sale...';
+      }
+
+      // Safety net: if the page doesn't navigate within 15 seconds
+      // (e.g. server returned a validation error page), reset the button.
+      setTimeout(function () {
+        if (btn) {
+          btn.disabled = false;
+          validateForm(); // restore correct button text & state
+        }
+      }, 15000);
+
       return true;
     });
   }

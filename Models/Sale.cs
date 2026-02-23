@@ -173,6 +173,8 @@ namespace InventorySystem.Models
 			PaymentDueDate = Terms switch
 			{
 				PaymentTerms.Immediate => SaleDate,
+				PaymentTerms.PrePayment => SaleDate,
+				PaymentTerms.COD => SaleDate,
 				PaymentTerms.Net10 => SaleDate.AddDays(10),
 				PaymentTerms.Net15 => SaleDate.AddDays(15),
 				PaymentTerms.Net30 => SaleDate.AddDays(30),
@@ -193,10 +195,10 @@ namespace InventorySystem.Models
 						new[] { nameof(PaymentDueDate) }));
 			}
 
-			if (Terms == PaymentTerms.Immediate && PaymentDueDate.Date != SaleDate.Date)
+			if ((Terms == PaymentTerms.Immediate || Terms == PaymentTerms.PrePayment || Terms == PaymentTerms.COD) && PaymentDueDate.Date != SaleDate.Date)
 			{
 				results.Add(new ValidationResult(
-						"Payment due date must be the same as sale date for Immediate terms.",
+						"Payment due date must be the same as sale date for Immediate, Pre Payment, or COD terms.",
 						new[] { nameof(PaymentDueDate) }));
 			}
 

@@ -49,6 +49,20 @@
   </div>
 }
 
+@if (!ViewData.ModelState.IsValid)
+{
+  <div class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-triangle"></i> <strong>Please correct the errors below and try again.</strong>
+    <ul class="mb-0 mt-2">
+      @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+      {
+        <li>@error.ErrorMessage</li>
+      }
+    </ul>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+}
+
 <form asp-action="CreateEnhanced" method="post" id="enhancedSaleForm">
   <input type="hidden" asp-for="IsQuotation" />
 
@@ -121,10 +135,13 @@
             <div class="col-md-6">
               <label asp-for="Terms" class="form-label">Payment Terms</label>
               <select asp-for="Terms" class="form-select" onchange="updateDueDate()">
+                <option value="@((int)PaymentTerms.Immediate)">Immediate</option>
+                <option value="@((int)PaymentTerms.PrePayment)">Pre Payment</option>
                 <option value="@((int)PaymentTerms.COD)">COD (Cash on Delivery)</option>
                 <option value="@((int)PaymentTerms.Net10)">Net 10</option>
                 <option value="@((int)PaymentTerms.Net15)">Net 15</option>
                 <option value="@((int)PaymentTerms.Net30)" selected>Net 30</option>
+                <option value="@((int)PaymentTerms.Net45)">Net 45</option>
                 <option value="@((int)PaymentTerms.Net60)">Net 60</option>
                 
               </select>

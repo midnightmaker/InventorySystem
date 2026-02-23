@@ -9,6 +9,9 @@ namespace InventorySystem.Models.Enums
         
         [Display(Name = "Net 10")]
         Net10 = 10,
+
+        [Display(Name = "Net 15")]
+        Net15 = 15,
         
         [Display(Name = "Net 30")]
         Net30 = 30,
@@ -17,6 +20,9 @@ namespace InventorySystem.Models.Enums
         Net45 = 45,
         
         [Display(Name = "Net 60")]
-        Net60 = 60
+        Net60 = 60,
+
+        [Display(Name = "Pre Payment")]
+        PrePayment = 998
     }
 }

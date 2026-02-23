@@ -3,9 +3,12 @@ const PaymentValidation = {
     Terms: {
         Immediate: 0,
         Net10: 10,
+        Net15: 15,
         Net30: 30,
         Net45: 45,
-        Net60: 60
+        Net60: 60,
+        PrePayment: 998,
+        COD: 999
     },
 
     validatePaymentDueDate: function(saleDate, dueDate, terms) {
@@ -15,10 +18,10 @@ const PaymentValidation = {
         const saleDateObj = new Date(saleDate);
         const dueDateObj = new Date(dueDate);
         
-        // For immediate terms, due date must equal sale date
-        if (terms == this.Terms.Immediate) {
+        // For immediate, pre payment, or COD terms, due date must equal sale date
+        if (terms == this.Terms.Immediate || terms == this.Terms.PrePayment || terms == this.Terms.COD) {
             if (dueDateObj.getTime() !== saleDateObj.getTime()) {
-                return { isValid: false, message: "Payment due date must be the same as sale date for Immediate terms." };
+                return { isValid: false, message: "Payment due date must be the same as sale date for this payment term." };
             }
         } else {
             // For non-immediate terms, due date cannot be in the past
@@ -38,7 +41,10 @@ const PaymentValidation = {
     calculateDueDate: function(saleDate, terms) {
         const saleDateObj = new Date(saleDate);
         const dueDate = new Date(saleDateObj);
-        dueDate.setDate(dueDate.getDate() + parseInt(terms));
+        const termsInt = parseInt(terms);
+        // PrePayment (998) and COD (999) mean immediate payment — 0 days added
+        const days = (termsInt === 998 || termsInt === 999) ? 0 : termsInt;
+        dueDate.setDate(dueDate.getDate() + days);
         return dueDate.toISOString().split('T')[0];
     },
 

@@ -1,7 +1,10 @@
 @model InventorySystem.ViewModels.InvoiceReportViewModel
 @{
-  ViewData["Title"] = $"{(Model.IsProformaInvoice ? "Proforma Invoice" : "Invoice")} {Model.InvoiceNumber}";
+  ViewData["Title"] = $"{Model.DocumentLabel} {Model.InvoiceNumber}";
   var isProforma = Model.IsProformaInvoice;
+  var isQuotation = Model.IsQuotation && isProforma;
+  var docTitle = Model.DocumentTitle;
+  var docLabel = Model.DocumentLabel;
 }
 
 @{
@@ -10,7 +13,7 @@
 <div class="container-fluid">
   <!-- Header with Action Buttons -->
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-file-invoice-dollar"></i> @(isProforma ? "Proforma Invoice" : "Invoice") @Model.InvoiceNumber</h2>
+    <h2><i class="fas fa-file-invoice-dollar"></i> @docLabel @Model.InvoiceNumber</h2>
     <div class="btn-group">
       <a href="@Url.Action("Details", new { id = ViewBag.SaleId })" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Back to Sale
@@ -34,7 +37,7 @@
       else
       {
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#emailModal">
-          <i class="fas fa-envelope"></i> Email Quote
+          <i class="fas fa-envelope"></i> Email @docLabel
         </button>
       }
     </div>
@@ -48,11 +51,18 @@
         <div class="text-center flex-grow-1">
           @if (isProforma)
           {
-            <h1 class="display-6 text-info">PROFORMA INVOICE</h1>
-            <h2 class="text-info">Proforma# @Model.InvoiceNumber</h2>
+            <h1 class="display-6 text-info">@docTitle</h1>
+            <h2 class="text-info">@docLabel# @Model.InvoiceNumber</h2>
             <div class="alert alert-info mt-2">
               <i class="fas fa-info-circle"></i>
-              <strong>This is a Proforma Invoice (Quote)</strong> - Not a tax invoice
+              @if (isQuotation)
+              {
+                @:<strong>This is a Quotation</strong> &mdash; Not a tax invoice
+              }
+              else
+              {
+                @:<strong>This is a Proforma Invoice (Quote)</strong> &mdash; Not a tax invoice
+              }
             </div>
           }
           else
@@ -149,7 +159,7 @@
       <!-- Invoice Details -->
       <div class="row mb-4">
         <div class="col-md-3">
-          <strong>@(isProforma ? "Quote Date:" : "Invoice Date:")</strong> @Model.InvoiceDate.ToString("MMMM dd, yyyy")
+          <strong>@(isQuotation ? "Quotation Date:" : isProforma ? "Quote Date:" : "Invoice Date:")</strong> @Model.InvoiceDate.ToString("MMMM dd, yyyy")
         </div>
         @if (!isProforma)
         {
@@ -176,7 +186,7 @@
         else
         {
           <div class="col-md-3">
-            <strong>Valid Until:</strong> @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "30 days")
+            <strong>Valid Until:</strong> @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? (isQuotation ? "60 days" : "30 days"))
           </div>
           <div class="col-md-3">
             <strong>Proposed Terms:</strong> @Model.PaymentTerms
@@ -184,7 +194,7 @@
           <div class="col-md-3">
             <strong>Status:</strong>
             <span class="badge bg-info">
-              Pending Approval
+              @(isQuotation ? "Quotation" : "Pending Approval")
             </span>
           </div>
         }
@@ -194,7 +204,7 @@
       {
         <div class="row mb-4">
           <div class="col-md-12">
-            <strong>@(isProforma ? "Reference Number:" : "Order Number:"):</strong> @Model.OrderNumber
+            <strong>@(isProforma ? "Reference Number:" : "Order Number:")</strong> @Model.OrderNumber
           </div>
         </div>
       }
@@ -228,7 +238,7 @@
                 <td>
                   <strong>@item.Description</strong>
 
-                  @* ? NEW: Show Serial/Model Numbers *@
+                  @* Show Serial/Model Numbers *@
                   @if (item.HasSerialModelInfo)
                   {
                     <br>
@@ -238,7 +248,7 @@
                     </small>
                   }
 
-                  @* ? NEW: Show Notes *@
+                  @* Show Notes *@
                   @if (!string.IsNullOrWhiteSpace(item.Notes))
                   {
                     <br>
@@ -352,7 +362,7 @@
             else
             {
               <tr class="table-info">
-                <th colspan="@(isProforma ? "4" : "5")" class="text-end"><strong>@(isProforma ? "PROFORMA TOTAL:" : "INVOICE TOTAL:"):</strong></th>
+                <th colspan="@(isProforma ? "4" : "5")" class="text-end"><strong>@(isQuotation ? "QUOTATION TOTAL:" : isProforma ? "PROFORMA TOTAL:" : "INVOICE TOTAL:"):</strong></th>
                 <th class="text-end"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
                 @if (!isProforma)
                 {
@@ -426,24 +436,49 @@
       <!-- Footer -->
       @if (isProforma)
       {
-        <!-- Proforma-specific footer -->
-        <div class="alert alert-info mt-4">
-          <h6><i class="fas fa-info-circle"></i> Important Information:</h6>
-          <ul class="mb-0">
-            <li>This is a <strong>Proforma Invoice (Quote)</strong> and is not a tax invoice</li>
-            <li>Prices and availability are subject to change</li>
-            <li>This quote is valid for 30 days from the date shown above</li>
-            <li>Final invoice will be issued upon order confirmation and shipment</li>
-            <li>All sales subject to our standard terms and conditions</li>
-          </ul>
-        </div>
-        <div class="text-center mt-4 pt-3 border-top">
-          <p class="text-muted mb-1">Thank you for considering our services!</p>
-          <p class="text-muted mb-1">Please contact us to place your order or if you have any questions.</p>
-          <small class="text-muted">
-            Quote generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")
-          </small>
-        </div>
+        @if (isQuotation)
+        {
+          <!-- Quotation-specific footer -->
+          <div class="alert alert-info mt-4">
+            <h6><i class="fas fa-info-circle"></i> Quotation Terms &amp; Conditions:</h6>
+            <ul class="mb-0">
+              <li>This is a <strong>Quotation</strong> and is not a tax invoice</li>
+              <li>Prices and availability are subject to change</li>
+              <li>This quotation is valid for <strong>60 days</strong> from the date shown above</li>
+              <li>To accept this quotation, please contact us to confirm your order</li>
+              <li>Final invoice will be issued upon order confirmation and shipment</li>
+              <li>All sales subject to our standard terms and conditions</li>
+            </ul>
+          </div>
+          <div class="text-center mt-4 pt-3 border-top">
+            <p class="text-muted mb-1">Thank you for the opportunity to quote!</p>
+            <p class="text-muted mb-1">Please contact us to place your order or if you have any questions.</p>
+            <small class="text-muted">
+              Quotation generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")
+            </small>
+          </div>
+        }
+        else
+        {
+          <!-- Proforma-specific footer -->
+          <div class="alert alert-info mt-4">
+            <h6><i class="fas fa-info-circle"></i> Important Information:</h6>
+            <ul class="mb-0">
+              <li>This is a <strong>Proforma Invoice (Quote)</strong> and is not a tax invoice</li>
+              <li>Prices and availability are subject to change</li>
+              <li>This quote is valid for 30 days from the date shown above</li>
+              <li>Final invoice will be issued upon order confirmation and shipment</li>
+              <li>All sales subject to our standard terms and conditions</li>
+            </ul>
+          </div>
+          <div class="text-center mt-4 pt-3 border-top">
+            <p class="text-muted mb-1">Thank you for considering our services!</p>
+            <p class="text-muted mb-1">Please contact us to place your order or if you have any questions.</p>
+            <small class="text-muted">
+              Quote generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")
+            </small>
+          </div>
+        }
       }
       else
       {
@@ -469,7 +504,7 @@
         <input type="hidden" asp-for="InvoiceNumber" />
         <div class="modal-header">
           <h5 class="modal-title" id="emailModalLabel">
-            <i class="fas fa-envelope"></i> Email @(isProforma ? "Quote" : "Invoice") to Customer
+            <i class="fas fa-envelope"></i> Email @docLabel to Customer
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -489,7 +524,7 @@
             <label asp-for="EmailMessage" class="form-label">Email Message</label>
             <textarea asp-for="EmailMessage" class="form-control" rows="4" required></textarea>
             <div class="form-text">
-              The @(isProforma ? "quote" : "invoice") will be included as an HTML attachment in the email body.
+              The @docLabel.ToLower() will be included as an HTML attachment in the email body.
             </div>
           </div>
         </div>
