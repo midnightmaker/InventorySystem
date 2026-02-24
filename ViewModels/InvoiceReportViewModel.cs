@@ -78,12 +78,13 @@ namespace InventorySystem.ViewModels
 		public string InvoiceTitle { get; set; } = "Invoice";
 
 		/// <summary>
-		/// Indicates the sale originated as a quotation - when true, shows "QUOTATION" title
+		/// Indicates the sale originated as a quotation.
+		/// True when SaleStatus == SaleStatus.Quotation.
 		/// </summary>
 		public bool IsQuotation { get; set; }
 
 		// Helper property to determine if this is a proforma invoice
-		public bool IsProformaInvoice => IsProforma ?? (SaleStatus != SaleStatus.Shipped);
+		public bool IsProformaInvoice => IsProforma ?? (SaleStatus != SaleStatus.Shipped && SaleStatus != SaleStatus.Delivered);
 
 		/// <summary>
 		/// Gets the document title based on the state: Quotation, Proforma Invoice, or Invoice
@@ -92,7 +93,7 @@ namespace InventorySystem.ViewModels
 		{
 			get
 			{
-				if (IsQuotation && IsProformaInvoice) return "QUOTATION";
+				if (IsQuotation) return "QUOTATION";
 				if (IsProformaInvoice) return "PROFORMA INVOICE";
 				return "INVOICE";
 			}
@@ -105,7 +106,7 @@ namespace InventorySystem.ViewModels
 		{
 			get
 			{
-				if (IsQuotation && IsProformaInvoice) return "Quotation";
+				if (IsQuotation) return "Quotation";
 				if (IsProformaInvoice) return "Proforma";
 				return "Invoice";
 			}

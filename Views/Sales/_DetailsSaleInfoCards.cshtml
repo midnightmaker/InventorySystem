@@ -1,5 +1,6 @@
 @model InventorySystem.ViewModels.SaleDetailsViewModel
 @using InventorySystem.Helpers
+@using InventorySystem.Models.Enums
 
 <!-- Consolidated Sale Information Header with Status -->
 <div class="row mb-4">
@@ -29,11 +30,23 @@
                         <span class="badge bg-@Model.ConsolidatedStatusBadgeColor fs-6">
                             @Model.ConsolidatedStatus
                         </span>
+                        @if (Model.HasMissingDocumentWarning)
+                        {
+                            <br />
+                            <small class="text-danger">
+                                <i class="fas fa-exclamation-circle"></i> Service docs required
+                            </small>
+                        }
                     </dd>
                     <dt class="col-sm-6">Payment:</dt>
                     <dd class="col-sm-6">
-                        <span class="badge bg-@BadgeHelper.GetPaymentStatusBadgeColor(Model.Sale.PaymentStatus)">
-                            @Model.Sale.PaymentStatus
+                        @{
+                            var displayPaymentStatus = Model.Sale.IsQuotation
+                                ? PaymentStatus.Quotation
+                                : Model.Sale.PaymentStatus;
+                        }
+                        <span class="badge bg-@BadgeHelper.GetPaymentStatusBadgeColor(displayPaymentStatus)">
+                            @displayPaymentStatus
                         </span>
                     </dd>
                     @if (Model.Sale.IsOverdue)

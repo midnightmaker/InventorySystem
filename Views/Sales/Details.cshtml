@@ -4,7 +4,7 @@
 @using InventorySystem.Models.Enums
 @using InventorySystem.Helpers
 @{
-    ViewData["Title"] = Model.Sale.IsQuotation && Model.Sale.SaleStatus == SaleStatus.Quotation ? "Quotation Details" : "Sale Details";
+    ViewData["Title"] = Model.Sale.IsQuotation ? "Quotation Details" : "Sale Details";
 
     var hasIncompleteServiceOrders = Model.ServiceOrders.Any(so => so.Status != ServiceOrderStatus.Completed);
     var canProcessSale = !hasIncompleteServiceOrders;

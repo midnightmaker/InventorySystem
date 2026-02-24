@@ -123,6 +123,7 @@ namespace InventorySystem.Helpers
                 PaymentStatus.Pending => "warning",
                 PaymentStatus.Overdue => "danger",
                 PaymentStatus.PartiallyPaid => "info",
+                PaymentStatus.Quotation => "secondary",
                 _ => "secondary"
             };
         }

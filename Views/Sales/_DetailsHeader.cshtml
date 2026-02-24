@@ -8,7 +8,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>
-        @if (Model.Sale.IsQuotation && Model.Sale.SaleStatus == SaleStatus.Quotation)
+        @if (Model.Sale.IsQuotation)
         {
             <i class="fas fa-file-alt"></i> <text>Quotation @Model.Sale.SaleNumber</text>
         }
@@ -67,9 +67,16 @@
             </a>
         }
 
+        @if (Model.CanMarkAsDelivered)
+        {
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#markAsDeliveredModal">
+                <i class="fas fa-check-circle"></i> Mark as Delivered
+            </button>
+        }
+
         <a href="@Url.Action("InvoiceReport", new { saleId = Model.Sale.Id })" class="btn btn-primary">
             <i class="fas fa-file-invoice-dollar"></i>
-            @if (Model.Sale.IsQuotation && isProformaInvoice)
+            @if (Model.Sale.IsQuotation)
             {
                 <text>View Quotation</text>
             }
@@ -105,6 +112,35 @@
     <div class="alert alert-danger alert-dismissible fade show">
         <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* Missing service documents banner — shown when PartiallyShipped is caused by incomplete service docs *@
+@if (Model.HasMissingDocumentWarning)
+{
+    <div class="alert alert-warning d-flex align-items-start mb-4" role="alert">
+        <i class="fas fa-exclamation-triangle fa-lg me-3 mt-1 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+            <strong>Sale is Partially Shipped — Required Service Documents Missing</strong>
+            <p class="mb-1 mt-1">
+                All items have been shipped, but the following service type(s) are still missing
+                required documents. Upload the documents to resolve this status:
+            </p>
+            <ul class="mb-0">
+                @foreach (var name in Model.MissingDocumentServiceNames)
+                {
+                    <li><strong>@name</strong></li>
+                }
+            </ul>
+        </div>
+        @if (Model.CanMarkAsDelivered)
+        {
+            <div class="ms-3 flex-shrink-0">
+                <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#markAsDeliveredModal">
+                    <i class="fas fa-check-circle"></i> Mark Delivered Anyway
+                </button>
+            </div>
+        }
     </div>
 }
 

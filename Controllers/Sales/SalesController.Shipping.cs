@@ -385,6 +385,49 @@ namespace InventorySystem.Controllers
 			}
 		}
 
+		// POST: Sales/MarkAsDelivered
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> MarkAsDelivered(int saleId, string? deliveryNotes)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(saleId);
+				if (sale == null)
+				{
+					SetErrorMessage("Sale not found.");
+					return RedirectToAction("Index");
+				}
+
+				if (sale.SaleStatus != SaleStatus.Shipped && sale.SaleStatus != SaleStatus.PartiallyShipped)
+				{
+					SetErrorMessage($"Cannot mark sale as delivered. Current status is '{sale.SaleStatus}'. Only 'Shipped' or 'Partially Shipped' sales can be marked as delivered.");
+					return RedirectToAction("Details", new { id = saleId });
+				}
+
+				sale.SaleStatus = SaleStatus.Delivered;
+
+				// Append delivery notes to existing notes if provided
+				if (!string.IsNullOrWhiteSpace(deliveryNotes))
+				{
+					var deliveryEntry = $"\n[Delivered {DateTime.Now:MM/dd/yyyy} by {User.Identity?.Name ?? "System"}]: {deliveryNotes.Trim()}";
+					sale.Notes = (sale.Notes ?? "") + deliveryEntry;
+				}
+
+				await _salesService.UpdateSaleAsync(sale);
+
+				_logger.LogInformation("Sale {SaleNumber} marked as Delivered by {User}", sale.SaleNumber, User.Identity?.Name ?? "System");
+				SetSuccessMessage($"Sale {sale.SaleNumber} has been marked as Delivered.");
+				return RedirectToAction("Details", new { id = saleId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error marking sale {SaleId} as delivered", saleId);
+				SetErrorMessage($"Error marking sale as delivered: {ex.Message}");
+				return RedirectToAction("Details", new { id = saleId });
+			}
+		}
+
 		// ── Shipping private helpers ─────────────────────────────────────────
 
 		private async Task<Shipment?> CreateShipmentRecordAsync(Sale sale, ProcessSaleViewModel model)

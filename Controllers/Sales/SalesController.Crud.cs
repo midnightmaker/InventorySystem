@@ -160,11 +160,37 @@ namespace InventorySystem.Controllers
 				.OrderBy(s => s.ShipmentDate)
 				.ToListAsync();
 
+			// Detect service types whose required documents are missing
+			// (these are the reason a sale can land in PartiallyShipped with no remaining backorders)
+			var missingDocServiceNames = new List<string>();
+			if (sale.SaleStatus == SaleStatus.PartiallyShipped)
+			{
+				var serviceTypeIds = sale.SaleItems
+					.Where(si => si.ServiceTypeId.HasValue)
+					.Select(si => si.ServiceTypeId!.Value)
+					.Distinct()
+					.ToList();
+
+				if (serviceTypeIds.Any())
+				{
+					var serviceTypes = await _context.ServiceTypes
+						.Include(st => st.Documents)
+						.Where(st => serviceTypeIds.Contains(st.Id))
+						.ToListAsync();
+
+					missingDocServiceNames = serviceTypes
+						.Where(st => !st.HasRequiredDocuments)
+						.Select(st => st.ServiceName)
+						.ToList();
+				}
+			}
+
 			var viewModel = new SaleDetailsViewModel
 			{
 				Sale = sale,
 				ServiceOrders = serviceOrders,
-				Shipments = shipments
+				Shipments = shipments,
+				MissingDocumentServiceNames = missingDocServiceNames
 			};
 
 			return View(viewModel);
@@ -370,14 +396,15 @@ namespace InventorySystem.Controllers
 				sale.CreatedDate = existingSale.CreatedDate;
 				sale.ShippedDate = existingSale.ShippedDate;
 				sale.ShippedBy = existingSale.ShippedBy;
-				sale.IsQuotation = existingSale.IsQuotation;
+				// NOTE: IsQuotation is now a computed property (SaleStatus == SaleStatus.Quotation),
+				// so it does not need to be explicitly copied.
 
 				// Recalculate PaymentDueDate from Terms + SaleDate in case the hidden field
 				// was submitted with an incorrect or culture-specific value.
 				sale.CalculatePaymentDueDate();
 
 				await _salesService.UpdateSaleAsync(sale);
-				SetSuccessMessage($"{(existingSale.IsQuotation ? "Quotation" : "Sale")} {sale.SaleNumber} updated successfully!");
+				SetSuccessMessage($"{(sale.IsQuotation ? "Quotation" : "Sale")} {sale.SaleNumber} updated successfully!");
 				return RedirectToAction("Details", new { id = sale.Id });
 			}
 			catch (Exception ex)
@@ -987,7 +1014,8 @@ namespace InventorySystem.Controllers
 					return View(viewModel);
 				}
 
-				// Build the Sale entity
+				// Build the Sale entity.
+				// IsQuotation is now computed from SaleStatus, so we only need to set SaleStatus correctly.
 				var sale = new Sale
 				{
 					SaleNumber = await _salesService.GenerateSaleNumberAsync(),
@@ -1007,8 +1035,7 @@ namespace InventorySystem.Controllers
 					DiscountPercentage = viewModel.DiscountType == "Percentage" ? viewModel.DiscountPercentage : 0,
 					DiscountType = viewModel.DiscountType,
 					DiscountReason = viewModel.DiscountReason,
-					CreatedDate = DateTime.Now,
-					IsQuotation = viewModel.IsQuotation
+					CreatedDate = DateTime.Now
 				};
 
 				var createdSale = await _salesService.CreateSaleAsync(sale);

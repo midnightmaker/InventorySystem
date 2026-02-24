@@ -98,11 +98,13 @@ namespace InventorySystem.Models
 		public string? ShippedBy { get; set; }
 
 		/// <summary>
-		/// Indicates whether this sale originated as a quotation.
-		/// When true, invoice reports show "QUOTATION" instead of "PROFORMA INVOICE".
+		/// Indicates whether this sale is a quotation.
+		/// Derived solely from SaleStatus — a sale is a quotation if and only if
+		/// its SaleStatus is SaleStatus.Quotation. Not stored in the database.
 		/// </summary>
+		[NotMapped]
 		[Display(Name = "Is Quotation")]
-		public bool IsQuotation { get; set; } = false;
+		public bool IsQuotation => SaleStatus == SaleStatus.Quotation;
 
 		// Navigation properties
 		public virtual ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
