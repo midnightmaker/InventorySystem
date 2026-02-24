@@ -182,11 +182,12 @@ namespace InventorySystem.ViewModels
         public decimal TotalInvoiced { get; set; }
         public decimal TotalPaid { get; set; }
         public decimal TotalAdjustments { get; set; }
+        public decimal OpeningBalance { get; set; }
 
         /// <summary>
-        /// Balance owed by the customer BEFORE the statement period begins.
+        /// Company details used in the print header.
         /// </summary>
-        public decimal OpeningBalance { get; set; }
+        public CompanyInfo CompanyInfo { get; set; } = new();
 
         // Statement metadata
         public string StatementNumber => $"STMT-{Customer.Id}-{StatementDate:yyyyMMdd}";
@@ -226,6 +227,13 @@ namespace InventorySystem.ViewModels
         {
             var lines = new List<StatementLineItem>();
 
+            // Build a lookup of SaleId -> SaleNumber from ALL customer sales (not just period invoices)
+            // so payments against out-of-period invoices still resolve a sale number.
+            var saleNumberLookup = (Customer.Sales ?? new List<Sale>())
+                .Where(s => s.Id > 0 && !string.IsNullOrEmpty(s.SaleNumber))
+                .GroupBy(s => s.Id)
+                .ToDictionary(g => g.Key, g => g.First().SaleNumber);
+
             foreach (var inv in AllInvoices.OrderBy(s => s.SaleDate))
             {
                 lines.Add(new StatementLineItem
@@ -237,6 +245,7 @@ namespace InventorySystem.ViewModels
                     Charges = inv.TotalAmount,
                     Credits = 0,
                     SaleId = inv.Id,
+                    SaleNumber = inv.SaleNumber,
                     PaymentStatus = inv.PaymentStatus
                 });
             }
@@ -244,29 +253,39 @@ namespace InventorySystem.ViewModels
             foreach (var pmt in Payments.OrderBy(p => p.PaymentDate))
             {
                 var refNote = string.IsNullOrEmpty(pmt.PaymentReference) ? "" : $" (Ref: {pmt.PaymentReference})";
+
+                // Resolve the sale number this payment was applied to
+                var appliedToSaleNumber = saleNumberLookup.TryGetValue(pmt.SaleId, out var sn) ? sn : null;
+                var invoiceNote = appliedToSaleNumber != null ? $" for Invoice #{appliedToSaleNumber}" : "";
+
                 lines.Add(new StatementLineItem
                 {
                     Date = pmt.PaymentDate,
                     Type = StatementLineItemType.Payment,
                     Reference = pmt.PaymentReference ?? $"PMT-{pmt.Id}",
-                    Description = $"Payment - {pmt.PaymentMethod}{refNote}",
+                    Description = $"Payment - {pmt.PaymentMethod}{invoiceNote}{refNote}",
                     Charges = 0,
                     Credits = pmt.Amount,
-                    SaleId = pmt.SaleId
+                    SaleId = pmt.SaleId,
+                    SaleNumber = appliedToSaleNumber
                 });
             }
 
             foreach (var adj in Adjustments.OrderBy(a => a.AdjustmentDate))
             {
+                var adjSaleNumber = adj.SaleId.HasValue && saleNumberLookup.TryGetValue(adj.SaleId.Value, out var asn) ? asn : null;
+                var adjInvoiceNote = adjSaleNumber != null ? $" for Invoice #{adjSaleNumber}" : "";
+
                 lines.Add(new StatementLineItem
                 {
                     Date = adj.AdjustmentDate,
                     Type = StatementLineItemType.Adjustment,
                     Reference = $"ADJ-{adj.Id}",
-                    Description = $"{adj.AdjustmentType} - {adj.Reason}",
+                    Description = $"{adj.AdjustmentType}{adjInvoiceNote} - {adj.Reason}",
                     Charges = 0,
                     Credits = adj.AdjustmentAmount,
-                    SaleId = adj.SaleId
+                    SaleId = adj.SaleId,
+                    SaleNumber = adjSaleNumber
                 });
             }
 
@@ -300,6 +319,14 @@ namespace InventorySystem.ViewModels
         public decimal Credits { get; set; }
         public decimal RunningBalance { get; set; }
         public int? SaleId { get; set; }
+
+        /// <summary>
+        /// The sale/invoice number this line item relates to.
+        /// For Invoice rows this is the invoice's own number;
+        /// for Payment and Adjustment rows it is the invoice the transaction was applied against.
+        /// </summary>
+        public string? SaleNumber { get; set; }
+
         public PaymentStatus? PaymentStatus { get; set; }
 
         public string TypeBadgeClass => Type switch

@@ -15,16 +15,20 @@ namespace InventorySystem.Controllers
 		private readonly ICustomerService _customerService;
 		private readonly ILogger<AccountsReceivableController> _logger;
 		private readonly InventoryContext _context;
+		private readonly ICompanyInfoService _companyInfoService;
 
 		public AccountsReceivableController(
 						ISalesService salesService,
 						ICustomerService customerService,
-						ILogger<AccountsReceivableController> logger, InventoryContext context)
+						ILogger<AccountsReceivableController> logger,
+						InventoryContext context,
+						ICompanyInfoService companyInfoService)
 		{
 			_salesService = salesService;
 			_customerService = customerService;
 			_logger = logger;
 			_context = context;
+			_companyInfoService = companyInfoService;
 		}
 
 		// GET: AccountsReceivable
@@ -277,6 +281,11 @@ namespace InventorySystem.Controllers
 
 				var openingBalance = invoicesBeforePeriod - paymentsBeforePeriod - adjustmentsBeforePeriod;
 
+				// Load company info for the print header
+				CompanyInfo companyInfo;
+				try { companyInfo = await _companyInfoService.GetCompanyInfoAsync(); }
+				catch { companyInfo = new CompanyInfo(); }
+
 				var statement = new CustomerStatementViewModel
 				{
 					Customer = customer,
@@ -290,7 +299,8 @@ namespace InventorySystem.Controllers
 					TotalInvoiced = allInvoices.Sum(s => s.TotalAmount),
 					TotalPaid = payments.Sum(p => p.Amount),
 					TotalAdjustments = adjustments.Sum(a => a.AdjustmentAmount),
-					OpeningBalance = openingBalance
+					OpeningBalance = openingBalance,
+					CompanyInfo = companyInfo
 				};
 
 				return View(statement);

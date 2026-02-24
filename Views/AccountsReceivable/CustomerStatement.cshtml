@@ -4,8 +4,39 @@
     ViewData["Title"] = $"Customer Statement - {Model.Customer.PrimaryDisplayName}";
     var ledger = Model.GetActivityLedger();
     var hasActivity = ledger.Any() || Model.OpeningBalance != 0;
+    var co = Model.CompanyInfo;
 }
 
+@* ===== PRINT-ONLY COMPANY HEADER (hidden on screen) ===== *@
+<div class="d-none d-print-block print-company-header mb-3">
+    <div class="d-flex justify-content-between align-items-start">
+        <div class="d-flex align-items-start gap-3">
+            @if (co.HasLogo)
+            {
+                <img src="@Url.Action("CompanyLogo", "Purchases")"
+                     alt="@co.CompanyName"
+                     style="max-width:100px; max-height:70px; object-fit:contain;" />
+            }
+            <div>
+                <div class="fw-bold" style="font-size:16px;">@co.CompanyName</div>
+                <div>@co.Address@if (!string.IsNullOrEmpty(co.AddressLine2)) { <text>, @co.AddressLine2</text> }</div>
+                <div>@co.City@(!string.IsNullOrEmpty(co.City) && !string.IsNullOrEmpty(co.State) ? ", " : "")@co.State @co.ZipCode</div>
+                @if (!string.IsNullOrEmpty(co.Phone))  { <div>Tel: @co.Phone</div> }
+                @if (!string.IsNullOrEmpty(co.Email))  { <div>Email: @co.Email</div> }
+                @if (!string.IsNullOrEmpty(co.Website)){ <div>@co.Website</div> }
+            </div>
+        </div>
+        <div class="text-end">
+            <div class="fw-bold" style="font-size:14px;">ACCOUNT STATEMENT</div>
+            <div>Statement #: @Model.StatementNumber</div>
+            <div>Date: @Model.StatementDate.ToString("MMMM dd, yyyy")</div>
+            <div>Period: @Model.StatementStartDate.ToString("MM/dd/yyyy") &ndash; @Model.StatementDate.ToString("MM/dd/yyyy")</div>
+        </div>
+    </div>
+    <hr style="border-top: 2px solid #333; margin-top: 8px;" />
+</div>
+
+@* ===== ON-SCREEN TOOLBAR ===== *@
 <div class="d-print-none d-flex justify-content-between align-items-center mb-4">
     <h1>
         <i class="fas fa-file-invoice-dollar"></i> Customer Statement
@@ -132,7 +163,7 @@
         </div>
 
         @* Summary KPI Cards *@
-        <div class="row mb-4">
+        <div class="row mb-4 d-print-none">
             <div class="col-md-3">
                 <div class="card bg-primary text-white text-center py-2">
                     <div class="fw-bold fs-4">@Model.AllInvoices.Count</div>
@@ -210,6 +241,15 @@
                                     {
                                         <a href="/Sales/Details/@line.SaleId" class="text-decoration-none d-print-none">@line.Reference</a>
                                         <span class="d-none d-print-inline">@line.Reference</span>
+                                    }
+                                    else if ((line.Type == StatementLineItemType.Payment || line.Type == StatementLineItemType.Adjustment) && line.SaleId.HasValue && !string.IsNullOrEmpty(line.SaleNumber))
+                                    {
+                                        @* Show payment/adjustment ref + a link to the related invoice *@
+                                        <span>@line.Reference</span>
+                                        <span class="ms-1 text-nowrap">
+                                            &rarr; <a href="/Sales/Details/@line.SaleId" class="text-decoration-none d-print-none fw-semibold" title="View Invoice @line.SaleNumber">Inv #@line.SaleNumber</a>
+                                            <span class="d-none d-print-inline fw-semibold">Inv #@line.SaleNumber</span>
+                                        </span>
                                     }
                                     else
                                     {
@@ -413,16 +453,55 @@
 
 <style>
     @@media print {
-        .d-print-none { display: none !important; }
-        .d-none.d-print-inline { display: inline !important; }
-        body { font-size: 12px; }
-        .card { box-shadow: none !important; border: 1px solid #dee2e6 !important; }
-        .card-header.bg-dark { background-color: #343a40 !important; color: white !important; -webkit-print-color-adjust: exact; }
-        .badge { -webkit-print-color-adjust: exact; }
-        .table-danger { background-color: #f8d7da !important; -webkit-print-color-adjust: exact; }
-        .table-warning { background-color: #fff3cd !important; -webkit-print-color-adjust: exact; }
-        .table-success { background-color: #d1e7dd !important; -webkit-print-color-adjust: exact; }
-        h1 { font-size: 1.5rem; }
-        .fs-4 { font-size: 1rem !important; }
+        /* ?? Hide layout chrome ?????????????????????????????????? */
+        header, nav, .navbar        { display: none !important; }
+        footer, .footer             { display: none !important; }
+        .d-print-none               { display: none !important; }
+        .d-none.d-print-inline      { display: inline !important; }
+        .d-none.d-print-block       { display: block !important; }
+
+        /* ?? Page setup ?????????????????????????????????????????? */
+        @@page { margin: 0.5in; size: letter; }
+        body   { font-size: 11px; color: #000 !important; background: #fff !important; }
+
+        /* ?? Card chrome ????????????????????????????????????????? */
+        .card             { box-shadow: none !important; border: 1px solid #ccc !important; }
+
+        /* "Account Statement" card header: dark ? light gray */
+        .card-header.bg-dark {
+            background-color: #e8e8e8 !important;
+            color: #000 !important;
+            border-bottom: 1px solid #999 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* ?? Table headers/footers ??????????????????????????????? */
+        /* Transaction History thead & Outstanding invoices tfoot */
+        .table-dark,
+        thead.table-dark,
+        tfoot.table-dark {
+            background-color: #e8e8e8 !important;
+            color: #000 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .table-dark th,
+        .table-dark td  { color: #000 !important; border-color: #999 !important; }
+
+        /* Aging summary "Total Outstanding" last row */
+        tr.table-dark.fw-bold td { color: #000 !important; background-color: #e8e8e8 !important; }
+
+        /* ?? Row highlight colours (keep subtle) ????????????????? */
+        .table-danger  { background-color: #f8d7da !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .table-warning { background-color: #fff3cd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .table-success { background-color: #d1e7dd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .table-secondary { background-color: #e9ecef !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        /* ?? Badges ??????????????????????????????????????????????? */
+        .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        /* ?? Company header ??????????????????????????????????????? */
+        .print-company-header { font-size: 11px; }
     }
 </style>
