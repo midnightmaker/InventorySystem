@@ -90,10 +90,21 @@
             }
         </a>
 
-        @if (Model.Sale.PaymentStatus != PaymentStatus.Paid)
+        @if (Model.Sale.PaymentStatus != PaymentStatus.Paid && !Model.Sale.IsQuotation &&
+             (Model.Sale.SaleStatus == SaleStatus.Shipped ||
+              Model.Sale.SaleStatus == SaleStatus.Delivered ||
+              Model.Sale.SaleStatus == SaleStatus.PartiallyShipped))
         {
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">
                 <i class="fas fa-dollar-sign"></i> Record Payment
+            </button>
+        }
+
+        @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Quotation)
+        {
+            <button type="button" class="btn btn-outline-danger"
+                    onclick="confirmDeleteSale(@Model.Sale.Id, '@Model.Sale.SaleNumber', @Model.Sale.IsQuotation.ToString().ToLower())">
+                <i class="fas fa-trash"></i> Delete
             </button>
         }
     </div>

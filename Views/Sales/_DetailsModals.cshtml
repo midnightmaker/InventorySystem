@@ -379,3 +379,45 @@
         </div>
     </div>
 }
+
+<!-- Delete Sale / Quotation Confirmation Modal -->
+@if (Model.Sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Processing ||
+     Model.Sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Quotation)
+{
+    <div class="modal fade" id="deleteSaleModal" tabindex="-1" aria-labelledby="deleteSaleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteSaleModalLabel">
+                        <i class="fas fa-trash"></i>
+                        @(Model.Sale.IsQuotation ? "Delete Quotation" : "Delete Sale")
+                        @Model.Sale.SaleNumber
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>This action cannot be undone.</strong>
+                    </div>
+                    <p>
+                        Are you sure you want to permanently delete
+                        <strong>@(Model.Sale.IsQuotation ? "Quotation" : "Sale") @Model.Sale.SaleNumber</strong>?
+                    </p>
+                    <p class="text-muted small">All line items associated with this record will also be removed.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <form asp-action="Delete" asp-route-id="@Model.Sale.Id" method="post" style="display:inline;">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

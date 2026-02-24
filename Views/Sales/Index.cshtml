@@ -405,22 +405,31 @@
                   <!-- Action Buttons -->
                   <div class="btn-group">
                     <!-- View Details -->
-                    <a href="/Sales/Details/@sale.Id" class="btn btn-sm btn-info" title="View Details">
+                    <a href="/Sales/Details/@sale.Id" class="btn btn-sm btn-info" title="View Details" onclick="event.stopPropagation();">
                       <i class="fas fa-eye"></i>
                     </a>
                     <!-- Edit -->
-                    <a href="/Sales/Edit/@sale.Id" class="btn btn-sm btn-warning" title="Edit Sale">
+                    <a href="/Sales/Edit/@sale.Id" class="btn btn-sm btn-warning" title="Edit" onclick="event.stopPropagation();">
                       <i class="fas fa-pencil-alt"></i>
                     </a>
-                    <!-- Delete -->
-                    <button class="btn btn-sm btn-danger" title="Delete Sale" onclick="deleteSale(@sale.Id, '@sale.SaleNumber')">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                    <!-- Payment -->
-                    @if (sale.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid)
+                    <!-- Delete — only available for Processing sales and Quotations -->
+                    @if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Processing ||
+                         sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Quotation)
+                    {
+                      <button class="btn btn-sm btn-danger" title="Delete"
+                              onclick="event.stopPropagation(); deleteSale(@sale.Id, '@sale.SaleNumber', @sale.IsQuotation.ToString().ToLower())">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    }
+                    <!-- Payment — only for shipped/delivered sales that are not yet fully paid, and never for quotations -->
+                    @if (sale.PaymentStatus != InventorySystem.Models.Enums.PaymentStatus.Paid &&
+                         !sale.IsQuotation &&
+                         (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Shipped ||
+                          sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Delivered ||
+                          sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.PartiallyShipped))
                     {
                       <button class="btn btn-sm btn-success" title="Record Payment"
-                              onclick="openPaymentModalWithAdjustments(@sale.Id, '@sale.SaleNumber')">
+                              onclick="event.stopPropagation(); openPaymentModalWithAdjustments(@sale.Id, '@sale.SaleNumber')">
                         <i class="fas fa-dollar-sign"></i>
                       </button>
                     }
@@ -441,6 +450,39 @@
   </div>
 </div>
 
+<!-- MODAL: Delete Sale / Quotation Confirmation -->
+<div class="modal fade" id="deleteSaleModal" tabindex="-1" aria-labelledby="deleteSaleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="deleteSaleModalLabel">
+          <i class="fas fa-trash"></i> <span id="deleteModalTitle">Delete Sale</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-triangle"></i>
+          <strong>This action cannot be undone.</strong>
+        </div>
+        <p>Are you sure you want to permanently delete <strong id="deleteSaleNumber"></strong>?</p>
+        <p class="text-muted small">All line items associated with this record will also be removed.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <form id="deleteSaleForm" method="post" style="display:inline;">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Yes, Delete
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Record Payment (enhanced example) -->
 <div class="modal fade" id="recordPaymentModalIndex" tabindex="-1" aria-labelledby="recordPaymentModalIndexLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
@@ -453,8 +495,7 @@
       </div>
       <div class="modal-body">
         <form id="recordPaymentForm" method="post" action="/Sales/RecordPayment">
-          @* Anti-forgery token for security *@
-          <input type="hidden" name="__RequestVerificationToken" value="@Html.AntiForgeryToken().ToString()" />
+          @Html.AntiForgeryToken()
           <input type="hidden" id="modalSaleId" name="saleId" value="" />
 
           <div class="row g-3">
@@ -614,5 +655,15 @@
             });
     }
 
+    function deleteSale(saleId, saleNumber, isQuotation) {
+      var docType = isQuotation ? 'Quotation' : 'Sale';
+      document.getElementById('deleteModalTitle').textContent = 'Delete ' + docType;
+      document.getElementById('deleteSaleNumber').textContent = saleNumber;
+      document.getElementById('deleteSaleForm').action = '/Sales/Delete/' + saleId;
+
+      var modal = new bootstrap.Modal(document.getElementById('deleteSaleModal'));
+      modal.show();
+    }
+
   </script>
-}
+}}

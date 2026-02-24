@@ -185,13 +185,26 @@
             </div>
             <div class="col-md-6">
               <label asp-for="SaleStatus" class="form-label">Sale Status</label>
-              <select asp-for="SaleStatus" class="form-select">
-                <option value="@((int)SaleStatus.Processing)" selected>Processing</option>
-                <option value="@((int)SaleStatus.Backordered)">Backordered</option>
-                <option value="@((int)SaleStatus.Shipped)">Shipped</option>
-                <option value="@((int)SaleStatus.Delivered)">Delivered</option>
-              </select>
-              <span asp-validation-for="SaleStatus" class="text-danger"></span>
+              @if (isQuotation)
+              {
+                <div>
+                  <span class="badge bg-secondary fs-6 px-3 py-2">
+                    <i class="fas fa-file-alt"></i> Quotation
+                  </span>
+                  <div class="form-text">Status is fixed for quotations.</div>
+                </div>
+                <input type="hidden" asp-for="SaleStatus" value="@((int)SaleStatus.Quotation)" />
+              }
+              else
+              {
+                <select asp-for="SaleStatus" class="form-select">
+                  <option value="@((int)SaleStatus.Processing)" selected>Processing</option>
+                  <option value="@((int)SaleStatus.Backordered)">Backordered</option>
+                  <option value="@((int)SaleStatus.Shipped)">Shipped</option>
+                  <option value="@((int)SaleStatus.Delivered)">Delivered</option>
+                </select>
+                <span asp-validation-for="SaleStatus" class="text-danger"></span>
+              }
             </div>
           </div>
 

@@ -329,5 +329,10 @@
             setTimeout(() => { checkBackorderAvailability(); }, 1000);
             </text>
         }
+
+        function confirmDeleteSale(saleId, saleNumber, isQuotation) {
+            var modal = new bootstrap.Modal(document.getElementById('deleteSaleModal'));
+            modal.show();
+        }
     </script>
 }

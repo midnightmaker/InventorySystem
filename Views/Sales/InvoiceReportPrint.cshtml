@@ -498,18 +498,7 @@
           @if (!isProforma)
           {
             <tr>
-              <th colspan="5" class="text-end">
-                <strong>
-                  @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
-                  {
-                    <span>PAID IN FULL:</span>
-                  }
-                  else
-                  {
-                    <span>AMOUNT DUE:</span>
-                  }
-                </strong>
-              </th>
+              <th colspan="5" class="text-end"><strong>AMOUNT DUE:</strong></th>
               <th class="text-end">
                 <strong>
                   @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
@@ -605,7 +594,14 @@
       else
       {
         <p class="mb-1"><strong>Thank you for your business!</strong></p>
-        <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
+        @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+        {
+          <p class="mb-1"><strong>Invoice has been paid in full.</strong></p>
+        }
+        else
+        {
+          <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
+        }
       }
       <p class="mb-0">
         <small>Printed on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</small>

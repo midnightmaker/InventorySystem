@@ -378,6 +378,9 @@
                 <th class="text-end">($@Model.AmountPaid.ToString("N2"))</th>
                 <th></th>
               </tr>
+            }
+            @if (!isProforma)
+            {
               <tr class="@(Model.AmountDue > 0 ? "table-warning" : "table-success")">
                 <th colspan="5" class="text-end"><strong>AMOUNT DUE:</strong></th>
                 <th class="text-end"><strong>$@Model.AmountDue.ToString("N2")</strong></th>
@@ -485,7 +488,14 @@
         <!-- Regular invoice footer -->
         <div class="text-center mt-4 pt-3 border-top">
           <p class="text-muted mb-1">Thank you for your business!</p>
-          <p class="text-muted mb-1">Please include invoice number @Model.InvoiceNumber with your payment.</p>
+          @if (Model.PaymentStatus == InventorySystem.Models.Enums.PaymentStatus.Paid)
+          {
+            <p class="text-success mb-1"><strong><i class="fas fa-check-circle"></i> Invoice has been paid in full.</strong></p>
+          }
+          else
+          {
+            <p class="text-muted mb-1">Please include invoice number @Model.InvoiceNumber with your payment.</p>
+          }
           <small class="text-muted">
             Generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")
           </small>

@@ -1136,5 +1136,43 @@ namespace InventorySystem.Controllers
 				return View(viewModel);
 			}
 		}
+
+		// POST: Sales/Delete/{id}
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> Delete(int id)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(id);
+				if (sale == null)
+				{
+					SetErrorMessage("Sale not found.");
+					return RedirectToAction("Index");
+				}
+
+				// Only Processing and Quotation sales may be deleted
+				if (sale.SaleStatus != SaleStatus.Processing && sale.SaleStatus != SaleStatus.Quotation)
+				{
+					SetErrorMessage($"Cannot delete a {(sale.IsQuotation ? "quotation" : "sale")} with status '{sale.SaleStatus}'. " +
+						"Only sales that are still in Processing status or Quotations can be deleted.");
+					return RedirectToAction("Details", new { id });
+				}
+
+				var saleNumber = sale.SaleNumber;
+				var docType = sale.IsQuotation ? "Quotation" : "Sale";
+
+				await _salesService.DeleteSaleAsync(id);
+
+				SetSuccessMessage($"{docType} {saleNumber} has been deleted successfully.");
+				return RedirectToAction("Index");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error deleting sale: {SaleId}", id);
+				SetErrorMessage($"Error deleting sale: {ex.Message}");
+				return RedirectToAction("Index");
+			}
+		}
 	}
 }

@@ -458,5 +458,34 @@ namespace InventorySystem.Controllers
 				return Json(new { success = false, message = "Error retrieving service types" });
 			}
 		}
+
+		// GET: Sales/GetSaleEffectiveAmount
+		[HttpGet]
+		public async Task<JsonResult> GetSaleEffectiveAmount(int id)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(id);
+				if (sale == null)
+					return Json(new { success = false, error = "Sale not found" });
+
+				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
+				var effectiveAmount = sale.TotalAmount - totalAdjustments;
+
+				return Json(new
+				{
+					success = true,
+					originalAmount = sale.TotalAmount,
+					effectiveAmount = effectiveAmount,
+					hasAdjustments = totalAdjustments > 0,
+					totalAdjustments = totalAdjustments
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting effective amount for sale {SaleId}", id);
+				return Json(new { success = false, error = "Error retrieving sale amount" });
+			}
+		}
 	}
 }
