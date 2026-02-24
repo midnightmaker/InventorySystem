@@ -237,18 +237,17 @@ namespace InventorySystem.Models
 		{
 			get
 			{
-				// Exclude quotations — they are not committed sales and carry no payment obligation.
-				// Sum the full TotalAmount for every unpaid/overdue/partial sale …
+				// Sum ALL non-cancelled, non-quotation invoices (paid and unpaid alike).
+				// We must include paid invoices here because their corresponding payments
+				// are also included in totalPaymentsReceived below. Omitting paid invoices
+				// while still deducting all payments causes an artificially low (or zero) balance.
 				var salesAmount = Sales?.Where(s =>
+						s.SaleStatus != SaleStatus.Cancelled &&
 						s.SaleStatus != SaleStatus.Quotation &&
-						s.PaymentStatus != PaymentStatus.Quotation &&
-						(s.PaymentStatus == PaymentStatus.Pending ||
-						 s.PaymentStatus == PaymentStatus.Overdue ||
-						 s.PaymentStatus == PaymentStatus.PartiallyPaid))
+						s.PaymentStatus != PaymentStatus.Quotation)
 						.Sum(s => s.TotalAmount) ?? 0;
 
-				// … then deduct actual payments already received against those sales so that
-				// partial prepayments reduce the outstanding balance correctly.
+				// Deduct all payments actually received
 				var totalPaymentsReceived = CustomerPayments?
 						.Where(p => p.Status == PaymentRecordStatus.Processed)
 						.Sum(p => p.Amount) ?? 0;
@@ -264,11 +263,9 @@ namespace InventorySystem.Models
 		// Add a method to get the raw balance without adjustments (for comparison)
 		[NotMapped]
 		public decimal RawOutstandingBalance => Sales?.Where(s =>
+				s.SaleStatus != SaleStatus.Cancelled &&
 				s.SaleStatus != SaleStatus.Quotation &&
-				s.PaymentStatus != PaymentStatus.Quotation &&
-				(s.PaymentStatus == PaymentStatus.Pending ||
-				 s.PaymentStatus == PaymentStatus.Overdue ||
-				 s.PaymentStatus == PaymentStatus.PartiallyPaid))
+				s.PaymentStatus != PaymentStatus.Quotation)
 				.Sum(s => s.TotalAmount) ?? 0;
 
 		// Add a method to get total adjustments

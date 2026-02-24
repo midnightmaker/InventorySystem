@@ -102,7 +102,16 @@ namespace InventorySystem.Controllers
 		{
 			try
 			{
-				var customer = await _customerService.GetCustomerByIdAsync(id);
+				// Load customer with all navigation properties needed for the details view
+				var customer = await _context.Customers
+						.Include(c => c.Sales)
+						.Include(c => c.CustomerPayments)
+								.ThenInclude(p => p.Sale)
+						.Include(c => c.BalanceAdjustments)
+								.ThenInclude(a => a.Sale)
+						.Include(c => c.Documents)
+						.FirstOrDefaultAsync(c => c.Id == id);
+
 				if (customer == null)
 				{
 					TempData["ErrorMessage"] = "Customer not found.";

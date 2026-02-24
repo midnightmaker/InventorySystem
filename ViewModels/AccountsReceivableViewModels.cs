@@ -1,5 +1,6 @@
 using InventorySystem.Models;
 using InventorySystem.Models.Enums;
+using InventorySystem.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace InventorySystem.ViewModels
@@ -172,13 +173,150 @@ namespace InventorySystem.ViewModels
     {
         public Customer Customer { get; set; } = new();
         public List<Sale> UnpaidInvoices { get; set; } = new();
+        public List<Sale> AllInvoices { get; set; } = new();
+        public List<CustomerPayment> Payments { get; set; } = new();
+        public List<CustomerBalanceAdjustment> Adjustments { get; set; } = new();
         public DateTime StatementDate { get; set; }
+        public DateTime StatementStartDate { get; set; }
         public decimal TotalOutstanding { get; set; }
-        
+        public decimal TotalInvoiced { get; set; }
+        public decimal TotalPaid { get; set; }
+        public decimal TotalAdjustments { get; set; }
+
+        /// <summary>
+        /// Balance owed by the customer BEFORE the statement period begins.
+        /// </summary>
+        public decimal OpeningBalance { get; set; }
+
         // Statement metadata
         public string StatementNumber => $"STMT-{Customer.Id}-{StatementDate:yyyyMMdd}";
         public DateTime? OldestInvoiceDate => UnpaidInvoices.Any() ? UnpaidInvoices.Min(i => i.SaleDate) : null;
         public int DaysOldestInvoice => OldestInvoiceDate.HasValue ? (DateTime.Today - OldestInvoiceDate.Value).Days : 0;
+
+        /// <summary>
+        /// Returns a dictionary of SaleId -> total payments applied against that sale
+        /// from ALL processed CustomerPayments for this customer (not just within the period),
+        /// so the "Amount Due" per invoice is always accurate.
+        /// </summary>
+        public Dictionary<int, decimal> GetPaymentsAppliedBySale()
+        {
+            return (Customer.CustomerPayments ?? new List<CustomerPayment>())
+                .Where(p => p.Status == PaymentRecordStatus.Processed)
+                .GroupBy(p => p.SaleId)
+                .ToDictionary(g => g.Key, g => g.Sum(p => p.Amount));
+        }
+
+        /// <summary>
+        /// Returns the remaining amount due on a specific sale after applying payments.
+        /// Never returns negative (overpayment shown as $0).
+        /// </summary>
+        public decimal GetAmountDue(Sale sale)
+        {
+            var paymentsApplied = GetPaymentsAppliedBySale();
+            var paid = paymentsApplied.TryGetValue(sale.Id, out var p) ? p : 0m;
+            return Math.Max(0, sale.TotalAmount - paid);
+        }
+
+        /// <summary>
+        /// Returns a chronological list of all statement activity (invoices, payments, adjustments)
+        /// with a running balance for display in the statement ledger.
+        /// The running balance starts from OpeningBalance so the final row equals TotalOutstanding.
+        /// </summary>
+        public List<StatementLineItem> GetActivityLedger()
+        {
+            var lines = new List<StatementLineItem>();
+
+            foreach (var inv in AllInvoices.OrderBy(s => s.SaleDate))
+            {
+                lines.Add(new StatementLineItem
+                {
+                    Date = inv.SaleDate,
+                    Type = StatementLineItemType.Invoice,
+                    Reference = inv.SaleNumber,
+                    Description = $"Invoice #{inv.SaleNumber}",
+                    Charges = inv.TotalAmount,
+                    Credits = 0,
+                    SaleId = inv.Id,
+                    PaymentStatus = inv.PaymentStatus
+                });
+            }
+
+            foreach (var pmt in Payments.OrderBy(p => p.PaymentDate))
+            {
+                var refNote = string.IsNullOrEmpty(pmt.PaymentReference) ? "" : $" (Ref: {pmt.PaymentReference})";
+                lines.Add(new StatementLineItem
+                {
+                    Date = pmt.PaymentDate,
+                    Type = StatementLineItemType.Payment,
+                    Reference = pmt.PaymentReference ?? $"PMT-{pmt.Id}",
+                    Description = $"Payment - {pmt.PaymentMethod}{refNote}",
+                    Charges = 0,
+                    Credits = pmt.Amount,
+                    SaleId = pmt.SaleId
+                });
+            }
+
+            foreach (var adj in Adjustments.OrderBy(a => a.AdjustmentDate))
+            {
+                lines.Add(new StatementLineItem
+                {
+                    Date = adj.AdjustmentDate,
+                    Type = StatementLineItemType.Adjustment,
+                    Reference = $"ADJ-{adj.Id}",
+                    Description = $"{adj.AdjustmentType} - {adj.Reason}",
+                    Charges = 0,
+                    Credits = adj.AdjustmentAmount,
+                    SaleId = adj.SaleId
+                });
+            }
+
+            // Sort chronologically and compute running balance starting from the opening balance
+            lines = lines.OrderBy(l => l.Date).ThenBy(l => l.Type).ToList();
+            decimal runningBalance = OpeningBalance;
+            foreach (var line in lines)
+            {
+                runningBalance += line.Charges - line.Credits;
+                line.RunningBalance = runningBalance;
+            }
+
+            return lines;
+        }
+    }
+
+    public enum StatementLineItemType
+    {
+        Invoice = 1,
+        Payment = 2,
+        Adjustment = 3
+    }
+
+    public class StatementLineItem
+    {
+        public DateTime Date { get; set; }
+        public StatementLineItemType Type { get; set; }
+        public string Reference { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal Charges { get; set; }
+        public decimal Credits { get; set; }
+        public decimal RunningBalance { get; set; }
+        public int? SaleId { get; set; }
+        public PaymentStatus? PaymentStatus { get; set; }
+
+        public string TypeBadgeClass => Type switch
+        {
+            StatementLineItemType.Invoice => "bg-primary",
+            StatementLineItemType.Payment => "bg-success",
+            StatementLineItemType.Adjustment => "bg-warning text-dark",
+            _ => "bg-secondary"
+        };
+
+        public string TypeLabel => Type switch
+        {
+            StatementLineItemType.Invoice => "Invoice",
+            StatementLineItemType.Payment => "Payment",
+            StatementLineItemType.Adjustment => "Adjustment",
+            _ => "Other"
+        };
     }
 
     // Reports ViewModels

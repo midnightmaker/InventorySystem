@@ -206,26 +206,91 @@ namespace InventorySystem.Controllers
 		}
 
 		// GET: AccountsReceivable/CustomerStatement/5
-		public async Task<IActionResult> CustomerStatement(int id)
+		public async Task<IActionResult> CustomerStatement(int id, DateTime? startDate)
 		{
 			try
 			{
-				var customer = await _customerService.GetCustomerByIdAsync(id);
+				var customer = await _context.Customers
+						.Include(c => c.Sales)
+								.ThenInclude(s => s.SaleItems)
+						.Include(c => c.CustomerPayments)
+						.Include(c => c.BalanceAdjustments)
+								.ThenInclude(a => a.Sale)
+						.FirstOrDefaultAsync(c => c.Id == id);
+
 				if (customer == null)
 				{
 					TempData["ErrorMessage"] = "Customer not found.";
 					return RedirectToAction(nameof(CustomerStatements));
 				}
 
-				var customerSales = await _salesService.GetCustomerSalesAsync(id);
-				var unpaidSales = customerSales.Where(s => s.PaymentStatus != PaymentStatus.Paid && s.SaleStatus != SaleStatus.Cancelled).ToList();
+				var statementStartDate = startDate ?? new DateTime(DateTime.Today.Year, 1, 1);
+				var today = DateTime.Today;
+
+				// All non-cancelled, non-quotation invoices within the period
+				var allInvoices = customer.Sales
+						.Where(s => s.SaleStatus != SaleStatus.Cancelled
+								 && s.SaleStatus != SaleStatus.Quotation
+								 && s.PaymentStatus != PaymentStatus.Quotation
+								 && s.SaleDate >= statementStartDate
+								 && s.SaleDate <= today)
+						.OrderBy(s => s.SaleDate)
+						.ToList();
+
+				var unpaidInvoices = allInvoices
+						.Where(s => s.PaymentStatus != PaymentStatus.Paid)
+						.OrderBy(s => s.SaleDate)
+						.ToList();
+
+				// Payments within the period
+				var payments = customer.CustomerPayments
+						.Where(p => p.Status == PaymentRecordStatus.Processed
+								 && p.PaymentDate >= statementStartDate
+								 && p.PaymentDate <= today)
+						.OrderBy(p => p.PaymentDate)
+						.ToList();
+
+				// Adjustments within the period
+				var adjustments = customer.BalanceAdjustments
+						.Where(a => a.AdjustmentDate >= statementStartDate
+								 && a.AdjustmentDate <= today)
+						.OrderBy(a => a.AdjustmentDate)
+						.ToList();
+
+				// Calculate opening balance: activity that occurred BEFORE the statement period
+				// Opening balance = invoices before period - payments before period - adjustments before period
+				var invoicesBeforePeriod = customer.Sales
+						.Where(s => s.SaleStatus != SaleStatus.Cancelled
+								 && s.SaleStatus != SaleStatus.Quotation
+								 && s.PaymentStatus != PaymentStatus.Quotation
+								 && s.SaleDate < statementStartDate)
+						.Sum(s => s.TotalAmount);
+
+				var paymentsBeforePeriod = customer.CustomerPayments
+						.Where(p => p.Status == PaymentRecordStatus.Processed
+								 && p.PaymentDate < statementStartDate)
+						.Sum(p => p.Amount);
+
+				var adjustmentsBeforePeriod = customer.BalanceAdjustments
+						.Where(a => a.AdjustmentDate < statementStartDate)
+						.Sum(a => a.AdjustmentAmount);
+
+				var openingBalance = invoicesBeforePeriod - paymentsBeforePeriod - adjustmentsBeforePeriod;
 
 				var statement = new CustomerStatementViewModel
 				{
 					Customer = customer,
-					UnpaidInvoices = unpaidSales.OrderBy(s => s.SaleDate).ToList(),
-					StatementDate = DateTime.Today,
-					TotalOutstanding = customer.OutstandingBalance
+					UnpaidInvoices = unpaidInvoices,
+					AllInvoices = allInvoices,
+					Payments = payments,
+					Adjustments = adjustments,
+					StatementDate = today,
+					StatementStartDate = statementStartDate,
+					TotalOutstanding = customer.OutstandingBalance,
+					TotalInvoiced = allInvoices.Sum(s => s.TotalAmount),
+					TotalPaid = payments.Sum(p => p.Amount),
+					TotalAdjustments = adjustments.Sum(a => a.AdjustmentAmount),
+					OpeningBalance = openingBalance
 				};
 
 				return View(statement);
