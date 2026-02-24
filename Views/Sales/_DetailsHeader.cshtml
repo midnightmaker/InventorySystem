@@ -4,6 +4,16 @@
 @{
     var isProformaInvoice = (bool)ViewData["IsProformaInvoice"]!;
     var canProcessSale = (bool)ViewData["CanProcessSale"]!;
+
+    // Show "Generate Invoice" for Immediate/PrePayment sales that are still in Processing
+    // and have at least one line item so there is something to invoice.
+    var isPreShipmentInvoiceEligible =
+        !Model.Sale.IsQuotation &&
+        Model.Sale.SaleStatus == SaleStatus.Processing &&
+        Model.Sale.SaleItems?.Any() == true &&
+        (Model.Sale.Terms == PaymentTerms.Immediate || Model.Sale.Terms == PaymentTerms.PrePayment || Model.Sale.Terms == PaymentTerms.COD);
+
+    var hasExistingInvoice = Model.Invoices?.Any() == true;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -93,7 +103,9 @@
         @if (Model.Sale.PaymentStatus != PaymentStatus.Paid && !Model.Sale.IsQuotation &&
              (Model.Sale.SaleStatus == SaleStatus.Shipped ||
               Model.Sale.SaleStatus == SaleStatus.Delivered ||
-              Model.Sale.SaleStatus == SaleStatus.PartiallyShipped))
+              Model.Sale.SaleStatus == SaleStatus.PartiallyShipped ||
+              (Model.Sale.SaleStatus == SaleStatus.Processing &&
+               (Model.Sale.Terms == PaymentTerms.Immediate || Model.Sale.Terms == PaymentTerms.PrePayment || Model.Sale.Terms == PaymentTerms.COD))))
         {
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">
                 <i class="fas fa-dollar-sign"></i> Record Payment
@@ -106,6 +118,19 @@
                     onclick="confirmDeleteSale(@Model.Sale.Id, '@Model.Sale.SaleNumber', @Model.Sale.IsQuotation.ToString().ToLower())">
                 <i class="fas fa-trash"></i> Delete
             </button>
+        }
+
+        @if (isPreShipmentInvoiceEligible)
+        {
+            <form asp-action="GeneratePreShipmentInvoice" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="saleId" value="@Model.Sale.Id" />
+                <button type="submit" class="btn @(hasExistingInvoice ? "btn-outline-warning" : "btn-warning")"
+                        title="@(hasExistingInvoice ? "Re-generate invoice (a previous invoice already exists)" : "Generate and store a pre-shipment invoice for this customer")">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    @(hasExistingInvoice ? "Re-generate Invoice" : "Generate Invoice")
+                </button>
+            </form>
         }
     </div>
 </div>

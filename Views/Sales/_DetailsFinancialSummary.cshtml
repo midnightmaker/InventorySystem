@@ -13,6 +13,8 @@
     var adjustedProfit = netProfit - totalAdjustments;
     var afterDiscountAmount = Model.Sale.SubtotalAmount - Model.Sale.DiscountCalculated;
     var showExtraCol = Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Backordered;
+    var hasPayments = Model.Payments.Any();
+    var isQuotation = Model.Sale.IsQuotation;
 }
 
 @if (Model.Sale.SaleItems?.Any() == true)
@@ -89,6 +91,53 @@
                                         <td class="text-end"><strong>@Model.Sale.TotalAmount.ToString("C")</strong></td>
                                         @if (showExtraCol) { <td></td> }
                                     </tr>
+                                }
+
+                                @* ?? Payment rows (only for non-quotation sales) ?? *@
+                                @if (!isQuotation && hasPayments)
+                                {
+                                    @foreach (var pmt in Model.Payments)
+                                    {
+                                        <tr class="table-success">
+                                            <td colspan="6" class="text-success">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                Payment — @pmt.PaymentDate.ToString("MM/dd/yyyy")
+                                                <span class="badge bg-secondary ms-1">@pmt.PaymentMethod</span>
+                                                @if (!string.IsNullOrWhiteSpace(pmt.PaymentReference))
+                                                {
+                                                    <span class="text-muted small ms-1">Ref: @pmt.PaymentReference</span>
+                                                }
+                                            </td>
+                                            <td class="text-end text-success">-@pmt.Amount.ToString("C")</td>
+                                            @if (showExtraCol) { <td></td> }
+                                        </tr>
+                                    }
+
+                                    @if (Model.Payments.Count > 1)
+                                    {
+                                        <tr class="table-success">
+                                            <td colspan="6"><strong>Total Payments:</strong></td>
+                                            <td class="text-end text-success"><strong>-@Model.AmountPaid.ToString("C")</strong></td>
+                                            @if (showExtraCol) { <td></td> }
+                                        </tr>
+                                    }
+
+                                    @if (Model.RemainingBalance <= 0)
+                                    {
+                                        <tr class="table-success">
+                                            <td colspan="6"><strong><i class="fas fa-check-circle me-1"></i>Balance Due:</strong></td>
+                                            <td class="text-end text-success"><strong>@(0m.ToString("C"))</strong></td>
+                                            @if (showExtraCol) { <td></td> }
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        <tr class="table-warning">
+                                            <td colspan="6"><strong>Balance Due:</strong></td>
+                                            <td class="text-end text-danger"><strong>@Model.RemainingBalance.ToString("C")</strong></td>
+                                            @if (showExtraCol) { <td></td> }
+                                        </tr>
+                                    }
                                 }
                             </tbody>
                         </table>

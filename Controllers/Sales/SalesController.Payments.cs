@@ -114,8 +114,15 @@ namespace InventorySystem.Controllers
 				};
 
 				var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0;
-				var isProforma = sale.SaleStatus != SaleStatus.Shipped && sale.SaleStatus != SaleStatus.Delivered;
-				var isQuotation = sale.IsQuotation;
+
+				// A sale is only proforma/quotation if it hasn't shipped AND there is no
+				// pre-shipment (prepayment) invoice — pre-shipment invoices are real invoices.
+				var hasPreShipmentInvoice = (await _invoiceService.GetInvoicesBySaleAsync(saleId))
+					.Any(i => i.InvoiceType == InvoiceType.PreShipment);
+
+				var isShipped    = sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered;
+				var isProforma   = !isShipped && !hasPreShipmentInvoice;
+				var isQuotation  = sale.IsQuotation;
 
 				// For quotations, the valid period is 60 days from the quote date
 				var dueDate = isQuotation && isProforma
@@ -165,6 +172,7 @@ namespace InventorySystem.Controllers
 					TotalAdjustments = totalAdjustments,
 					OriginalAmount = sale.TotalAmount,
 					IsProforma = isProforma,
+					IsPreShipmentInvoice = hasPreShipmentInvoice,
 					IsQuotation = isQuotation,
 					InvoiceTitle = docLabel,
 					IsDirectedToAP = sale.Customer?.DirectInvoicesToAP ?? false,
@@ -210,7 +218,13 @@ namespace InventorySystem.Controllers
 					ShippingAddress = sale.ShippingAddress ?? sale.Customer?.FullShippingAddress ?? string.Empty
 				};
 
-				var isProforma = sale.SaleStatus != SaleStatus.Shipped && sale.SaleStatus != SaleStatus.Delivered;
+				// A sale is only proforma/quotation if it hasn't shipped AND there is no
+				// pre-shipment (prepayment) invoice — pre-shipment invoices are real invoices.
+				var hasPreShipmentInvoice = (await _invoiceService.GetInvoicesBySaleAsync(saleId))
+					.Any(i => i.InvoiceType == InvoiceType.PreShipment);
+
+				var isShipped   = sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered;
+				var isProforma  = !isShipped && !hasPreShipmentInvoice;
 				var isQuotation = sale.IsQuotation;
 
 				// For quotations, the valid period is 60 days from the quote date
@@ -232,6 +246,7 @@ namespace InventorySystem.Controllers
 					OriginalAmount = sale.TotalAmount,
 					IsQuotation = isQuotation,
 					IsProforma = isProforma,
+					IsPreShipmentInvoice = hasPreShipmentInvoice,
 					LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
 					{
 						ItemId = si.ItemId ?? si.FinishedGoodId ?? si.ServiceTypeId ?? 0,
@@ -271,6 +286,82 @@ namespace InventorySystem.Controllers
 			{
 				SetErrorMessage($"Error generating printable invoice: {ex.Message}");
 				return RedirectToAction("Index");
+			}
+		}
+
+		// GET: Sales/ViewInvoice/{invoiceId}
+		// Renders InvoiceReportPrint using the exact same viewmodel that Rotativa
+		// used to generate the stored PDF — both flow through BuildInvoiceViewModelAsync
+		// which mirrors InvoiceReportPrint (sale.SaleNumber, all items, full amounts).
+		[HttpGet]
+		public async Task<IActionResult> ViewInvoice(int invoiceId)
+		{
+			try
+			{
+				var viewModel = await _invoiceService.BuildInvoiceViewModelAsync(invoiceId);
+				if (viewModel == null)
+				{
+					SetErrorMessage("Invoice not found.");
+					return RedirectToAction("Index");
+				}
+
+				// Provide SaleId so the view's "Back to Sale" link works
+				var invoice = await _invoiceService.GetInvoiceByIdAsync(invoiceId);
+				ViewBag.SaleId = invoice?.SaleId;
+
+				return View("InvoiceReportPrint", viewModel);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error building invoice view for invoice {InvoiceId}", invoiceId);
+				SetErrorMessage($"Error loading invoice: {ex.Message}");
+				return RedirectToAction("Index");
+			}
+		}
+
+		// POST: Sales/GeneratePreShipmentInvoice
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> GeneratePreShipmentInvoice(int saleId)
+		{
+			try
+			{
+				var sale = await _salesService.GetSaleByIdAsync(saleId);
+				if (sale == null)
+				{
+					SetErrorMessage("Sale not found.");
+					return RedirectToAction("Index");
+				}
+
+				if (sale.SaleStatus == SaleStatus.Cancelled)
+				{
+					SetErrorMessage("Cannot generate an invoice for a cancelled sale.");
+					return RedirectToAction("Details", new { id = saleId });
+				}
+
+				if (!sale.SaleItems.Any())
+				{
+					SetErrorMessage("Cannot generate an invoice for a sale with no line items.");
+					return RedirectToAction("Details", new { id = saleId });
+				}
+
+				var invoice = await _invoiceService.GeneratePreShipmentInvoiceAsync(
+					saleId,
+					User.Identity?.Name ?? "System");
+
+				// Signal the Details page to auto-open the invoice preview modal
+				TempData["ShowInvoicePreview"] = true;
+				TempData["PreviewInvoiceId"]   = invoice.Id;
+				TempData["PreviewInvoiceNumber"] = invoice.InvoiceNumber;
+				TempData["PreviewHasPdf"]      = invoice.HasPdf;
+
+				return RedirectToAction("Details", new { id = saleId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error generating pre-shipment invoice for Sale ID: {SaleId}", saleId);
+				SetErrorMessage($"Error generating invoice: {ex.Message}");
+				return RedirectToAction("Details", new { id = saleId });
 			}
 		}
 	}

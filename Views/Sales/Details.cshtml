@@ -8,7 +8,12 @@
 
     var hasIncompleteServiceOrders = Model.ServiceOrders.Any(so => so.Status != ServiceOrderStatus.Completed);
     var canProcessSale = !hasIncompleteServiceOrders;
-    var isProformaInvoice = Model.Sale.SaleStatus != SaleStatus.Shipped && Model.Sale.SaleStatus != SaleStatus.Delivered;
+
+    // A pre-shipment invoice makes this a real invoice even before the sale ships
+    var hasPreShipmentInvoice = Model.Invoices.Any(i => i.InvoiceType == InventorySystem.Models.Enums.InvoiceType.PreShipment);
+    var isProformaInvoice = !hasPreShipmentInvoice &&
+                            Model.Sale.SaleStatus != SaleStatus.Shipped &&
+                            Model.Sale.SaleStatus != SaleStatus.Delivered;
 
     // Pass computed flags to partials via ViewData
     ViewData["CanProcessSale"] = canProcessSale;
@@ -23,6 +28,7 @@
 @await Html.PartialAsync("_DetailsAdjustmentsCard", Model)
 @await Html.PartialAsync("_DetailsSaleItemsTable", Model)
 @await Html.PartialAsync("_DetailsShipmentsCard", Model)
+@await Html.PartialAsync("_DetailsInvoicesCard", Model)
 @await Html.PartialAsync("_DetailsServiceOrdersCard", Model)
 @await Html.PartialAsync("_DetailsFinancialSummary", Model)
 @await Html.PartialAsync("_DetailsModals", Model)
@@ -333,6 +339,50 @@
         function confirmDeleteSale(saleId, saleNumber, isQuotation) {
             var modal = new bootstrap.Modal(document.getElementById('deleteSaleModal'));
             modal.show();
+        }
+
+        // ── Invoice preview modal ────────────────────────────────────────────
+        function openInvoicePreviewModal(invoiceId, invoiceNumber, hasPdf) {
+            const viewUrl     = '/Sales/ViewInvoice?invoiceId=' + invoiceId;
+            const downloadUrl = '/Sales/DownloadInvoice?invoiceId=' + invoiceId;
+
+            document.getElementById('invoicePreviewNumber').textContent  = invoiceNumber;
+            document.getElementById('invoicePreviewFrame').src           = viewUrl;
+            document.getElementById('invoicePreviewOpenTab').href        = viewUrl;
+
+            const dlBtn = document.getElementById('invoicePreviewDownload');
+            if (hasPdf) {
+                dlBtn.href             = downloadUrl;
+                dlBtn.style.display    = '';
+            } else {
+                dlBtn.style.display    = 'none';
+            }
+
+            new bootstrap.Modal(document.getElementById('invoicePreviewModal')).show();
+        }
+
+        function printInvoiceFrame() {
+            const frame = document.getElementById('invoicePreviewFrame');
+            if (frame && frame.contentWindow) {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            }
+        }
+
+        @if (TempData["ShowInvoicePreview"] != null && (bool)TempData["ShowInvoicePreview"]!)
+        {
+            var previewId     = (int)TempData["PreviewInvoiceId"]!;
+            var previewNum    = TempData["PreviewInvoiceNumber"]?.ToString() ?? "";
+            var previewHasPdf = TempData["PreviewHasPdf"] is bool b && b;
+            <text>
+            document.addEventListener('DOMContentLoaded', function () {
+                openInvoicePreviewModal(
+                    @previewId,
+                    @Html.Raw(System.Text.Json.JsonSerializer.Serialize(previewNum)),
+                    @(previewHasPdf ? "true" : "false")
+                );
+            });
+            </text>
         }
     </script>
 }

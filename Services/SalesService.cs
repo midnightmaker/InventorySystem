@@ -41,9 +41,11 @@ namespace InventorySystem.Services
 					.Include(s => s.SaleItems)
 							.ThenInclude(si => si.FinishedGood)
 					.Include(s => s.SaleItems)
-							.ThenInclude(si => si.ServiceType) // ✅ ADDED: Include ServiceType navigation
+							.ThenInclude(si => si.ServiceType)
 					.Include(s => s.Customer)
 							.ThenInclude(c => c.BalanceAdjustments)
+					.Include(s => s.Customer)
+							.ThenInclude(c => c.CustomerPayments)
 					.Include(s => s.RelatedAdjustments)
 					.FirstOrDefaultAsync(s => s.Id == id);
 		}

@@ -83,8 +83,19 @@ namespace InventorySystem.ViewModels
 		/// </summary>
 		public bool IsQuotation { get; set; }
 
-		// Helper property to determine if this is a proforma invoice
-		public bool IsProformaInvoice => IsProforma ?? (SaleStatus != SaleStatus.Shipped && SaleStatus != SaleStatus.Delivered);
+		/// <summary>
+		/// True when this is a pre-shipment (prepayment) invoice — a real, binding invoice
+		/// sent to the customer so they can pay before the goods ship.
+		/// Pre-shipment invoices are NOT proforma: they show due dates, payment terms,
+		/// and an Amount Due just like a post-shipment invoice.
+		/// </summary>
+		public bool IsPreShipmentInvoice { get; set; }
+
+		// Helper property to determine if this is a proforma invoice.
+		// Pre-shipment invoices are never proforma even though the sale is not yet shipped.
+		public bool IsProformaInvoice =>
+			!IsPreShipmentInvoice &&
+			(IsProforma ?? (SaleStatus != SaleStatus.Shipped && SaleStatus != SaleStatus.Delivered));
 
 		/// <summary>
 		/// Gets the document title based on the state: Quotation, Proforma Invoice, or Invoice
@@ -93,7 +104,7 @@ namespace InventorySystem.ViewModels
 		{
 			get
 			{
-				if (IsQuotation) return "QUOTATION";
+				if (IsQuotation && IsProformaInvoice) return "QUOTATION";
 				if (IsProformaInvoice) return "PROFORMA INVOICE";
 				return "INVOICE";
 			}
@@ -106,7 +117,7 @@ namespace InventorySystem.ViewModels
 		{
 			get
 			{
-				if (IsQuotation) return "Quotation";
+				if (IsQuotation && IsProformaInvoice) return "Quotation";
 				if (IsProformaInvoice) return "Proforma";
 				return "Invoice";
 			}

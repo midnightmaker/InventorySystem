@@ -79,5 +79,27 @@ namespace InventorySystem.ViewModels
                 };
             }
         }
+
+        /// <summary>
+        /// Invoices generated for this sale (one per shipment).
+        /// </summary>
+        public List<Invoice> Invoices { get; set; } = new();
+
+        /// <summary>
+        /// Total of all processed payments recorded against this sale.
+        /// Populated by the Details controller action via <c>ICustomerPaymentService</c>.
+        /// </summary>
+        public decimal AmountPaid { get; set; }
+
+        /// <summary>
+        /// Effective sale total minus all payments made.
+        /// Accounts for post-sale adjustments: (TotalAmount - Adjustments) - AmountPaid.
+        /// </summary>
+        public decimal RemainingBalance { get; set; }
+
+        /// <summary>
+        /// Individual payment records for this sale (processed only, ordered by date).
+        /// </summary>
+        public List<CustomerPayment> Payments { get; set; } = new();
     }
 }

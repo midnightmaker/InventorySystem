@@ -116,6 +116,12 @@ builder.Services.AddScoped<ICustomerServiceService, CustomerServiceService>();
 // Register Audit Trail Service
 builder.Services.AddScoped<IAuditService, AuditService>();
 
+// Register Invoice Service
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+
+// Register IHttpContextAccessor (needed by InvoiceService for Rotativa PDF generation)
+builder.Services.AddHttpContextAccessor();
+
 // Configure file upload limits and request sizes
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -161,6 +167,9 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthorization();
+
+// Configure Rotativa (wkhtmltopdf binary in /Rotativa folder)
+Rotativa.AspNetCore.RotativaConfiguration.Setup(app.Environment.WebRootPath, "Rotativa");
 
 // ADDITION: Enable session middleware (must be before MapControllerRoute)
 app.UseSession();

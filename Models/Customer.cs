@@ -237,20 +237,26 @@ namespace InventorySystem.Models
 		{
 			get
 			{
-				// Exclude quotations — they are not committed sales and carry no payment obligation
+				// Exclude quotations — they are not committed sales and carry no payment obligation.
+				// Sum the full TotalAmount for every unpaid/overdue/partial sale …
 				var salesAmount = Sales?.Where(s =>
 						s.SaleStatus != SaleStatus.Quotation &&
 						s.PaymentStatus != PaymentStatus.Quotation &&
 						(s.PaymentStatus == PaymentStatus.Pending ||
-						s.PaymentStatus == PaymentStatus.Overdue ||
-						s.PaymentStatus == PaymentStatus.PartiallyPaid))
+						 s.PaymentStatus == PaymentStatus.Overdue ||
+						 s.PaymentStatus == PaymentStatus.PartiallyPaid))
 						.Sum(s => s.TotalAmount) ?? 0;
 
-				// Subtract any balance adjustments (allowances, bad debt write-offs)
+				// … then deduct actual payments already received against those sales so that
+				// partial prepayments reduce the outstanding balance correctly.
+				var totalPaymentsReceived = CustomerPayments?
+						.Where(p => p.Status == PaymentRecordStatus.Processed)
+						.Sum(p => p.Amount) ?? 0;
+
+				// Subtract any post-sale balance adjustments (allowances, bad-debt write-offs)
 				var adjustments = BalanceAdjustments?.Sum(ba => ba.AdjustmentAmount) ?? 0;
 
-				// Calculate final balance (ensure it doesn't go negative)
-				var finalBalance = salesAmount - adjustments;
+				var finalBalance = salesAmount - totalPaymentsReceived - adjustments;
 				return Math.Max(0, finalBalance);
 			}
 		}
@@ -261,8 +267,8 @@ namespace InventorySystem.Models
 				s.SaleStatus != SaleStatus.Quotation &&
 				s.PaymentStatus != PaymentStatus.Quotation &&
 				(s.PaymentStatus == PaymentStatus.Pending ||
-				s.PaymentStatus == PaymentStatus.Overdue ||
-				s.PaymentStatus == PaymentStatus.PartiallyPaid))
+				 s.PaymentStatus == PaymentStatus.Overdue ||
+				 s.PaymentStatus == PaymentStatus.PartiallyPaid))
 				.Sum(s => s.TotalAmount) ?? 0;
 
 		// Add a method to get total adjustments

@@ -43,7 +43,9 @@
                         </div>
 
                         <div class="col-md-4">
-                            <table class="table table-sm">
+                            @* ?? Customer-wide balance ?? *@
+                            <p class="text-muted small mb-1 fw-semibold">CUSTOMER ACCOUNT</p>
+                            <table class="table table-sm mb-3">
                                 <tr class="@(Model.Sale.Customer.OutstandingBalance > 0 ? "table-warning" : "table-success")">
                                     <td><strong>Outstanding Balance:</strong></td>
                                     <td class="text-end"><strong>@Model.Sale.Customer.OutstandingBalance.ToString("C")</strong></td>
@@ -57,6 +59,31 @@
                                     <td class="text-end"><strong>@Model.Sale.Customer.CreditAvailable.ToString("C")</strong></td>
                                 </tr>
                             </table>
+
+                            @* ?? This-sale balance (only for non-quotation sales) ?? *@
+                            @if (!Model.Sale.IsQuotation)
+                            {
+                                <p class="text-muted small mb-1 fw-semibold">THIS SALE (@Model.Sale.SaleNumber)</p>
+                                <table class="table table-sm mb-0">
+                                    <tr>
+                                        <td>Sale Total:</td>
+                                        <td class="text-end">@Model.Sale.TotalAmount.ToString("C")</td>
+                                    </tr>
+                                    @if (Model.AmountPaid > 0)
+                                    {
+                                        <tr class="table-success">
+                                            <td>Amount Paid:</td>
+                                            <td class="text-end text-success">@Model.AmountPaid.ToString("C")</td>
+                                        </tr>
+                                    }
+                                    <tr class="@(Model.RemainingBalance <= 0 ? "table-success" : "table-warning")">
+                                        <td><strong>Balance Due:</strong></td>
+                                        <td class="text-end @(Model.RemainingBalance <= 0 ? "text-success" : "text-danger")">
+                                            <strong>@Model.RemainingBalance.ToString("C")</strong>
+                                        </td>
+                                    </tr>
+                                </table>
+                            }
                         </div>
 
                         <div class="col-md-4">

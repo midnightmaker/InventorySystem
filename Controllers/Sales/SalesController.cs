@@ -20,6 +20,7 @@ namespace InventorySystem.Controllers
 		private readonly ICustomerService _customerService;
 		private readonly IPurchaseService _purchaseService;
 		private readonly ICompanyInfoService _companyInfoService;
+		private readonly IInvoiceService _invoiceService;
 		private readonly ILogger<SalesController> _logger;
 		private readonly InventoryContext _context;
 
@@ -30,6 +31,7 @@ namespace InventorySystem.Controllers
 			IPurchaseService purchaseService,
 			ICustomerService customerService,
 			ICompanyInfoService companyInfoService,
+			IInvoiceService invoiceService,
 			ILogger<SalesController> logger,
 			InventoryContext context)
 		{
@@ -38,6 +40,7 @@ namespace InventorySystem.Controllers
 			_productionService = productionService;
 			_customerService = customerService;
 			_companyInfoService = companyInfoService;
+			_invoiceService = invoiceService;
 			_logger = logger;
 			_purchaseService = purchaseService;
 			_context = context;

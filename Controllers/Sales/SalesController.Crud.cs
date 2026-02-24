@@ -160,6 +160,15 @@ namespace InventorySystem.Controllers
 				.OrderBy(s => s.ShipmentDate)
 				.ToListAsync();
 
+			// Load invoices for this sale
+			var invoices = await _invoiceService.GetInvoicesBySaleAsync(id);
+
+			// Fetch per-sale payment totals from the payment service
+			var paymentService = HttpContext.RequestServices.GetRequiredService<ICustomerPaymentService>();
+			var amountPaid       = await paymentService.GetTotalPaymentsBySaleAsync(id);
+			var remainingBalance = await paymentService.GetRemainingBalanceAsync(id);
+			var payments         = (await paymentService.GetPaymentsBySaleAsync(id)).ToList();
+
 			// Detect service types whose required documents are missing
 			// (these are the reason a sale can land in PartiallyShipped with no remaining backorders)
 			var missingDocServiceNames = new List<string>();
@@ -187,10 +196,14 @@ namespace InventorySystem.Controllers
 
 			var viewModel = new SaleDetailsViewModel
 			{
-				Sale = sale,
-				ServiceOrders = serviceOrders,
-				Shipments = shipments,
-				MissingDocumentServiceNames = missingDocServiceNames
+				Sale                        = sale,
+				ServiceOrders               = serviceOrders,
+				Shipments                   = shipments,
+				Invoices                    = invoices,
+				MissingDocumentServiceNames = missingDocServiceNames,
+				AmountPaid                  = amountPaid,
+				RemainingBalance            = remainingBalance,
+				Payments                    = payments
 			};
 
 			return View(viewModel);

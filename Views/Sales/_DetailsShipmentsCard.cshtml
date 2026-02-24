@@ -89,6 +89,9 @@
                             <tbody>
                                 @foreach (var shipment in Model.Shipments)
                                 {
+                                    @* Find the invoice for this shipment, if one exists *@
+                                    var shipmentInvoice = Model.Invoices.FirstOrDefault(inv => inv.ShipmentId == shipment.Id);
+
                                     <tr>
                                         <td>
                                             <strong>@shipment.PackingSlipNumber</strong>
@@ -185,7 +188,38 @@
                                                    target="_blank" class="btn btn-outline-primary" title="View Packing Slip">
                                                     <i class="fas fa-file-alt"></i>
                                                 </a>
+                                                @if (shipmentInvoice != null && shipmentInvoice.HasPdf)
+                                                {
+                                                    @* View invoice print-preview (same document as the stored PDF) *@
+                                                    <a href="@Url.Action("ViewInvoice", new { invoiceId = shipmentInvoice.Id })"
+                                                       target="_blank"
+                                                       class="btn btn-outline-success"
+                                                       title="View Invoice @shipmentInvoice.InvoiceNumber">
+                                                        <i class="fas fa-file-invoice"></i>
+                                                    </a>
+                                                    @* Download the stored PDF bytes *@
+                                                    <a href="@Url.Action("DownloadInvoice", new { invoiceId = shipmentInvoice.Id })"
+                                                       class="btn btn-outline-secondary"
+                                                       title="Download Invoice @shipmentInvoice.InvoiceNumber (PDF)">
+                                                        <i class="fas fa-download"></i>
+                                                    </a>
+                                                }
+                                                else if (shipmentInvoice != null)
+                                                {
+                                                    @* Invoice row exists but PDF generation failed — offer view-only *@
+                                                    <a href="@Url.Action("ViewInvoice", new { invoiceId = shipmentInvoice.Id })"
+                                                       target="_blank"
+                                                       class="btn btn-outline-warning"
+                                                       title="View Invoice @shipmentInvoice.InvoiceNumber (PDF not stored)">
+                                                        <i class="fas fa-file-invoice"></i>
+                                                    </a>
+                                                }
                                             </div>
+                                            @if (shipmentInvoice != null)
+                                            {
+                                                <br>
+                                                <small class="text-muted">@shipmentInvoice.InvoiceNumber</small>
+                                            }
                                         </td>
                                     </tr>
                                 }

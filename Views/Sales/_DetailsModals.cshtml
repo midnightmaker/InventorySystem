@@ -7,6 +7,58 @@
     var effectiveAmount = Model.Sale.TotalAmount - totalAdjustments;
 }
 
+<!-- Invoice Preview Modal -->
+<div class="modal fade" id="invoicePreviewModal" tabindex="-1" aria-labelledby="invoicePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width: 90vw;">
+        <div class="modal-content" style="height: 92vh;">
+            <div class="modal-header bg-primary text-white py-2">
+                <h5 class="modal-title" id="invoicePreviewModalLabel">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>
+                    Invoice Generated — <span id="invoicePreviewNumber"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 d-flex flex-column">
+                <!-- Action bar sits above the iframe -->
+                <div class="d-flex align-items-center gap-2 px-3 py-2 bg-light border-bottom flex-shrink-0">
+                    <span class="text-muted small me-2">
+                        <i class="fas fa-check-circle text-success"></i> Invoice saved successfully.
+                        Review below and send to the customer when ready.
+                    </span>
+                    <div class="ms-auto d-flex gap-2">
+                        <a id="invoicePreviewOpenTab"
+                           href="#" target="_blank"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt"></i> Open in New Tab
+                        </a>
+                        <a id="invoicePreviewPrint"
+                           href="#"
+                           class="btn btn-sm btn-outline-secondary"
+                           onclick="printInvoiceFrame(); return false;">
+                            <i class="fas fa-print"></i> Print
+                        </a>
+                        <a id="invoicePreviewDownload"
+                           href="#"
+                           class="btn btn-sm btn-outline-success"
+                           style="display:none;">
+                            <i class="fas fa-download"></i> Download PDF
+                        </a>
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                    </div>
+                </div>
+                <!-- Invoice rendered inside an iframe so the layout-free print view fills the space -->
+                <iframe id="invoicePreviewFrame"
+                        src="about:blank"
+                        style="flex: 1; border: none; width: 100%;"
+                        title="Invoice Preview">
+                </iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Item Details Modal -->
 <div class="modal fade" id="itemDetailsModal" tabindex="-1" aria-labelledby="itemDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -84,10 +136,30 @@
                                 <input type="text" class="form-control" value="@Model.Sale.TotalAmount.ToString("C")" readonly />
                             }
                         </div>
+
+                        @if (Model.AmountPaid > 0)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label">Already Paid</label>
+                                <input type="text" class="form-control text-success fw-bold"
+                                       value="@Model.AmountPaid.ToString("C")" readonly />
+                                @if (Model.Payments.Count > 1)
+                                {
+                                    <div class="form-text">@Model.Payments.Count payments recorded</div>
+                                }
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <label class="form-label">Remaining Balance</label>
+                            <input type="text" class="form-control fw-bold @(Model.RemainingBalance > 0 ? "text-danger" : "text-success")"
+                                   value="@Model.RemainingBalance.ToString("C")" readonly />
+                        </div>
+
                         <div class="mb-3">
                             <label for="paymentAmount" class="form-label">Payment Amount *</label>
                             <input type="number" step="0.01" class="form-control" id="paymentAmount" name="paymentAmount"
-                                   value="@effectiveAmount" max="@effectiveAmount" min="0.01" required />
+                                   value="@Model.RemainingBalance" max="@Model.RemainingBalance" min="0.01" required />
                             <div class="form-text">Enter the amount received from the customer</div>
                         </div>
                         <div class="mb-3">
@@ -313,7 +385,7 @@
     <div class="modal fade" id="markAsDeliveredModal" tabindex="-1" aria-labelledby="markAsDeliveredModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form asp-action="MarkAsDelivered" method="post">
+                <form asp-action="MarkAs Delivered" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="saleId" value="@Model.Sale.Id" />
 

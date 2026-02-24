@@ -89,6 +89,9 @@ namespace InventorySystem.Controllers
 						await _context.SaveChangesAsync();
 						await transaction.CommitAsync();
 
+						// Generate frozen "as-invoiced" PDF after transaction commits
+						await GenerateInvoiceForShipmentAsync(sale, shipment);
+
 						return BuildShippingSuccessResult(sale, shipment, model, hasBackorders: true);
 					}
 					catch (Exception ex)
@@ -130,6 +133,9 @@ namespace InventorySystem.Controllers
 
 						await _context.SaveChangesAsync();
 						await shipmentTransaction.CommitAsync();
+
+						// Generate frozen "as-invoiced" PDF after transaction commits
+						await GenerateInvoiceForShipmentAsync(sale, shipment);
 
 						return BuildShippingSuccessResult(sale, shipment, model, hasBackorders: false);
 					}
@@ -471,6 +477,62 @@ namespace InventorySystem.Controllers
 			_context.Shipments.Add(shipment);
 			await _context.SaveChangesAsync();
 			return shipment;
+		}
+
+		/// <summary>
+		/// Generates and stores the frozen "as-invoiced" PDF for a shipment.
+		/// Called immediately after <see cref="CreateShipmentRecordAsync"/> commits.
+		/// Non-fatal — a failure is logged but does not roll back the shipment.
+		/// </summary>
+		private async Task GenerateInvoiceForShipmentAsync(Sale sale, Shipment shipment)
+		{
+			try
+			{
+				var invoice = await _invoiceService.GenerateAndStoreInvoiceAsync(
+					sale.Id,
+					shipment.Id,
+					User.Identity?.Name ?? "System");
+
+				_logger.LogInformation(
+					"Invoice {InvoiceNumber} generated for Sale {SaleNumber} / Shipment {PackingSlip}. HasPdf={HasPdf}",
+					invoice.InvoiceNumber, sale.SaleNumber, shipment.PackingSlipNumber, invoice.HasPdf);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex,
+					"Failed to generate invoice for Sale {SaleId} / Shipment {ShipmentId}. " +
+					"Shipment was recorded successfully; invoice can be regenerated manually.",
+					sale.Id, shipment.Id);
+			}
+		}
+
+		// GET: Sales/DownloadInvoice/{invoiceId}
+		[HttpGet]
+		public async Task<IActionResult> DownloadInvoice(int invoiceId)
+		{
+			try
+			{
+				var invoice = await _invoiceService.GetInvoiceByIdAsync(invoiceId);
+				if (invoice == null)
+				{
+					SetErrorMessage("Invoice not found.");
+					return RedirectToAction("Index");
+				}
+
+				if (!invoice.HasPdf)
+				{
+					SetErrorMessage($"Invoice {invoice.InvoiceNumber} has no stored PDF. It may not have been generated yet.");
+					return RedirectToAction("Details", new { id = invoice.SaleId });
+				}
+
+				return File(invoice.PdfData!, "application/pdf", $"{invoice.InvoiceNumber}.pdf");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error downloading invoice {InvoiceId}", invoiceId);
+				SetErrorMessage($"Error downloading invoice: {ex.Message}");
+				return RedirectToAction("Index");
+			}
 		}
 
 		private void UpdateSaleShippingInfo(Sale sale, ProcessSaleViewModel model)

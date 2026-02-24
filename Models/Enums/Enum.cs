@@ -90,4 +90,19 @@ namespace InventorySystem.Models.Enums
     [Display(Name = "Failed")]
     Failed = 3
   }
+
+  public enum InvoiceType
+  {
+    /// <summary>Standard invoice generated at shipment.</summary>
+    Invoice = 0,
+    /// <summary>Negative invoice — credit issued to customer.</summary>
+    CreditMemo = 1,
+    /// <summary>Adjustment note referencing an original invoice.</summary>
+    Adjustment = 2,
+    /// <summary>
+    /// Real invoice issued before shipment so the customer can pay upfront.
+    /// This is NOT a proforma — it is a binding invoice the customer pays against.
+    /// </summary>
+    PreShipment = 3
+  }
 }

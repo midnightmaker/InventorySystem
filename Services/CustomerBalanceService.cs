@@ -182,6 +182,7 @@ namespace InventorySystem.Services
 				var customer = await _context.Customers
 						.Include(c => c.Sales)
 						.Include(c => c.BalanceAdjustments)
+						.Include(c => c.CustomerPayments)
 						.FirstOrDefaultAsync(c => c.Id == customerId);
 
 				if (customer == null) return;
@@ -211,6 +212,7 @@ namespace InventorySystem.Services
 				var customers = await _context.Customers
 						.Include(c => c.Sales)
 						.Include(c => c.BalanceAdjustments)
+						.Include(c => c.CustomerPayments)
 						.ToListAsync();
 
 				foreach (var customer in customers)
@@ -237,15 +239,14 @@ namespace InventorySystem.Services
 		{
 			try
 			{
-				// This should match the logic in Customer.OutstandingBalance computed property
 				var customer = await _context.Customers
 						.Include(c => c.Sales)
 						.Include(c => c.BalanceAdjustments)
+						.Include(c => c.CustomerPayments)
 						.FirstOrDefaultAsync(c => c.Id == customerId);
 
 				if (customer == null) return 0;
 
-				// Use the computed property directly
 				return customer.OutstandingBalance;
 			}
 			catch (Exception ex)

@@ -83,6 +83,9 @@ namespace InventorySystem.Data
 		public DbSet<Shipment> Shipments { get; set; }
 		public DbSet<ShipmentItem> ShipmentItems { get; set; }
 
+		/// <summary>Frozen billing events — one per shipment, immutable after creation.</summary>
+		public DbSet<Invoice> Invoices { get; set; } = null!;
+
 		public DbSet<FinancialPeriod> FinancialPeriods { get; set; }
 		public DbSet<CompanySettings> CompanySettings { get; set; }
 
@@ -1011,6 +1014,42 @@ namespace InventorySystem.Data
 				entity.HasIndex(e => new { e.EntityName, e.EntityId });
 				entity.HasIndex(e => e.Action);
 				entity.HasIndex(e => e.PerformedBy);
+			});
+
+			// ============= INVOICE CONFIGURATION =============
+			modelBuilder.Entity<Invoice>(entity =>
+			{
+				entity.HasKey(e => e.Id);
+
+				entity.Property(e => e.InvoiceNumber)
+					.IsRequired()
+					.HasMaxLength(50);
+
+				entity.HasIndex(e => e.InvoiceNumber).IsUnique();
+
+				entity.Property(e => e.SubtotalAmount).HasColumnType("decimal(18,2)");
+				entity.Property(e => e.DiscountAmount).HasColumnType("decimal(18,2)");
+				entity.Property(e => e.TaxAmount).HasColumnType("decimal(18,2)");
+				entity.Property(e => e.ShippingAmount).HasColumnType("decimal(18,2)");
+				entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
+
+				entity.Property(e => e.IssuedBy).HasMaxLength(100);
+				entity.Property(e => e.Notes).HasMaxLength(1000);
+
+				entity.HasOne(i => i.Sale)
+					.WithMany()
+					.HasForeignKey(i => i.SaleId)
+					.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasOne(i => i.Shipment)
+					.WithMany()
+					.HasForeignKey(i => i.ShipmentId)
+					.OnDelete(DeleteBehavior.SetNull);
+
+				entity.HasIndex(e => e.SaleId);
+				entity.HasIndex(e => e.ShipmentId);
+				entity.HasIndex(e => e.InvoiceDate);
+				entity.HasIndex(e => e.InvoiceType);
 			});
 		}
 

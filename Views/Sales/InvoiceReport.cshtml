@@ -3,6 +3,7 @@
   ViewData["Title"] = $"{Model.DocumentLabel} {Model.InvoiceNumber}";
   var isProforma = Model.IsProformaInvoice;
   var isQuotation = Model.IsQuotation && isProforma;
+  var isPreShipment = Model.IsPreShipmentInvoice;
   var docTitle = Model.DocumentTitle;
   var docLabel = Model.DocumentLabel;
 }
@@ -69,7 +70,15 @@
           {
             <h1 class="display-6">INVOICE</h1>
             <h2 class="text-primary">Invoice# @Model.InvoiceNumber</h2>
-            @if (Model.IsOverdue)
+            @if (isPreShipment)
+            {
+              <div class="alert alert-success mt-2">
+                <i class="fas fa-lock"></i>
+                <strong>PRE-SHIPMENT INVOICE — Payment required before shipment</strong>
+                <br><small>Please remit payment against this invoice. Goods will be shipped upon receipt of full payment.</small>
+              </div>
+            }
+            else if (Model.IsOverdue)
             {
               <div class="alert alert-danger mt-2">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -179,10 +188,10 @@
                     InventorySystem.Models.Enums.PaymentStatus.PartiallyPaid => "info",
                     _ => "secondary"
                   })">
-            @Model.PaymentStatus
-          </span>
-        </div>
-                }
+              @Model.PaymentStatus
+            </span>
+          </div>
+        }
         else
         {
           <div class="col-md-3">

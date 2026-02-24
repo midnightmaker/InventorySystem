@@ -1,0 +1,505 @@
+@model InventorySystem.ViewModels.InvoiceReportViewModel
+@* ??????????????????????????????????????????????????????????????????????????????
+   InvoiceReportPdf.cshtml  —  Rotativa / wkhtmltopdf rendering target
+   
+   This view is ONLY ever rendered by Rotativa to produce the stored PDF.
+   It is never served to a browser directly.
+
+   Key differences from InvoiceReportPrint.cshtml:
+     • No @media print wrappers — all styles are applied unconditionally so
+       wkhtmltopdf (which renders in a screen context) produces the same clean
+       output that the browser's Print function produces from InvoiceReportPrint.
+     • No .no-print button div.
+     • No CDN links — all CSS is inlined so there are no external network
+       requests during headless rendering.
+   ?????????????????????????????????????????????????????????????????????????????? *@
+@{
+    Layout = null;
+    var afterDiscountAmount = Model.SubtotalAmount - Model.TotalDiscount;
+    var isProforma  = Model.IsProformaInvoice;
+    var isQuotation = Model.IsQuotation && isProforma;
+    var docTitle    = Model.DocumentTitle;
+    var docLabel    = Model.DocumentLabel;
+    var validUntilDate = Model.DueDate?.ToString("MMMM dd, yyyy")
+        ?? (isQuotation ? Model.InvoiceDate.AddDays(60).ToString("MMMM dd, yyyy") : "Immediate");
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@docLabel @Model.InvoiceNumber</title>
+    <style>
+        /* ?? Reset / base ??????????????????????????????????????????????????? */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            background: white;
+            color: black;
+        }
+
+        .container {
+            width: 100%;
+            padding: 20px;
+        }
+
+        /* ?? Header ????????????????????????????????????????????????????????? */
+        .print-header {
+            text-align: center;
+            border-bottom: 3px solid #333;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .header-row {
+            display: table;
+            width: 100%;
+        }
+
+        .header-logo, .header-spacer {
+            display: table-cell;
+            width: 15%;
+            vertical-align: middle;
+        }
+
+        .header-title {
+            display: table-cell;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .header-title h1 { font-size: 22px; margin-bottom: 4px; }
+        .header-title h2 { font-size: 16px; color: #003087; margin-bottom: 0; }
+
+        /* ?? Notice banners ????????????????????????????????????????????????? */
+        .proforma-notice {
+            border: 2px solid #333;
+            padding: 10px;
+            margin-top: 12px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .overdue-notice {
+            border: 2px solid #333;
+            padding: 10px;
+            margin-top: 12px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* ?? Two-column address block ??????????????????????????????????????? */
+        .address-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .address-cell {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding-right: 12px;
+        }
+
+        .address-cell:last-child { padding-right: 0; }
+
+        .address-cell h5 { font-size: 12px; margin-bottom: 6px; }
+        .address-cell h6 { font-size: 11px; margin-top: 8px; margin-bottom: 4px; }
+
+        address { font-style: normal; line-height: 1.5; }
+
+        /* ?? Invoice meta details ??????????????????????????????????????????? */
+        .invoice-details {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .details-row {
+            display: table;
+            width: 100%;
+        }
+
+        .details-cell {
+            display: table-cell;
+            width: 25%;
+            vertical-align: top;
+            padding-right: 8px;
+        }
+
+        .details-cell strong { display: block; margin-bottom: 2px; }
+
+        /* ?? Line items table ??????????????????????????????????????????????? */
+        table.line-items {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid #000;
+            margin-bottom: 16px;
+        }
+
+        table.line-items th,
+        table.line-items td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            text-align: left;
+            background: white;
+            color: black;
+        }
+
+        table.line-items thead th {
+            background: #f0f0f0;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        table.line-items tfoot th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .text-center { text-align: center; }
+        .text-right  { text-align: right; }
+
+        .discount-row th { background: #f0f0f0 !important; font-style: italic; }
+        .adjustment-row th { background: #f5f5f5 !important; font-style: italic; }
+
+        /* ?? Notices below table ???????????????????????????????????????????? */
+        .notice-box {
+            border: 1px solid #ccc;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+            font-size: 10px;
+        }
+
+        .proforma-footer-box {
+            border: 2px solid #333;
+            padding: 10px;
+            margin-top: 16px;
+            font-size: 10px;
+        }
+
+        .proforma-footer-box h6 { font-size: 11px; margin-bottom: 6px; }
+        .proforma-footer-box ol { padding-left: 18px; }
+        .proforma-footer-box li { margin-bottom: 3px; }
+
+        /* ?? Footer ????????????????????????????????????????????????????????? */
+        .page-footer {
+            margin-top: 24px;
+            text-align: center;
+            border-top: 1px solid #ccc;
+            padding-top: 12px;
+            font-size: 10px;
+            color: #444;
+        }
+
+        .page-footer p { margin-bottom: 3px; }
+
+        /* ?? Badge (status) ????????????????????????????????????????????????? */
+        .badge {
+            border: 1px solid #333;
+            padding: 1px 5px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header -->
+    <div class="print-header">
+        <div class="header-row">
+            <div class="header-logo">
+                @if (Model.CompanyInfo.HasLogo)
+                {
+                    <img src="@Url.Action("CompanyLogo", "Purchases")"
+                         alt="@Model.CompanyInfo.CompanyName"
+                         style="max-width:100px; max-height:70px;" />
+                }
+            </div>
+            <div class="header-title">
+                <h1>@docTitle</h1>
+                <h2>@docLabel# @Model.InvoiceNumber</h2>
+            </div>
+            <div class="header-spacer"></div>
+        </div>
+
+        @if (isProforma && !isQuotation)
+        {
+            <div class="proforma-notice">
+                PROFORMA INVOICE — NOT A TAX INVOICE<br />
+                <small>This document is for quotation and customs clearance purposes only</small>
+            </div>
+        }
+
+        @if (Model.IsOverdue)
+        {
+            <div class="overdue-notice">
+                OVERDUE — @Model.DaysOverdue days past due
+            </div>
+        }
+    </div>
+
+    <!-- From / Bill To -->
+    <div class="address-row">
+        <div class="address-cell">
+            <h5><strong>From:</strong></h5>
+            <address>
+                <strong>@Model.CompanyInfo.CompanyName</strong><br />
+                @Model.CompanyInfo.Address<br />
+                @Model.CompanyInfo.City, @Model.CompanyInfo.State @Model.CompanyInfo.ZipCode<br />
+                @Model.CompanyInfo.Phone<br />
+                @Model.CompanyInfo.Email<br />
+                @Model.CompanyInfo.Website
+            </address>
+        </div>
+        <div class="address-cell">
+            <h5><strong>@(isQuotation ? "Quote To:" : isProforma ? "Quote To:" : "Bill To:")</strong></h5>
+            <address>
+                <strong>@Model.Customer.CustomerName</strong><br />
+                @if (!string.IsNullOrWhiteSpace(Model.Customer.BillingAddress))
+                {
+                    @Model.Customer.BillingAddress<text><br /></text>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerPhone))
+                {
+                    @Model.Customer.CustomerPhone<text><br /></text>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Customer.CustomerEmail))
+                {
+                    @Model.Customer.CustomerEmail<text><br /></text>
+                }
+            </address>
+
+            @if (!string.IsNullOrWhiteSpace(Model.ShippingAddress) &&
+                 Model.ShippingAddress != Model.Customer.BillingAddress)
+            {
+                <h6><strong>Ship To:</strong></h6>
+                <address>@Model.ShippingAddress</address>
+            }
+        </div>
+    </div>
+
+    <!-- Invoice meta -->
+    <div class="invoice-details">
+        <div class="details-row">
+            <div class="details-cell">
+                <strong>@(isQuotation ? "Quotation Date:" : isProforma ? "Proforma Date:" : "Invoice Date:")</strong>
+                @Model.InvoiceDate.ToString("MMMM dd, yyyy")
+            </div>
+            <div class="details-cell">
+                @if (isQuotation || isProforma)
+                {
+                    <strong>Valid Until:</strong>
+                    @validUntilDate
+                }
+                else
+                {
+                    <strong>Due Date:</strong>
+                    @(Model.DueDate?.ToString("MMMM dd, yyyy") ?? "Immediate")
+                }
+            </div>
+            <div class="details-cell">
+                <strong>@(isProforma ? "Proposed Terms:" : "Payment Terms:")</strong>
+                @Model.PaymentTerms
+            </div>
+            @if (isQuotation || isProforma)
+            {
+                <div class="details-cell">
+                    <strong>Status:</strong>
+                    <span class="badge">@(isQuotation ? "Quotation" : "Draft/Estimate")</span>
+                </div>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.OrderNumber))
+        {
+            <div style="margin-top:6px;">
+                <strong>@(isProforma ? "Reference Number:" : "Order Number:")</strong> @Model.OrderNumber
+            </div>
+        }
+    </div>
+
+    <!-- Line items -->
+    <table class="line-items">
+        <thead>
+            <tr>
+                <th style="width:8%">Line #</th>
+                <th style="width:15%">Item Number</th>
+                <th style="width:35%">Description</th>
+                <th style="width:10%" class="text-center">Qty</th>
+                <th style="width:15%" class="text-right">Unit Price</th>
+                <th style="width:17%" class="text-right">Line Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ int lineNumber = 1; }
+            @foreach (var item in Model.LineItems)
+            {
+                <tr>
+                    <td class="text-center"><strong>@lineNumber</strong></td>
+                    <td><strong>@item.PartNumber</strong></td>
+                    <td>
+                        @item.Description
+                        @if (item.IsBackordered)
+                        {
+                            <br /><em>@item.BackorderStatus</em>
+                        }
+                    </td>
+                    <td class="text-center">@item.Quantity</td>
+                    <td class="text-right">$@item.UnitPrice.ToString("N2")</td>
+                    <td class="text-right">$@item.LineTotal.ToString("N2")</td>
+                </tr>
+                lineNumber++;
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="5" class="text-right">Subtotal (@Model.LineItemCount items):</th>
+                <th class="text-right">$@Model.SubtotalAmount.ToString("N2")</th>
+            </tr>
+
+            @if (Model.HasDiscount && Model.TotalDiscount > 0)
+            {
+                <tr class="discount-row">
+                    <th colspan="5" class="text-right">Discount:</th>
+                    <th class="text-right">-$@Model.TotalDiscount.ToString("N2")</th>
+                </tr>
+                <tr>
+                    <th colspan="5" class="text-right">After Discount:</th>
+                    <th class="text-right">$@afterDiscountAmount.ToString("N2")</th>
+                </tr>
+            }
+
+            <tr>
+                <th colspan="5" class="text-right">@(isProforma ? "Estimated Shipping:" : "Shipping:")</th>
+                <th class="text-right">$@Model.TotalShipping.ToString("N2")</th>
+            </tr>
+            <tr>
+                <th colspan="5" class="text-right">@(isProforma ? "Estimated Tax:" : "Tax:")</th>
+                <th class="text-right">$@Model.TotalTax.ToString("N2")</th>
+            </tr>
+
+            @if (Model.HasAdjustments && !isProforma)
+            {
+                <tr>
+                    <th colspan="5" class="text-right">Invoice Total:</th>
+                    <th class="text-right">$@Model.UnadjustedTotal.ToString("N2")</th>
+                </tr>
+                <tr class="adjustment-row">
+                    <th colspan="5" class="text-right">Post-Sale Adjustments:</th>
+                    <th class="text-right">-$@Model.TotalAdjustments.ToString("N2")</th>
+                </tr>
+                <tr>
+                    <th colspan="5" class="text-right"><strong>ADJUSTED INVOICE TOTAL:</strong></th>
+                    <th class="text-right"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+                </tr>
+            }
+            else
+            {
+                <tr>
+                    <th colspan="5" class="text-right">
+                        <strong>@(isQuotation ? "QUOTATION TOTAL:" : isProforma ? "PROFORMA TOTAL:" : "INVOICE TOTAL:")</strong>
+                    </th>
+                    <th class="text-right"><strong>$@Model.InvoiceTotal.ToString("N2")</strong></th>
+                </tr>
+            }
+
+            @if (Model.AmountPaid > 0 && !isProforma)
+            {
+                <tr>
+                    <th colspan="5" class="text-right">Amount Paid:</th>
+                    <th class="text-right">($@Model.AmountPaid.ToString("N2"))</th>
+                </tr>
+            }
+
+            @if (!isProforma)
+            {
+                <tr>
+                    <th colspan="5" class="text-right"><strong>AMOUNT DUE:</strong></th>
+                    <th class="text-right"><strong>$@Model.AmountDue.ToString("N2")</strong></th>
+                </tr>
+            }
+        </tfoot>
+    </table>
+
+    <!-- Adjustment notice -->
+    @if (Model.HasAdjustments && !isProforma)
+    {
+        <div class="notice-box">
+            <strong>Invoice Adjustments Applied</strong><br />
+            This invoice has been adjusted from the original amount of
+            <strong>$@Model.UnadjustedTotal.ToString("N2")</strong> to
+            <strong>$@Model.InvoiceTotal.ToString("N2")</strong> due to post-sale adjustments totalling
+            <strong>$@Model.TotalAdjustments.ToString("N2")</strong>.
+        </div>
+    }
+
+    <!-- Payment method -->
+    @if (!string.IsNullOrWhiteSpace(Model.PaymentMethod) && !isProforma)
+    {
+        <div class="notice-box">
+            <strong>Payment Method:</strong> @Model.PaymentMethod
+        </div>
+    }
+
+    <!-- Notes -->
+    @if (!string.IsNullOrEmpty(Model.Notes))
+    {
+        <div class="notice-box">
+            <strong>Notes:</strong><br />
+            @Model.Notes
+        </div>
+    }
+
+    <!-- Proforma / quotation terms footer -->
+    @if (isProforma)
+    {
+        <div class="proforma-footer-box">
+            @if (isQuotation)
+            {
+                <h6><strong>QUOTATION TERMS &amp; CONDITIONS</strong></h6>
+                <ol>
+                    <li>This is a <strong>Quotation</strong> and is not a tax invoice.</li>
+                    <li>Valid for <strong>60 days</strong> from @Model.InvoiceDate.ToString("MMMM dd, yyyy") — expiring <strong>@Model.InvoiceDate.AddDays(60).ToString("MMMM dd, yyyy")</strong>.</li>
+                    <li>Prices and availability are subject to change after the validity period.</li>
+                    <li>To accept this quotation, please contact us to confirm your order.</li>
+                    <li>A final invoice will be issued upon order confirmation and shipment.</li>
+                    <li>All sales are subject to our standard terms and conditions.</li>
+                </ol>
+            }
+            else
+            {
+                <h6><strong>PROFORMA INVOICE NOTES</strong></h6>
+                <ol>
+                    <li>This is not a tax invoice.</li>
+                    <li>Issued for customs clearance and quotation purposes only.</li>
+                    <li>Final amounts may vary based on shipping and insurance costs at the time of dispatch.</li>
+                </ol>
+            }
+        </div>
+    }
+
+    <!-- Page footer -->
+    <div class="page-footer">
+        @if (isQuotation)
+        {
+            <p><strong>Thank you for the opportunity to quote!</strong></p>
+            <p>Quotation <strong>@Model.InvoiceNumber</strong> is valid for 60 days from @Model.InvoiceDate.ToString("MMMM dd, yyyy") (until <strong>@Model.InvoiceDate.AddDays(60).ToString("MMMM dd, yyyy")</strong>).</p>
+            <p>Please contact us to place your order or if you have any questions.</p>
+        }
+        else if (isProforma)
+        {
+            <p><strong>Thank you for your business!</strong></p>
+            <p>This proforma invoice <strong>@Model.InvoiceNumber</strong> is valid for quotation purposes.</p>
+        }
+        else
+        {
+            <p><strong>Thank you for your business!</strong></p>
+        }
+        <p><small>Printed on @DateTime.Now.ToString("MMMM dd, yyyy 'at' h:mm tt")</small></p>
+    </div>
+
+</div>
+</body>
+</html>

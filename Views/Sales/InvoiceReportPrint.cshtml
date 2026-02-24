@@ -4,6 +4,7 @@
   var afterDiscountAmount = Model.SubtotalAmount - Model.TotalDiscount;
   var isProforma = Model.IsProformaInvoice;
   var isQuotation = Model.IsQuotation && isProforma;
+  var isPreShipment = Model.IsPreShipmentInvoice;
   var docTitle = Model.DocumentTitle;
   var docLabel = Model.DocumentLabel;
   var validUntilDate = Model.DueDate?.ToString("MMMM dd, yyyy") 
@@ -299,6 +300,15 @@
         </div>
       }
 
+      @if (isPreShipment)
+      {
+        <div class="proforma-notice mt-3" style="background-color:#d4edda;border-color:#28a745;color:#155724;">
+          <i class="fas fa-lock"></i>
+          <strong>PRE-SHIPMENT INVOICE — PAYMENT REQUIRED BEFORE SHIPMENT</strong><br>
+          <small>Please remit payment against this invoice. Goods will be shipped upon receipt of full payment.</small>
+        </div>
+      }
+
       @if (Model.IsOverdue)
       {
         <div class="overdue-notice mt-3">
@@ -381,10 +391,13 @@
           <strong>@(isProforma ? "Proposed Terms:" : "Payment Terms:")</strong><br>
           @Model.PaymentTerms
         </div>
-        <div class="col-3">
-          <strong>Status:</strong><br>
-          <span class="badge">@(isQuotation ? "Quotation" : isProforma ? "Draft/Estimate" : Model.PaymentStatus.ToString())</span>
-        </div>
+        @if (isQuotation || isProforma)
+        {
+          <div class="col-3">
+            <strong>Status:</strong><br>
+            <span class="badge">@(isQuotation ? "Quotation" : "Draft/Estimate")</span>
+          </div>
+        }
       </div>
 
       @if (!string.IsNullOrWhiteSpace(Model.OrderNumber))
@@ -600,6 +613,7 @@
         }
         else
         {
+          <p class="mb-1"><strong>Invoice is currently @(Model.PaymentStatus.ToString().ToLower()).</strong></p>
           <p class="mb-1">Please include invoice number <strong>@Model.InvoiceNumber</strong> with your payment.</p>
         }
       }
