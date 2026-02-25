@@ -250,11 +250,11 @@ namespace InventorySystem.Services
 
         public async Task<decimal> GetRemainingBalanceAsync(int saleId)
         {
-            var sale = await _context.Sales.FindAsync(saleId);
-            if (sale == null) return 0;
+            var saleTotal = await GetSaleTotalAsync(saleId);
+            if (saleTotal == null) return 0;
 
             var totalPayments = await GetTotalPaymentsBySaleAsync(saleId);
-            return Math.Max(0, sale.TotalAmount - totalPayments);
+            return Math.Max(0, saleTotal.Value - totalPayments);
         }
 
         public async Task<bool> IsSaleFullyPaidAsync(int saleId)
@@ -410,45 +410,87 @@ namespace InventorySystem.Services
         }
 
         // Private helper methods
+
+        /// <summary>
+        /// Computes TotalAmount for a sale directly from the database, bypassing the EF
+        /// change-tracker cache so a partially-loaded tracked entity never returns 0.
+        /// Returns null if the sale does not exist.
+        /// </summary>
+        private async Task<decimal?> GetSaleTotalAsync(int saleId)
+        {
+            var row = await _context.Sales
+                .AsNoTracking()
+                .Where(s => s.Id == saleId)
+                .Select(s => new
+                {
+                    Subtotal   = s.SaleItems.Sum(si => (decimal?)si.UnitPrice * si.QuantitySold) ?? 0m,
+                    Shipping   = s.ShippingCost,
+                    Tax        = s.TaxAmount,
+                    DiscountType       = s.DiscountType,
+                    DiscountAmount     = s.DiscountAmount,
+                    DiscountPercentage = s.DiscountPercentage
+                })
+                .FirstOrDefaultAsync();
+
+            if (row == null) return null;
+
+            var discount = row.DiscountType == "Percentage"
+                ? row.Subtotal * (row.DiscountPercentage / 100m)
+                : row.DiscountAmount;
+
+            return row.Subtotal + row.Shipping + row.Tax - discount;
+        }
+
         private async Task UpdateSalePaymentStatusAsync(int saleId)
         {
             try
             {
-                var sale = await _context.Sales.FindAsync(saleId);
-                if (sale == null) return;
+                // Load with SaleItems so TotalAmount (computed from SaleItems) is correct,
+                // but use AsNoTracking + re-attach to avoid conflicts with already-tracked instances.
+                var saleData = await _context.Sales
+                    .AsNoTracking()
+                    .Where(s => s.Id == saleId)
+                    .Select(s => new { s.SaleStatus, s.PaymentStatus, s.PaymentDueDate, s.IsOverdue })
+                    .FirstOrDefaultAsync();
+                if (saleData == null) return;
 
                 // Never overwrite the Quotation payment status — quotations have no payment obligation
-                if (sale.SaleStatus == SaleStatus.Quotation)
+                if (saleData.SaleStatus == SaleStatus.Quotation)
                 {
-                    if (sale.PaymentStatus != PaymentStatus.Quotation)
+                    if (saleData.PaymentStatus != PaymentStatus.Quotation)
                     {
-                        sale.PaymentStatus = PaymentStatus.Quotation;
-                        await _context.SaveChangesAsync();
+                        await _context.Sales
+                            .Where(s => s.Id == saleId)
+                            .ExecuteUpdateAsync(s => s.SetProperty(x => x.PaymentStatus, PaymentStatus.Quotation));
                     }
                     return;
                 }
 
+                var saleTotal     = await GetSaleTotalAsync(saleId) ?? 0m;
                 var totalPayments = await GetTotalPaymentsBySaleAsync(saleId);
-                var remainingBalance = sale.TotalAmount - totalPayments;
+                var remainingBalance = saleTotal - totalPayments;
 
-                // Update payment status based on payments
-                if (remainingBalance <= 0.01m) // Allow for small rounding differences
-                {
-                    sale.PaymentStatus = PaymentStatus.Paid;
-                }
+                PaymentStatus newStatus;
+                if (remainingBalance <= 0.01m && saleTotal > 0)
+                    newStatus = PaymentStatus.Paid;
                 else if (totalPayments > 0)
-                {
-                    sale.PaymentStatus = PaymentStatus.PartiallyPaid;
-                }
+                    newStatus = PaymentStatus.PartiallyPaid;
                 else
-                {
-                    // Check if overdue
-                    sale.PaymentStatus = sale.IsOverdue ? PaymentStatus.Overdue : PaymentStatus.Pending;
-                }
+                    newStatus = saleData.IsOverdue ? PaymentStatus.Overdue : PaymentStatus.Pending;
 
-                await _context.SaveChangesAsync();
+                await _context.Sales
+                    .Where(s => s.Id == saleId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.PaymentStatus, newStatus));
 
-                _logger.LogDebug("Updated payment status for sale {SaleId} to {PaymentStatus}", saleId, sale.PaymentStatus);
+                _logger.LogDebug("Updated payment status for sale {SaleId} to {PaymentStatus}", saleId, newStatus);
+
+                // Remove the old stale tracked Sale entity (if any) so subsequent reads
+                // within the same request see the updated PaymentStatus from the database.
+                var trackedEntry = _context.ChangeTracker.Entries<Sale>()
+                    .FirstOrDefault(e => e.Entity.Id == saleId);
+                if (trackedEntry != null)
+                    trackedEntry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+
             }
             catch (Exception ex)
             {

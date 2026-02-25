@@ -271,8 +271,8 @@
 
             $('#paymentAmount').on('change', function () {
                 var paymentAmount = parseFloat($(this).val());
-                var remainingBalance = @((Model.Sale.Customer?.OutstandingBalance ?? 0));
-                if (paymentAmount > remainingBalance) {
+                var remainingBalance = @Model.RemainingBalance.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (paymentAmount > remainingBalance + 0.01) {
                     alert('Payment amount cannot exceed remaining balance of $' + remainingBalance.toFixed(2));
                     $(this).val(remainingBalance.toFixed(2));
                 }

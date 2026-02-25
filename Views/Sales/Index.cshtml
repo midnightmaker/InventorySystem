@@ -37,6 +37,13 @@
     <a href="/Sales/Reports" class="btn btn-outline-info">
       <i class="fas fa-chart-bar"></i> Reports
     </a>
+    <form asp-action="RepairPaymentStatuses" method="post" class="d-inline"
+          onsubmit="return confirm('Recalculate payment statuses for all sales? This corrects any statuses that were set incorrectly.');">
+      @Html.AntiForgeryToken()
+      <button type="submit" class="btn btn-outline-warning">
+        <i class="fas fa-wrench"></i> Repair Payment Statuses
+      </button>
+    </form>
   </div>
 </div>
 

@@ -2,36 +2,36 @@
 @using InventorySystem.Models.Enums
 
 @{
-    // Pre-shipment invoices are those with no associated Shipment row.
-    // Shipment-linked invoices are already shown inline in _DetailsShipmentsCard.
-    var preShipmentInvoices = Model.Invoices
-        .Where(i => i.ShipmentId == null)
+    // Show all invoices for this sale, ordered newest first.
+    // Shipment-linked invoices are included here as the primary invoice record;
+    // they also appear as a small action link inside _DetailsShipmentsCard.
+    var allInvoices = Model.Invoices
         .OrderByDescending(i => i.CreatedAt)
         .ThenByDescending(i => i.InvoiceDate)
         .ToList();
 
-    var currentInvoice    = preShipmentInvoices.FirstOrDefault();
-    var supersededInvoices = preShipmentInvoices.Skip(1).ToList();
+    var currentInvoice     = allInvoices.FirstOrDefault();
+    var supersededInvoices = allInvoices.Skip(1).ToList();
 }
 
-@if (preShipmentInvoices.Any())
+@if (allInvoices.Any())
 {
     <div class="row mt-0">
         <div class="col-12">
             <div class="card border-primary" style="border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-file-invoice-dollar"></i> Pre-Shipment Invoices
-                        <span class="badge bg-light text-primary ms-2">@preShipmentInvoices.Count</span>
-                        @if (preShipmentInvoices.Count > 1)
+                        <i class="fas fa-file-invoice-dollar"></i> Invoices
+                        <span class="badge bg-light text-primary ms-2">@allInvoices.Count</span>
+                        @if (allInvoices.Count > 1)
                         {
                             <span class="badge bg-warning text-dark ms-1" title="Multiple invoice versions exist — the top one is current">
-                                <i class="fas fa-layer-group"></i> @preShipmentInvoices.Count versions
+                                <i class="fas fa-layer-group"></i> @allInvoices.Count versions
                             </span>
                         }
                     </h5>
                     <small class="text-white-50">
-                        Generated before shipment — sent to customer to collect payment
+                        Frozen at time of generation — legal billing record
                     </small>
                 </div>
                 <div class="card-body p-0">
@@ -72,6 +72,12 @@
                                     }
                                     <div>
                                         <span class="badge @currentInvoice.StatusBadgeClass">@currentInvoice.InvoiceTypeLabel</span>
+                                        @if (currentInvoice.ShipmentId.HasValue)
+                                        {
+                                            <span class="badge bg-secondary ms-1" title="Linked to shipment">
+                                                <i class="fas fa-truck"></i> Shipment Invoice
+                                            </span>
+                                        }
                                     </div>
                                     <div class="fw-bold text-success fs-6">
                                         @currentInvoice.TotalAmount.ToString("C")

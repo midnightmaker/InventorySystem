@@ -46,6 +46,9 @@ namespace InventorySystem.Services
 							.ThenInclude(c => c.BalanceAdjustments)
 					.Include(s => s.Customer)
 							.ThenInclude(c => c.CustomerPayments)
+					.Include(s => s.Customer)
+							.ThenInclude(c => c.Sales)
+								.ThenInclude(cs => cs.SaleItems)
 					.Include(s => s.RelatedAdjustments)
 					.FirstOrDefaultAsync(s => s.Id == id);
 		}

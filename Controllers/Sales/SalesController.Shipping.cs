@@ -89,10 +89,10 @@ namespace InventorySystem.Controllers
 						await _context.SaveChangesAsync();
 						await transaction.CommitAsync();
 
-						// Generate frozen "as-invoiced" PDF after transaction commits
-						await GenerateInvoiceForShipmentAsync(sale, shipment);
+					// Generate frozen "as-invoiced" PDF after transaction commits
+					var backorderInvoice = await GenerateInvoiceForShipmentAsync(sale, shipment);
 
-						return BuildShippingSuccessResult(sale, shipment, model, hasBackorders: true);
+					return BuildShippingSuccessResult(sale, shipment, model, hasBackorders: true, backorderInvoice);
 					}
 					catch (Exception ex)
 					{
@@ -134,10 +134,10 @@ namespace InventorySystem.Controllers
 						await _context.SaveChangesAsync();
 						await shipmentTransaction.CommitAsync();
 
-						// Generate frozen "as-invoiced" PDF after transaction commits
-						await GenerateInvoiceForShipmentAsync(sale, shipment);
+					// Generate frozen "as-invoiced" PDF after transaction commits
+					var fullInvoice = await GenerateInvoiceForShipmentAsync(sale, shipment);
 
-						return BuildShippingSuccessResult(sale, shipment, model, hasBackorders: false);
+					return BuildShippingSuccessResult(sale, shipment, model, hasBackorders: false, fullInvoice);
 					}
 					catch (Exception ex)
 					{
@@ -483,8 +483,9 @@ namespace InventorySystem.Controllers
 		/// Generates and stores the frozen "as-invoiced" PDF for a shipment.
 		/// Called immediately after <see cref="CreateShipmentRecordAsync"/> commits.
 		/// Non-fatal — a failure is logged but does not roll back the shipment.
+		/// Returns the created <see cref="Invoice"/>, or <c>null</c> if generation failed.
 		/// </summary>
-		private async Task GenerateInvoiceForShipmentAsync(Sale sale, Shipment shipment)
+		private async Task<Invoice?> GenerateInvoiceForShipmentAsync(Sale sale, Shipment shipment)
 		{
 			try
 			{
@@ -496,6 +497,8 @@ namespace InventorySystem.Controllers
 				_logger.LogInformation(
 					"Invoice {InvoiceNumber} generated for Sale {SaleNumber} / Shipment {PackingSlip}. HasPdf={HasPdf}",
 					invoice.InvoiceNumber, sale.SaleNumber, shipment.PackingSlipNumber, invoice.HasPdf);
+
+				return invoice;
 			}
 			catch (Exception ex)
 			{
@@ -503,6 +506,7 @@ namespace InventorySystem.Controllers
 					"Failed to generate invoice for Sale {SaleId} / Shipment {ShipmentId}. " +
 					"Shipment was recorded successfully; invoice can be regenerated manually.",
 					sale.Id, shipment.Id);
+				return null;
 			}
 		}
 
@@ -547,7 +551,7 @@ namespace InventorySystem.Controllers
 			sale.ShippedBy = User.Identity?.Name ?? "System";
 		}
 
-		private IActionResult BuildShippingSuccessResult(Sale sale, Shipment shipment, ProcessSaleViewModel model, bool hasBackorders)
+		private IActionResult BuildShippingSuccessResult(Sale sale, Shipment shipment, ProcessSaleViewModel model, bool hasBackorders, Invoice? invoice = null)
 		{
 			if (model.EmailCustomer)
 				_logger.LogInformation("Email notification requested for sale {SaleId}", model.SaleId);
@@ -559,6 +563,15 @@ namespace InventorySystem.Controllers
 			SetSuccessMessage(successMessage);
 			TempData.Remove("DocumentValidationErrors");
 			TempData.Remove("ValidationErrorType");
+
+			// Signal the Details page to auto-open the invoice preview modal
+			if (invoice != null)
+			{
+				TempData["ShowInvoicePreview"]    = true;
+				TempData["PreviewInvoiceId"]      = invoice.Id;
+				TempData["PreviewInvoiceNumber"]  = invoice.InvoiceNumber;
+				TempData["PreviewHasPdf"]         = invoice.HasPdf;
+			}
 
 			if (model.GeneratePackingSlip)
 			{

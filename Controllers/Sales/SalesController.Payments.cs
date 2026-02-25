@@ -4,6 +4,7 @@ using InventorySystem.Models.Enums;
 using InventorySystem.Services;
 using InventorySystem.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Controllers
 {
@@ -121,6 +122,13 @@ namespace InventorySystem.Controllers
 					.Any(i => i.InvoiceType == InvoiceType.PreShipment);
 
 				var isShipped    = sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered;
+				totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0m;
+				var amountPaid   = await paymentService.GetTotalPaymentsBySaleAsync(sale.Id);
+				var effectiveTotal = sale.TotalAmount - totalAdjustments;
+				var isFullyPaid  = amountPaid >= effectiveTotal && effectiveTotal > 0;
+				// Pre-shipment banner only applies while awaiting payment and before shipment.
+				// Suppress it once the sale ships or is fully paid.
+				var showPreShipmentBanner = hasPreShipmentInvoice && !isShipped && !isFullyPaid;
 				var isProforma   = !isShipped && !hasPreShipmentInvoice;
 				var isQuotation  = sale.IsQuotation;
 
@@ -172,13 +180,13 @@ namespace InventorySystem.Controllers
 					TotalAdjustments = totalAdjustments,
 					OriginalAmount = sale.TotalAmount,
 					IsProforma = isProforma,
-					IsPreShipmentInvoice = hasPreShipmentInvoice,
+					IsPreShipmentInvoice = showPreShipmentBanner,
 					IsQuotation = isQuotation,
 					InvoiceTitle = docLabel,
 					IsDirectedToAP = sale.Customer?.DirectInvoicesToAP ?? false,
 					APContactName = sale.Customer?.AccountsPayableContactName,
 					RequiresPO = sale.Customer?.RequiresPurchaseOrder ?? false,
-					AmountPaid = await paymentService.GetTotalPaymentsBySaleAsync(sale.Id)
+					AmountPaid = amountPaid
 				};
 
 				ViewBag.SaleId = saleId;
@@ -223,7 +231,13 @@ namespace InventorySystem.Controllers
 				var hasPreShipmentInvoice = (await _invoiceService.GetInvoicesBySaleAsync(saleId))
 					.Any(i => i.InvoiceType == InvoiceType.PreShipment);
 
-				var isShipped   = sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered;
+				var isShipped    = sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered;
+				var printTotalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0m;
+				var printAmountPaid  = await paymentService.GetTotalPaymentsBySaleAsync(sale.Id);
+				var printEffective   = sale.TotalAmount - printTotalAdjustments;
+				var printFullyPaid   = printAmountPaid >= printEffective && printEffective > 0;
+				// Pre-shipment banner only applies while awaiting payment and before shipment.
+				var showPreShipmentPrint = hasPreShipmentInvoice && !isShipped && !printFullyPaid;
 				var isProforma  = !isShipped && !hasPreShipmentInvoice;
 				var isQuotation = sale.IsQuotation;
 
@@ -246,7 +260,7 @@ namespace InventorySystem.Controllers
 					OriginalAmount = sale.TotalAmount,
 					IsQuotation = isQuotation,
 					IsProforma = isProforma,
-					IsPreShipmentInvoice = hasPreShipmentInvoice,
+					IsPreShipmentInvoice = showPreShipmentPrint,
 					LineItems = sale.SaleItems.Select(si => new InvoiceLineItem
 					{
 						ItemId = si.ItemId ?? si.FinishedGoodId ?? si.ServiceTypeId ?? 0,
@@ -277,7 +291,7 @@ namespace InventorySystem.Controllers
 					IsDirectedToAP = sale.Customer?.DirectInvoicesToAP ?? false,
 					APContactName = sale.Customer?.AccountsPayableContactName,
 					RequiresPO = sale.Customer?.RequiresPurchaseOrder ?? false,
-					AmountPaid = await paymentService.GetTotalPaymentsBySaleAsync(sale.Id)
+					AmountPaid = printAmountPaid
 				};
 
 				return View(viewModel);
@@ -362,6 +376,59 @@ namespace InventorySystem.Controllers
 				_logger.LogError(ex, "Error generating pre-shipment invoice for Sale ID: {SaleId}", saleId);
 				SetErrorMessage($"Error generating invoice: {ex.Message}");
 				return RedirectToAction("Details", new { id = saleId });
+			}
+		}
+
+		// POST: Sales/RepairPaymentStatuses
+		// One-time repair action that recalculates PaymentStatus for every non-quotation
+		// sale whose status was corrupted by the FindAsync/TotalAmount=0 bug.
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> RepairPaymentStatuses()
+		{
+			try
+			{
+				var paymentService = HttpContext.RequestServices.GetRequiredService<ICustomerPaymentService>();
+
+				var sales = await _context.Sales
+					.Include(s => s.SaleItems)
+					.Where(s => s.SaleStatus != SaleStatus.Quotation)
+					.ToListAsync();
+
+				int repaired = 0;
+				foreach (var sale in sales)
+				{
+					var totalPayments    = await paymentService.GetTotalPaymentsBySaleAsync(sale.Id);
+					var remainingBalance = sale.TotalAmount - totalPayments;
+
+					PaymentStatus correct;
+					if (remainingBalance <= 0.01m && sale.TotalAmount > 0)
+						correct = PaymentStatus.Paid;
+					else if (totalPayments > 0)
+						correct = PaymentStatus.PartiallyPaid;
+					else
+						correct = sale.IsOverdue ? PaymentStatus.Overdue : PaymentStatus.Pending;
+
+					if (sale.PaymentStatus != correct)
+					{
+						_logger.LogInformation("Repairing Sale {SaleNumber}: {Old} ? {New}",
+							sale.SaleNumber, sale.PaymentStatus, correct);
+						sale.PaymentStatus = correct;
+						repaired++;
+					}
+				}
+
+				if (repaired > 0)
+					await _context.SaveChangesAsync();
+
+				SetSuccessMessage($"Payment status repair complete. {repaired} sale(s) corrected.");
+				return RedirectToAction("Index");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error repairing payment statuses");
+				SetErrorMessage($"Error repairing payment statuses: {ex.Message}");
+				return RedirectToAction("Index");
 			}
 		}
 	}

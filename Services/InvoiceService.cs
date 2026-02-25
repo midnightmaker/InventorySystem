@@ -291,9 +291,17 @@ namespace InventorySystem.Services
             decimal     amountPaid,
             InvoiceType invoiceType = InvoiceType.Invoice)
         {
-            var isPreShipment = invoiceType == InvoiceType.PreShipment;
-            var isQuotation   = sale.IsQuotation;
+            var isQuotation      = sale.IsQuotation;
             var totalAdjustments = sale.RelatedAdjustments?.Sum(a => a.AdjustmentAmount) ?? 0m;
+            var isShipped        = sale.SaleStatus == SaleStatus.Shipped || sale.SaleStatus == SaleStatus.Delivered;
+
+            // Pre-shipment banner is only relevant while the sale is still awaiting
+            // payment AND has not yet shipped. Once the sale ships or is fully paid
+            // the banner no longer applies — the goods are either on their way or
+            // payment criteria have already been met.
+            var effectiveTotal = sale.TotalAmount - totalAdjustments;
+            var isFullyPaid    = amountPaid >= effectiveTotal && effectiveTotal > 0;
+            var isPreShipment  = invoiceType == InvoiceType.PreShipment && !isShipped && !isFullyPaid;
 
             // A pre-shipment invoice is a REAL invoice — never proforma.
             // Only treat as proforma if the sale hasn't shipped AND it isn't a pre-shipment invoice.
