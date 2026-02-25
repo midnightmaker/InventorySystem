@@ -477,6 +477,10 @@
                         <strong>@(Model.Sale.IsQuotation ? "Quotation" : "Sale") @Model.Sale.SaleNumber</strong>?
                     </p>
                     <p class="text-muted small">All line items associated with this record will also be removed.</p>
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle"></i>
+                        Sales with recorded payments cannot be deleted.
+                    </p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">

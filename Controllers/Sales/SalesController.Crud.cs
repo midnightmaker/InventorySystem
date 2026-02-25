@@ -34,6 +34,7 @@ namespace InventorySystem.Controllers
 				var query = _context.Sales
 					.Include(s => s.Customer)
 					.Include(s => s.SaleItems)
+					.Include(s => s.CustomerPayments)
 					.AsQueryable();
 
 				if (!string.IsNullOrWhiteSpace(search))
@@ -1180,11 +1181,17 @@ namespace InventorySystem.Controllers
 				SetSuccessMessage($"{docType} {saleNumber} has been deleted successfully.");
 				return RedirectToAction("Index");
 			}
+			catch (InvalidOperationException ex)
+			{
+				_logger.LogWarning(ex, "Blocked attempt to delete sale {SaleId} that has recorded payments", id);
+				SetErrorMessage(ex.Message);
+				return RedirectToAction("Details", new { id });
+			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error deleting sale: {SaleId}", id);
 				SetErrorMessage($"Error deleting sale: {ex.Message}");
-				return RedirectToAction("Index");
+				return RedirectToAction("Details", new { id });
 			}
 		}
 	}

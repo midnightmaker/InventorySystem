@@ -412,9 +412,10 @@
                     <a href="/Sales/Edit/@sale.Id" class="btn btn-sm btn-warning" title="Edit" onclick="event.stopPropagation();">
                       <i class="fas fa-pencil-alt"></i>
                     </a>
-                    <!-- Delete — only available for Processing sales and Quotations -->
-                    @if (sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Processing ||
-                         sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Quotation)
+                    <!-- Delete — only available for Processing sales and Quotations WITHOUT payments -->
+                    @if ((sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Processing ||
+                         sale.SaleStatus == InventorySystem.Models.Enums.SaleStatus.Quotation) &&
+                         !sale.CustomerPayments.Any())
                     {
                       <button class="btn btn-sm btn-danger" title="Delete"
                               onclick="event.stopPropagation(); deleteSale(@sale.Id, '@sale.SaleNumber', @sale.IsQuotation.ToString().ToLower())">
@@ -467,6 +468,10 @@
         </div>
         <p>Are you sure you want to permanently delete <strong id="deleteSaleNumber"></strong>?</p>
         <p class="text-muted small">All line items associated with this record will also be removed.</p>
+        <p class="text-muted small">
+          <i class="fas fa-info-circle"></i>
+          Sales with recorded payments cannot be deleted.
+        </p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -666,4 +671,4 @@
     }
 
   </script>
-}}
+}

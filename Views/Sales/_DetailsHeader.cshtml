@@ -112,7 +112,8 @@
             </button>
         }
 
-        @if (Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Quotation)
+        @if ((Model.Sale.SaleStatus == SaleStatus.Processing || Model.Sale.SaleStatus == SaleStatus.Quotation)
+             && !Model.Payments.Any())
         {
             <button type="button" class="btn btn-outline-danger"
                     onclick="confirmDeleteSale(@Model.Sale.Id, '@Model.Sale.SaleNumber', @Model.Sale.IsQuotation.ToString().ToLower())">

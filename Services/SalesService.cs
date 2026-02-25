@@ -137,14 +137,19 @@ namespace InventorySystem.Services
 		{
 			var sale = await _context.Sales
 					.Include(s => s.SaleItems)
+					.Include(s => s.CustomerPayments)
 					.FirstOrDefaultAsync(s => s.Id == id);
 
-			if (sale != null)
-			{
-				_context.SaleItems.RemoveRange(sale.SaleItems);
-				_context.Sales.Remove(sale);
-				await _context.SaveChangesAsync();
-			}
+			if (sale == null)
+				return;
+
+			if (sale.CustomerPayments.Any())
+				throw new InvalidOperationException(
+					$"Sale {sale.SaleNumber} cannot be deleted because it has {sale.CustomerPayments.Count} payment(s) recorded against it.");
+
+			_context.SaleItems.RemoveRange(sale.SaleItems);
+			_context.Sales.Remove(sale);
+			await _context.SaveChangesAsync();
 		}
 
 		public async Task<string> GenerateSaleNumberAsync()
